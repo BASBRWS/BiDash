@@ -1,7 +1,7 @@
 # Architectuurdocument — BI Dashboard Wegverkeersmanagement (WVM)
 
-**Bestand:** `bi-dashboard-wvm.html` (single-file HTML-applicatie, ~640 KB)
-**Versie:** 5.0 · Peildatum 2026-07-14
+**Bestand:** `bi-dashboard-wvm.html` (single-file HTML-applicatie, ~660 KB)
+**Versie:** 6.1 · Peildatum 2026-07-14
 **Status:** Basisarchitectuur — dit document is de referentie voor doorontwikkeling
 **Motto:** *Rule engine legt vast · Trigger engine monitoort · Dashboard toont*
 
@@ -12,7 +12,7 @@
 Het BI Dashboard brengt de sturingsinformatie van het WVM-domein samen in één instrument, gebouwd rond drie samenwerkende engines (de "driehoek") die gevoed worden door vijf datadomeinen:
 
 1. **Integrale planning** (GPO · VWM · CIV, via Primavera P6 XML)
-2. **Asset prestaties / LCM** (CMDB DVM, Productieplatform, Tunnel/TTI, Facilitair)
+2. **Asset prestaties / LCM** (CMDB DVM, Productieplatform, Tunnel/TTI, Facilitair — inclusief bedienketens volgens ISO 55001)
 3. **Bedrijfskundig model** (bedrijfsdoelen, bedrijfsfuncties, bedrijfssystemen — P×Q)
 4. **Formatie** (benodigde vs actuele FTE, capaciteitsvraag uit de planning)
 5. **Financiën** (benodigde middelen, budget, contractboete, inhuurrisico)
@@ -73,12 +73,12 @@ Het bestand bestaat uit vier lagen in één HTML-document:
 
 | Laag | Inhoud | Omvang (indicatief) |
 |------|--------|---------------------|
-| 1. Presentatie | CSS (RWS-huisstijl: #003082 blauw, #F9B000 geel, rijkslint, Segoe UI), topbar met navigatie, vijf pagina-containers | ~12 KB |
+| 1. Presentatie | CSS (RWS-huisstijl: #003082 blauw, #F9B000 geel, rijkslint, Segoe UI), topbar met navigatie, zeven pagina-containers | ~13 KB |
 | 2. Applicatiescript blok 1 | Configuratie (CFG_DEFAULTS), datamodel (DEFAULT_DB), config-import, planningsbrug, capaciteitsbrug, impact engine, trigger engine, Monte Carlo | ~30 KB |
 | 3. Applicatiescript blok 2 | Renderers per pagina, capaciteitskaart, navigatie, JSON-export/-import | ~30 KB |
 | 4. Embedded planningstool | `const IPL_EMBED = "<volledige integrale-planning-rws.html>"` — de originele tool als JSON-gecodeerde string, byte-voor-byte identiek aan het bronbestand | ~565 KB |
 
-**Pagina's (tabbladen):** Dashboard · Rule engine · Trigger engine · Integrale planning · Databronnen · Simulatie.
+**Pagina's (tabbladen):** Dashboard · Rule engine · Trigger engine · Assetmanagement · Integrale planning · Databronnen · Simulatie.
 
 ---
 
@@ -132,6 +132,23 @@ Bewerkbaar op de rule engine-pagina; standaardwaarden tussen haakjes:
 ### 4.5 Capaciteitsgrenzen per dienst
 
 `capgrens = {GPO, CIV, VWM, PPO, Regio}` (fte, bewerkbaar). De trigger engine toetst de FTE-vraag uit de planningstool hieraan (§ 6.3).
+
+### 4.6 Assetmanagement-regels (ISO 55001)
+
+De externe DVM-assets die de verkeerscentrale gebruikt (signaalgevers, camera's, DRIP's, detectie, wegkantstations, transmissie) zijn **randvoorwaardelijk** voor kwalitatief goed wegverkeersmanagement aan de burger. De rule engine legt daarom conform ISO 55001 vast:
+
+**Line of sight** — de doorlopende lijn *bedrijfsdoel → bedrijfsfunctie → bedienketen → asset*. Bedienketens (§ 6.5) maken die lijn expliciet en doorrekenbaar.
+
+**Functionele waarde (FW 1–5)** — niet elke signaalgever of camera heeft dezelfde functionele waarde: een CCTV bij een tunnelmond (FW5) is kritiek, dezelfde camera op vrij baanvak (FW2) niet. De FW-klasse bepaalt de regels die gelden.
+
+| AM-regel | Standaard | Doorwerking |
+|---|---|---|
+| `maxUitstel` per FW-klasse | FW5: 3 · FW4: 6 · FW3: 12 · FW2: 18 · FW1: 24 mnd | Uitsteltrigger per asset zodra het uitgestelde onderhoud de klassegrens overschrijdt |
+| `degrPer6Mnd` | 18 % | Extra storingskans per 6 maanden uitstel → ketenberekening én Monte Carlo |
+| `conditieDrempel` (NEN 2767) | 4 | Vanaf deze conditiescore degradeert een asset ×1,5 zo snel |
+| `spofFw` | 4 | Vanaf deze FW-klasse is redundantie (n+1) vereist; enkelvoudige uitvoering met matige conditie geeft een SPOF-trigger |
+
+Per asset beheert het register aanvullend: `type`, `fw`, `conditie` (NEN 2767, 1–6), `uitstelMnd` en `redundant`.
 
 ---
 
@@ -221,9 +238,127 @@ Elk planningssignaal gaat door `berekenImpact(trigger, params)`. **Koppelvoorwaa
 
 Afgeleide triggers dragen de bron mee en worden geadresseerd aan de verantwoordelijke van het geraakte domein — een corridorconflict landt dus tegelijk bij planningscoördinator (bron), afdelingshoofd (piekinzet + ATW), assetmanager (uitvalrisico) en controller (meerkosten).
 
+### 6.5 Assetmanagementtoetsing (ISO 55001)
+
+**Bedienketens.** Een bedienketen is de reeks assets die samen een bedienfunctie van de verkeerscentrale mogelijk maakt (bv. *Signaleren corridor A15*: detectielussen → wegkantstations → transmissie → MTM/DYNAC → UWW-werkplek). Rekenregels:
+
+- Effectieve assetbeschikbaarheid = actueel, gecorrigeerd voor storingsfactor én degradatiefactor door uitstel: `factor = 1 + (uitstelMnd/6) × degrPer6Mnd% × (×1,5 vanaf conditiedrempel)`.
+- Redundante assets (n+1) tellen kwadratisch: beide paden moeten falen.
+- **Ketenbeschikbaarheid = serieel product** van de schakelbeschikbaarheden, getoetst aan een instelbare ketennorm per bedienfunctie.
+
+**Triggers:** (a) *Bedienketen onder norm* — met de zwakste schakels (beschikbaarheid + FW) én de volledige line of sight in de melding: welke bedrijfsfuncties en uiteindelijk welke bedrijfsdoelen geraakt worden; (b) *Uitgesteld onderhoud boven ISO 55001-grens* — per asset, tegen de klassegrens van zijn functionele waarde; (c) *Single point of failure* — kritieke schakel (FW ≥ spofFw) enkelvoudig uitgevoerd met conditie ≥ drempel.
+
+**What-if doorrekening (pagina Assetmanagement).** Kies een asset, stel extra uitstel (maanden) en/of beschikbaarheidsverlies (%-punt) in; het instrument rekent door alle bedienketens heen: ketenbeschikbaarheid vóór/na, geraakte bedrijfsfuncties, geraakte **bedrijfsdoelen**, en een indicatief risicobedrag (uren onder ketennorm × boetetarief uit config.html). Hiermee zijn de gevolgen van uitgesteld onderhoud of lagere beschikbaarheid door de afhankelijkheden heen zichtbaar tot op doelniveau.
+
 ---
 
-## 7. Monte Carlo — prognose op de uitgangspunten
+## 7. Vroegtijdig signaleren — de tijdas van de driehoek
+
+Het doel van het instrument is **vroegtijdig signaleren**. De hoofdstukken 4–6 beschrijven een toestandsgerichte toetsing: de trigger engine meldt wat *nu* buiten de regels valt. Vroegtijdigheid vereist een tweede as — de tijd — met vijf vragen per signaal: *wanneer* wordt het manifest (lead time), *welke kant beweegt het op* (trend), *hoe vers is de onderliggende data* (actualiteit), *hoe waarschijnlijk is het* (prognose), en *wat gebeurt er daarna* (opvolging). Dit hoofdstuk legt die tijdas vast als bindend onderdeel van de architectuur. Per paragraaf is de implementatiestatus gemarkeerd: **[v6]** = aanwezig in de huidige tool, **[haakje]** = architectuurafspraak voor de eerstvolgende iteratie.
+
+### 7.1 Lead time: elke trigger krijgt een T-min
+
+Elke trigger krijgt naast severity een **lead-time-klasse**, afgeleid van het moment waarop het risico manifest wordt:
+
+| Klasse | Manifestatie | Sturingskarakter |
+|---|---|---|
+| **T1 — acuut** | < 6 maanden | Operationeel: mitigeren, niet meer voorkomen |
+| **T2 — nabij** | 6–12 maanden | Tactisch: bijsturen kan nog (herplannen, inhuur, onderhoud naar voren) |
+| **T3 — horizon** | > 12 maanden | Strategisch: structurele maatregel mogelijk (formatie, contract, vervanging) |
+
+Rekenregels per triggertype:
+
+- **Planningssignalen [v6, klasse toe te kennen — haakje]:** de manifestatiedatum is al bekend (start conflictvenster, piekkwartaal, mijlpaal); lead time = manifestatiedatum − peildatum. De bestaande maar ongebruikte configparameter `kpi.planningshorizon_maanden` wordt de grens waarbinnen een planningssignaal ook een **operationele** melding wordt.
+- **Ketendegradatie [haakje]:** kruisdatum-extrapolatie. Bij het huidige degradatietempo (`degrPer6Mnd`, conditieafhankelijk) is de datum berekenbaar waarop de ketenbeschikbaarheid de norm kruist: `T_kruis = t_nu + 6 × (besch_keten − norm) / (Δbesch per 6 mnd)`. De trigger meldt dan niet "onder norm" maar "**zakt naar verwachting in maand X onder de norm**" — het archetype van een vroegsignaal.
+- **Formatie [haakje]:** kruisdatum uit de bezettingstrend (§ 7.2) plus bekende uitstroom (pensioendata, aflopende contracten zodra die als databron beschikbaar zijn).
+- **Financiën [haakje]:** uitputtingstempo: verwacht overschrijdingsmoment = budget / (gerealiseerd + verplicht per maand).
+
+Weergave: lead-time-badge op elke trigger; het dashboard groepeert per verantwoordelijke **binnen** lead-time-klasse, zodat T3-signalen niet ondersneeuwen onder acuut rood.
+
+### 7.2 Trend en historie: signaleren op de afgeleide
+
+Een dalende lijn is een eerder signaal dan een gekruiste norm. De architectuur legt daarom een **snapshotmodel** vast:
+
+- **Wat:** per peildatum de kerngrootheden — bezetting% per bedrijfsfunctie, ketenbeschikbaarheid per bedienketen, conditiescore en uitstel per asset, budgetuitputting, triggeraantallen per severity, MC-kansen (P_fte, P_budget, P_asset).
+- **Wanneer:** bij elke wijziging van de peildatum plus een handmatige "snapshot nu"-actie; frequentie-eis: minimaal maandelijks.
+- **Waar:** `DB.historie[]` (localStorage; ± 5 jaar maandsnapshots blijft ruim binnen de opslaglimiet), exporteerbaar in de bestaande JSON-envelop.
+- **Detectieregels (trend-triggers):** (a) drie opeenvolgende dalingen van een kerngrootheid → aandachtstrigger, óók als de norm nog niet geraakt is; (b) hellingsdrempel: daling > x %-punt per kwartaal → severity één klasse hoger; (c) kruisdatum-extrapolatie voedt § 7.1.
+- **Weergave:** sparkline per domeintegel en per keten; trendpijl (↗→↘) naast elke kerngrootheid.
+
+Status: **[haakje]** — het datamodel (§ 10) reserveert `historie[]`; detectieregels zoals hierboven zijn normatief voor de implementatie.
+
+### 7.3 Data-actualiteit: verouderde data is zélf een vroegsignaal
+
+Vroegtijdig signaleren op oude data is schijnzekerheid. Daarom:
+
+| Datadomein | Peildatumregistratie | Maximale ouderdom (norm) |
+|---|---|---|
+| Integrale planning | bestandsnaam + laaddatum **[v6]** | 1 maand |
+| Assets / CMDB | per-bron peildatum **[haakje]** | 1 maand |
+| Formatie | peildatum **[haakje]** | 1 maand |
+| Financiën | peildatum **[haakje]** | 1 kwartaal |
+| Configuratie (regels) | bronlabel **[v6]** + exportdatum **[haakje]** | 6 maanden |
+
+**Staleness-trigger [haakje]:** overschrijdt een bron zijn maximale ouderdom, dan vuurt een aandachtstrigger *op het domein zelf*, geadresseerd aan de broneigenaar ("CMDB-stand is 4 maanden oud; ketenberekeningen zijn indicatief"). Alle triggers die op de verouderde bron rusten krijgen een onzekerheidsmarkering in plaats van een harde severity.
+
+### 7.4 Prognosedrempels: de Monte Carlo als triggerbron
+
+De MC is in v6 een weergave; als vroegsignaalbron krijgt hij drempels **[haakje]**:
+
+| Prognose | Aandacht | Kritiek | Geadresseerde |
+|---|---|---|---|
+| P(FTE-tekort) | > 40 % | > 70 % | Afdelingshoofd VWM |
+| P(budgetoverschrijding, incl. boete + planningsimpact) | > 40 % | > 60 % | Businesscontroller WVM |
+| P(asset extra onder norm) | > 25 % | > 50 % | Assetmanager CIV/PPO |
+| P90 contractboete | > 2 % budget | > 5 % budget | Businesscontroller WVM |
+
+Deze triggers melden een *verwachting*, expliciet gelabeld ("prognose, n runs, parameters …"), vóórdat de toestandstoetsing iets ziet. **Anti-flapper-regels:** hysterese (aan bij drempel, uit bij drempel − 10 %-punt) en een minimum van 10.000 runs voor triggering, zodat samplingruis geen alarmen genereert.
+
+### 7.5 Opvolging en escalatie: een signaal zonder afspraak is een lamp
+
+Vroegsignalering werkt alleen met een gesloten lus. De architectuur legt vast **[haakje]**:
+
+- **Statusmodel per trigger:** `nieuw → gezien → in mitigatie → opgelost / geaccepteerd (met motivatie en houdbaarheidsdatum)`. Statusregistratie in `DB.triggerStatus[]`, gekoppeld op een stabiele triggersleutel (type + object), zodat status een hertoetsing overleeft.
+- **Reactietermijnen:** kritiek = kennisname ≤ 1 week, mitigatieplan ≤ 1 maand; aandacht = kennisname ≤ 1 maand. Termijnen zijn regels in de rule engine.
+- **Tijdgestuurde escalatie:** een aandachtstrigger die langer dan zijn termijn op `nieuw` staat, escaleert automatisch één severity én één managementlaag (de bestaande `escalatie.*`-parameters krijgen hiermee een tweede, tijdgebonden betekenis). Een *geaccepteerd* risico waarvan de houdbaarheidsdatum verstrijkt, keert terug als `nieuw`.
+- **Pushkanaal:** periodiek (wekelijks) overzicht per verantwoordelijke — nieuwe signalen, verlopen termijnen, trendwijzigingen — als exporteerbaar rapport; technisch haakje: hetzelfde patroon als de bestaande Apps Script-monitors (HTML-mail per rol).
+
+### 7.6 LCM en restlevensduur: het vroegste signaal van allemaal
+
+Het assetregister wordt uitgebreid met **[haakje]**: `bouwjaar`, `verwachteLevensduur` (per type), en daaruit `vervangingsjaar`. Regels:
+
+- **Vervangingshorizon-trigger:** vervangingsjaar − doorlooptijd vervangingsproject (per type, bv. TTI 4 jaar, camera-areaal 1 jaar) < peiljaar → trigger, jaren van tevoren.
+- **Koppeling met de planning:** de trigger engine zoekt in het geladen P6-model naar een vervangings-/renovatieactiviteit voor het asset (tokenmatch); ontbreekt die → **"vervanging niet geborgd in de integrale planning"** — de meest waardevolle kruising van de datadomeinen die het instrument kan maken.
+- **Degradatiecurves per assettype** vervangen op termijn de ene generieke `degrPer6Mnd` (elektronica degradeert anders dan civiel), met de huidige parameter als fallback.
+
+### 7.7 Drempelbeheer: vroeg signaleren zonder alarmmoeheid
+
+Vroegsignalering faalt op twee manieren: te laat (drempels te ruim) of genegeerd (te veel rood). Daarom **[haakje]**:
+
+- **Eigenaarschap:** elke drempel (severity-grenzen, MC-drempels, lead-time-grenzen, AM-klassegrenzen) heeft een eigenaar — dezelfde verantwoordelijke die de bijbehorende triggers ontvangt.
+- **Kalibratiecyclus:** halfjaarlijkse evaluatie op twee maatstaven: gemiste signalen (incident zonder voorafgaande trigger) en loze signalen (trigger zonder opvolgingsnoodzaak). Beide worden bijgehouden via het statusmodel (§ 7.5: `geaccepteerd` zonder gevolg telt als loos).
+- **Signaalbudget:** richtwaarde maximaal ~10 openstaande kritieke triggers per verantwoordelijke; structureel erboven is een kalibratie- of capaciteitssignaal richting het management, geen reden om drempels stilzwijgend te verruimen.
+
+### 7.8 Meetbare bedrijfsdoelen: het einde van de line of sight
+
+De line of sight eindigt in v6 bij een doel als tekst. Om afglijden op doelniveau vroegtijdig te zien, krijgt elk bedrijfsdoel een indicator **[haakje]**: `doelen: [{id, naam, indicator, norm, actueel, bron, peildatum}]` — bv. *Vlot en veilig verkeer*: voertuigverliesuren-index; *Beschikbaarheid netwerk*: gerealiseerde beschikbaarheid hoofdwegennet; *Informatievoorziening*: actualiteit/juistheid reisinformatie. De what-if-doorrekening (§ 6.5) en de impact engine rapporteren dan niet alleen *welk* doel geraakt wordt, maar *hoeveel* de indicator naar verwachting beweegt — en de doelen zelf worden trendmatig bewaakt (§ 7.2).
+
+### 7.9 Samenvatting en prioritering
+
+| § | Onderdeel | Status | Prioriteit |
+|---|---|---|---|
+| 7.1 | Lead-time-klassen + kruisdatums | haakje | **1** — maakt bestaande triggers vroegtijdig |
+| 7.2 | Historie + trend-triggers | haakje | **2** — signaleren op de afgeleide |
+| 7.4 | MC-prognosedrempels | haakje | **3** — kleine ingreep, groot effect |
+| 7.3 | Data-actualiteit + staleness | haakje | 4 |
+| 7.5 | Statusmodel + escalatie + push | haakje | 5 |
+| 7.6 | LCM/restlevensduur + planningsborging | haakje | 6 |
+| 7.8 | Doel-indicatoren | haakje | 7 |
+| 7.7 | Drempelbeheer (proces) | doorlopend | — |
+
+---
+
+## 8. Monte Carlo — prognose op de uitgangspunten
 
 `runMC(n, params)` met n = 2.000 (dashboard-widget) tot 50.000 runs (simulatiepagina). Per run wordt één jaar gesimuleerd:
 
@@ -231,7 +366,7 @@ Afgeleide triggers dragen de bron mee en worden geadresseerd aan de verantwoorde
 |---|---|
 | Verzuim | Normaal(μ = verzuimparameter, σ = 1,6), afgekapt op ≥ 0 |
 | Onderhoudskosten | Normaal(P×Q × kostenindex, σ = 4 %) |
-| Storingen per asset | Poisson(storingen/jr × storingsfactor × werkzaamhedenopslag uit de impact engine) |
+| Storingen per asset | Poisson(storingen/jr × storingsfactor × werkzaamhedenopslag × degradatiefactor uitgesteld onderhoud) |
 | Hersteltijd per storing | `assets.hw_mttr` of `assets.sw_mttr` × U(0,6–1,4) |
 | Planningsimpact | Extra fte-vraag en meerkosten uit conflicten en capaciteitsoverschrijdingen × U(0,7–1,3) |
 
@@ -239,13 +374,13 @@ Uitkomsten: kans op FTE-tekort, kans op budgetoverschrijding (kosten + boete + p
 
 ---
 
-## 8. Simulatie — "alle parameters inzichtelijk" (principe P4)
+## 9. Simulatie — "alle parameters inzichtelijk" (principe P4)
 
 Vijf sliders (verzuim %, formatie Δ%, kostenindex, budget Δ%, storingsfactor) vormen samen `SIM`; zolang die actief is toont de topbar de badge *Simulatiemodus actief* en rekent de héle driehoek (triggers, tegels, impact, MC) met de simulatiewaarden. Tabel *basis vs simulatie* toont de verschuiving in kritiek/aandacht-aantallen. Knoppen: *Config-scenario overnemen* (sim.\*-factoren uit config.html) en *Terug naar basis*.
 
 ---
 
-## 9. Datamodel en persistentie
+## 10. Datamodel en persistentie
 
 ```
 DB = {
@@ -256,7 +391,15 @@ DB = {
   richtlijnen: [ {id, naam, oms} ],
   functies: [ {id, naam, doel, systemen[], benodigdFte, actueelFte,
                assets[], onderhoudEur, richtlijnen[]} ],
-  assets:   [ {id, naam, cmdb, besch, storingenJr, locatie, weging} ],
+  assets:   [ {id, naam, cmdb, type, besch, storingenJr, locatie, weging,
+               fw, conditie, uitstelMnd, redundant} ],
+  ketens:   [ {id, naam, bedienfunctie, norm, functieIds[], schakels[]} ],
+  amRegels: { maxUitstel{FW1..FW5}, degrPer6Mnd, conditieDrempel, spofFw },
+  // gereserveerd voor de tijdas (hoofdstuk 7):
+  historie:      [ {peildatum, kerngrootheden…} ],        // § 7.2
+  bronPeildata:  { assets, formatie, financien, config },  // § 7.3
+  triggerStatus: [ {sleutel, status, sinds, motivatie} ],  // § 7.5
+  doelen:        [ {id, naam, indicator, norm, actueel} ], // § 7.8
   financien:{ budgetJr },
   impact:   { fteOpslagConflict, storingsOpslag, fteKostenJr,
               piekOpslagPct, shiftKostenPctMnd },
@@ -271,24 +414,26 @@ DB = {
 
 ---
 
-## 10. Pagina-overzicht (functionele dekking)
+## 11. Pagina-overzicht (functionele dekking)
 
 | Pagina | Inhoud |
 |---|---|
 | **Dashboard** | Vijf domeintegels met RAG-status, kernwaarde en databron-chips; de interactieve driehoek (klikbaar, kleurt mee, met MC-kanspercentages); risico's gegroepeerd per verantwoordelijke |
 | **Rule engine** | Config.html-koppeling (import/browseropslag/reset) met per parameter de doorwerking; impactregels; capaciteitsgrenzen; P×Q-tabel per bedrijfsfunctie; asset-normen (afgeleid, met bronvermelding) en wegingen; richtlijnen met ATW-parameters |
 | **Trigger engine** | KPI-strook (kritiek/aandacht/getoetst/binnen norm) en de volledige triggerlijst met toelichting, waarde, verantwoordelijke, impact-chips en afgeleid-badges |
+| **Assetmanagement** | Bedienketens met schakelschema (beschikbaarheid, FW, conditie, n+1, uitstel per schakel) en line of sight naar functies en doelen; what-if doorrekening; NDW-import van areaalgegevens (MSI/DRIP per wegnummer); AM-register met bewerkbare FW/conditie/uitstel/redundantie |
 | **Integrale planning** | De originele planningstool (iframe) + brugstatus + capaciteitskaart |
 | **Databronnen** | Actuele data bewerkbaar: assets (beschikbaarheid, storingen), formatie (actueel), financiën (budget, kostenindex); planningsverwijzing |
 | **Simulatie** | Sliders, basis-vs-simulatievergelijking, Monte Carlo met kansen, P-waarden en histogram |
 
 ---
 
-## 11. Koppelvlakken (samengevat)
+## 12. Koppelvlakken (samengevat)
 
 | Koppelvlak | Richting | Formaat / mechanisme |
 |---|---|---|
 | config.html → rule engine | in | `vwl_scenario_config.json` (vwl-scenario-envelop) of localStorage `vwl-scenarios` |
+| NDW open data → assetregister | in | MSI-snapshot (TMIS VMS-XML) en DRIP-publicatie (DATEX II v3-XML), ook gezipt; import op de pagina Assetmanagement, aggregatie per wegnummer (= corridor-token), beheervelden blijven bij herimport behouden |
 | Primavera P6 → planningstool | in | P6 XML (Project/WBS/Activity/Relationship/ActivityCodes), via de eigen import van de tool |
 | Planningstool → trigger engine | in (read-only) | `iframe.contentWindow`: IPL_MODEL, ipl_eff, IPL_WBS_DIENST, IPL_SHIFT, IPL_CONFIG.fte (via tool-functies) |
 | Dashboard ↔ omgeving | in/uit | Volledige DB als JSON (export/import) |
@@ -296,25 +441,26 @@ DB = {
 
 ---
 
-## 12. Beveiliging, beperkingen en beheer
+## 13. Beveiliging, beperkingen en beheer
 
 - **Lokaal:** alle verwerking gebeurt in de browser; er verlaat niets het apparaat.
 - **Origin-afhankelijkheid:** browseropslag (dashboard-DB, tool-autosave, config.html-scenario's) is per origin. Bij verplaatsing van het bestand reist opgeslagen staat niet mee — gebruik daarvoor de JSON-exports.
 - **Opslaglimiet:** localStorage ± 5 MB; de DB is klein, de tool-autosave kan bij zeer grote planningen tegen de grens lopen (de tool meldt dit zelf).
-- **Corridorherkenning** is naamgebaseerd (wegnummers/tunnelnamen in activiteitnamen); een Primavera ActivityCode voor locatie zou dit robuuster maken (zie § 13).
+- **Corridorherkenning** is naamgebaseerd (wegnummers/tunnelnamen in activiteitnamen); een Primavera ActivityCode voor locatie zou dit robuuster maken (zie hoofdstuk 14).
 - **Updatepad planningstool:** nieuwe versie = het IPL_EMBED-blok vervangen door de nieuwe file (JSON-gecodeerd, `</script` → `<\/script`); de brug blijft werken zolang `IPL_MODEL`, `ipl_eff`, `IPL_WBS_DIENST` en `ipl_dashTaakFteRollen` bestaan.
 - **Geverifieerd gedrag (testdekking tijdens de bouw):** embed-integriteit (byte-vergelijking), triggerlogica per meldingstype, impactketen conflict→4 domeinen, capaciteitsaggregatie en -grenzen, config-import met normverschuiving, MC-scenario's (basis/stress/herstel), alle renderers.
 
 ---
 
-## 13. Doorontwikkelrichtingen (haakjes in de architectuur)
+## 14. Doorontwikkelrichtingen
 
-1. **Locatie via ActivityCodes** — corridor-/VC-koppeling op Primavera-codes i.p.v. naamherkenning (de tool leest die codes al).
-2. **CMDB-koppeling** — assetbeschikbaarheid periodiek inlezen via JSON/CSV-import per CMDB in plaats van handmatige actualisatie.
-3. **Formatie per dienst** — capaciteitsgrenzen voeden vanuit een formatiebron i.p.v. handmatige grenzen.
-4. **Triggerhistorie** — tijdreeks van triggers bijhouden voor trendweergave op het dashboard.
-5. **Rapportage-export** — triggerset + impact als PDF/Word-managementrapportage in RWS-huisstijl.
-6. **Meerdere scenario's naast elkaar** — opgeslagen SIM-sets vergelijken (kolommenvergelijking i.p.v. basis-vs-één-simulatie).
+De **primaire roadmap is hoofdstuk 7** (vroegtijdig signaleren), in de prioriteitsvolgorde van § 7.9. Daarnaast blijven de volgende richtingen staan:
+
+1. **Locatie via ActivityCodes** — corridor-/VC-koppeling op Primavera-codes i.p.v. naamherkenning (versterkt ook § 7.6, planningsborging van vervangingen).
+2. **CMDB-koppeling** — periodieke import van areaalgegevens per bron; voorwaarde voor de actualiteitsnormen van § 7.3. Eerste stap gerealiseerd: NDW-XML-import voor MSI en DRIP's (pagina Assetmanagement, geaggregeerd per wegnummer); volgende stap is beschikbaarheids-/storingsdata per CMDB.
+3. **Formatie per dienst** — capaciteitsgrenzen voeden vanuit een formatiebron; voedt tevens de kruisdatums van § 7.1.
+4. **Rapportage-export** — triggerset + impact als managementrapportage in RWS-huisstijl; wordt het pushkanaal van § 7.5.
+5. **Meerdere scenario's naast elkaar** — opgeslagen SIM-sets vergelijken.
 
 ---
 
