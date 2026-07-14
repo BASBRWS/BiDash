@@ -421,7 +421,7 @@ DB = {
 | **Dashboard** | Vijf domeintegels met RAG-status, kernwaarde en databron-chips; de interactieve driehoek (klikbaar, kleurt mee, met MC-kanspercentages); risico's gegroepeerd per verantwoordelijke |
 | **Rule engine** | Config.html-koppeling (import/browseropslag/reset) met per parameter de doorwerking; impactregels; capaciteitsgrenzen; P×Q-tabel per bedrijfsfunctie; asset-normen (afgeleid, met bronvermelding) en wegingen; richtlijnen met ATW-parameters |
 | **Trigger engine** | KPI-strook (kritiek/aandacht/getoetst/binnen norm) en de volledige triggerlijst met toelichting, waarde, verantwoordelijke, impact-chips en afgeleid-badges |
-| **Assetmanagement** | Bedienketens met schakelschema (beschikbaarheid, FW, conditie, n+1, uitstel per schakel) en line of sight naar functies en doelen; what-if doorrekening; AM-register met bewerkbare FW/conditie/uitstel/redundantie |
+| **Assetmanagement** | Bedienketens met schakelschema (beschikbaarheid, FW, conditie, n+1, uitstel per schakel) en line of sight naar functies en doelen; what-if doorrekening; NDW-import van areaalgegevens (MSI/DRIP per wegnummer); AM-register met bewerkbare FW/conditie/uitstel/redundantie |
 | **Integrale planning** | De originele planningstool (iframe) + brugstatus + capaciteitskaart |
 | **Databronnen** | Actuele data bewerkbaar: assets (beschikbaarheid, storingen), formatie (actueel), financiën (budget, kostenindex); planningsverwijzing |
 | **Simulatie** | Sliders, basis-vs-simulatievergelijking, Monte Carlo met kansen, P-waarden en histogram |
@@ -433,6 +433,7 @@ DB = {
 | Koppelvlak | Richting | Formaat / mechanisme |
 |---|---|---|
 | config.html → rule engine | in | `vwl_scenario_config.json` (vwl-scenario-envelop) of localStorage `vwl-scenarios` |
+| NDW open data → assetregister | in | MSI-snapshot (TMIS VMS-XML) en DRIP-publicatie (DATEX II v3-XML), ook gezipt; import op de pagina Assetmanagement, aggregatie per wegnummer (= corridor-token), beheervelden blijven bij herimport behouden |
 | Primavera P6 → planningstool | in | P6 XML (Project/WBS/Activity/Relationship/ActivityCodes), via de eigen import van de tool |
 | Planningstool → trigger engine | in (read-only) | `iframe.contentWindow`: IPL_MODEL, ipl_eff, IPL_WBS_DIENST, IPL_SHIFT, IPL_CONFIG.fte (via tool-functies) |
 | Dashboard ↔ omgeving | in/uit | Volledige DB als JSON (export/import) |
@@ -456,7 +457,7 @@ DB = {
 De **primaire roadmap is hoofdstuk 7** (vroegtijdig signaleren), in de prioriteitsvolgorde van § 7.9. Daarnaast blijven de volgende richtingen staan:
 
 1. **Locatie via ActivityCodes** — corridor-/VC-koppeling op Primavera-codes i.p.v. naamherkenning (versterkt ook § 7.6, planningsborging van vervangingen).
-2. **CMDB-koppeling** — periodieke JSON/CSV-import per CMDB; voorwaarde voor de actualiteitsnormen van § 7.3.
+2. **CMDB-koppeling** — periodieke import van areaalgegevens per bron; voorwaarde voor de actualiteitsnormen van § 7.3. Eerste stap gerealiseerd: NDW-XML-import voor MSI en DRIP's (pagina Assetmanagement, geaggregeerd per wegnummer); volgende stap is beschikbaarheids-/storingsdata per CMDB.
 3. **Formatie per dienst** — capaciteitsgrenzen voeden vanuit een formatiebron; voedt tevens de kruisdatums van § 7.1.
 4. **Rapportage-export** — triggerset + impact als managementrapportage in RWS-huisstijl; wordt het pushkanaal van § 7.5.
 5. **Meerdere scenario's naast elkaar** — opgeslagen SIM-sets vergelijken.

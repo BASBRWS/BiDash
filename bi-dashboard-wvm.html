@@ -224,6 +224,7 @@ canvas.chart{width:100%;background:var(--wit)}
 <div class="page" id="page-sim"></div>
 </main>
 <input type="file" id="cfgfile" accept=".json" style="display:none" onchange="cfgHandleFile(event)">
+<input type="file" id="ndwfile" accept=".xml,.gz" multiple style="display:none" onchange="ndwHandleFiles(event)">
 <script>
 /* ═══════════════════════════════════════════════════════════
    CONFIGURATIE — dezelfde regels als config.html (VWL Configuratie)
@@ -358,6 +359,92 @@ function ketenBesch(k,p,w){
 function lineOfSight(k){
   const functies=(k.functieIds||[]).map(id=>DB.functies.find(f=>f.id===id)).filter(Boolean);
   return {functies,doelen:[...new Set(functies.map(f=>f.doel))]};
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CMDB-KOPPELING NDW — import van areaalgegevens (hoofdstuk 14.2)
+   Twee NDW open data-formaten, XML of gezipte XML (native
+   DecompressionStream, geen externe dependency):
+   · MSI  — TMIS VMS-snapshot (variable_message_sign_events):
+            unieke signaalgevers per wegnummer
+   · DRIP — DATEX II v3 VmsTablePublication: panelen per wegnummer
+            uit de paneelnaam; zonder wegnummer → “stedelijk/regionaal”
+   Per weg ontstaat één asset in het register; de weg (locatie) is
+   tevens het corridor-token voor de impact engine. Beheervelden
+   (FW, conditie, uitstel, n+1, beschikbaarheid, weging) blijven
+   bij herimport behouden.
+   ═══════════════════════════════════════════════════════════ */
+async function ndwLeesBestand(file){
+  const buf=await file.arrayBuffer(),b=new Uint8Array(buf);
+  if(b[0]===0x1f&&b[1]===0x8b){ // gzip-magic → native decompressie
+    return await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+  }
+  return new TextDecoder('utf-8').decode(buf);
+}
+function ndwParseMsi(xml){
+  const sign={};let laatst='';
+  const re=/<event>([\s\S]*?)<\/event>/g;let m;
+  while((m=re.exec(xml))){
+    const u=/<uuid>([^<]+)<\/uuid>/.exec(m[1]);
+    const r=/<road>([^<]+)<\/road>/.exec(m[1]);
+    const t=/<ts_state>([^<]+)<\/ts_state>/.exec(m[1]);
+    if(t&&t[1]>laatst)laatst=t[1];
+    if(u&&r)sign[u[1]]=r[1].trim().toUpperCase();
+  }
+  const perWeg={};Object.values(sign).forEach(w=>perWeg[w]=(perWeg[w]||0)+1);
+  return {signs:Object.keys(sign).length,perWeg,peilmoment:laatst.slice(0,10)};
+}
+function ndwParseDrip(xml){
+  const namen=[...xml.matchAll(/<com:value lang="nl">([^<]*)<\/com:value>/g)].map(x=>x[1]);
+  const pub=/<com:publicationTime>([^<]+)</.exec(xml);
+  const perWeg={};let overig=0;
+  namen.forEach(n=>{const t=/\b([ANan]\d{1,3})\b/.exec(n);
+    if(t)perWeg[t[1].toUpperCase()]=(perWeg[t[1].toUpperCase()]||0)+1;else overig++});
+  return {totaal:namen.length,perWeg,overig,peilmoment:pub?pub[1].slice(0,10):''};
+}
+function ndwUpsertAsset(id,def){
+  const a=DB.assets.find(x=>x.id===id);
+  if(a){a.naam=def.naam;a.locatie=def.locatie;a.cmdb=def.cmdb;a.type=def.type;return 0}
+  DB.assets.push({id,...def});return 1;
+}
+async function ndwHandleFiles(ev){
+  const files=[...ev.target.files];ev.target.value='';
+  if(!files.length)return;
+  let msi=null,drip=null;const onbekend=[];
+  for(const f of files){
+    try{
+      const xml=await ndwLeesBestand(f);
+      if(xml.includes('variable_message_sign_events'))msi={...ndwParseMsi(xml),bestand:f.name};
+      else if(xml.includes('VmsTablePublication')||xml.includes('vmsController'))drip={...ndwParseDrip(xml),bestand:f.name};
+      else onbekend.push(f.name);
+    }catch(e){alert('Kon '+f.name+' niet lezen: '+e.message)}
+  }
+  const vandaag=new Date().toISOString().slice(0,10);
+  DB.ndwImport=DB.ndwImport||{};
+  if(msi){
+    const norm=+cfg('kpi.asset_beschikbaarheid.msi',99.5);let nieuw=0;
+    Object.entries(msi.perWeg).forEach(([weg,n])=>{
+      nieuw+=ndwUpsertAsset('ndw_msi_'+weg.toLowerCase(),{naam:'MSI '+weg+' · '+n+' signaalgevers (NDW)',cmdb:'DVM',type:'signalering',locatie:weg,besch:norm,storingenJr:0,weging:1,fw:4,conditie:2,uitstelMnd:0,redundant:false});
+    });
+    DB.ndwImport.msi={bestand:msi.bestand,datum:vandaag,peilmoment:msi.peilmoment,signs:msi.signs,wegen:Object.keys(msi.perWeg).length,nieuw};
+  }
+  if(drip){
+    const norm=+cfg('kpi.asset_beschikbaarheid.drip',98);let nieuw=0;
+    Object.entries(drip.perWeg).forEach(([weg,n])=>{
+      nieuw+=ndwUpsertAsset('ndw_drip_'+weg.toLowerCase(),{naam:'DRIP '+weg+' · '+n+' panelen (NDW)',cmdb:'Facilitair',type:'drip',locatie:weg,besch:norm,storingenJr:0,weging:1,fw:2,conditie:2,uitstelMnd:0,redundant:false});
+    });
+    if(drip.overig>0)nieuw+=ndwUpsertAsset('ndw_drip_overig',{naam:'DRIP’s stedelijk/regionaal · '+drip.overig+' panelen (NDW)',cmdb:'Facilitair',type:'drip',locatie:'stedelijk/regionaal',besch:norm,storingenJr:0,weging:1,fw:2,conditie:2,uitstelMnd:0,redundant:false});
+    DB.ndwImport.drip={bestand:drip.bestand,datum:vandaag,peilmoment:drip.peilmoment,totaal:drip.totaal,wegen:Object.keys(drip.perWeg).length,overig:drip.overig,nieuw};
+  }
+  if(onbekend.length)alert('Niet herkend als NDW MSI- of DRIP-bestand: '+onbekend.join(', '));
+  if(msi||drip)saveDB();
+}
+function ndwVerwijder(){
+  if(!confirm('Alle via NDW geïmporteerde assets (MSI/DRIP per weg) uit het register verwijderen?'))return;
+  DB.assets=DB.assets.filter(a=>!String(a.id).startsWith('ndw_'));
+  (DB.ketens||[]).forEach(k=>{k.schakels=(k.schakels||[]).filter(id=>!String(id).startsWith('ndw_'))});
+  delete DB.ndwImport;
+  saveDB();
 }
 
 /* ── config.html scenario importeren ── */
@@ -1091,6 +1178,16 @@ function renderAM(){
         <button class="btn" onclick="amResetWhatIf()">↺ Reset</button>
       </div>
       ${wiResult}</div>
+    <div class="card"><h3>CMDB-koppeling NDW <span class="hint">areaalgegevens uit NDW open data: matrixsignaalinformatie (MSI) en dynamische route-informatiepanelen (DRIP) · XML of gezipte XML</span></h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+        <button class="btn primary" onclick="document.getElementById('ndwfile').click()">⭱ Importeer NDW-bestand(en) — MSI · DRIP</button>
+        ${DB.assets.some(a=>String(a.id).startsWith('ndw_'))?'<button class="btn danger" onclick="ndwVerwijder()">Verwijder NDW-assets uit het register</button>':''}
+      </div>
+      ${(()=>{const n=DB.ndwImport||{};const rgl=[];
+        if(n.msi)rgl.push(`<div style="font-size:12px;margin-bottom:4px"><span class="tag b">MSI</span> ${esc(n.msi.bestand)} · <b>${n.msi.signs.toLocaleString('nl-NL')}</b> signaalgevers op <b>${n.msi.wegen}</b> wegen (${n.msi.nieuw} nieuw)${n.msi.peilmoment?' · peilmoment '+n.msi.peilmoment:''} · geïmporteerd ${n.msi.datum}</div>`);
+        if(n.drip)rgl.push(`<div style="font-size:12px;margin-bottom:4px"><span class="tag b">DRIP</span> ${esc(n.drip.bestand)} · <b>${n.drip.totaal.toLocaleString('nl-NL')}</b> panelen op <b>${n.drip.wegen}</b> wegen + ${n.drip.overig} stedelijk/regionaal (${n.drip.nieuw} nieuw)${n.drip.peilmoment?' · peilmoment '+n.drip.peilmoment:''} · geïmporteerd ${n.drip.datum}</div>`);
+        return rgl.length?rgl.join(''):'<div class="empty" style="padding:10px">Nog geen NDW-import. Download bij NDW open data de snapshots “Matrixsignaalinformatie” en “Dynamische route-informatiepanelen” en importeer ze hier.</div>'})()}
+      <div class="footnote">Per wegnummer ontstaat één asset in het register (MSI → CMDB DVM, DRIP → CMDB Facilitair; norm uit config.html). De weg (locatie) is tevens het corridor-token voor de impact engine, zodat planningsconflicten op bijv. de A15 automatisch aan het MSI-/DRIP-areaal daar gekoppeld worden. Bij herimport worden naam en aantallen ververst; beheervelden (FW, conditie, uitstel, n+1, beschikbaarheid, weging) blijven behouden.</div></div>
     <div class="card"><h3>AM-register <span class="hint">functionele waarde, conditie (NEN 2767), uitgesteld onderhoud en redundantie per asset · wijzigingen werken direct door in ketens, triggers en Monte Carlo</span></h3>
       <table><thead><tr><th>Asset</th><th>Type</th><th>FW</th><th>Conditie</th><th class="num">Uitstel mnd</th><th class="num">Grens FW</th><th style="text-align:center">n+1</th><th class="num">Degradatie</th><th>Status</th></tr></thead><tbody>${regRows}</tbody></table>
       <div class="footnote">Degradatie = factor op de storingskans: 1 + (uitstel/6) × ${amRegel('degrPer6Mnd',18)}%${' '}× 1,5 vanaf conditiescore ${amRegel('conditieDrempel',4)} (NEN 2767). Beschikbaarheid en storingen/jr blijven bewerkbaar op de pagina Databronnen.</div></div>`;
