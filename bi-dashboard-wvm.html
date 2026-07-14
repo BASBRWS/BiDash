@@ -178,6 +178,18 @@ canvas.chart{width:100%;background:var(--wit)}
 .imp-asset{background:var(--oranje-l);color:var(--oranje);border-color:#f5cfa8}
 .imp-richtlijn{background:var(--rood-l);color:var(--rood);border-color:#f0b8bd}
 .imp-planning{background:#eef0f3;color:var(--grijs-donker);border-color:var(--grijs-mid)}
+
+/* ═══════════════ ASSETMANAGEMENT (ISO 55001) ═══════════════ */
+.keten-schema{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap;margin:8px 0}
+.schakel{border:1px solid var(--border);border-top:3px solid var(--rws-blauw-mid);border-radius:var(--radius);background:var(--panel);padding:6px 10px;min-width:132px}
+.schakel.zwak{border-top-color:var(--rood);background:var(--rood-l)}
+.schakel .s-naam{font-weight:700;font-size:11.5px}
+.schakel .s-meta{font-size:10px;color:var(--sub);font-family:var(--mono)}
+.keten-pijl{align-self:center;color:var(--grijs-donker);font-weight:700;font-size:14px}
+.los-lijn{font-size:11.5px;color:var(--sub);margin-top:6px}
+.los-lijn b{color:var(--rws-blauw)}
+.fw-chip{display:inline-block;font-size:10px;font-weight:700;font-family:var(--mono);padding:1px 6px;border-radius:3px;background:#e3ebf7;color:var(--rws-blauw)}
+.fw-chip.hoog{background:var(--rood-l);color:var(--rood)}
 </style>
 </head>
 <body>
@@ -191,6 +203,7 @@ canvas.chart{width:100%;background:var(--wit)}
     <button data-page="dash" class="active">Dashboard <span class="dot" id="dot-dash"></span></button>
     <button data-page="rules">Rule engine</button>
     <button data-page="triggers">Trigger engine <span class="dot" id="dot-trig"></span></button>
+    <button data-page="am">Assetmanagement</button>
     <button data-page="planning">Integrale planning</button>
     <button data-page="data">Databronnen</button>
     <button data-page="sim">Simulatie</button>
@@ -205,6 +218,7 @@ canvas.chart{width:100%;background:var(--wit)}
 <div class="page active" id="page-dash"></div>
 <div class="page" id="page-rules"></div>
 <div class="page" id="page-triggers"></div>
+<div class="page" id="page-am"></div>
 <div class="page" id="page-planning"></div>
 <div class="page" id="page-data"></div>
 <div class="page" id="page-sim"></div>
@@ -221,7 +235,7 @@ const CFG_DEFAULTS={"org.naam":"Rijkswaterstaat VWM","org.regio":"West-Nederland
 
 const DB_KEY='bidash_wvm_v2';
 const DEFAULT_DB={
-  meta:{versie:'2.0',peildatum:'2026-07-13'},
+  meta:{versie:'3.0',peildatum:'2026-07-14'},
   params:{kostenIndex:1.00},
   config:{...CFG_DEFAULTS},
   configBron:'standaard (ingebouwd, gelijk aan config.html)',
@@ -237,15 +251,34 @@ const DEFAULT_DB={
     {id:'f4',naam:'Verkeerskundig beheer & scenario\u2019s',doel:'Informatievoorziening',systemen:['UKVC'],benodigdFte:6.0,actueelFte:6.0,assets:[],onderhoudEur:60000,richtlijnen:['babw']},
     {id:'f5',naam:'Technisch beheer werkplekken (UWW)',doel:'Beschikbaarheid netwerk',systemen:['UWW'],benodigdFte:5.0,actueelFte:4.6,assets:['a2','a7'],onderhoudEur:220000,richtlijnen:[]}
   ],
+  /* assetregister — ISO 55001-velden per asset: type, functionele waarde (FW 1–5),
+     conditiescore (NEN 2767, 1–6), maanden uitgesteld onderhoud en redundantie (n+1) */
   assets:[
-    {id:'a1',naam:'DYNAC bedienplatform',cmdb:'DVM',besch:99.2,storingenJr:6,locatie:'VC Rhoon',weging:1.5},
-    {id:'a2',naam:'UWW werkplekken',cmdb:'Productieplatform',besch:99.6,storingenJr:3,locatie:'VC Rhoon',weging:1.0},
-    {id:'a3',naam:'Videowall VC Rhoon',cmdb:'Facilitair',besch:98.4,storingenJr:2,locatie:'VC Rhoon',weging:0.5},
-    {id:'a4',naam:'TTI Noordtunnel',cmdb:'Tunnel/TTI',besch:99.0,storingenJr:9,locatie:'A29 Noordtunnel',weging:2.0},
-    {id:'a5',naam:'MTM/signalering corridor A15',cmdb:'DVM',besch:98.7,storingenJr:11,locatie:'A15',weging:1.5},
-    {id:'a6',naam:'C2000 koppelvlak',cmdb:'Productieplatform',besch:99.9,storingenJr:1,locatie:'VC Rhoon',weging:1.0},
-    {id:'a7',naam:'Klimaatinstallatie serverruimte',cmdb:'Facilitair',besch:97.6,storingenJr:2,locatie:'VC Rhoon',weging:0.5}
+    {id:'a1',naam:'DYNAC bedienplatform',cmdb:'DVM',type:'bediensysteem',besch:99.2,storingenJr:6,locatie:'VC Rhoon',weging:1.5,fw:5,conditie:2,uitstelMnd:0,redundant:true},
+    {id:'a2',naam:'UWW werkplekken',cmdb:'Productieplatform',type:'werkplek',besch:99.6,storingenJr:3,locatie:'VC Rhoon',weging:1.0,fw:4,conditie:2,uitstelMnd:0,redundant:true},
+    {id:'a3',naam:'Videowall VC Rhoon',cmdb:'Facilitair',type:'facilitair',besch:98.4,storingenJr:2,locatie:'VC Rhoon',weging:0.5,fw:2,conditie:3,uitstelMnd:6,redundant:false},
+    {id:'a4',naam:'TTI Noordtunnel',cmdb:'Tunnel/TTI',type:'tti',besch:99.0,storingenJr:9,locatie:'A29 Noordtunnel',weging:2.0,fw:5,conditie:4,uitstelMnd:4,redundant:false},
+    {id:'a5',naam:'MTM/signalering corridor A15',cmdb:'DVM',type:'signalering',besch:98.7,storingenJr:11,locatie:'A15',weging:1.5,fw:4,conditie:3,uitstelMnd:5,redundant:false},
+    {id:'a6',naam:'C2000 koppelvlak',cmdb:'Productieplatform',type:'transmissie',besch:99.9,storingenJr:1,locatie:'VC Rhoon',weging:1.0,fw:4,conditie:2,uitstelMnd:0,redundant:true},
+    {id:'a7',naam:'Klimaatinstallatie serverruimte',cmdb:'Facilitair',type:'facilitair',besch:97.6,storingenJr:2,locatie:'VC Rhoon',weging:0.5,fw:3,conditie:4,uitstelMnd:8,redundant:false}
   ],
+  /* BEDIENKETENS (ISO 55001) — de reeks assets die samen een bedienfunctie van de
+     verkeerscentrale mogelijk maakt; ketenbeschikbaarheid = serieel product van de
+     schakels, getoetst aan een instelbare ketennorm per bedienfunctie (§ 6.5) */
+  ketens:[
+    {id:'k1',naam:'Signaleren corridor A15',bedienfunctie:'Signaleren en doseren corridor A15',norm:99.0,functieIds:['f1','f2'],schakels:['a5','a6','a1','a2']},
+    {id:'k2',naam:'Tunnelbewaking Noordtunnel',bedienfunctie:'Bewaken en bedienen Noordtunnel (A29)',norm:99.5,functieIds:['f3'],schakels:['a4','a6','a1','a2']},
+    {id:'k3',naam:'Beeldvoorziening VC Rhoon',bedienfunctie:'Toezicht hoofdwegennet VC Rhoon',norm:96.0,functieIds:['f1','f5'],schakels:['a2','a3','a7']}
+  ],
+  /* AM-REGELS (ISO 55001) — rule engine-voorwaarden voor assetmanagement:
+     max. uitstel per FW-klasse, degradatie per 6 mnd uitstel, NEN 2767-conditie-
+     drempel voor versnelde degradatie en de FW-klasse waarvandaan n+1 vereist is */
+  amRegels:{
+    maxUitstel:{FW1:24,FW2:18,FW3:12,FW4:6,FW5:3},
+    degrPer6Mnd:18,
+    conditieDrempel:4,
+    spofFw:4
+  },
   financien:{budgetJr:640000},
   /* IMPACTREGELS — voorwaarden van de rule engine: hoe vertaalt de trigger engine
      een planningsafwijking (per meldingstype) naar brede impact op alle datasets */
@@ -261,7 +294,24 @@ const DEFAULT_DB={
   capgrens:{GPO:12,CIV:10,VWM:14,PPO:6,Regio:4}
 };
 let DB=loadDB();
-function loadDB(){try{const s=localStorage.getItem(DB_KEY);if(s){const d=JSON.parse(s);d.config={...CFG_DEFAULTS,...(d.config||{})};d.impact={...DEFAULT_DB.impact,...(d.impact||{})};d.capgrens={...DEFAULT_DB.capgrens,...(d.capgrens||{})};return d}}catch(e){}return JSON.parse(JSON.stringify(DEFAULT_DB))}
+/* migratie: oudere localStorage-staten en imports krijgen ontbrekende blokken
+   (config/impact/capgrens/amRegels/ketens) en ISO 55001-assetvelden aangevuld */
+function migreerDB(d){
+  d.config={...CFG_DEFAULTS,...(d.config||{})};
+  d.impact={...DEFAULT_DB.impact,...(d.impact||{})};
+  d.capgrens={...DEFAULT_DB.capgrens,...(d.capgrens||{})};
+  const am=d.amRegels||{};
+  d.amRegels={...DEFAULT_DB.amRegels,...am,maxUitstel:{...DEFAULT_DB.amRegels.maxUitstel,...(am.maxUitstel||{})}};
+  if(!Array.isArray(d.ketens))d.ketens=JSON.parse(JSON.stringify(DEFAULT_DB.ketens));
+  (d.assets||[]).forEach(a=>{const def=DEFAULT_DB.assets.find(x=>x.id===a.id)||{};
+    if(a.type===undefined)a.type=def.type!==undefined?def.type:'overig';
+    if(a.fw===undefined)a.fw=def.fw!==undefined?def.fw:3;
+    if(a.conditie===undefined)a.conditie=def.conditie!==undefined?def.conditie:2;
+    if(a.uitstelMnd===undefined)a.uitstelMnd=def.uitstelMnd!==undefined?def.uitstelMnd:0;
+    if(a.redundant===undefined)a.redundant=def.redundant!==undefined?def.redundant:false});
+  return d;
+}
+function loadDB(){try{const s=localStorage.getItem(DB_KEY);if(s)return migreerDB(JSON.parse(s))}catch(e){}return JSON.parse(JSON.stringify(DEFAULT_DB))}
 function saveDB(){try{localStorage.setItem(DB_KEY,JSON.stringify(DB))}catch(e){console.warn('Opslag vol — model blijft alleen in geheugen',e)}refresh()}
 
 /* ── cfg helper: één bron voor alle regels ── */
@@ -270,6 +320,45 @@ function cfg(key,fb){const v=DB.config?DB.config[key]:undefined;return v===undef
 const CAT_NORM={'DVM':'kpi.asset_beschikbaarheid.msi','Productieplatform':'kpi.asset_beschikbaarheid.werkplek','Tunnel/TTI':'kpi.asset_beschikbaarheid.tunnel','Facilitair':'kpi.asset_beschikbaarheid.drip'};
 function normVoor(a){return +cfg(CAT_NORM[a.cmdb],98)}
 function mttrVoor(a){return a.cmdb==='Productieplatform'?+cfg('assets.sw_mttr',2):+cfg('assets.hw_mttr',6)}
+
+/* ═══════════════════════════════════════════════════════════
+   ASSETMANAGEMENT (ISO 55001) — rekenkern
+   Line of sight: bedrijfsdoel → bedrijfsfunctie → bedienketen → asset.
+   Ketenbeschikbaarheid = serieel product van schakelbeschikbaarheden;
+   redundante schakels (n+1) tellen kwadratisch; uitgesteld onderhoud
+   degradeert via degrPer6Mnd en de NEN 2767-conditiedrempel (§ 6.5).
+   ═══════════════════════════════════════════════════════════ */
+function amRegel(k,fb){const r=DB.amRegels||{};const v=/^FW\d$/.test(k)?(r.maxUitstel||{})[k]:r[k];return v===undefined||v===null||v===''?fb:+v}
+/* degradatiefactor op de storingskans: 1 + (uitstel/6) × degrPer6Mnd%, ×1,5 vanaf de conditiedrempel */
+function degrFactor(a,extraUitstel){
+  const uitstel=(+a.uitstelMnd||0)+(extraUitstel||0);
+  if(uitstel<=0)return 1;
+  const versneld=(+a.conditie||1)>=amRegel('conditieDrempel',4)?1.5:1;
+  return 1+(uitstel/6)*(amRegel('degrPer6Mnd',18)/100)*versneld;
+}
+/* effectieve schakelbeschikbaarheid: actueel, gecorrigeerd voor storingsfactor én
+   degradatie door uitstel; n+1-redundantie telt kwadratisch (beide paden moeten falen).
+   w = optionele what-if: {assetId, extraUitstel (mnd), extraVerlies (%-punt)} */
+function schakelBesch(a,p,w){
+  const eigen=w&&w.assetId===a.id;
+  const basis=(+a.besch||100)-(eigen?(w.extraVerlies||0):0);
+  let b=100-(100-basis)*p.storingsFactor*degrFactor(a,eigen?(w.extraUitstel||0):0);
+  b=Math.max(0,Math.min(100,b));
+  if(a.redundant)b=100-(100-b)*(100-b)/100;
+  return b;
+}
+/* ketenbeschikbaarheid = serieel product van de schakels */
+function ketenBesch(k,p,w){
+  let prod=1;const schakels=[];
+  (k.schakels||[]).forEach(id=>{const a=DB.assets.find(x=>x.id===id);if(!a)return;
+    const b=schakelBesch(a,p,w);prod*=b/100;schakels.push({a,b})});
+  return {besch:prod*100,schakels};
+}
+/* line of sight: keten → bedrijfsfuncties → bedrijfsdoelen */
+function lineOfSight(k){
+  const functies=(k.functieIds||[]).map(id=>DB.functies.find(f=>f.id===id)).filter(Boolean);
+  return {functies,doelen:[...new Set(functies.map(f=>f.doel))]};
+}
 
 /* ── config.html scenario importeren ── */
 function flattenCfg(obj,prefix,out){out=out||{};for(const k in obj){if(k.startsWith('_'))continue;const v=obj[k],key=prefix?prefix+'.'+k:k;
@@ -650,7 +739,31 @@ function evalTriggers(p){
         val:'impact '+fmtF(impact,2),aid:a.id});
     }
   });
-  // 4. PLANNING — signalen uit de planningstool, per meldingstype geduid naar brede impact
+  // 4. ASSETMANAGEMENT (ISO 55001) — bedienketens, uitgesteld onderhoud, SPOF (§ 6.5)
+  (DB.ketens||[]).forEach(k=>{
+    const r=ketenBesch(k,p);
+    if(r.schakels.length&&r.besch<k.norm-0.001){
+      const zwak=[...r.schakels].sort((x,y)=>x.b-y.b).slice(0,2);
+      const los=lineOfSight(k);
+      T.push({sev:(k.norm-r.besch)>=1?'r':'o',dom:'asset',resp:RESP.asset,titel:'Bedienketen onder norm · '+k.naam,
+        msg:`Ketenbeschikbaarheid ${fmtF(r.besch,2)}% (serieel product van ${r.schakels.length} schakels, incl. degradatie door uitgesteld onderhoud) tegen ketennorm ${fmtF(k.norm)}%. Zwakste schakels: ${zwak.map(s=>s.a.naam+' ('+fmtF(s.b,2)+'%, FW'+s.a.fw+')').join('; ')}. Line of sight: raakt ${los.functies.map(f=>f.naam).join('; ')||'—'} en daarmee ${los.doelen.map(d=>'“'+d+'”').join(', ')||'—'}.`,
+        val:fmtF(r.besch,2)+'% < '+fmtF(k.norm)+'%',kid:k.id});
+    }
+  });
+  DB.assets.forEach(a=>{
+    const grens=amRegel('FW'+(+a.fw||3),12);
+    if((+a.uitstelMnd||0)>grens){
+      T.push({sev:(a.uitstelMnd-grens)>=6?'r':'o',dom:'asset',resp:RESP.asset,titel:'Uitgesteld onderhoud boven ISO 55001-grens · '+a.naam,
+        msg:`Onderhoud ${a.uitstelMnd} maanden uitgesteld; de AM-regel voor functionele waarde FW${a.fw} staat maximaal ${grens} maanden toe. Degradatie-effect: +${fmtF((degrFactor(a)-1)*100,0)}% storingskans${(+a.conditie||1)>=amRegel('conditieDrempel',4)?' (versneld: conditiescore '+a.conditie+' ≥ NEN 2767-drempel '+amRegel('conditieDrempel',4)+')':''} — telt door in ketenberekening én Monte Carlo.`,
+        val:a.uitstelMnd+' > '+grens+' mnd',aid:a.id});
+    }
+    if((+a.fw||0)>=amRegel('spofFw',4)&&!a.redundant&&(+a.conditie||1)>=amRegel('conditieDrempel',4)){
+      T.push({sev:'r',dom:'asset',resp:RESP.asset,titel:'Single point of failure · '+a.naam,
+        msg:`Kritieke schakel (FW${a.fw} ≥ spofFw ${amRegel('spofFw',4)}) is enkelvoudig uitgevoerd met conditiescore ${a.conditie} (NEN 2767, drempel ${amRegel('conditieDrempel',4)}). De AM-regel vereist redundantie (n+1) vanaf deze functionele waarde.`,
+        val:'FW'+a.fw+' · conditie '+a.conditie+' · enkelvoudig',aid:a.id});
+    }
+  });
+  // 5. PLANNING — signalen uit de planningstool, per meldingstype geduid naar brede impact
   planningTriggers().forEach(t=>{
     const im=berekenImpact(t,p);
     t.impact=im.chips;
@@ -684,7 +797,7 @@ function runMC(n,p){
     DB.assets.forEach(a=>{
       const norm=normVoor(a);
       const structureel=a.besch<norm;
-      const st=poisson(a.storingenJr*p.storingsFactor*(PI.storingsOpslagAssets[a.id]||1)); // storingen ~ Poisson, incl. werkzaamhedenopslag
+      const st=poisson(a.storingenJr*p.storingsFactor*(PI.storingsOpslagAssets[a.id]||1)*degrFactor(a)); // storingen ~ Poisson, incl. werkzaamhedenopslag en degradatie door uitgesteld onderhoud (ISO 55001)
       const mttr=mttrVoor(a);                                    // hersteltijd uit assets.hw_mttr / sw_mttr
       const downPct=st*mttr*(0.6+Math.random()*0.8)/87.6;
       const eff=a.besch-downPct+randn()*0.05;
@@ -860,6 +973,14 @@ function renderRules(){
         ${Object.keys(DB.capgrens).map(d=>`<label>Capaciteitsgrens ${d}</label><input type="number" step="0.5" value="${DB.capgrens[d]}" onchange="DB.capgrens['${d}']=+this.value;saveDB()"><span class="cfg-link">max fte voor dit programma \u2192 capaciteitstrigger als de planningsvraag erboven piekt</span>`).join('')}
       </div>
       <div class="footnote">Koppelvoorwaarde: corridor-/locatietoken uit de planning \u2192 assets (locatie) \u2192 bedrijfsfuncties (naam of gekoppelde assets) \u2192 fte, \u20ac en richtlijnen. Schuift de planning en ontstaat er een conflict, dan verschijnen de afgeleide triggers automatisch in elk geraakt domein.</div></div>
+    <div class="card"><h3>Assetmanagement-regels (ISO 55001) <span class="hint">line of sight: bedrijfsdoel \u2192 bedrijfsfunctie \u2192 bedienketen \u2192 asset \u00b7 de FW-klasse bepaalt welke regels gelden</span></h3>
+      <div class="frm" style="grid-template-columns:280px 130px 1fr">
+        ${[5,4,3,2,1].map(n=>`<label>Max. uitstel onderhoud FW${n}</label><input type="number" step="1" value="${amRegel('FW'+n,12)}" onchange="DB.amRegels.maxUitstel['FW${n}']=+this.value;saveDB()"><span class="cfg-link">mnd \u2192 uitsteltrigger per asset met functionele waarde ${n}${n===5?' (meest kritiek)':n===1?' (minst kritiek)':''}</span>`).join('')}
+        <label>Degradatie per 6 mnd uitstel</label><input type="number" step="1" value="${amRegel('degrPer6Mnd',18)}" onchange="DB.amRegels.degrPer6Mnd=+this.value;saveDB()"><span class="cfg-link">% extra storingskans \u2192 ketenberekening \u00e9n Monte Carlo</span>
+        <label>Conditiedrempel (NEN 2767)</label><input type="number" step="1" min="1" max="6" value="${amRegel('conditieDrempel',4)}" onchange="DB.amRegels.conditieDrempel=+this.value;saveDB()"><span class="cfg-link">vanaf deze conditiescore degradeert een asset \u00d71,5 zo snel</span>
+        <label>SPOF-eis vanaf FW-klasse</label><input type="number" step="1" min="1" max="5" value="${amRegel('spofFw',4)}" onchange="DB.amRegels.spofFw=+this.value;saveDB()"><span class="cfg-link">vanaf deze FW is redundantie (n+1) vereist \u2192 SPOF-trigger bij enkelvoudige uitvoering met matige conditie</span>
+      </div>
+      <div class="footnote">De externe DVM-assets zijn randvoorwaardelijk voor het wegverkeersmanagement; bedienketens en het AM-register staan op de pagina <b>Assetmanagement</b>.</div></div>
     <div class="card"><h3>Uitgangspunten per bedrijfsfunctie <span class="hint">\u201com functie X te leveren heb ik N fte, assets X/Y/Z en \u20ac K per jaar onderhoud nodig\u201d</span></h3>
       <table><thead><tr><th>Bedrijfsfunctie</th><th class="num">Benodigd FTE</th><th>Benodigde assets</th><th class="num">Onderhoud \u20ac/jr</th><th>Richtlijnen</th><th>Regel</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="footnote">Benodigd FTE wordt bij toetsing verhoogd met de verzuimopslag uit config.html (personeel.ziekteverzuim = ${fmtF(p.verzuim)}%).</div></div>
@@ -875,7 +996,7 @@ function renderRules(){
 /* ─────────────── TRIGGER ENGINE ─────────────── */
 function renderTriggers(){
   const p=activeParams(),T=evalTriggers(p);
-  const nRegels=DB.functies.length+DB.assets.length+(bridgeModel()?1:0)+1;
+  const nRegels=DB.functies.length+DB.assets.length+(DB.ketens||[]).length+(bridgeModel()?1:0)+1;
   $('#page-triggers').innerHTML=`
     <div class="pagehead"><h2>Trigger engine</h2><div class="desc">Toont afwijkingen op de config-regels en adresseert de verantwoordelijke. ${simActive()?'<b style="color:var(--oranje)">Let op: simulatieparameters actief.</b>':''}</div>
     <div class="actions"><button class="btn" onclick="refresh()">\u21bb Hertoets</button></div></div>
@@ -886,6 +1007,93 @@ function renderTriggers(){
       <div class="mc-stat"><div class="v" style="color:var(--groen)">${Math.max(0,nRegels-T.length)}</div><div class="l">Binnen norm</div></div>
     </div>
     ${T.length?T.map(t=>trigHTML(t,false)).join(''):'<div class="card"><div class="empty">Geen afwijkingen. Alle actuele data valt binnen de regels uit config.html.</div></div>'}`;
+}
+
+/* ─────────────── ASSETMANAGEMENT (ISO 55001) ─────────────── */
+let WHATIF=null; // what-if doorrekening: {assetId, extraUitstel (mnd), extraVerlies (%-punt)}
+function amSetWhatIf(){
+  const sel=$('#wi-asset'),u=+($('#wi-uitstel')?.value)||0,v=+($('#wi-verlies')?.value)||0;
+  const id=sel?sel.value:'';
+  WHATIF=id?{assetId:id,extraUitstel:u,extraVerlies:v}:null;
+  renderAM();
+}
+function amResetWhatIf(){WHATIF=null;renderAM()}
+function renderAM(){
+  const p=activeParams();
+  /* bedienketens met schakelschema en line of sight */
+  const ketenBlocks=(DB.ketens||[]).map(k=>{
+    const r=ketenBesch(k,p);
+    const minB=r.schakels.length?Math.min(...r.schakels.map(s=>s.b)):100;
+    const los=lineOfSight(k);
+    const status=r.besch>=k.norm?'<span class="tag g">Binnen norm</span>':((k.norm-r.besch)>=1?'<span class="tag r">Kritiek</span>':'<span class="tag o">Onder norm</span>');
+    const schema=r.schakels.map((s,i)=>{
+      const a=s.a;
+      return (i?'<span class="keten-pijl">→</span>':'')+`<div class="schakel${(s.b===minB&&r.besch<k.norm)?' zwak':''}" title="effectieve beschikbaarheid incl. degradatie door uitstel${a.redundant?' · redundant (n+1): telt kwadratisch':''}">
+        <div class="s-naam">${esc(a.naam)}</div>
+        <div class="s-meta">${fmtF(s.b,2)}% · <span class="fw-chip${(+a.fw||0)>=amRegel('spofFw',4)?' hoog':''}">FW${a.fw}</span> · cond. ${a.conditie}${a.redundant?' · n+1':''}${(+a.uitstelMnd||0)>0?' · uitstel '+a.uitstelMnd+'m':''}</div></div>`;
+    }).join('');
+    return `<div style="padding:12px 0;border-bottom:1px solid #eef1f5">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b>${esc(k.naam)}</b><span class="tag gy">${esc(k.bedienfunctie)}</span>${status}
+        <span style="margin-left:auto;font-family:var(--mono);font-size:12px;display:flex;align-items:center;gap:6px">keten <b style="color:${r.besch>=k.norm?'var(--groen)':'var(--rood)'}">${fmtF(r.besch,2)}%</b> · norm <input type="number" step="0.1" value="${k.norm}" style="width:66px" onchange="DB.ketens.find(x=>x.id==='${k.id}').norm=+this.value;saveDB()"> %</span></div>
+      <div class="keten-schema">${schema}</div>
+      <div class="los-lijn">Line of sight: <b>${los.doelen.map(esc).join('</b> · <b>')||'—'}</b> ← ${los.functies.map(f=>esc(f.naam)).join(' · ')||'—'} ← deze bedienketen</div>
+    </div>`;
+  }).join('');
+  /* what-if doorrekening door alle bedienketens heen */
+  const w=WHATIF;
+  let wiResult='<div class="empty">Kies een asset en stel extra uitstel en/of beschikbaarheidsverlies in; het instrument rekent de gevolgen door alle bedienketens heen tot op doelniveau.</div>';
+  if(w&&(w.extraUitstel>0||w.extraVerlies>0)){
+    const wa=DB.assets.find(x=>x.id===w.assetId);
+    const perUur=+cfg('contract.boete_per_uur',500);
+    let risico=0;
+    const rows=(DB.ketens||[]).filter(k=>(k.schakels||[]).includes(w.assetId)).map(k=>{
+      const voor=ketenBesch(k,p).besch,na=ketenBesch(k,p,w).besch;
+      const urenOnder=Math.max(0,k.norm-na)/100*8760;
+      const bedrag=urenOnder*perUur;risico+=bedrag;
+      const los=lineOfSight(k);
+      return `<tr><td><b>${esc(k.naam)}</b><br><span style="font-size:11px;color:var(--sub)">${los.functies.map(f=>esc(f.naam)).join(' · ')||'—'} → ${los.doelen.map(esc).join(' · ')||'—'}</span></td>
+        <td class="num">${fmtF(voor,2)}%</td><td class="num" style="font-weight:700;color:${na>=k.norm?'var(--groen)':'var(--rood)'}">${fmtF(na,2)}%</td>
+        <td class="num">${fmtF(na-voor,2)}</td><td class="num">${fmtF(k.norm)}%</td>
+        <td>${na>=k.norm?'<span class="tag g">Norm</span>':'<span class="tag r">Onder norm</span>'}</td>
+        <td class="num">${bedrag>0?fmtE(bedrag):'—'}</td></tr>`;
+    }).join('');
+    wiResult=rows?`<table style="margin-top:10px"><thead><tr><th>Bedienketen · geraakte functies → doelen</th><th class="num">Vóór</th><th class="num">Na</th><th class="num">Δ %-pt</th><th class="num">Norm</th><th>Status</th><th class="num">Risico €/jr</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="footnote">Indicatief risicobedrag: uren onder de ketennorm × boetetarief ${fmtE(perUur)}/uur (contract.boete_per_uur uit config.html) · totaal <b>${fmtE(risico)}</b>/jr.</div>`
+      :`<div class="empty">Asset “${esc(wa?wa.naam:'')}” maakt van geen enkele bedienketen deel uit.</div>`;
+  }
+  const wiSel=DB.assets.map(a=>`<option value="${a.id}" ${w&&w.assetId===a.id?'selected':''}>${esc(a.naam)}</option>`).join('');
+  /* AM-register: bewerkbare ISO 55001-velden per asset */
+  const regRows=DB.assets.map(a=>{
+    const grens=amRegel('FW'+(+a.fw||3),12);
+    const spof=(+a.fw||0)>=amRegel('spofFw',4)&&!a.redundant&&(+a.conditie||1)>=amRegel('conditieDrempel',4);
+    const uitstelTeHoog=(+a.uitstelMnd||0)>grens;
+    const status=(spof?'<span class="tag r">SPOF</span> ':'')+(uitstelTeHoog?'<span class="tag r">Uitstel &gt; grens</span>':(!spof?'<span class="tag g">Conform</span>':''));
+    return `<tr><td><b>${esc(a.naam)}</b><br><span style="font-size:11px;color:var(--sub)">${esc(a.locatie)} · ${a.cmdb}</span></td>
+      <td><input type="text" value="${esc(a.type||'')}" style="width:104px" onchange="DB.assets.find(x=>x.id==='${a.id}').type=this.value;saveDB()"></td>
+      <td><select style="width:64px" onchange="DB.assets.find(x=>x.id==='${a.id}').fw=+this.value;saveDB()">${[1,2,3,4,5].map(n=>`<option value="${n}" ${+a.fw===n?'selected':''}>${n}</option>`).join('')}</select></td>
+      <td><select style="width:60px" onchange="DB.assets.find(x=>x.id==='${a.id}').conditie=+this.value;saveDB()">${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${+a.conditie===n?'selected':''}>${n}</option>`).join('')}</select></td>
+      <td class="num"><input type="number" min="0" step="1" value="${+a.uitstelMnd||0}" style="width:62px" onchange="DB.assets.find(x=>x.id==='${a.id}').uitstelMnd=+this.value;saveDB()"></td>
+      <td class="num" style="color:var(--sub)">${grens}</td>
+      <td style="text-align:center"><input type="checkbox" ${a.redundant?'checked':''} style="width:auto" onchange="DB.assets.find(x=>x.id==='${a.id}').redundant=this.checked;saveDB()"></td>
+      <td class="num">×${fmtF(degrFactor(a),2)}</td>
+      <td>${status}</td></tr>`;
+  }).join('');
+  $('#page-am').innerHTML=`
+    <div class="pagehead"><h2>Assetmanagement</h2><div class="desc">ISO 55001 · line of sight: bedrijfsdoel → bedrijfsfunctie → bedienketen → asset. De AM-regels (max. uitstel per FW-klasse, degradatie, conditiedrempel, SPOF-eis) staan in de rule engine. ${simActive()?'<b style="color:var(--oranje)">Let op: simulatieparameters actief.</b>':''}</div>
+    <div class="actions"><button class="btn" onclick="goto('rules')">⚙ AM-regels in de rule engine</button></div></div>
+    <div class="card"><h3>Bedienketens <span class="hint">ketenbeschikbaarheid = serieel product van de schakels · redundante schakels (n+1) tellen kwadratisch · degradatie door uitgesteld onderhoud telt mee</span></h3>
+      ${ketenBlocks||'<div class="empty">Nog geen bedienketens gedefinieerd.</div>'}</div>
+    <div class="card"><h3>What-if doorrekening <span class="hint">gevolgen van uitgesteld onderhoud of beschikbaarheidsverlies, door de afhankelijkheden heen zichtbaar tot op doelniveau</span></h3>
+      <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+        <div style="min-width:220px"><label style="font-size:11px;color:var(--sub)">Asset</label><select id="wi-asset" onchange="amSetWhatIf()">${wiSel}</select></div>
+        <div style="width:150px"><label style="font-size:11px;color:var(--sub)">Extra uitstel (mnd)</label><input type="number" id="wi-uitstel" min="0" step="1" value="${w?w.extraUitstel:0}" onchange="amSetWhatIf()"></div>
+        <div style="width:190px"><label style="font-size:11px;color:var(--sub)">Beschikbaarheidsverlies (%-punt)</label><input type="number" id="wi-verlies" min="0" step="0.1" value="${w?w.extraVerlies:0}" onchange="amSetWhatIf()"></div>
+        <button class="btn" onclick="amResetWhatIf()">↺ Reset</button>
+      </div>
+      ${wiResult}</div>
+    <div class="card"><h3>AM-register <span class="hint">functionele waarde, conditie (NEN 2767), uitgesteld onderhoud en redundantie per asset · wijzigingen werken direct door in ketens, triggers en Monte Carlo</span></h3>
+      <table><thead><tr><th>Asset</th><th>Type</th><th>FW</th><th>Conditie</th><th class="num">Uitstel mnd</th><th class="num">Grens FW</th><th style="text-align:center">n+1</th><th class="num">Degradatie</th><th>Status</th></tr></thead><tbody>${regRows}</tbody></table>
+      <div class="footnote">Degradatie = factor op de storingskans: 1 + (uitstel/6) × ${amRegel('degrPer6Mnd',18)}%${' '}× 1,5 vanaf conditiescore ${amRegel('conditieDrempel',4)} (NEN 2767). Beschikbaarheid en storingen/jr blijven bewerkbaar op de pagina Databronnen.</div></div>`;
 }
 
 /* ─────────────── INTEGRALE PLANNING (originele tool embedded) ─────────────── */
@@ -1069,7 +1277,7 @@ function refresh(){
   ['dot-dash','dot-trig'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.background=ragColor(rag)});
   $('#simbadge').classList.toggle('on',simActive());
   const act=document.querySelector('.page.active').id.replace('page-','');
-  ({dash:renderDash,rules:renderRules,triggers:renderTriggers,planning:renderPlanning,data:renderData,sim:renderSim})[act]();
+  ({dash:renderDash,rules:renderRules,triggers:renderTriggers,am:renderAM,planning:renderPlanning,data:renderData,sim:renderSim})[act]();
 }
 function exportJSON(){
   const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
@@ -1077,7 +1285,7 @@ function exportJSON(){
 }
 function importJSON(ev){
   const f=ev.target.files[0];if(!f)return;
-  const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);d.config={...CFG_DEFAULTS,...(d.config||{})};DB=d;saveDB()}catch(e){alert('Ongeldig JSON-bestand')}};r.readAsText(f);
+  const r=new FileReader();r.onload=()=>{try{DB=migreerDB(JSON.parse(r.result));saveDB()}catch(e){alert('Ongeldig JSON-bestand')}};r.readAsText(f);
 }
 refresh();
 </script>

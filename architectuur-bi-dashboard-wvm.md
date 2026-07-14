@@ -73,12 +73,12 @@ Het bestand bestaat uit vier lagen in één HTML-document:
 
 | Laag | Inhoud | Omvang (indicatief) |
 |------|--------|---------------------|
-| 1. Presentatie | CSS (RWS-huisstijl: #003082 blauw, #F9B000 geel, rijkslint, Segoe UI), topbar met navigatie, vijf pagina-containers | ~12 KB |
+| 1. Presentatie | CSS (RWS-huisstijl: #003082 blauw, #F9B000 geel, rijkslint, Segoe UI), topbar met navigatie, zeven pagina-containers | ~13 KB |
 | 2. Applicatiescript blok 1 | Configuratie (CFG_DEFAULTS), datamodel (DEFAULT_DB), config-import, planningsbrug, capaciteitsbrug, impact engine, trigger engine, Monte Carlo | ~30 KB |
 | 3. Applicatiescript blok 2 | Renderers per pagina, capaciteitskaart, navigatie, JSON-export/-import | ~30 KB |
 | 4. Embedded planningstool | `const IPL_EMBED = "<volledige integrale-planning-rws.html>"` — de originele tool als JSON-gecodeerde string, byte-voor-byte identiek aan het bronbestand | ~565 KB |
 
-**Pagina's (tabbladen):** Dashboard · Rule engine · Trigger engine · Integrale planning · Databronnen · Simulatie.
+**Pagina's (tabbladen):** Dashboard · Rule engine · Trigger engine · Assetmanagement · Integrale planning · Databronnen · Simulatie.
 
 ---
 
