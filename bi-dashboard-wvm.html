@@ -253,9 +253,23 @@ const DEFAULT_DB={
      JSON-import. ISO 55001-velden per asset: type, functionele waarde (FW 1–5),
      conditiescore (NEN 2767, 1–6), maanden uitgesteld onderhoud en redundantie (n+1). */
   assets:[],
-  /* Bedienketens (ISO 55001) — leeg. Stel ze samen op de pagina Assetmanagement.
-     {id, naam, bedienfunctie, norm, functieIds[], schakels[]} */
-  ketens:[],
+  /* BEDIENKETENS (ISO 55001) — generiek, afgeleid van de TNO-taakanalyse
+     (abstractiehiërarchie regionaal wegverkeersmanagement, 2021). Elke keten is
+     een purpose-related function (bedrijfsfunctie) met een functional purpose
+     (doel) en een reeks generieke objecttypen (schakelTypes) uit de "physical
+     objects"-laag. Technologie- en locatie-onafhankelijk (‘toekomstbestendig’):
+     de ketenbeschikbaarheid wordt berekend over wélke assets van die typen ook
+     geladen zijn (bv. via NDW-import). Optioneel locatie (wegnummer) als scope.
+     {id, naam, bedrijfsfunctie, doel, norm, locatie, schakelTypes[]} */
+  ketens:[
+    {id:'bk_sturen',naam:'Sturen en geleiden van verkeer',bedrijfsfunctie:'Sturen en geleiden van verkeer',doel:'Zorgen voor vlot en veilig verkeer',norm:99.0,locatie:'',schakelTypes:['detectie','bediensysteem','signalering','dynamische_strook']},
+    {id:'bk_info',naam:'Beschikbaar stellen van reis- en route-informatie',bedrijfsfunctie:'Beschikbaar stellen van reis- en route-informatie',doel:'Betrouwbare reistijd',norm:98.0,locatie:'',schakelTypes:['detectie','bediensysteem','drip']},
+    {id:'bk_wiu',naam:'Ondersteunen bij werk in uitvoering',bedrijfsfunctie:'Ondersteunen bij werk in uitvoering',doel:'Veilig',norm:98.0,locatie:'',schakelTypes:['camera','signalering','drip','tekstwagen']},
+    {id:'bk_im',naam:'Incidentmanagement',bedrijfsfunctie:'Incidentmanagement',doel:'Zorgen voor vlot en veilig verkeer',norm:99.0,locatie:'',schakelTypes:['camera','detectie','bediensysteem','signalering','drip','communicatie']},
+    {id:'bk_objecten',naam:'Bewaken en bedienen van objecten',bedrijfsfunctie:'Bewaken en bedienen van objecten',doel:'Veilig',norm:99.5,locatie:'',schakelTypes:['camera','bediensysteem','tunnelbuis','slagboom','communicatie','calamiteitenknop']},
+    {id:'bk_gladheid',naam:'Gladheidbestrijding',bedrijfsfunctie:'Gladheidbestrijding',doel:'Zorgen voor vlot en veilig verkeer',norm:97.0,locatie:'',schakelTypes:['gladheidsysteem','bediensysteem','drip','communicatie']},
+    {id:'bk_handhaven',naam:'Handhaven',bedrijfsfunctie:'Handhaven',doel:'Veilig',norm:97.0,locatie:'',schakelTypes:['camera','detectie','communicatie']}
+  ],
   /* AM-REGELS (ISO 55001) — rule engine-voorwaarden voor assetmanagement:
      max. uitstel per FW-klasse, degradatie per 6 mnd uitstel, NEN 2767-conditie-
      drempel voor versnelde degradatie en de FW-klasse waarvandaan n+1 vereist is */
@@ -325,7 +339,7 @@ function migreerDB(d){
   d.capgrens={...DEFAULT_DB.capgrens,...(d.capgrens||{})};
   const am=d.amRegels||{};
   d.amRegels={...DEFAULT_DB.amRegels,...am,maxUitstel:{...DEFAULT_DB.amRegels.maxUitstel,...(am.maxUitstel||{})}};
-  if(!Array.isArray(d.ketens))d.ketens=JSON.parse(JSON.stringify(DEFAULT_DB.ketens));
+  if(!Array.isArray(d.ketens)||!d.ketens.length)d.ketens=JSON.parse(JSON.stringify(DEFAULT_DB.ketens));
   if(!d.storingsRegels)d.storingsRegels=JSON.parse(JSON.stringify(DEFAULT_DB.storingsRegels));
   (d.assets||[]).forEach(a=>{const def=DEFAULT_DB.assets.find(x=>x.id===a.id)||{};
     if(a.type===undefined)a.type=def.type!==undefined?def.type:'overig';
@@ -371,17 +385,73 @@ function schakelBesch(a,p,w){
   if(a.redundant)b=100-(100-b)*(100-b)/100;
   return b;
 }
-/* ketenbeschikbaarheid = serieel product van de schakels */
-function ketenBesch(k,p,w){
-  let prod=1;const schakels=[];
-  (k.schakels||[]).forEach(id=>{const a=DB.assets.find(x=>x.id===id);if(!a)return;
-    const b=schakelBesch(a,p,w);prod*=b/100;schakels.push({a,b})});
-  return {besch:prod*100,schakels};
+/* ── OBJECTTYPEN — de "physical objects" uit de TNO-abstractiehiërarchie
+   (taakanalyse wegverkeersleiders). Generieke, technologie-onafhankelijke
+   objecttypen waaruit bedienketens zijn opgebouwd; een asset krijgt via zijn
+   type-veld een van deze typen (NDW-import zet MSI→signalering, DRIP→drip). ── */
+const OBJECTTYPEN={
+  detectie:{label:'Detectie (lussen, NDW-voertuigen)',fw:3},
+  camera:{label:'Camera’s (CCTV/DYNAC)',fw:4},
+  signalering:{label:'Verkeerssignalering (MSI)',fw:4},
+  drip:{label:'DRIP’s (route-informatie)',fw:2},
+  tekstwagen:{label:'Tekstwagens',fw:1},
+  vri:{label:'VRI’s (kruispuntregeling)',fw:3},
+  dynamische_strook:{label:'Dynamische banen/stroken',fw:4},
+  slagboom:{label:'Slagbomen',fw:4},
+  brug:{label:'Bruggen',fw:4},
+  tunnelbuis:{label:'Tunnelinstallatie (TTI)',fw:5},
+  toeritdosering:{label:'Toeritdoseerinstallatie',fw:2},
+  calamiteitenknop:{label:'Calamiteitenknop',fw:5},
+  gladheidsysteem:{label:'Gladheidsmeldsysteem',fw:2},
+  communicatie:{label:'Communicatiesystemen',fw:4},
+  bediensysteem:{label:'Bediensysteem (DYNAC/centrale)',fw:5},
+  transmissie:{label:'Transmissie/koppelvlak',fw:4}
+};
+function objLabel(type){return (OBJECTTYPEN[type]||{}).label||type}
+/* de assets die een generieke schakel (objecttype) invullen, binnen de optionele
+   locatiescope van de keten (leeg = heel areaal; anders match op wegnummer/locatie) */
+function schakelAssets(type,locatie){
+  return DB.assets.filter(a=>a.type===type&&(!locatie||String(a.locatie).toUpperCase()===String(locatie).toUpperCase()));
 }
-/* line of sight: keten → bedrijfsfuncties → bedrijfsdoelen */
+/* ketenbeschikbaarheid = serieel product van de schakels. Generiek (schakelTypes:
+   objecttypen uit de taakanalyse) of legacy (schakels: expliciete asset-id’s).
+   Per objecttype geldt de gemiddelde effectieve beschikbaarheid van de aanwezige
+   assets; ontbreekt een type in het (gescopte) areaal, dan telt de schakel als
+   ‘niet geladen’ en blijft de keten ‘onvolledig’ tot er assets van dat type zijn. */
+function ketenBesch(k,p,w){
+  const schakels=[];let prod=1,aanwezigN=0,ontbrekend=0;
+  if(Array.isArray(k.schakelTypes)&&k.schakelTypes.length){
+    k.schakelTypes.forEach(type=>{
+      const info=OBJECTTYPEN[type]||{label:type,fw:3};
+      const assets=schakelAssets(type,k.locatie);
+      if(!assets.length){schakels.push({type,label:info.label,aanwezig:false,n:0,b:null,fw:info.fw,redundant:false});ontbrekend++;return}
+      const bs=assets.map(a=>schakelBesch(a,p,w));
+      const b=bs.reduce((s,x)=>s+x,0)/bs.length;
+      prod*=b/100;aanwezigN++;
+      schakels.push({type,label:info.label,aanwezig:true,n:assets.length,b,fw:Math.min(...assets.map(a=>+a.fw||info.fw)),redundant:assets.some(a=>a.redundant),assets});
+    });
+  }else{ // legacy: expliciete asset-id’s
+    (k.schakels||[]).forEach(id=>{const a=DB.assets.find(x=>x.id===id);if(!a)return;
+      const b=schakelBesch(a,p,w);prod*=b/100;aanwezigN++;
+      schakels.push({type:a.type,label:a.naam,aanwezig:true,n:1,b,fw:+a.fw||3,redundant:!!a.redundant,assets:[a]});});
+  }
+  return {besch:aanwezigN?prod*100:null,schakels,aanwezigN,ontbrekend,volledig:ontbrekend===0&&aanwezigN>0};
+}
+/* wordt een keten door een what-if op één asset geraakt? (legacy id of generiek type
+   binnen de locatiescope) */
+function ketenGeraakt(k,a){
+  if(!a)return false;
+  if(Array.isArray(k.schakelTypes)&&k.schakelTypes.length)
+    return k.schakelTypes.includes(a.type)&&(!k.locatie||String(k.locatie).toUpperCase()===String(a.locatie).toUpperCase());
+  return (k.schakels||[]).includes(a.id);
+}
+/* line of sight: keten → bedrijfsfunctie → bedrijfsdoel (generiek uit de taakanalyse,
+   of via gekoppelde functie-id’s met FTE) */
 function lineOfSight(k){
   const functies=(k.functieIds||[]).map(id=>DB.functies.find(f=>f.id===id)).filter(Boolean);
-  return {functies,doelen:[...new Set(functies.map(f=>f.doel))]};
+  const functieNamen=functies.length?functies.map(f=>f.naam):(k.bedrijfsfunctie?[k.bedrijfsfunctie]:[]);
+  const doelen=k.doel?[k.doel]:[...new Set(functies.map(f=>f.doel))];
+  return {functies,functieNamen,doelen};
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -982,12 +1052,18 @@ function evalTriggers(p){
   // 4. ASSETMANAGEMENT (ISO 55001) — bedienketens, uitgesteld onderhoud, SPOF (§ 6.5)
   (DB.ketens||[]).forEach(k=>{
     const r=ketenBesch(k,p);
-    if(r.schakels.length&&r.besch<k.norm-0.001){
-      const zwak=[...r.schakels].sort((x,y)=>x.b-y.b).slice(0,2);
-      const los=lineOfSight(k);
+    const los=lineOfSight(k);
+    const losTekst=`Line of sight: raakt ${los.functieNamen.join('; ')||'—'} en daarmee ${los.doelen.map(d=>'“'+d+'”').join(', ')||'—'}.`;
+    if(r.besch!==null&&r.besch<k.norm-0.001){
+      const aanwezig=r.schakels.filter(s=>s.aanwezig);
+      const zwak=[...aanwezig].sort((x,y)=>x.b-y.b).slice(0,2);
       T.push({sev:(k.norm-r.besch)>=1?'r':'o',dom:'asset',resp:RESP.asset,titel:'Bedienketen onder norm · '+k.naam,
-        msg:`Ketenbeschikbaarheid ${fmtF(r.besch,2)}% (serieel product van ${r.schakels.length} schakels, incl. degradatie door uitgesteld onderhoud) tegen ketennorm ${fmtF(k.norm)}%. Zwakste schakels: ${zwak.map(s=>s.a.naam+' ('+fmtF(s.b,2)+'%, FW'+s.a.fw+')').join('; ')}. Line of sight: raakt ${los.functies.map(f=>f.naam).join('; ')||'—'} en daarmee ${los.doelen.map(d=>'“'+d+'”').join(', ')||'—'}.`,
+        msg:`Ketenbeschikbaarheid ${fmtF(r.besch,2)}% (serieel product van ${aanwezig.length} geladen schakels${r.ontbrekend?', '+r.ontbrekend+' objecttype(n) nog niet in areaal':''}, incl. degradatie door uitgesteld onderhoud) tegen ketennorm ${fmtF(k.norm)}%. Zwakste schakels: ${zwak.map(s=>s.label+' ('+fmtF(s.b,2)+'%, FW'+s.fw+(s.n>1?', '+s.n+' assets':'')+')').join('; ')}. ${losTekst}`,
         val:fmtF(r.besch,2)+'% < '+fmtF(k.norm)+'%',kid:k.id});
+    }else if(r.ontbrekend>0&&r.aanwezigN>0){
+      T.push({sev:'o',dom:'asset',resp:RESP.asset,titel:'Bedienketen onvolledig in areaal · '+k.naam,
+        msg:`${r.ontbrekend} van ${r.schakels.length} objecttypen uit de taakanalyse zijn nog niet als asset geladen: ${r.schakels.filter(s=>!s.aanwezig).map(s=>s.label).join('; ')}. De ketenbeschikbaarheid (${fmtF(r.besch,2)}%) is daardoor indicatief. ${losTekst}`,
+        val:r.ontbrekend+' objecttype(n) ontbreekt',kid:k.id});
     }
   });
   DB.assets.forEach(a=>{
@@ -1288,23 +1364,31 @@ function amSetWhatIf(){
 function amResetWhatIf(){WHATIF=null;renderAM()}
 function renderAM(){
   const p=activeParams();
-  /* bedienketens met schakelschema en line of sight */
+  /* generieke bedienketens (taakanalyse): schakelschema per objecttype + line of sight */
   const ketenBlocks=(DB.ketens||[]).map(k=>{
     const r=ketenBesch(k,p);
-    const minB=r.schakels.length?Math.min(...r.schakels.map(s=>s.b)):100;
+    const aanwezig=r.schakels.filter(s=>s.aanwezig);
+    const minB=aanwezig.length?Math.min(...aanwezig.map(s=>s.b)):100;
     const los=lineOfSight(k);
-    const status=r.besch>=k.norm?'<span class="tag g">Binnen norm</span>':((k.norm-r.besch)>=1?'<span class="tag r">Kritiek</span>':'<span class="tag o">Onder norm</span>');
+    const onderNorm=r.besch!==null&&r.besch<k.norm;
+    const status=r.besch===null?'<span class="tag gy">Geen areaal geladen</span>'
+      :(!r.volledig?(onderNorm?'<span class="tag r">Onder norm</span> <span class="tag o">Onvolledig</span>':'<span class="tag o">Onvolledig areaal</span>')
+      :(r.besch>=k.norm?'<span class="tag g">Binnen norm</span>':((k.norm-r.besch)>=1?'<span class="tag r">Kritiek</span>':'<span class="tag o">Onder norm</span>')));
     const schema=r.schakels.map((s,i)=>{
-      const a=s.a;
-      return (i?'<span class="keten-pijl">→</span>':'')+`<div class="schakel${(s.b===minB&&r.besch<k.norm)?' zwak':''}" title="effectieve beschikbaarheid incl. degradatie door uitstel${a.redundant?' · redundant (n+1): telt kwadratisch':''}">
-        <div class="s-naam">${esc(a.naam)}</div>
-        <div class="s-meta">${fmtF(s.b,2)}% · <span class="fw-chip${(+a.fw||0)>=amRegel('spofFw',4)?' hoog':''}">FW${a.fw}</span> · cond. ${a.conditie}${a.redundant?' · n+1':''}${(+a.uitstelMnd||0)>0?' · uitstel '+a.uitstelMnd+'m':''}</div></div>`;
+      const pijl=i?'<span class="keten-pijl">→</span>':'';
+      if(!s.aanwezig)return pijl+`<div class="schakel" style="opacity:.55;border-top-style:dashed" title="objecttype nog niet als asset in het (gescopte) areaal geladen">
+        <div class="s-naam">${esc(s.label)}</div><div class="s-meta">— niet geladen · <span class="fw-chip${s.fw>=amRegel('spofFw',4)?' hoog':''}">FW${s.fw}</span></div></div>`;
+      const zwak=onderNorm&&s.b===minB;
+      return pijl+`<div class="schakel${zwak?' zwak':''}" title="gemiddelde effectieve beschikbaarheid van ${s.n} asset(s) van dit objecttype${s.redundant?' · incl. redundante (n+1) assets':''}">
+        <div class="s-naam">${esc(s.label)}</div>
+        <div class="s-meta">${fmtF(s.b,2)}% · ${s.n} asset${s.n>1?'s':''} · <span class="fw-chip${s.fw>=amRegel('spofFw',4)?' hoog':''}">FW${s.fw}</span>${s.redundant?' · n+1':''}</div></div>`;
     }).join('');
+    const kleur=r.besch===null?'var(--sub)':(r.besch>=k.norm&&r.volledig?'var(--groen)':'var(--rood)');
     return `<div style="padding:12px 0;border-bottom:1px solid #eef1f5">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b>${esc(k.naam)}</b><span class="tag gy">${esc(k.bedienfunctie)}</span>${status}
-        <span style="margin-left:auto;font-family:var(--mono);font-size:12px;display:flex;align-items:center;gap:6px">keten <b style="color:${r.besch>=k.norm?'var(--groen)':'var(--rood)'}">${fmtF(r.besch,2)}%</b> · norm <input type="number" step="0.1" value="${k.norm}" style="width:66px" onchange="DB.ketens.find(x=>x.id==='${k.id}').norm=+this.value;saveDB()"> %</span></div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b>${esc(k.naam)}</b><span class="tag gy">${esc(k.bedrijfsfunctie||k.bedienfunctie||'')}</span>${status}
+        <span style="margin-left:auto;font-family:var(--mono);font-size:12px;display:flex;align-items:center;gap:6px">${k.locatie?'scope '+esc(k.locatie)+' · ':''}keten <b style="color:${kleur}">${r.besch===null?'—':fmtF(r.besch,2)+'%'}</b> · norm <input type="number" step="0.1" value="${k.norm}" style="width:66px" onchange="DB.ketens.find(x=>x.id==='${k.id}').norm=+this.value;saveDB()"> %</span></div>
       <div class="keten-schema">${schema}</div>
-      <div class="los-lijn">Line of sight: <b>${los.doelen.map(esc).join('</b> · <b>')||'—'}</b> ← ${los.functies.map(f=>esc(f.naam)).join(' · ')||'—'} ← deze bedienketen</div>
+      <div class="los-lijn">Line of sight: <b>${los.doelen.map(esc).join('</b> · <b>')||'—'}</b> ← <b>${esc(k.bedrijfsfunctie||'')}</b> ← ${r.schakels.length} objecttypen${r.ontbrekend?' ('+r.ontbrekend+' nog niet geladen)':''}</div>
     </div>`;
   }).join('');
   /* what-if doorrekening door alle bedienketens heen */
@@ -1314,12 +1398,13 @@ function renderAM(){
     const wa=DB.assets.find(x=>x.id===w.assetId);
     const perUur=+cfg('contract.boete_per_uur',500);
     let risico=0;
-    const rows=(DB.ketens||[]).filter(k=>(k.schakels||[]).includes(w.assetId)).map(k=>{
+    const rows=(DB.ketens||[]).filter(k=>ketenGeraakt(k,wa)).map(k=>{
       const voor=ketenBesch(k,p).besch,na=ketenBesch(k,p,w).besch;
+      if(voor===null||na===null)return '';
       const urenOnder=Math.max(0,k.norm-na)/100*8760;
       const bedrag=urenOnder*perUur;risico+=bedrag;
       const los=lineOfSight(k);
-      return `<tr><td><b>${esc(k.naam)}</b><br><span style="font-size:11px;color:var(--sub)">${los.functies.map(f=>esc(f.naam)).join(' · ')||'—'} → ${los.doelen.map(esc).join(' · ')||'—'}</span></td>
+      return `<tr><td><b>${esc(k.naam)}</b><br><span style="font-size:11px;color:var(--sub)">${los.functieNamen.map(esc).join(' · ')||'—'} → ${los.doelen.map(esc).join(' · ')||'—'}</span></td>
         <td class="num">${fmtF(voor,2)}%</td><td class="num" style="font-weight:700;color:${na>=k.norm?'var(--groen)':'var(--rood)'}">${fmtF(na,2)}%</td>
         <td class="num">${fmtF(na-voor,2)}</td><td class="num">${fmtF(k.norm)}%</td>
         <td>${na>=k.norm?'<span class="tag g">Norm</span>':'<span class="tag r">Onder norm</span>'}</td>
@@ -1337,7 +1422,7 @@ function renderAM(){
     const uitstelTeHoog=(+a.uitstelMnd||0)>grens;
     const status=(spof?'<span class="tag r">SPOF</span> ':'')+(uitstelTeHoog?'<span class="tag r">Uitstel &gt; grens</span>':(!spof?'<span class="tag g">Conform</span>':''));
     return `<tr><td><b>${esc(a.naam)}</b><br><span style="font-size:11px;color:var(--sub)">${esc(a.locatie)} · ${a.cmdb}</span></td>
-      <td><input type="text" value="${esc(a.type||'')}" style="width:104px" onchange="DB.assets.find(x=>x.id==='${a.id}').type=this.value;saveDB()"></td>
+      <td><select style="width:150px" onchange="DB.assets.find(x=>x.id==='${a.id}').type=this.value;saveDB()">${Object.keys(OBJECTTYPEN).map(t=>`<option value="${t}" ${a.type===t?'selected':''}>${esc(OBJECTTYPEN[t].label)}</option>`).join('')}${OBJECTTYPEN[a.type]?'':`<option value="${esc(a.type||'')}" selected>${esc(a.type||'(overig)')}</option>`}</select></td>
       <td><select style="width:64px" onchange="DB.assets.find(x=>x.id==='${a.id}').fw=+this.value;saveDB()">${[1,2,3,4,5].map(n=>`<option value="${n}" ${+a.fw===n?'selected':''}>${n}</option>`).join('')}</select></td>
       <td><select style="width:60px" onchange="DB.assets.find(x=>x.id==='${a.id}').conditie=+this.value;saveDB()">${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${+a.conditie===n?'selected':''}>${n}</option>`).join('')}</select></td>
       <td class="num"><input type="number" min="0" step="1" value="${+a.uitstelMnd||0}" style="width:62px" onchange="DB.assets.find(x=>x.id==='${a.id}').uitstelMnd=+this.value;saveDB()"></td>
@@ -1349,7 +1434,8 @@ function renderAM(){
   $('#page-am').innerHTML=`
     <div class="pagehead"><h2>Assetmanagement</h2><div class="desc">ISO 55001 · line of sight: bedrijfsdoel → bedrijfsfunctie → bedienketen → asset. De AM-regels (max. uitstel per FW-klasse, degradatie, conditiedrempel, SPOF-eis) staan in de rule engine. ${simActive()?'<b style="color:var(--oranje)">Let op: simulatieparameters actief.</b>':''}</div>
     <div class="actions"><button class="btn" onclick="goto('rules')">⚙ AM-regels in de rule engine</button></div></div>
-    <div class="card"><h3>Bedienketens <span class="hint">ketenbeschikbaarheid = serieel product van de schakels · redundante schakels (n+1) tellen kwadratisch · degradatie door uitgesteld onderhoud telt mee</span></h3>
+    <div class="card"><h3>Bedienketens <span class="hint">generiek uit de TNO-taakanalyse · ketenbeschikbaarheid = serieel product van de objecttype-schakels · gemiddelde per type over de geladen assets · degradatie door uitgesteld onderhoud telt mee</span></h3>
+      <div class="footnote" style="margin-bottom:6px">De ketens zijn de <b>purpose-related functions</b> uit de abstractiehiërarchie (regionaal wegverkeersmanagement, TNO 2021). Elke schakel is een generiek <b>objecttype</b> uit de ‘physical objects’-laag; de beschikbaarheid wordt berekend over de assets van dat type die je hebt geladen (bv. via NDW-import). Een gestippelde schakel is een objecttype dat nog niet in het areaal zit.</div>
       ${ketenBlocks||'<div class="empty">Nog geen bedienketens gedefinieerd.</div>'}</div>
     <div class="card"><h3>What-if doorrekening <span class="hint">gevolgen van uitgesteld onderhoud of beschikbaarheidsverlies, door de afhankelijkheden heen zichtbaar tot op doelniveau</span></h3>
       <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
@@ -1580,8 +1666,8 @@ function refresh(){
    de NDW-/storingsimports) maar laat de regels staan (config, impact, amRegels,
    storingsRegels, capgrens). Handig om schoon te testen met eigen data. */
 function legModel(){
-  if(!confirm('Alle actuele data wissen — bedrijfsfuncties, assets, bedienketens en geïmporteerde NDW-/storingsdata — en met een leeg model beginnen?\n\nDe regels (config, impactregels, AM-regels, storingsregels, capaciteitsgrenzen) blijven staan. Dit kan niet ongedaan worden gemaakt.'))return;
-  DB.functies=[];DB.assets=[];DB.ketens=[];DB.doelen=[];
+  if(!confirm('Alle actuele data wissen — bedrijfsfuncties, assets en geïmporteerde NDW-/storingsdata — en met een leeg model beginnen?\n\nDe regels (config, impactregels, AM-regels, storingsregels, capaciteitsgrenzen) én de generieke bedienketens uit de taakanalyse blijven staan. Dit kan niet ongedaan worden gemaakt.'))return;
+  DB.functies=[];DB.assets=[];DB.doelen=[];
   DB.financien={budgetJr:0};
   delete DB.ndwImport;delete DB.storingsImport;
   saveDB();

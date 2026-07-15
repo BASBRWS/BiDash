@@ -36,7 +36,7 @@ Motto: *Rule engine legt vast · Trigger engine monitoort · Dashboard toont*
 ## Assetmanagement (ISO 55001)
 
 - **Line of sight**: de doorlopende lijn *bedrijfsdoel → bedrijfsfunctie → bedienketen → asset* moet expliciet en doorrekenbaar blijven (§ 4.6 en § 6.5 van het architectuurdocument).
-- **Bedienketens**: ketenbeschikbaarheid = serieel product van schakelbeschikbaarheden; redundante schakels (n+1) tellen kwadratisch; degradatie door uitgesteld onderhoud via `degrPer6Mnd` en de NEN 2767-conditiedrempel.
+- **Bedienketens**: generiek afgeleid van de TNO-taakanalyse (abstractiehiërarchie) — elke keten is een *purpose-related function* met generieke **objecttypen** (`schakelTypes`, catalogus `OBJECTTYPEN`) i.p.v. specifieke asset-id's; technologie-/locatie-onafhankelijk. Ketenbeschikbaarheid = serieel product van de schakels (gemiddelde per objecttype over de geladen assets); redundante assets (n+1) tellen kwadratisch; degradatie door uitgesteld onderhoud via `degrPer6Mnd` en de NEN 2767-conditiedrempel. Een objecttype zonder assets = niet-geladen schakel → keten *onvolledig*.
 - **Functionele waarde (FW 1–5)** bepaalt welke AM-regels gelden (`maxUitstel` per klasse, SPOF-eis vanaf `spofFw`).
 - AM-regels leven in `DB.amRegels`; het assetregister kent `type`, `fw`, `conditie`, `uitstelMnd`, `redundant`.
 - **Storingsregels buitenassets** (§ 4.7): `DB.storingsRegels` (assetTypen, foutcodes, locatieRegels, combiRegels) vertaalt storingsmeldingen (CSV-import) naar beschikbaarheids- én prestatie-impact per wegnummer op het NDW-areaal; beschikbaarheid en prestatie blijven gescheiden.
