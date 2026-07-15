@@ -1,0 +1,13 @@
+foutcode;storingsomschrijving;asset;type;wegnummer;wegdeelletter;hm-bord;strooknummer;datum;context;duur
+1003;Fatale fout bij MSI 1;ZN VKS MSI A15R 24,330 2;LED;15;R;24,3;1;2026-05-03;voor_afrit;8
+1006;Beide lussen fout bij det.1;ZN VKS DET A15R 24,400 1;Inductielus;15;R;24,4;1;2026-05-03;;6
+4021;Noodvoeding uitgevallen;ZN VKS MSI A15R 24,250 0;LED;15;R;24,2;0;2026-05-03;;12
+1001;Fout in lampcircuit bij MSI 3 lamp 90;ZN VKS MSI A15L 31,200 3;LED;15;R;31,2;3;2026-04-14;;5
+1003;Fatale fout bij MSI 2;ZN VKS MSI A2R 168,760 2;Halogeen;2;R;168,7;2;2026-03-22;tussen_portalen_zonder_ramp;24
+1003;Fatale fout bij MSI 2;ZN VKS MSI A2R 168,760 2;Halogeen;2;R;168,7;2;2026-03-22;tussen_portalen_zonder_ramp;24
+1003;Fatale fout bij MSI 4;ZN VKS MSI A2R 169,100 1;LED;2;R;169,1;1;2026-03-22;;36
+1061;Beeld 80 gedegradeerd op MSI 2;ZN VKS MSI A2L 142,880 1;Halogeen;2;R;142,8;1;2026-06-10;;4
+1007;Een lus goed, een lus fout bij det.4;ZN VKS DET A2R 170,960 4;Inductielus;2;R;170,9;4;2026-02-08;;6
+6005;Wisselbord heeft verkeerde stand;Wisselbord A1 L 52.200;Wisselbord;1;L;52,2;;2026-05-20;;10
+9999;Onbekende melding zonder regels;ZN XYZ ONBEKEND;Overig;2;R;10,0;1;2026-02-01;;2
+1003;Fatale fout bij MSI 9;ZN VKS MSI A99R 1,000 1;LED;99;R;1,0;1;2026-04-01;;6

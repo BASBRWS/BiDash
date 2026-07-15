@@ -150,6 +150,19 @@ De externe DVM-assets die de verkeerscentrale gebruikt (signaalgevers, camera's,
 
 Per asset beheert het register aanvullend: `type`, `fw`, `conditie` (NEN 2767, 1–6), `uitstelMnd` en `redundant`.
 
+### 4.7 Storingsregels buitenassets (MSI · CAM · LUS · wisselbord)
+
+De rule engine legt vast hoe **storingsmeldingen** van buitenassets vertaald worden naar beschikbaarheids- én prestatie-impact op het areaal (`DB.storingsRegels`, bewerkbaar op de rule engine-pagina, gebaseerd op de Regels_MSI-template). Vier regeltabellen:
+
+| Tabel | Inhoud | Voorbeeld |
+|---|---|---|
+| `assetTypen` | Herkenningsregels (veld/operator/waarde) en gewichten per type voor beschikbaarheid en prestatie | MSI: naam bevat "MSI", gewicht 1/1 · camera: 0,35/0,6 |
+| `foutcodes` | Basisimpact per foutcode (of omschrijvingspatroon), met severityklasse | 1003 Fatale fout: 100/100 · 1001 lampcircuit: 15/30 |
+| `locatieRegels` | Contextfactoren met prioriteit | voor_afrit ×1,6/×1,4 · tussen werkende portalen ×0,8/×0,85 |
+| `combiRegels` | Samenloop van storingen: zelfde weg/richting binnen hm-afstand en tijdvenster → extra impact, met caps | MSI 1003 + lus 1006 binnen 0,3 km → +15/+25 |
+
+**Doorrekening (meldingen-import op de pagina Assetmanagement, CSV uit de storingsbron):** per melding 1) assettype classificeren, 2) locatiecontext bepalen (kolom `context`, anders factor 1), 3) foutcode mappen, 4) basisimpact = foutcode-% × typegewicht × locatiefactor (cap 100), 5) combi-regels toepassen, 6) aggregatie per wegnummer op de NDW-MSI-assets: areaalbeschikbaarheid = 100 − Σ(impact × hersteltijd) / (aantal signaalgevers × periode), prestatie idem apart, plus storingen/jr (telt door in de Monte Carlo — P4). Dedupe op weg+richting+hm+strook+code; hersteltijd uit de melding (`duur`) of anders `assets.hw_mttr` uit config.html. Meldingen van niet-MSI-typen (lus, camera, wisselbord) doen mee in de combi-regels.
+
 ---
 
 ## 5. Integrale planning — de embedded tool en de brug
@@ -421,7 +434,7 @@ DB = {
 | **Dashboard** | Vijf domeintegels met RAG-status, kernwaarde en databron-chips; de interactieve driehoek (klikbaar, kleurt mee, met MC-kanspercentages); risico's gegroepeerd per verantwoordelijke |
 | **Rule engine** | Config.html-koppeling (import/browseropslag/reset) met per parameter de doorwerking; impactregels; capaciteitsgrenzen; P×Q-tabel per bedrijfsfunctie; asset-normen (afgeleid, met bronvermelding) en wegingen; richtlijnen met ATW-parameters |
 | **Trigger engine** | KPI-strook (kritiek/aandacht/getoetst/binnen norm) en de volledige triggerlijst met toelichting, waarde, verantwoordelijke, impact-chips en afgeleid-badges |
-| **Assetmanagement** | Bedienketens met schakelschema (beschikbaarheid, FW, conditie, n+1, uitstel per schakel) en line of sight naar functies en doelen; what-if doorrekening; NDW-import van areaalgegevens (MSI/DRIP per wegnummer); AM-register met bewerkbare FW/conditie/uitstel/redundantie |
+| **Assetmanagement** | Bedienketens met schakelschema (beschikbaarheid, FW, conditie, n+1, uitstel per schakel) en line of sight naar functies en doelen; what-if doorrekening; NDW-import van areaalgegevens (MSI/DRIP per wegnummer); storingsmeldingen-import met doorrekening volgens § 4.7; AM-register met bewerkbare FW/conditie/uitstel/redundantie |
 | **Integrale planning** | De originele planningstool (iframe) + brugstatus + capaciteitskaart |
 | **Databronnen** | Actuele data bewerkbaar: assets (beschikbaarheid, storingen), formatie (actueel), financiën (budget, kostenindex); planningsverwijzing |
 | **Simulatie** | Sliders, basis-vs-simulatievergelijking, Monte Carlo met kansen, P-waarden en histogram |
@@ -434,6 +447,7 @@ DB = {
 |---|---|---|
 | config.html → rule engine | in | `vwl_scenario_config.json` (vwl-scenario-envelop) of localStorage `vwl-scenarios` |
 | NDW open data → assetregister | in | MSI-snapshot (TMIS VMS-XML) en DRIP-publicatie (DATEX II v3-XML), ook gezipt; import op de pagina Assetmanagement, aggregatie per wegnummer (= corridor-token), beheervelden blijven bij herimport behouden |
+| Storingsbron → assetregister | in | Storingsmeldingen als CSV (foutcode, omschrijving, asset, type, wegnummer, richting, hm, strook, datum; optioneel context en duur); doorgerekend volgens de storingsregels (§ 4.7) naar beschikbaarheid/prestatie/storingen per weg |
 | Primavera P6 → planningstool | in | P6 XML (Project/WBS/Activity/Relationship/ActivityCodes), via de eigen import van de tool |
 | Planningstool → trigger engine | in (read-only) | `iframe.contentWindow`: IPL_MODEL, ipl_eff, IPL_WBS_DIENST, IPL_SHIFT, IPL_CONFIG.fte (via tool-functies) |
 | Dashboard ↔ omgeving | in/uit | Volledige DB als JSON (export/import) |

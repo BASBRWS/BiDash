@@ -225,6 +225,7 @@ canvas.chart{width:100%;background:var(--wit)}
 </main>
 <input type="file" id="cfgfile" accept=".json" style="display:none" onchange="cfgHandleFile(event)">
 <input type="file" id="ndwfile" accept=".xml,.gz" multiple style="display:none" onchange="ndwHandleFiles(event)">
+<input type="file" id="srfile" accept=".csv,.txt" style="display:none" onchange="srHandleFile(event)">
 <script>
 /* ═══════════════════════════════════════════════════════════
    CONFIGURATIE — dezelfde regels als config.html (VWL Configuratie)
@@ -280,6 +281,43 @@ const DEFAULT_DB={
     conditieDrempel:4,
     spofFw:4
   },
+  /* STORINGSREGELS BUITENASSETS — rule engine-voorwaarden die storingsmeldingen
+     van buitenassets (MSI, camera, meetlus, wisselbord) vertalen naar
+     beschikbaarheids- én prestatie-impact op het areaal, met gradatie op
+     locatiecontext en combinatiestoringen (bron: Regels_MSI-template).
+     Toegepast bij de meldingen-import op de pagina Assetmanagement. */
+  storingsRegels:{
+    assetTypen:[
+      {id:'MSI',actief:true,matchVeld:'asset',matchOp:'contains',matchWaarde:'MSI',functie:'signaalgever / matrixsignaalgever',wAvail:1,wPerf:1},
+      {id:'CAM',actief:true,matchVeld:'type',matchOp:'equals',matchWaarde:'Camera',functie:'camera',wAvail:0.35,wPerf:0.6},
+      {id:'LUS',actief:true,matchVeld:'type',matchOp:'contains',matchWaarde:'lus',functie:'meetlus / detectielus',wAvail:0.2,wPerf:0.5},
+      {id:'WISSELBORD',actief:true,matchVeld:'storingsomschrijving',matchOp:'contains',matchWaarde:'Wisselbord',functie:'wisselbord',wAvail:0.6,wPerf:0.9}
+    ],
+    foutcodes:[
+      {code:'1003',actief:true,patroon:'Fatale fout',assetType:'MSI',severity:'kritiek',availPct:100,perfPct:100,oms:'Volledige uitval van MSI'},
+      {code:'1001',actief:true,patroon:'lampcircuit',assetType:'MSI',severity:'middel',availPct:15,perfPct:30,oms:'Niet altijd volledige uitval, wel prestatieverlies'},
+      {code:'1061',actief:true,patroon:'Beeld',assetType:'MSI',severity:'laag',availPct:5,perfPct:15,oms:'Beeld gedegradeerd'},
+      {code:'1006',actief:true,patroon:'Beide lussen fout',assetType:'LUS',severity:'hoog',availPct:25,perfPct:60,oms:'Sterke impact op detectiekwaliteit'},
+      {code:'1007',actief:true,patroon:'Een lus goed, een lus fout',assetType:'LUS',severity:'middel',availPct:10,perfPct:25,oms:'Gedeeltelijke detectie'},
+      {code:'5004',actief:true,patroon:'uitgeschakeld voor OS',assetType:'LUS',severity:'hoog',availPct:15,perfPct:40,oms:'Bewust uitgeschakeld, wel impact'},
+      {code:'6005',actief:true,patroon:'Wisselbord heeft verkeerde stand',assetType:'WISSELBORD',severity:'hoog',availPct:40,perfPct:80,oms:'Verkeerde stand raakt bediening/veiligheid'},
+      {code:'4021',actief:true,patroon:'Noodvoeding uitgevallen',assetType:'MSI',severity:'hoog',availPct:20,perfPct:35,oms:'Onderliggende storing, combineerbaar'}
+    ],
+    locatieRegels:[
+      {id:'LOC_001',actief:true,assetType:'MSI',context:'voor_afrit',fAvail:1.6,fPerf:1.4,prioriteit:100,oms:'MSI voor afrit of toerit weegt zwaarder'},
+      {id:'LOC_002',actief:true,assetType:'MSI',context:'tussen_portalen_zonder_ramp',fAvail:0.8,fPerf:0.85,prioriteit:80,oms:'MSI midden in homogeen traject weegt lichter'},
+      {id:'LOC_003',actief:true,assetType:'MSI',context:'portaal_voor_en_na_werken',fAvail:0.7,fPerf:0.8,prioriteit:70,oms:'Werkende portalen voor en na verlagen impact'},
+      {id:'LOC_004',actief:true,assetType:'CAM',context:'incidentzicht',fAvail:1.2,fPerf:1.4,prioriteit:60,oms:'Camera met zichtfunctie rond incidentlocatie'},
+      {id:'LOC_005',actief:true,assetType:'LUS',context:'weefvak',fAvail:1.3,fPerf:1.5,prioriteit:90,oms:'Meetlus in weefvak of invoegstrook weegt zwaarder'},
+      {id:'LOC_006',actief:true,assetType:'LUS',context:'hoofdrijbaan_standaard',fAvail:1,fPerf:1,prioriteit:50,oms:'Standaard basis'}
+    ],
+    combiRegels:[
+      {id:'COMBO_001',actief:true,oms:'MSI plus lussen zelfde HM-band',type1:'MSI',code1:'1003',type2:'LUS',code2:'1006',maxKm:0.3,venMin:1440,extraAvail:15,extraPerf:25,capAvail:100,capPerf:100,prioriteit:100},
+      {id:'COMBO_002',actief:true,oms:'Twee of meer MSI-fatale fouten in korte band',type1:'MSI',code1:'1003',type2:'MSI',code2:'1003',maxKm:0.8,venMin:1440,extraAvail:20,extraPerf:20,capAvail:100,capPerf:100,prioriteit:95},
+      {id:'COMBO_003',actief:true,oms:'Camera plus lussen op zelfde wegvak',type1:'CAM',code1:'',type2:'LUS',code2:'1006',maxKm:0.5,venMin:1440,extraAvail:5,extraPerf:15,capAvail:100,capPerf:100,prioriteit:70},
+      {id:'COMBO_004',actief:true,oms:'Noodvoeding samen met MSI-fout',type1:'MSI',code1:'4021',type2:'MSI',code2:'1003',maxKm:0.2,venMin:1440,extraAvail:10,extraPerf:15,capAvail:100,capPerf:100,prioriteit:90}
+    ]
+  },
   financien:{budgetJr:640000},
   /* IMPACTREGELS — voorwaarden van de rule engine: hoe vertaalt de trigger engine
      een planningsafwijking (per meldingstype) naar brede impact op alle datasets */
@@ -304,6 +342,7 @@ function migreerDB(d){
   const am=d.amRegels||{};
   d.amRegels={...DEFAULT_DB.amRegels,...am,maxUitstel:{...DEFAULT_DB.amRegels.maxUitstel,...(am.maxUitstel||{})}};
   if(!Array.isArray(d.ketens))d.ketens=JSON.parse(JSON.stringify(DEFAULT_DB.ketens));
+  if(!d.storingsRegels)d.storingsRegels=JSON.parse(JSON.stringify(DEFAULT_DB.storingsRegels));
   (d.assets||[]).forEach(a=>{const def=DEFAULT_DB.assets.find(x=>x.id===a.id)||{};
     if(a.type===undefined)a.type=def.type!==undefined?def.type:'overig';
     if(a.fw===undefined)a.fw=def.fw!==undefined?def.fw:3;
@@ -404,7 +443,7 @@ function ndwParseDrip(xml){
 }
 function ndwUpsertAsset(id,def){
   const a=DB.assets.find(x=>x.id===id);
-  if(a){a.naam=def.naam;a.locatie=def.locatie;a.cmdb=def.cmdb;a.type=def.type;return 0}
+  if(a){a.naam=def.naam;a.locatie=def.locatie;a.cmdb=def.cmdb;a.type=def.type;if(def.aantal!==undefined)a.aantal=def.aantal;return 0}
   DB.assets.push({id,...def});return 1;
 }
 async function ndwHandleFiles(ev){
@@ -424,16 +463,16 @@ async function ndwHandleFiles(ev){
   if(msi){
     const norm=+cfg('kpi.asset_beschikbaarheid.msi',99.5);let nieuw=0;
     Object.entries(msi.perWeg).forEach(([weg,n])=>{
-      nieuw+=ndwUpsertAsset('ndw_msi_'+weg.toLowerCase(),{naam:'MSI '+weg+' · '+n+' signaalgevers (NDW)',cmdb:'DVM',type:'signalering',locatie:weg,besch:norm,storingenJr:0,weging:1,fw:4,conditie:2,uitstelMnd:0,redundant:false});
+      nieuw+=ndwUpsertAsset('ndw_msi_'+weg.toLowerCase(),{naam:'MSI '+weg+' · '+n+' signaalgevers (NDW)',cmdb:'DVM',type:'signalering',locatie:weg,aantal:n,besch:norm,storingenJr:0,weging:1,fw:4,conditie:2,uitstelMnd:0,redundant:false});
     });
     DB.ndwImport.msi={bestand:msi.bestand,datum:vandaag,peilmoment:msi.peilmoment,signs:msi.signs,wegen:Object.keys(msi.perWeg).length,nieuw};
   }
   if(drip){
     const norm=+cfg('kpi.asset_beschikbaarheid.drip',98);let nieuw=0;
     Object.entries(drip.perWeg).forEach(([weg,n])=>{
-      nieuw+=ndwUpsertAsset('ndw_drip_'+weg.toLowerCase(),{naam:'DRIP '+weg+' · '+n+' panelen (NDW)',cmdb:'Facilitair',type:'drip',locatie:weg,besch:norm,storingenJr:0,weging:1,fw:2,conditie:2,uitstelMnd:0,redundant:false});
+      nieuw+=ndwUpsertAsset('ndw_drip_'+weg.toLowerCase(),{naam:'DRIP '+weg+' · '+n+' panelen (NDW)',cmdb:'Facilitair',type:'drip',locatie:weg,aantal:n,besch:norm,storingenJr:0,weging:1,fw:2,conditie:2,uitstelMnd:0,redundant:false});
     });
-    if(drip.overig>0)nieuw+=ndwUpsertAsset('ndw_drip_overig',{naam:'DRIP’s stedelijk/regionaal · '+drip.overig+' panelen (NDW)',cmdb:'Facilitair',type:'drip',locatie:'stedelijk/regionaal',besch:norm,storingenJr:0,weging:1,fw:2,conditie:2,uitstelMnd:0,redundant:false});
+    if(drip.overig>0)nieuw+=ndwUpsertAsset('ndw_drip_overig',{naam:'DRIP’s stedelijk/regionaal · '+drip.overig+' panelen (NDW)',cmdb:'Facilitair',type:'drip',locatie:'stedelijk/regionaal',aantal:drip.overig,besch:norm,storingenJr:0,weging:1,fw:2,conditie:2,uitstelMnd:0,redundant:false});
     DB.ndwImport.drip={bestand:drip.bestand,datum:vandaag,peilmoment:drip.peilmoment,totaal:drip.totaal,wegen:Object.keys(drip.perWeg).length,overig:drip.overig,nieuw};
   }
   if(onbekend.length)alert('Niet herkend als NDW MSI- of DRIP-bestand: '+onbekend.join(', '));
@@ -445,6 +484,136 @@ function ndwVerwijder(){
   (DB.ketens||[]).forEach(k=>{k.schakels=(k.schakels||[]).filter(id=>!String(id).startsWith('ndw_'))});
   delete DB.ndwImport;
   saveDB();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   STORINGSMELDINGEN — doorrekening volgens de storingsregels (§ 4.7)
+   CSV-import (kolommen zoals de storingsbron: asset, type,
+   storingsomschrijving, foutcode, wegnummer, wegdeelletter, hm-bord,
+   strooknummer, datum; optioneel context en duur in uren).
+   Zes stappen: 1 classificeren (assetTypen) · 2 locatiecontext
+   (locatieRegels) · 3 foutcode mappen (foutcodes) · 4 basisimpact ·
+   5 combi-regels · 6 aggregatie per wegnummer op de geladen
+   NDW-MSI-assets: beschikbaarheid én prestatie apart, plus
+   storingen/jr (telt door in triggers en Monte Carlo, P4).
+   ═══════════════════════════════════════════════════════════ */
+function parseCsvTekst(text){
+  const lines=String(text).split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2)return [];
+  const sep=['\t',';',','].sort((a,b)=>lines[0].split(b).length-lines[0].split(a).length)[0];
+  const kop=lines[0].split(sep).map(h=>h.trim().toLowerCase());
+  return lines.slice(1).map(l=>{const p=l.split(sep);const o={};kop.forEach((h,i)=>o[h]=(p[i]||'').trim());return o});
+}
+function srKolom(m,aliassen){for(const a of aliassen){if(m[a]!==undefined&&m[a]!=='')return m[a]}return ''}
+function srNum(v){const x=parseFloat(String(v).replace(',','.'));return isNaN(x)?null:x}
+function srOms(m){return String(srKolom(m,['storingsomschrijving','omschrijving','melding']))}
+function srClassificeer(m){ // stap 1: assettype via de match-regels
+  for(const r of DB.storingsRegels.assetTypen){
+    if(!r.actief)continue;
+    const veld=r.matchVeld==='asset'?srKolom(m,['asset','assetnaam']):r.matchVeld==='type'?srKolom(m,['type']):srOms(m);
+    const v=String(veld).toLowerCase(),w=String(r.matchWaarde).toLowerCase();
+    if(r.matchOp==='equals'?v===w:v.includes(w))return r.id;
+  }
+  return null;
+}
+function srFoutregel(m,typeId){ // stap 3: foutcode (of patroon in de omschrijving)
+  const code=String(srKolom(m,['foutcode','code','storingscode'])).trim();
+  const oms=srOms(m).toLowerCase();
+  let best=null;
+  for(const f of DB.storingsRegels.foutcodes){
+    if(!f.actief||f.assetType!==typeId)continue;
+    if(code&&String(f.code)===code)return f;
+    if(!code&&f.patroon&&oms.includes(String(f.patroon).toLowerCase()))best=best||f;
+  }
+  return best;
+}
+function srLocatieFactor(m,typeId){ // stap 2: contextfactor (hoogste prioriteit wint)
+  const ctx=String(srKolom(m,['context','locatiecontext','ramp_context'])).trim().toLowerCase();
+  if(!ctx)return {fA:1,fP:1};
+  let best=null;
+  for(const l of DB.storingsRegels.locatieRegels){
+    if(!l.actief||l.assetType!==typeId||String(l.context).toLowerCase()!==ctx)continue;
+    if(!best||l.prioriteit>best.prioriteit)best=l;
+  }
+  return best?{fA:+best.fAvail,fP:+best.fPerf}:{fA:1,fP:1};
+}
+function verwerkMeldingen(text,bestand){
+  const R=DB.storingsRegels;
+  const rijen=parseCsvTekst(text);
+  if(!rijen.length){alert('Geen meldingen gevonden in het bestand (verwacht: CSV met kopregel).');return}
+  const M=[];const gezien=new Set();let dubbel=0,nietGecl=0,zonderFoutregel=0;
+  rijen.forEach(m=>{
+    const typeId=srClassificeer(m);
+    if(!typeId){nietGecl++;return}
+    const f=srFoutregel(m,typeId);
+    if(!f){zonderFoutregel++;return}
+    let weg=String(srKolom(m,['wegnummer','weg'])).trim().toUpperCase();
+    if(/^\d+$/.test(weg))weg='A'+weg;
+    const richting=String(srKolom(m,['wegdeelletter','richting'])).trim().toUpperCase();
+    const hm=srNum(srKolom(m,['hm-bord','hm','hectometer']));
+    const t=Date.parse(srKolom(m,['datum','tijdstip','ts','date']))||null;
+    const sleutel=[weg,richting,hm,f.code,srKolom(m,['strooknummer','strook'])].join('|'); // dedupe: road+dir+hm+strook+code
+    if(gezien.has(sleutel)){dubbel++;return}
+    gezien.add(sleutel);
+    const at=R.assetTypen.find(x=>x.id===typeId);
+    const loc=srLocatieFactor(m,typeId);
+    M.push({typeId,code:String(f.code),weg,richting,hm,t,
+      duur:srNum(srKolom(m,['duur','duur_uren','hersteltijd'])),
+      avail:Math.min(100,f.availPct*at.wAvail*loc.fA),   // stap 4: basisimpact × gewicht × locatiefactor, cap 100
+      perf:Math.min(100,f.perfPct*at.wPerf*loc.fP)});
+  });
+  // stap 5: combi-regels — zelfde weg+richting, binnen hm-afstand en tijdvenster
+  let combiHits=0;
+  R.combiRegels.filter(c=>c.actief).forEach(c=>{
+    const zelfde=c.type1===c.type2&&String(c.code1)===String(c.code2);
+    for(let i=0;i<M.length;i++)for(let j=0;j<M.length;j++){
+      if(i===j||(zelfde&&i>=j))continue;
+      const a=M[i],b=M[j];
+      if(a.weg!==b.weg||a.richting!==b.richting)continue;
+      if(!(a.typeId===c.type1&&(!c.code1||a.code===String(c.code1))))continue;
+      if(!(b.typeId===c.type2&&(!c.code2||b.code===String(c.code2))))continue;
+      if(a.hm!==null&&b.hm!==null&&Math.abs(a.hm-b.hm)>+c.maxKm)continue;
+      if(a.t&&b.t&&Math.abs(a.t-b.t)>c.venMin*60000)continue;
+      a.avail=Math.min(+c.capAvail,a.avail+ +c.extraAvail);
+      a.perf=Math.min(+c.capPerf,a.perf+ +c.extraPerf);
+      combiHits++;
+    }
+  });
+  // stap 6: aggregatie per wegnummer op de geladen NDW-MSI-assets
+  const ts=M.map(m=>m.t).filter(Boolean);
+  const periodeJr=ts.length>=2?Math.max((Math.max(...ts)-Math.min(...ts))/(365.25*24*3600e3),1/52):1;
+  const periodeUren=periodeJr*8760;
+  const perWeg={};
+  M.filter(m=>m.typeId==='MSI').forEach(m=>{
+    const agg=perWeg[m.weg]=perWeg[m.weg]||{n:0,availUren:0,perfUren:0};
+    agg.n++;
+    const duur=m.duur||+cfg('assets.hw_mttr',6); // hersteltijd uit de melding, anders config-MTTR
+    agg.availUren+=m.avail/100*duur;
+    agg.perfUren+=m.perf/100*duur;
+  });
+  const resultaat=[],zonderAreaal=[];
+  Object.entries(perWeg).forEach(([weg,agg])=>{
+    const a=DB.assets.find(x=>x.id==='ndw_msi_'+weg.toLowerCase());
+    const N=a?(a.aantal||+((String(a.naam).match(/(\d+) signaalgevers/)||[])[1])||0):0;
+    if(!a||!N){zonderAreaal.push(weg+' ('+agg.n+' meldingen)');return}
+    // areaalbeschikbaarheid = 100 − Σ(impact × duur) / (aantal signaalgevers × periode)
+    a.besch=Math.round(Math.max(0,Math.min(100,100-agg.availUren/(N*periodeUren)*100))*1000)/1000;
+    a.prestatie=Math.round(Math.max(0,Math.min(100,100-agg.perfUren/(N*periodeUren)*100))*1000)/1000;
+    a.storingenJr=Math.round(agg.n/periodeJr*10)/10;
+    resultaat.push({weg,n:agg.n,besch:a.besch,prestatie:a.prestatie,stJr:a.storingenJr});
+  });
+  resultaat.sort((x,y)=>y.n-x.n);
+  DB.storingsImport={bestand,datum:new Date().toISOString().slice(0,10),
+    meldingen:rijen.length,toegepast:M.length,dubbel,nietGeclassificeerd:nietGecl,zonderFoutregel,
+    nietMsi:M.filter(m=>m.typeId!=='MSI').length,combiHits,
+    periodeJr:Math.round(periodeJr*100)/100,resultaat,zonderAreaal};
+  saveDB();
+}
+function srHandleFile(ev){
+  const f=ev.target.files[0];ev.target.value='';if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{try{verwerkMeldingen(r.result,f.name)}catch(e){alert('Kon meldingen niet verwerken: '+e.message)}};
+  r.readAsText(f);
 }
 
 /* ── config.html scenario importeren ── */
@@ -1068,6 +1237,34 @@ function renderRules(){
         <label>SPOF-eis vanaf FW-klasse</label><input type="number" step="1" min="1" max="5" value="${amRegel('spofFw',4)}" onchange="DB.amRegels.spofFw=+this.value;saveDB()"><span class="cfg-link">vanaf deze FW is redundantie (n+1) vereist \u2192 SPOF-trigger bij enkelvoudige uitvoering met matige conditie</span>
       </div>
       <div class="footnote">De externe DVM-assets zijn randvoorwaardelijk voor het wegverkeersmanagement; bedienketens en het AM-register staan op de pagina <b>Assetmanagement</b>.</div></div>
+    <div class="card"><h3>Storingsregels buitenassets (MSI · CAM · LUS · wisselbord) <span class="hint">vertalen storingsmeldingen naar beschikbaarheids- én prestatie-impact op het areaal · toegepast bij de meldingen-import op de pagina Assetmanagement</span></h3>
+      <details class="rulecat" open><summary>Assettypen &amp; gewichten</summary><div class="rc-body"><table><thead><tr><th>Type</th><th>Herkenning</th><th class="num">Gewicht beschikb.</th><th class="num">Gewicht prestatie</th><th style="text-align:center">Actief</th></tr></thead><tbody>
+        ${DB.storingsRegels.assetTypen.map((r,i)=>`<tr><td><b>${r.id}</b><br><span style="font-size:11px;color:var(--sub)">${esc(r.functie)}</span></td><td><span class="cfg-src">${r.matchVeld} ${r.matchOp} “${esc(r.matchWaarde)}”</span></td>
+          <td class="num"><input type="number" step="0.05" value="${r.wAvail}" style="width:70px" onchange="DB.storingsRegels.assetTypen[${i}].wAvail=+this.value;saveDB()"></td>
+          <td class="num"><input type="number" step="0.05" value="${r.wPerf}" style="width:70px" onchange="DB.storingsRegels.assetTypen[${i}].wPerf=+this.value;saveDB()"></td>
+          <td style="text-align:center"><input type="checkbox" ${r.actief?'checked':''} style="width:auto" onchange="DB.storingsRegels.assetTypen[${i}].actief=this.checked;saveDB()"></td></tr>`).join('')}
+      </tbody></table></div></details>
+      <details class="rulecat"><summary>Foutcoderegels — basisimpact per melding</summary><div class="rc-body"><table><thead><tr><th>Code</th><th>Patroon / omschrijving</th><th>Type</th><th>Severity</th><th class="num">Beschikb. %</th><th class="num">Prestatie %</th><th style="text-align:center">Actief</th></tr></thead><tbody>
+        ${DB.storingsRegels.foutcodes.map((f,i)=>`<tr><td><b>${f.code}</b></td><td>${esc(f.patroon)}<br><span style="font-size:11px;color:var(--sub)">${esc(f.oms||'')}</span></td><td><span class="tag gy">${f.assetType}</span></td><td><span class="tag ${f.severity==='kritiek'?'r':f.severity==='laag'?'g':'o'}">${f.severity}</span></td>
+          <td class="num"><input type="number" step="5" value="${f.availPct}" style="width:66px" onchange="DB.storingsRegels.foutcodes[${i}].availPct=+this.value;saveDB()"></td>
+          <td class="num"><input type="number" step="5" value="${f.perfPct}" style="width:66px" onchange="DB.storingsRegels.foutcodes[${i}].perfPct=+this.value;saveDB()"></td>
+          <td style="text-align:center"><input type="checkbox" ${f.actief?'checked':''} style="width:auto" onchange="DB.storingsRegels.foutcodes[${i}].actief=this.checked;saveDB()"></td></tr>`).join('')}
+      </tbody></table></div></details>
+      <details class="rulecat"><summary>Locatie-impactregels — gradatie naar context</summary><div class="rc-body"><table><thead><tr><th>Regel</th><th>Type</th><th>Context</th><th class="num">Factor beschikb.</th><th class="num">Factor prestatie</th><th style="text-align:center">Actief</th></tr></thead><tbody>
+        ${DB.storingsRegels.locatieRegels.map((l,i)=>`<tr><td><b>${l.id}</b><br><span style="font-size:11px;color:var(--sub)">${esc(l.oms)}</span></td><td><span class="tag gy">${l.assetType}</span></td><td><span class="cfg-src">${l.context}</span></td>
+          <td class="num"><input type="number" step="0.05" value="${l.fAvail}" style="width:70px" onchange="DB.storingsRegels.locatieRegels[${i}].fAvail=+this.value;saveDB()"></td>
+          <td class="num"><input type="number" step="0.05" value="${l.fPerf}" style="width:70px" onchange="DB.storingsRegels.locatieRegels[${i}].fPerf=+this.value;saveDB()"></td>
+          <td style="text-align:center"><input type="checkbox" ${l.actief?'checked':''} style="width:auto" onchange="DB.storingsRegels.locatieRegels[${i}].actief=this.checked;saveDB()"></td></tr>`).join('')}
+      </tbody></table><div class="footnote">De context komt als kolom mee in de meldingen-CSV (bijv. voor_afrit, weefvak) of via handmatige tagging; zonder context geldt factor 1,0.</div></div></details>
+      <details class="rulecat"><summary>Combinatieregels — samenloop van storingen</summary><div class="rc-body"><table><thead><tr><th>Regel</th><th>Conditie</th><th class="num">Max hm-afstand</th><th class="num">Extra beschikb. %</th><th class="num">Extra prestatie %</th><th style="text-align:center">Actief</th></tr></thead><tbody>
+        ${DB.storingsRegels.combiRegels.map((c,i)=>`<tr><td><b>${c.id}</b><br><span style="font-size:11px;color:var(--sub)">${esc(c.oms)}</span></td><td><span class="cfg-src">${c.type1}${c.code1?' '+c.code1:''} + ${c.type2}${c.code2?' '+c.code2:''}</span><br><span style="font-size:11px;color:var(--sub)">zelfde weg/richting · venster ${c.venMin/60} uur · cap ${c.capAvail}/${c.capPerf}</span></td>
+          <td class="num"><input type="number" step="0.1" value="${c.maxKm}" style="width:66px" onchange="DB.storingsRegels.combiRegels[${i}].maxKm=+this.value;saveDB()"></td>
+          <td class="num"><input type="number" step="5" value="${c.extraAvail}" style="width:66px" onchange="DB.storingsRegels.combiRegels[${i}].extraAvail=+this.value;saveDB()"></td>
+          <td class="num"><input type="number" step="5" value="${c.extraPerf}" style="width:66px" onchange="DB.storingsRegels.combiRegels[${i}].extraPerf=+this.value;saveDB()"></td>
+          <td style="text-align:center"><input type="checkbox" ${c.actief?'checked':''} style="width:auto" onchange="DB.storingsRegels.combiRegels[${i}].actief=this.checked;saveDB()"></td></tr>`).join('')}
+      </tbody></table></div></details>
+      <div style="margin-top:8px"><button class="btn danger" onclick="if(confirm('Storingsregels terugzetten naar de ingebouwde standaard (Regels_MSI-template)?')){DB.storingsRegels=JSON.parse(JSON.stringify(DEFAULT_DB.storingsRegels));saveDB()}">Terug naar standaardregels</button></div>
+      <div class="footnote">Rekenvolgorde per melding: assettype bepalen → basisimpact uit foutcode → × typegewicht × locatiefactor (cap 100) → combinatieregels (extra impact, tot de cap) → aggregatie per weg/areaal. Beschikbaarheid en prestatie blijven gescheiden. De regels reizen mee in de JSON-export/-import.</div></div>
     <div class="card"><h3>Uitgangspunten per bedrijfsfunctie <span class="hint">\u201com functie X te leveren heb ik N fte, assets X/Y/Z en \u20ac K per jaar onderhoud nodig\u201d</span></h3>
       <table><thead><tr><th>Bedrijfsfunctie</th><th class="num">Benodigd FTE</th><th>Benodigde assets</th><th class="num">Onderhoud \u20ac/jr</th><th>Richtlijnen</th><th>Regel</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="footnote">Benodigd FTE wordt bij toetsing verhoogd met de verzuimopslag uit config.html (personeel.ziekteverzuim = ${fmtF(p.verzuim)}%).</div></div>
@@ -1188,6 +1385,17 @@ function renderAM(){
         if(n.drip)rgl.push(`<div style="font-size:12px;margin-bottom:4px"><span class="tag b">DRIP</span> ${esc(n.drip.bestand)} · <b>${n.drip.totaal.toLocaleString('nl-NL')}</b> panelen op <b>${n.drip.wegen}</b> wegen + ${n.drip.overig} stedelijk/regionaal (${n.drip.nieuw} nieuw)${n.drip.peilmoment?' · peilmoment '+n.drip.peilmoment:''} · geïmporteerd ${n.drip.datum}</div>`);
         return rgl.length?rgl.join(''):'<div class="empty" style="padding:10px">Nog geen NDW-import. Download bij NDW open data de snapshots “Matrixsignaalinformatie” en “Dynamische route-informatiepanelen” en importeer ze hier.</div>'})()}
       <div class="footnote">Per wegnummer ontstaat één asset in het register (MSI → CMDB DVM, DRIP → CMDB Facilitair; norm uit config.html). De weg (locatie) is tevens het corridor-token voor de impact engine, zodat planningsconflicten op bijv. de A15 automatisch aan het MSI-/DRIP-areaal daar gekoppeld worden. Bij herimport worden naam en aantallen ververst; beheervelden (FW, conditie, uitstel, n+1, beschikbaarheid, weging) blijven behouden.</div></div>
+    <div class="card"><h3>Storingsmeldingen buitenassets <span class="hint">CSV-import uit de storingsbron · doorgerekend volgens de storingsregels uit de rule engine · resultaat per weg op de geladen NDW-MSI's</span></h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+        <button class="btn primary" onclick="document.getElementById('srfile').click()">⭱ Importeer storingsmeldingen (CSV)</button>
+        <button class="btn" onclick="goto('rules')">⚙ Storingsregels in de rule engine</button>
+      </div>
+      ${(()=>{const s=DB.storingsImport;if(!s)return '<div class="empty" style="padding:10px">Nog geen meldingen geïmporteerd. Verwachte kolommen (kopregel, ; of , of tab): foutcode, storingsomschrijving, asset, type, wegnummer, wegdeelletter, hm-bord, strooknummer, datum — optioneel context (bijv. voor_afrit) en duur (uren).</div>';
+        const res=s.resultaat.slice(0,12).map(r=>`<tr><td><b>${esc(r.weg)}</b></td><td class="num">${r.n}</td><td class="num">${fmtF(r.stJr)}</td><td class="num" style="font-weight:700;color:${r.besch>=+cfg('kpi.asset_beschikbaarheid.msi',99.5)?'var(--groen)':'var(--rood)'}">${fmtF(r.besch,3)}%</td><td class="num">${fmtF(r.prestatie,3)}%</td></tr>`).join('');
+        return `<div style="font-size:12px;margin-bottom:6px"><span class="tag b">MELDINGEN</span> ${esc(s.bestand)} · <b>${s.meldingen}</b> regels → <b>${s.toegepast}</b> toegepast (${s.dubbel} dubbel, ${s.nietGeclassificeerd} niet geclassificeerd, ${s.zonderFoutregel} zonder foutcoderegel, ${s.nietMsi} niet-MSI voor combi) · <b>${s.combiHits}</b> combinatietreffer(s) · periode ${fmtF(s.periodeJr,2)} jaar · geïmporteerd ${s.datum}</div>
+        ${res?`<table style="max-width:640px"><thead><tr><th>Weg</th><th class="num">Meldingen</th><th class="num">Storingen/jr</th><th class="num">Beschikbaarheid</th><th class="num">Prestatie</th></tr></thead><tbody>${res}</tbody></table>`:''}
+        ${s.zonderAreaal.length?`<div class="footnote" style="color:var(--oranje)">Geen NDW-areaal in het register voor: ${s.zonderAreaal.map(esc).join(', ')} — importeer eerst het NDW-MSI-bestand of controleer het wegnummer.</div>`:''}`})()}
+      <div class="footnote">Doorrekening per melding: assettype (herkenningsregels) → foutcode → basisimpact × typegewicht × locatiefactor → combinatieregels (zelfde weg/richting binnen hm-afstand en tijdvenster) → aggregatie per weg: beschikbaarheid = 100 − Σ(impact × hersteltijd) / (areaalomvang × periode). Prestatie wordt apart bijgehouden; storingen/jr per weg telt door in de Monte Carlo.</div></div>
     <div class="card"><h3>AM-register <span class="hint">functionele waarde, conditie (NEN 2767), uitgesteld onderhoud en redundantie per asset · wijzigingen werken direct door in ketens, triggers en Monte Carlo</span></h3>
       <table><thead><tr><th>Asset</th><th>Type</th><th>FW</th><th>Conditie</th><th class="num">Uitstel mnd</th><th class="num">Grens FW</th><th style="text-align:center">n+1</th><th class="num">Degradatie</th><th>Status</th></tr></thead><tbody>${regRows}</tbody></table>
       <div class="footnote">Degradatie = factor op de storingskans: 1 + (uitstel/6) × ${amRegel('degrPer6Mnd',18)}%${' '}× 1,5 vanaf conditiescore ${amRegel('conditieDrempel',4)} (NEN 2767). Beschikbaarheid en storingen/jr blijven bewerkbaar op de pagina Databronnen.</div></div>`;
