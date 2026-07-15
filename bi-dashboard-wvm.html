@@ -517,6 +517,7 @@ function p6ParseCapaciteit(xmlText,bestand){
   const xml=new DOMParser().parseFromString(xmlText,'application/xml');
   if(xml.getElementsByTagName('parsererror').length)throw new Error('XML kon niet worden gelezen (parsererror).');
   const T=(el,tag)=>{for(let i=0;i<el.children.length;i++)if(el.children[i].tagName===tag)return (el.children[i].textContent||'').trim();return ''};
+  const dToF=s=>{if(!s)return null;const d=new Date(s.replace(' ','T'));if(isNaN(d))return null;const y=d.getFullYear();const j0=new Date(y,0,1),j1=new Date(y+1,0,1);return y+(d-j0)/(j1-j0);};
   const resNaam={};
   [...xml.getElementsByTagName('Resource')].forEach(r=>{const o=T(r,'ObjectId');if(o)resNaam[o]=T(r,'Name')||T(r,'Id')||'Resource'});
   const perAct={};let nAssign=0,totFte=0;
@@ -530,10 +531,36 @@ function p6ParseCapaciteit(xmlText,bestand){
     (perAct[aoid]=perAct[aoid]||[]).push({rol,fte});
     nAssign++;totFte+=fte;
   });
-  const actNaam={};[...xml.getElementsByTagName('Activity')].forEach(a=>{const o=T(a,'ObjectId');if(o)actNaam[o]=T(a,'Name')});
-  const activiteiten=Object.keys(perAct).map(id=>({id,naam:actNaam[id]||id,fte:Math.round(perAct[id].reduce((s,x)=>s+x.fte,0)*100)/100}));
+  // activiteit-metadata (naam + datums) — nodig om de capaciteit ook zonder de tool
+  // over de tijd te tonen ("capaciteit uit het bestand")
+  const actMeta={};
+  [...xml.getElementsByTagName('Activity')].forEach(a=>{const o=T(a,'ObjectId');if(!o)return;
+    const t0=dToF(T(a,'StartDate')||T(a,'PlannedStartDate'));
+    const t1=dToF(T(a,'FinishDate')||T(a,'PlannedFinishDate'));
+    actMeta[o]={naam:T(a,'Name'),t0,t1};});
+  const activiteiten=Object.keys(perAct).map(id=>{const m=actMeta[id]||{};
+    return {id,naam:m.naam||id,t0:m.t0,t1:m.t1,fte:Math.round(perAct[id].reduce((s,x)=>s+x.fte,0)*100)/100};});
+  // FTE per rol (voor de standalone weergave)
+  const perRol={};Object.values(perAct).forEach(rs=>rs.forEach(x=>{perRol[x.rol]=(perRol[x.rol]||0)+x.fte}));
   return {bestand,datum:new Date().toISOString().slice(0,10),perActiviteit:perAct,activiteiten,
-    nActiviteiten:activiteiten.length,nAssign,totFte:Math.round(totFte*10)/10,rollen:Object.values(resNaam)};
+    nActiviteiten:activiteiten.length,nAssign,totFte:Math.round(totFte*10)/10,
+    rollen:Object.values(resNaam),perRol};
+}
+/* standalone kwartaalreeks (som FTE actieve activiteiten) uit de P6-export zelf,
+   zodat de capaciteit ook zichtbaar is zonder dat de planning in de tool staat */
+function p6StandaloneKwartalen(cap){
+  const acts=(cap.activiteiten||[]).filter(a=>a.t0!=null&&a.t1!=null&&a.fte>0);
+  if(!acts.length)return [];
+  const t0=Math.floor(Math.min(...acts.map(a=>a.t0))),t1=Math.ceil(Math.max(...acts.map(a=>a.t1)));
+  const kws=[];
+  for(let y=t0;y<t1;y++)for(let q=0;q<4;q++){
+    const tm=y+q/4+1/8;let som=0;
+    acts.forEach(a=>{if(tm>=a.t0&&tm<a.t1)som+=a.fte});
+    kws.push({label:'Q'+(q+1)+' '+String(y).slice(2),jaar:y,q:q+1,tot:Math.round(som*100)/100});
+  }
+  while(kws.length&&kws[0].tot===0)kws.shift();
+  while(kws.length&&kws[kws.length-1].tot===0)kws.pop();
+  return kws;
 }
 function p6HandleFile(ev){
   const f=ev.target.files[0];ev.target.value='';if(!f)return;
@@ -544,7 +571,8 @@ function p6HandleFile(ev){
     const m=bridgeModel();
     if(m){const ids=new Set(m.regels.map(x=>String(x.id)));cap.overlap=cap.activiteiten.filter(a=>ids.has(String(a.id))).length}
     DB.p6Capaciteit=cap;saveDB();
-    if(m&&cap.overlap===0)alert('FTE geïmporteerd, maar geen enkele activiteit uit de export komt overeen met de geladen planning (ObjectId’s matchen niet). Laad in de planningstool dezelfde P6-export zodat de capaciteit gekoppeld kan worden.');
+    if(!m)alert('FTE-capaciteit uit de export geladen ('+cap.nActiviteiten+' activiteiten, '+fmtF(cap.totFte)+' fte). De totale capaciteit staat nu op de capaciteitskaart. Laad dezelfde Primavera-export ook in de planningstool hierboven (knop “Planning importeren”) voor de uitsplitsing per dienst en de toetsing aan de capaciteitsgrenzen.');
+    else if(cap.overlap===0)alert('FTE geïmporteerd, maar geen enkele activiteit komt overeen met de planning die nu in de tool staat (ObjectId’s matchen niet). Laad in de planningstool dezelfde P6-export zodat de capaciteit per dienst koppelt.');
   }catch(e){alert('Kon P6-export niet lezen: '+e.message)}};
   r.readAsText(f);
 }
@@ -1565,12 +1593,38 @@ function p6CapBlok(){
     <span class="tag b">P6-FTE actief</span>
     <span style="font-size:11.5px;color:var(--sub)">${esc(c.bestand)} \u00b7 <b>${c.nActiviteiten}</b> activiteiten \u00b7 <b>${fmtF(c.totFte)}</b> fte \u00b7 ${c.rollen.length} rollen${overlapTxt} \u00b7 ge\u00efmporteerd ${c.datum}</span></div>`;
 }
+/* standalone capaciteitskaart uit de P6-export (zonder tool-model): totale
+   FTE-vraag over de tijd + per rol, met koppelstatus. Zo is de capaciteit uit
+   het bestand direct zichtbaar, ook v\u00f3\u00f3r de planning in de tool staat. */
+function p6StandaloneKaartHTML(){
+  const c=DB.p6Capaciteit,kws=p6StandaloneKwartalen(c);
+  let chart='<div class="empty">Geen datums in de export om de capaciteit over de tijd te tonen.</div>';
+  if(kws.length){
+    const W=Math.max(700,kws.length*30+120),x0=46,plotW=W-x0-14,bw=Math.max(8,plotW/kws.length-6);
+    const maxT=Math.max(...kws.map(k=>k.tot),1)*1.12,yv=v=>160-v/maxT*140;
+    let svg=`<svg width="${W}" height="200" font-family="Segoe UI,Arial,sans-serif">`;
+    for(let g=0;g<=4;g++){const v=maxT*g/4;svg+=`<line x1="${x0}" y1="${yv(v)}" x2="${W-10}" y2="${yv(v)}" stroke="#e8ecf2"/><text x="${x0-6}" y="${yv(v)+3.5}" text-anchor="end" font-size="9" fill="#5a6478" font-family="Consolas">${v.toFixed(0)}</text>`;}
+    kws.forEach((k,i)=>{const x=x0+i*(plotW/kws.length)+3;
+      svg+=`<rect x="${x}" y="${yv(k.tot)}" width="${bw}" height="${160-yv(k.tot)}" fill="#0050a0" opacity=".9"><title>${k.label}: ${fmtF(k.tot)} fte</title></rect>`;
+      if(k.q===1)svg+=`<text x="${x+bw/2}" y="174" text-anchor="middle" font-size="8.5" fill="#5a6478">${k.label}</text>`;});
+    svg+='</svg>';chart=`<div style="overflow-x:auto">${svg}</div>`;
+  }
+  const rolRows=Object.entries(c.perRol||{}).sort((a,b)=>b[1]-a[1]).map(([r,v])=>`<tr><td>${esc(r)}</td><td class="num">${fmtF(v)}</td></tr>`).join('');
+  return `<div class="card" style="margin-bottom:0"><h3>Capaciteitsvraag uit de planning <span class="hint">bron: P6-export (${esc(c.bestand)})</span></h3>
+    ${p6CapBlok()}
+    <div class="footnote" style="color:var(--oranje);margin-top:0">Nog niet gekoppeld aan de planningstool. Laad hierboven dezelfde Primavera-export in de tool (knop <b>Planning importeren</b>) voor de uitsplitsing per dienst en toetsing aan de capaciteitsgrenzen. De totale capaciteit uit het bestand staat hieronder.</div>
+    <div class="p6-stats"><span>totaal <b>${fmtF(c.totFte)}</b> fte over <b>${c.nActiviteiten}</b> activiteiten</span><span><b>${c.nAssign}</b> toewijzingen \u00b7 <b>${c.rollen.length}</b> rollen</span></div>
+    ${chart}
+    <table style="margin-top:10px;max-width:420px"><thead><tr><th>Rol (resource)</th><th class="num">FTE</th></tr></thead><tbody>${rolRows}</tbody></table>
+    <div class="footnote">Capaciteit rechtstreeks uit de resource-toewijzingen van de Primavera-export (PlannedUnitsPerTime per activiteit).</div></div>`;
+}
 function renderCapKaart(){
   const el=document.getElementById('ipl-cap-card');if(!el)return;
   const m=bridgeModel();
-  if(!m){el.innerHTML='';return}
-  const cap=bridgeCapaciteit();
-  if(!cap||!cap.geconfig){
+  const cap=m?bridgeCapaciteit():null;
+  if(!(cap&&cap.geconfig)){
+    if(DB.p6Capaciteit){el.innerHTML=p6StandaloneKaartHTML();return}
+    if(!m){el.innerHTML='';return}
     el.innerHTML=`<div class="card" style="margin-bottom:0"><h3>Capaciteitsvraag uit de planning</h3>
       ${p6CapBlok()}
       <div class="empty">De geladen planning bevat nog geen FTE-toewijzingen (${cap?cap.nTaken:0} taken, 0 met FTE-rollen).<br><br>
