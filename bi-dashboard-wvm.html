@@ -226,6 +226,7 @@ canvas.chart{width:100%;background:var(--wit)}
 <input type="file" id="cfgfile" accept=".json" style="display:none" onchange="cfgHandleFile(event)">
 <input type="file" id="ndwfile" accept=".xml,.gz" multiple style="display:none" onchange="ndwHandleFiles(event)">
 <input type="file" id="srfile" accept=".csv,.txt" style="display:none" onchange="srHandleFile(event)">
+<input type="file" id="p6ftefile" accept=".xml" style="display:none" onchange="p6HandleFile(event)">
 <script>
 /* ═══════════════════════════════════════════════════════════
    CONFIGURATIE — dezelfde regels als config.html (VWL Configuratie)
@@ -500,6 +501,54 @@ function ndwUpsertAsset(id,def){
   if(a){a.naam=def.naam;a.locatie=def.locatie;a.cmdb=def.cmdb;a.type=def.type;if(def.aantal!==undefined)a.aantal=def.aantal;return 0}
   DB.assets.push({id,...def});return 1;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   P6 FTE-CAPACITEIT — capaciteit aanhouden uit een Primavera-export
+   De embedded planningstool leest zelf géén resource-units (P2), maar een
+   P6 APIBusinessObjects-export met resource-toewijzingen bevat de FTE per
+   activiteit (PlannedUnitsPerTime per ResourceAssignment). Dit dashboard
+   leest die FTE per activiteit (ObjectId) uit de export en houdt ze aan als
+   capaciteitsbron: de capaciteitsbrug koppelt ze read-only aan de regels van
+   het tool-model (regel.id = activity-ObjectId) en aggregeert per kwartaal/
+   dienst. Zo werkt de FTE-formatie uit dit bestand door in de kaart,
+   triggers en Monte Carlo, zonder de planningstool te wijzigen.
+   ═══════════════════════════════════════════════════════════ */
+function p6ParseCapaciteit(xmlText,bestand){
+  const xml=new DOMParser().parseFromString(xmlText,'application/xml');
+  if(xml.getElementsByTagName('parsererror').length)throw new Error('XML kon niet worden gelezen (parsererror).');
+  const T=(el,tag)=>{for(let i=0;i<el.children.length;i++)if(el.children[i].tagName===tag)return (el.children[i].textContent||'').trim();return ''};
+  const resNaam={};
+  [...xml.getElementsByTagName('Resource')].forEach(r=>{const o=T(r,'ObjectId');if(o)resNaam[o]=T(r,'Name')||T(r,'Id')||'Resource'});
+  const perAct={};let nAssign=0,totFte=0;
+  [...xml.getElementsByTagName('ResourceAssignment')].forEach(ra=>{
+    const aoid=T(ra,'ActivityObjectId');if(!aoid)return;
+    let fte=parseFloat(T(ra,'PlannedUnitsPerTime'));
+    if(!(fte>0))fte=parseFloat(T(ra,'RemainingUnitsPerTime'))||parseFloat(T(ra,'ActualUnitsPerTime'))||0;
+    if(!(fte>0))return;
+    const rol=resNaam[T(ra,'ResourceObjectId')]||'Rol';
+    fte=Math.round(fte*100)/100;
+    (perAct[aoid]=perAct[aoid]||[]).push({rol,fte});
+    nAssign++;totFte+=fte;
+  });
+  const actNaam={};[...xml.getElementsByTagName('Activity')].forEach(a=>{const o=T(a,'ObjectId');if(o)actNaam[o]=T(a,'Name')});
+  const activiteiten=Object.keys(perAct).map(id=>({id,naam:actNaam[id]||id,fte:Math.round(perAct[id].reduce((s,x)=>s+x.fte,0)*100)/100}));
+  return {bestand,datum:new Date().toISOString().slice(0,10),perActiviteit:perAct,activiteiten,
+    nActiviteiten:activiteiten.length,nAssign,totFte:Math.round(totFte*10)/10,rollen:Object.values(resNaam)};
+}
+function p6HandleFile(ev){
+  const f=ev.target.files[0];ev.target.value='';if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{try{
+    const cap=p6ParseCapaciteit(r.result,f.name);
+    if(!cap.nActiviteiten){alert('Geen resource-toewijzingen (FTE) gevonden in deze P6-export. Bevat het bestand ResourceAssignments met PlannedUnitsPerTime?');return}
+    const m=bridgeModel();
+    if(m){const ids=new Set(m.regels.map(x=>String(x.id)));cap.overlap=cap.activiteiten.filter(a=>ids.has(String(a.id))).length}
+    DB.p6Capaciteit=cap;saveDB();
+    if(m&&cap.overlap===0)alert('FTE geïmporteerd, maar geen enkele activiteit uit de export komt overeen met de geladen planning (ObjectId’s matchen niet). Laad in de planningstool dezelfde P6-export zodat de capaciteit gekoppeld kan worden.');
+  }catch(e){alert('Kon P6-export niet lezen: '+e.message)}};
+  r.readAsText(f);
+}
+function p6VerwijderCap(){if(!confirm('De uit de P6-export aangehouden FTE-capaciteit verwijderen? De capaciteitsbrug valt dan terug op de FTE-config van de planningstool.'))return;delete DB.p6Capaciteit;saveDB();}
 async function ndwHandleFiles(ev){
   const files=[...ev.target.files];ev.target.value='';
   if(!files.length)return;
@@ -737,7 +786,14 @@ function bridgeCapaciteit(){
   try{
     const M=W.IPL_MODEL;
     try{if(W.ipl_dashEnsureFte)W.ipl_dashEnsureFte(M.regels)}catch(e){}
-    const rollen=r=>{try{return (W.ipl_dashTaakFteRollen?W.ipl_dashTaakFteRollen(r):[])||[]}catch(e){return []}};
+    /* FTE-rollen per taak: bij een geladen P6-FTE-export (DB.p6Capaciteit) houdt het
+       dashboard de capaciteit uit dát bestand aan (match op activity-ObjectId = regel.id);
+       anders de eigen FTE-config van de planningstool. */
+    const p6=DB.p6Capaciteit&&DB.p6Capaciteit.perActiviteit;
+    const rollen=r=>{
+      if(p6&&p6[r.id])return p6[r.id];
+      try{return (W.ipl_dashTaakFteRollen?W.ipl_dashTaakFteRollen(r):[])||[]}catch(e){return []}
+    };
     const eff=r=>{try{return W.ipl_eff?W.ipl_eff(r):{t0:r.t0,t1:r.t1}}catch(e){return {t0:r.t0,t1:r.t1}}};
     const topOf=r=>(r.wbsPath&&r.wbsPath.length?r.wbsPath[0]:'')||r.wbs||'';
     const dnst=b=>((W.IPL_WBS_DIENST||{})[b])||'GPO';
@@ -1499,6 +1555,16 @@ function renderPlanning(){
     else{st.className='tag gy';st.textContent='brug: nog geen planning geladen in de tool'}}
   renderCapKaart();
 }
+function p6CapBlok(){
+  const c=DB.p6Capaciteit;
+  const knop=`<button class="btn primary" onclick="document.getElementById('p6ftefile').click()">\u2b06 FTE-capaciteit uit P6-export importeren</button>`;
+  if(!c)return `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 10px">${knop}<span style="font-size:11.5px;color:var(--sub)">Primavera-export (APIBusinessObjects-XML) met resource-toewijzingen \u2014 het dashboard houdt de FTE per activiteit uit dat bestand aan.</span></div>`;
+  const overlapTxt=c.overlap===undefined?'':(c.overlap>0?` \u00b7 <b>${c.overlap}</b> gekoppeld aan de geladen planning`:' \u00b7 <span style="color:var(--oranje)">nog niet gekoppeld \u2014 laad dezelfde P6-export in de tool</span>');
+  return `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 10px">${knop}
+    <button class="btn danger" onclick="p6VerwijderCap()">Verwijder P6-FTE</button>
+    <span class="tag b">P6-FTE actief</span>
+    <span style="font-size:11.5px;color:var(--sub)">${esc(c.bestand)} \u00b7 <b>${c.nActiviteiten}</b> activiteiten \u00b7 <b>${fmtF(c.totFte)}</b> fte \u00b7 ${c.rollen.length} rollen${overlapTxt} \u00b7 ge\u00efmporteerd ${c.datum}</span></div>`;
+}
 function renderCapKaart(){
   const el=document.getElementById('ipl-cap-card');if(!el)return;
   const m=bridgeModel();
@@ -1506,8 +1572,9 @@ function renderCapKaart(){
   const cap=bridgeCapaciteit();
   if(!cap||!cap.geconfig){
     el.innerHTML=`<div class="card" style="margin-bottom:0"><h3>Capaciteitsvraag uit de planning</h3>
+      ${p6CapBlok()}
       <div class="empty">De geladen planning bevat nog geen FTE-toewijzingen (${cap?cap.nTaken:0} taken, 0 met FTE-rollen).<br><br>
-      Capaciteit komt uit de FTE-configuratie van de planningstool zelf: open in de tool hierboven het <b>Config</b>-paneel en ken FTE-rollen toe per taak, of gebruik <b>FTE-templates</b> die matchen op de ActivityCode \u201c[VWM] Fase\u201d uit je XML. Heb je die configuratie eerder in de losse tool opgebouwd, gebruik dan daar Opslaan/Herstellen \u2192 <b>exporteer de staat</b> en importeer die in de tool hierboven \u2014 de capaciteit verschijnt hier dan direct en gaat meetellen in triggers en Monte Carlo.</div></div>`;
+      Houd de capaciteit aan uit je <b>Primavera-export</b> met de knop hierboven (resource-toewijzingen \u2192 FTE per activiteit), \u00f3f gebruik de FTE-configuratie van de planningstool zelf: open in de tool het <b>Config</b>-paneel en ken FTE-rollen toe per taak, of gebruik <b>FTE-templates</b> die matchen op de ActivityCode \u201c[VWM] Fase\u201d. De capaciteit telt daarna mee in de kaart, triggers en Monte Carlo.</div></div>`;
     return;
   }
   const kleuren=DIENST_KLEUR;
@@ -1529,7 +1596,9 @@ function renderCapKaart(){
   const rijen=cap.diensten.map(d=>{const i=cap.perDienst[d];
     const status=i.grens>0?(i.piek>i.grens?(i.piek-i.grens>=2?'<span class="tag r">Overschrijding</span>':'<span class="tag o">Boven grens</span>'):'<span class="tag g">Binnen grens</span>'):'<span class="tag gy">Geen grens</span>';
     return `<tr><td>${dienstChip(d)}</td><td class="num">${fmtF(i.piek)}</td><td>${esc(i.piekKw)}</td><td class="num">${i.grens||'\u2014'}</td><td class="num">${i.overKw||0}</td><td>${status}</td></tr>`}).join('');
-  el.innerHTML=`<div class="card" style="margin-bottom:0"><h3>Capaciteitsvraag uit de planning <span class="hint">FTE-rollen per taak uit de planningstool \u00b7 grenzen instelbaar in de rule engine \u00b7 telt door in triggers en Monte Carlo</span></h3>
+  const bron=DB.p6Capaciteit?'P6-export ('+esc(DB.p6Capaciteit.bestand)+')':'FTE-config van de planningstool';
+  el.innerHTML=`<div class="card" style="margin-bottom:0"><h3>Capaciteitsvraag uit de planning <span class="hint">bron: ${bron} \u00b7 grenzen instelbaar in de rule engine \u00b7 telt door in triggers en Monte Carlo</span></h3>
+    ${p6CapBlok()}
     <div class="p6-stats"><span><b>${cap.nMetFte}</b> van <b>${cap.nTaken}</b> taken met FTE</span><span>cumulatief <b>${fmtF(cap.totFte)}</b> fte-toewijzing</span></div>
     <div style="overflow-x:auto">${svg}</div>
     <table style="margin-top:10px;max-width:640px"><thead><tr><th>Dienst</th><th class="num">Piek FTE</th><th>Kwartaal</th><th class="num">Grens</th><th class="num">Kw &gt; grens</th><th>Status</th></tr></thead><tbody>${rijen}</tbody></table></div>`;
