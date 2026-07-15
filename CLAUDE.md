@@ -39,6 +39,7 @@ Motto: *Rule engine legt vast · Trigger engine monitoort · Dashboard toont*
 - **Bedienketens**: ketenbeschikbaarheid = serieel product van schakelbeschikbaarheden; redundante schakels (n+1) tellen kwadratisch; degradatie door uitgesteld onderhoud via `degrPer6Mnd` en de NEN 2767-conditiedrempel.
 - **Functionele waarde (FW 1–5)** bepaalt welke AM-regels gelden (`maxUitstel` per klasse, SPOF-eis vanaf `spofFw`).
 - AM-regels leven in `DB.amRegels`; het assetregister kent `type`, `fw`, `conditie`, `uitstelMnd`, `redundant`.
+- **Storingsregels buitenassets** (§ 4.7): `DB.storingsRegels` (assetTypen, foutcodes, locatieRegels, combiRegels) vertaalt storingsmeldingen (CSV-import) naar beschikbaarheids- én prestatie-impact per wegnummer op het NDW-areaal; beschikbaarheid en prestatie blijven gescheiden.
 
 ## Vroegtijdig signaleren — de tijdas (hoofdstuk 7)
 
