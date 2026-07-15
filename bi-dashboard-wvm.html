@@ -1413,7 +1413,13 @@ function renderPlanning(){
     IPL_FRAME=document.createElement('iframe');
     IPL_FRAME.id='ipl-frame';
     IPL_FRAME.style.cssText='width:100%;height:calc(100vh - 168px);border:none;display:block;background:#fff';
-    IPL_FRAME.src=URL.createObjectURL(new Blob([IPL_EMBED],{type:'text/html'}));
+    // srcdoc i.p.v. blob-URL: een srcdoc-iframe erft de origin van het dashboard,
+    // óók wanneer het bestand lokaal via file:// wordt geopend. Een blob-URL krijgt
+    // onder file:// een eigen opaque origin ("null"), waardoor de read-only brug
+    // (iframe.contentWindow) door de browser als cross-origin wordt geblokkeerd en
+    // de planning niet in de driehoek zou doorwerken. De tool blijft byte-voor-byte
+    // ongewijzigd (P2); alleen de montagewijze verschilt.
+    IPL_FRAME.srcdoc=IPL_EMBED;
     document.getElementById('ipl-frame-wrap').appendChild(IPL_FRAME);
   }
   const st=document.getElementById('ipl-brug-status');
