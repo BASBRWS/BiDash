@@ -235,7 +235,7 @@ canvas.chart{width:100%;background:var(--wit)}
    ═══════════════════════════════════════════════════════════ */
 const CFG_DEFAULTS={"org.naam":"Rijkswaterstaat VWM","org.regio":"West-Nederland","org.dienst":"Verkeersmanagement","contract.vorm":"prestatiecontract","contract.beschikbaarheidseis":99.5,"contract.boete_actief":true,"contract.boete_per_uur":500,"contract.looptijd":5,"escalatie.niveau1":90,"escalatie.niveau2":75,"escalatie.niveau3":60,"dienst.uren":"24/7","juridisch.max_snelheid_dag":100,"juridisch.max_snelheid_nacht":130,"kpi.beschikbaarheid.groen":98,"kpi.beschikbaarheid.geel":95,"kpi.beschikbaarheid.oranje":90,"kpi.responstijd.tunnel":5,"kpi.responstijd.calamiteit":3,"kpi.asset_beschikbaarheid.tunnel":99.9,"kpi.asset_beschikbaarheid.msi":99.5,"kpi.asset_beschikbaarheid.drip":98,"kpi.asset_beschikbaarheid.werkplek":99.5,"kpi.planningshorizon_maanden":2,"kpi.files_werk_uitvoering":5,"vc.aantal_regionaal":5,"hinder.max_files_werk":10,"hinder.onderhoudsvenster":"nacht","atw.rust_dagelijks":11,"atw.rust_na_nacht":14,"atw.max_uren_week":60,"atw.max_nachten_14d":5,"atw.max_nachten_consecutief":7,"atw.rust_na_nachtreeks":46,"atw.max_werkdagen_consecutief":6,"atw.maandcap_factor":4.5,"personeel.werkdagen_jaar":225,"personeel.vakantiedagen":25,"personeel.ziekteverzuim":5,"personeel.opleidingsuren":40,"personeel.min_bezetting":80,"werklast.grens_hoog":25,"werklast.grens_kritisch":26,"busrules.max_l3_per_desk":4,"busrules.max_tunnels_per_desk":3,"busrules.max_fte_per_desk":1.2,"busrules.enabled":true,"operator.max_events_uur":15,"assets.hw_mtbf":30000,"assets.hw_mttr":6,"assets.sw_mtbf":8760,"assets.sw_mttr":2,"assets.max_beschikbaarheid":99.4,"assets.waarschuwing_pct":20,"scenario.naam":"Standaard","scenario.auteur":"","sim.personeel_factor":1,"sim.budget_factor":1,"sim.asset_factor":1,"sim.incident_multiplier":1};
 
-const DB_KEY='bidash_wvm_v2';
+const DB_KEY='bidash_wvm_v3';
 const DEFAULT_DB={
   meta:{versie:'3.0',peildatum:'2026-07-14'},
   params:{kostenIndex:1.00},
@@ -246,32 +246,16 @@ const DEFAULT_DB={
     {id:'warvw',naam:'Warvw/Rarvw',oms:'Tunnelwetgeving — verplichte bediening en beschikbaarheid TTI'},
     {id:'babw',naam:'BABW',oms:'Besluit administratieve bepalingen wegverkeer — maatregelen op de weg'}
   ],
-  functies:[
-    {id:'f1',naam:'Bedienen hoofdwegennet VC Rhoon',doel:'Vlot en veilig verkeer',systemen:['DYNAC','UWW'],benodigdFte:21.0,actueelFte:19.2,assets:['a1','a2','a3'],onderhoudEur:180000,richtlijnen:['atw']},
-    {id:'f2',naam:'Incidentmanagement regio Zuidwest',doel:'Vlot en veilig verkeer',systemen:['WIS','IM-app'],benodigdFte:12.0,actueelFte:11.5,assets:['a5'],onderhoudEur:95000,richtlijnen:['atw','babw']},
-    {id:'f3',naam:'Tunnelbediening Noordtunnel (A29)',doel:'Beschikbaarheid netwerk',systemen:['DYNAC','TTI'],benodigdFte:8.0,actueelFte:7.4,assets:['a4','a6'],onderhoudEur:140000,richtlijnen:['atw','warvw']},
-    {id:'f4',naam:'Verkeerskundig beheer & scenario\u2019s',doel:'Informatievoorziening',systemen:['UKVC'],benodigdFte:6.0,actueelFte:6.0,assets:[],onderhoudEur:60000,richtlijnen:['babw']},
-    {id:'f5',naam:'Technisch beheer werkplekken (UWW)',doel:'Beschikbaarheid netwerk',systemen:['UWW'],benodigdFte:5.0,actueelFte:4.6,assets:['a2','a7'],onderhoudEur:220000,richtlijnen:[]}
-  ],
-  /* assetregister — ISO 55001-velden per asset: type, functionele waarde (FW 1–5),
-     conditiescore (NEN 2767, 1–6), maanden uitgesteld onderhoud en redundantie (n+1) */
-  assets:[
-    {id:'a1',naam:'DYNAC bedienplatform',cmdb:'DVM',type:'bediensysteem',besch:99.2,storingenJr:6,locatie:'VC Rhoon',weging:1.5,fw:5,conditie:2,uitstelMnd:0,redundant:true},
-    {id:'a2',naam:'UWW werkplekken',cmdb:'Productieplatform',type:'werkplek',besch:99.6,storingenJr:3,locatie:'VC Rhoon',weging:1.0,fw:4,conditie:2,uitstelMnd:0,redundant:true},
-    {id:'a3',naam:'Videowall VC Rhoon',cmdb:'Facilitair',type:'facilitair',besch:98.4,storingenJr:2,locatie:'VC Rhoon',weging:0.5,fw:2,conditie:3,uitstelMnd:6,redundant:false},
-    {id:'a4',naam:'TTI Noordtunnel',cmdb:'Tunnel/TTI',type:'tti',besch:99.0,storingenJr:9,locatie:'A29 Noordtunnel',weging:2.0,fw:5,conditie:4,uitstelMnd:4,redundant:false},
-    {id:'a5',naam:'MTM/signalering corridor A15',cmdb:'DVM',type:'signalering',besch:98.7,storingenJr:11,locatie:'A15',weging:1.5,fw:4,conditie:3,uitstelMnd:5,redundant:false},
-    {id:'a6',naam:'C2000 koppelvlak',cmdb:'Productieplatform',type:'transmissie',besch:99.9,storingenJr:1,locatie:'VC Rhoon',weging:1.0,fw:4,conditie:2,uitstelMnd:0,redundant:true},
-    {id:'a7',naam:'Klimaatinstallatie serverruimte',cmdb:'Facilitair',type:'facilitair',besch:97.6,storingenJr:2,locatie:'VC Rhoon',weging:0.5,fw:3,conditie:4,uitstelMnd:8,redundant:false}
-  ],
-  /* BEDIENKETENS (ISO 55001) — de reeks assets die samen een bedienfunctie van de
-     verkeerscentrale mogelijk maakt; ketenbeschikbaarheid = serieel product van de
-     schakels, getoetst aan een instelbare ketennorm per bedienfunctie (§ 6.5) */
-  ketens:[
-    {id:'k1',naam:'Signaleren corridor A15',bedienfunctie:'Signaleren en doseren corridor A15',norm:99.0,functieIds:['f1','f2'],schakels:['a5','a6','a1','a2']},
-    {id:'k2',naam:'Tunnelbewaking Noordtunnel',bedienfunctie:'Bewaken en bedienen Noordtunnel (A29)',norm:99.5,functieIds:['f3'],schakels:['a4','a6','a1','a2']},
-    {id:'k3',naam:'Beeldvoorziening VC Rhoon',bedienfunctie:'Toezicht hoofdwegennet VC Rhoon',norm:96.0,functieIds:['f1','f5'],schakels:['a2','a3','a7']}
-  ],
+  /* Bedrijfsfuncties (P×Q) — leeg: voeg toe via de Databronnen-/JSON-import.
+     {id, naam, doel, systemen[], benodigdFte, actueelFte, assets[], onderhoudEur, richtlijnen[]} */
+  functies:[],
+  /* Assetregister — leeg. Assets komen via NDW-import (pagina Assetmanagement) of
+     JSON-import. ISO 55001-velden per asset: type, functionele waarde (FW 1–5),
+     conditiescore (NEN 2767, 1–6), maanden uitgesteld onderhoud en redundantie (n+1). */
+  assets:[],
+  /* Bedienketens (ISO 55001) — leeg. Stel ze samen op de pagina Assetmanagement.
+     {id, naam, bedienfunctie, norm, functieIds[], schakels[]} */
+  ketens:[],
   /* AM-REGELS (ISO 55001) — rule engine-voorwaarden voor assetmanagement:
      max. uitstel per FW-klasse, degradatie per 6 mnd uitstel, NEN 2767-conditie-
      drempel voor versnelde degradatie en de FW-klasse waarvandaan n+1 vereist is */
@@ -318,7 +302,7 @@ const DEFAULT_DB={
       {id:'COMBO_004',actief:true,oms:'Noodvoeding samen met MSI-fout',type1:'MSI',code1:'4021',type2:'MSI',code2:'1003',maxKm:0.2,venMin:1440,extraAvail:10,extraPerf:15,capAvail:100,capPerf:100,prioriteit:90}
     ]
   },
-  financien:{budgetJr:640000},
+  financien:{budgetJr:0},
   /* IMPACTREGELS — voorwaarden van de rule engine: hoe vertaalt de trigger engine
      een planningsafwijking (per meldingstype) naar brede impact op alle datasets */
   impact:{
@@ -1481,7 +1465,9 @@ function renderData(){
     <td class="num" style="font-weight:700;color:${f.actueelFte>=f.benodigdFte*(1+p.verzuim/100)?'var(--groen)':'var(--rood)'}">${fmtF(f.actueelFte-f.benodigdFte*(1+p.verzuim/100))}</td></tr>`).join('');
 
   $('#page-data').innerHTML=`
-    <div class="pagehead"><h2>Databronnen</h2><div class="desc">Actuele data per domein. De integrale planning komt uit de Primavera P6 XML-import (eigen tabblad); de normen komen uit config.html.</div></div>
+    <div class="pagehead"><h2>Databronnen</h2><div class="desc">Actuele data per domein. De integrale planning komt uit de Primavera P6 XML-import (eigen tabblad); de normen komen uit config.html.</div>
+    <div class="actions"><button class="btn danger" onclick="legModel()">\u232b Leeg model (data wissen)</button></div></div>
+    ${(DB.functies.length||DB.assets.length)?'':'<div class="card" style="border-left:4px solid var(--rws-blauw-mid)"><div style="font-size:12.5px;color:var(--sub)">Het model is leeg \u2014 geen bedrijfsfuncties of assets. Voeg data toe via de knoppen op <b>Assetmanagement</b> (NDW-import, storingsmeldingen) of via <b>\u2b06 Import</b> in de topbar (volledige dataset als JSON). De regels (config, impactregels, AM-regels, storingsregels, capaciteitsgrenzen) staan al klaar.</div></div>'}
     <div class="card"><h3>Integrale planning <span class="hint">GPO \u00b7 VWM \u00b7 CIV \u00b7 bron: embedded planningstool</span></h3>
       ${(()=>{const bm=bridgeModel();return bm?`<div class="p6-stats"><span>Bron: <b>${esc(bm.bestand)}</b></span><span><b>${bm.regels.length}</b> regels</span><span>bereik <b>${bm.t0} \u2013 ${bm.t1}</b></span><span><b>${bm.nCross}</b>/<b>${bm.nRel}</b> cross-dienst relaties</span></div>
         <button class="btn primary" onclick="goto('planning')">Open de planningstool \u2192</button>`
@@ -1589,6 +1575,16 @@ function refresh(){
   $('#simbadge').classList.toggle('on',simActive());
   const act=document.querySelector('.page.active').id.replace('page-','');
   ({dash:renderDash,rules:renderRules,triggers:renderTriggers,am:renderAM,planning:renderPlanning,data:renderData,sim:renderSim})[act]();
+}
+/* leeg het model — wist alle actuele data (functies, assets, ketens, doelen en
+   de NDW-/storingsimports) maar laat de regels staan (config, impact, amRegels,
+   storingsRegels, capgrens). Handig om schoon te testen met eigen data. */
+function legModel(){
+  if(!confirm('Alle actuele data wissen — bedrijfsfuncties, assets, bedienketens en geïmporteerde NDW-/storingsdata — en met een leeg model beginnen?\n\nDe regels (config, impactregels, AM-regels, storingsregels, capaciteitsgrenzen) blijven staan. Dit kan niet ongedaan worden gemaakt.'))return;
+  DB.functies=[];DB.assets=[];DB.ketens=[];DB.doelen=[];
+  DB.financien={budgetJr:0};
+  delete DB.ndwImport;delete DB.storingsImport;
+  saveDB();
 }
 function exportJSON(){
   const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
