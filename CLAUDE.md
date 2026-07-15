@@ -21,7 +21,7 @@ Motto: *Rule engine legt vast · Trigger engine monitoort · Dashboard toont*
 | P2 | **Hergebruik zonder wijziging** | De embedded planningstool (`IPL_EMBED`) blijft byte-voor-byte identiek aan het bronbestand. Koppeling uitsluitend read-only via `iframe.contentWindow`. Nooit code in de tool zelf aanpassen. |
 | P3 | **Signaal → duiding → adressering** | Elke trigger heeft severity, domein, verantwoordelijke, toelichting mét toegepaste regel en gekwantificeerde waarde. Planningssignalen gaan door `berekenImpact()` voor de brede duiding. |
 | P4 | **Alles simuleerbaar** | Nieuwe parameters moeten doorwerken in triggers én Monte Carlo, en verstelbaar zijn in de simulatie. |
-| P5 | **Single-file, lokaal** | Geen server, geen upload, geen externe dependencies. Persistentie via localStorage (`bidash_wvm_v2`); uitwisseling via JSON-export/-import. |
+| P5 | **Single-file, lokaal** | Geen server, geen upload, geen externe dependencies. Persistentie via localStorage (`bidash_wvm_v3`); uitwisseling via JSON-export/-import. |
 
 ## Kernafspraken bij ontwikkeling
 

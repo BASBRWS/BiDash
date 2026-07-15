@@ -422,10 +422,10 @@ DB = {
 }
 ```
 
-- **Opslag:** localStorage-sleutel `bidash_wvm_v2`; migratielogica vult ontbrekende blokken (config/impact/capgrens) aan bij laden van oudere staten.
+- **Opslag:** localStorage-sleutel `bidash_wvm_v3`; migratielogica (`migreerDB`) vult ontbrekende blokken (config/impact/capgrens/amRegels/ketens/storingsRegels) en ISO 55001-assetvelden aan bij laden van oudere staten.
 - **Uitwisseling:** topbar-knoppen ⭳ Export / ⭱ Import (volledige DB als JSON) — geschikt als datasetleverantie richting andere omgevingen.
 - **De planningstool** bewaart zijn eigen staat via zijn eigen autosave (aparte sleutels, zelfde origin) en zijn eigen export/import; het dashboard slaat daar niets van op (P2).
-- De demo-inhoud (5 bedrijfsfuncties rond VC Rhoon/Noordtunnel/UWW, 7 assets) is vervangbaar via de Databronnen-pagina of JSON-import.
+- **Leeg startmodel:** `DEFAULT_DB` bevat géén demo-inhoud — `functies`, `assets` en `ketens` zijn leeg en `budgetJr` is 0. De regels (config, impactregels, `amRegels`, `storingsRegels`, `capgrens`) en de wettelijke richtlijnen staan wel klaar. Data komt binnen via de NDW-import en storingsmeldingen-import (pagina Assetmanagement), de Databronnen-pagina of een volledige JSON-import. De knop *Leeg model* op Databronnen (`legModel()`) wist alle actuele data maar laat de regels staan — bedoeld om schoon te testen met eigen data.
 
 ---
 
