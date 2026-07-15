@@ -255,15 +255,15 @@ Afgeleide triggers dragen de bron mee en worden geadresseerd aan de verantwoorde
 
 ### 6.5 Assetmanagementtoetsing (ISO 55001)
 
-**Bedienketens.** Een bedienketen is de reeks assets die samen een bedienfunctie van de verkeerscentrale mogelijk maakt (bv. *Signaleren corridor A15*: detectielussen → wegkantstations → transmissie → MTM/DYNAC → UWW-werkplek). Rekenregels:
+**Bedienketens — generiek uit de taakanalyse.** Een bedienketen is een *purpose-related function* uit de TNO-abstractiehiërarchie (taakanalyse wegverkeersleiders, 2021): de reeks generieke **objecttypen** (‘physical objects’-laag) die samen een bedienfunctie van de verkeerscentrale mogelijk maken. De ketens zijn daarmee technologie- en locatie-onafhankelijk (‘toekomstbestendig’): een schakel is een objecttype (`camera`, `detectie`, `signalering`, `drip`, `bediensysteem`, `communicatie`, `tunnelbuis`, …, catalogus `OBJECTTYPEN`), niet een specifieke asset. De zeven geseede ketens zijn de zeven purpose-related functions: *sturen en geleiden van verkeer · reis- en route-informatie · ondersteunen bij werk in uitvoering · incidentmanagement · bewaken en bedienen van objecten · gladheidbestrijding · handhaven*. Datamodel: `{id, naam, bedrijfsfunctie, doel, norm, locatie, schakelTypes[]}`; `locatie` is een optionele scope (wegnummer). Rekenregels:
 
-- Effectieve assetbeschikbaarheid = actueel, gecorrigeerd voor storingsfactor én degradatiefactor door uitstel: `factor = 1 + (uitstelMnd/6) × degrPer6Mnd% × (×1,5 vanaf conditiedrempel)`.
-- Redundante assets (n+1) tellen kwadratisch: beide paden moeten falen.
-- **Ketenbeschikbaarheid = serieel product** van de schakelbeschikbaarheden, getoetst aan een instelbare ketennorm per bedienfunctie.
+- Elke schakel (objecttype) krijgt de **gemiddelde effectieve beschikbaarheid** van de aanwezige assets van dat type binnen de locatiescope; per asset gecorrigeerd voor storingsfactor én degradatie door uitstel (`factor = 1 + (uitstelMnd/6) × degrPer6Mnd% × (×1,5 vanaf conditiedrempel)`), redundante assets (n+1) tellen kwadratisch.
+- **Ketenbeschikbaarheid = serieel product** van de aanwezige schakels, getoetst aan een instelbare ketennorm.
+- Een objecttype zonder assets in het (gescopte) areaal is een **niet-geladen schakel**: de keten blijft *onvolledig* en de beschikbaarheid indicatief tot dat type geladen is (bv. via NDW-import). Zo werkt de generieke keten met welk areaal je ook laadt en dringt hij aan op het aanvullen van ontbrekende objecttypen.
 
-**Triggers:** (a) *Bedienketen onder norm* — met de zwakste schakels (beschikbaarheid + FW) én de volledige line of sight in de melding: welke bedrijfsfuncties en uiteindelijk welke bedrijfsdoelen geraakt worden; (b) *Uitgesteld onderhoud boven ISO 55001-grens* — per asset, tegen de klassegrens van zijn functionele waarde; (c) *Single point of failure* — kritieke schakel (FW ≥ spofFw) enkelvoudig uitgevoerd met conditie ≥ drempel.
+**Triggers:** (a) *Bedienketen onder norm* — met de zwakste (objecttype-)schakels en de line of sight (bedrijfsfunctie → bedrijfsdoel); (b) *Bedienketen onvolledig in areaal* — welke objecttypen nog niet geladen zijn; (c) *Uitgesteld onderhoud boven ISO 55001-grens* — per asset; (d) *Single point of failure* — kritieke schakel (FW ≥ spofFw) enkelvoudig met conditie ≥ drempel.
 
-**What-if doorrekening (pagina Assetmanagement).** Kies een asset, stel extra uitstel (maanden) en/of beschikbaarheidsverlies (%-punt) in; het instrument rekent door alle bedienketens heen: ketenbeschikbaarheid vóór/na, geraakte bedrijfsfuncties, geraakte **bedrijfsdoelen**, en een indicatief risicobedrag (uren onder ketennorm × boetetarief uit config.html). Hiermee zijn de gevolgen van uitgesteld onderhoud of lagere beschikbaarheid door de afhankelijkheden heen zichtbaar tot op doelniveau.
+**What-if doorrekening (pagina Assetmanagement).** Kies een asset, stel extra uitstel (maanden) en/of beschikbaarheidsverlies (%-punt) in; het instrument rekent door alle bedienketens heen die het bijbehorende objecttype gebruiken: ketenbeschikbaarheid vóór/na, geraakte bedrijfsfunctie, geraakt **bedrijfsdoel**, en een indicatief risicobedrag (uren onder ketennorm × boetetarief uit config.html).
 
 ---
 
@@ -408,7 +408,7 @@ DB = {
                assets[], onderhoudEur, richtlijnen[]} ],
   assets:   [ {id, naam, cmdb, type, besch, storingenJr, locatie, weging,
                fw, conditie, uitstelMnd, redundant} ],
-  ketens:   [ {id, naam, bedienfunctie, norm, functieIds[], schakels[]} ],
+  ketens:   [ {id, naam, bedrijfsfunctie, doel, norm, locatie, schakelTypes[]} ], // generiek (taakanalyse)
   amRegels: { maxUitstel{FW1..FW5}, degrPer6Mnd, conditieDrempel, spofFw },
   // gereserveerd voor de tijdas (hoofdstuk 7):
   historie:      [ {peildatum, kerngrootheden…} ],        // § 7.2
