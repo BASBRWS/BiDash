@@ -169,10 +169,12 @@ De rule engine legt vast hoe **storingsmeldingen** van buitenassets vertaald wor
 
 ### 5.1 Embedding (principe P2)
 
-De originele `integrale-planning-rws.html` is als JSON-string (`IPL_EMBED`) in het bestand opgenomen — **byte-voor-byte identiek**, geautomatiseerd geverifieerd. Bij het openen van het tabblad wordt eenmalig een iframe aangemaakt met `URL.createObjectURL(new Blob([IPL_EMBED], {type:'text/html'}))`. Een blob-URL erft de origin van het dashboard, waardoor:
+De originele `integrale-planning-rws.html` is als JSON-string (`IPL_EMBED`) in het bestand opgenomen — **byte-voor-byte identiek**, geautomatiseerd geverifieerd. Bij het openen van het tabblad wordt eenmalig een iframe aangemaakt via `iframe.srcdoc = IPL_EMBED`. Een `srcdoc`-iframe erft de origin van het dashboard, waardoor:
 
 - alle functies van de tool intact blijven (P6 XML-import/-export, gelaagde Gantt, cascade-shifts globaal/per mijlpaal/per project, FTE-capaciteit, dienst-/VC-mapping via ActivityCodes, dashboards per dienst en niveau, autosave/restore);
 - het dashboard **rechtstreeks en read-only** in het geheugen van de tool kan kijken (`iframe.contentWindow`), zonder één regel van de tool aan te passen.
+
+> **Waarom `srcdoc` en niet een blob-URL:** een blob-URL (`URL.createObjectURL`) erft alleen de origin bij een dashboard dat via **http(s)** geladen is. Bij het lokaal openen van het bestand (**`file://`**, precies de single-file-usecase van P5) krijgt de blob-iframe een eigen opaque origin (`"null"`) die de browser als cross-origin behandelt; de read-only brug wordt dan geblokkeerd en de planning werkt niet door in de driehoek. Een `srcdoc`-iframe erft de origin van de ouder in álle contexten, ook `file://`. De tool blijft byte-voor-byte ongewijzigd (P2) — alleen de montagewijze verschilt.
 
 Het iframe wordt éénmaal gemount en blijft bestaan bij tabwissel (state gaat niet verloren).
 
