@@ -195,7 +195,7 @@ Een poller (elke 2 s) berekent een signatuur (bestand + aantal regels + shift + 
 
 ### 5.3 De capaciteitsbrug (`bridgeCapaciteit`)
 
-Capaciteit leeft in de planningstool als **FTE-rollen per taak** (`IPL_CONFIG.fte`), gevuld via het Config-paneel van de tool of via FTE-templates die matchen op de ActivityCode "[VWM] Fase". De brug roept uitsluitend de eigen functies van de tool aan (`ipl_dashEnsureFte`, `ipl_dashTaakFteRollen`, `ipl_eff`) en aggregeert:
+Capaciteit heeft **twee bronnen**; de brug houdt, indien aanwezig, de FTE aan uit een geïmporteerde Primavera-export (`DB.p6Capaciteit`), anders uit de FTE-config van de planningstool zelf (`IPL_CONFIG.fte`, gevuld via het Config-paneel of FTE-templates op de ActivityCode "[VWM] Fase"). Per taak levert `rollen(r)` dus eerst `DB.p6Capaciteit.perActiviteit[r.id]` en valt terug op `ipl_dashTaakFteRollen(r)`. De brug roept verder uitsluitend de eigen functies van de tool aan (`ipl_dashEnsureFte`, `ipl_dashTaakFteRollen`, `ipl_eff`) en aggregeert:
 
 - per **kwartaal** per **dienst** de som van de FTE van actieve taken (effectieve datums);
 - per dienst: piek-FTE, piekkwartaal, grens (uit `capgrens`), aantal kwartalen boven de grens;
@@ -204,7 +204,9 @@ Capaciteit leeft in de planningstool als **FTE-rollen per taak** (`IPL_CONFIG.ft
 
 **Weergave:** kaart "Capaciteitsvraag uit de planning" onder het iframe: gestapelde kwartaalgrafiek in dienstkleuren met gestippelde grenslijnen per dienst, plus statustabel (piek/kwartaal/grens/overschrijdingen).
 
-> **Let op:** de P6-XML zelf bevat doorgaans géén resource-units (LaborUnits = 0). Capaciteit komt uit de tool-configuratie; die reist mee via de export/import van de opgeslagen staat van de tool.
+**FTE-capaciteit uit een Primavera-export (`p6ParseCapaciteit`).** De embedded tool leest zelf géén resource-units (P2), maar een P6 APIBusinessObjects-export met `ResourceAssignment`-elementen bevat de FTE per activiteit (`PlannedUnitsPerTime`, per resource/rol). Met de knop *FTE-capaciteit uit P6-export importeren* (op de capaciteitskaart) leest het dashboard die FTE per activiteit uit, gesleuteld op `ActivityObjectId` — dat is exact de `id` van de tool-regels (de tool zet `regel.id = ObjectId`). De brug koppelt ze read-only aan het geladen model (dienst via WBS→`IPL_WBS_DIENST`, datums via `ipl_eff`) en aggregeert per kwartaal/dienst. Zo wordt de **capaciteitsformatie uit dat bestand aangehouden** en werkt hij door in kaart, triggers en Monte Carlo. `DB.p6Capaciteit` is persistent (localStorage/JSON-export) en wordt gewist met *Verwijder P6-FTE*.
+
+> **Let op:** een gewone P6-XML zonder resource-toewijzingen bevat géén FTE (LaborUnits = 0); capaciteit komt dan uit de tool-configuratie of uit de P6-FTE-import hierboven.
 
 ---
 
@@ -452,6 +454,7 @@ DB = {
 | Storingsbron → assetregister | in | Storingsmeldingen als CSV (foutcode, omschrijving, asset, type, wegnummer, richting, hm, strook, datum; optioneel context en duur); doorgerekend volgens de storingsregels (§ 4.7) naar beschikbaarheid/prestatie/storingen per weg |
 | Primavera P6 → planningstool | in | P6 XML (Project/WBS/Activity/Relationship/ActivityCodes), via de eigen import van de tool |
 | Planningstool → trigger engine | in (read-only) | `iframe.contentWindow`: IPL_MODEL, ipl_eff, IPL_WBS_DIENST, IPL_SHIFT, IPL_CONFIG.fte (via tool-functies) |
+| Primavera-export → capaciteitsbrug | in | P6 APIBusinessObjects-XML met `ResourceAssignment`; FTE per activiteit (`PlannedUnitsPerTime`) gekoppeld op `ActivityObjectId = regel.id`, aangehouden in `DB.p6Capaciteit` |
 | Dashboard ↔ omgeving | in/uit | Volledige DB als JSON (export/import) |
 | Planningstool ↔ omgeving | in/uit | Eigen staat-export/-import en P6-export van de tool zelf |
 
