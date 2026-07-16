@@ -1251,7 +1251,12 @@ function renderDash(){
     const dt=T.filter(t=>t.dom===d.id||(d.id==='model'&&t.dom==='richtlijn'));
     const drag=ragOf(dt);
     let stat='',sub='',target=d.id==='planning'?'planning':d.id==='model'?'rules':'data';
-    if(d.id==='formatie'){const ben=DB.functies.reduce((s,f)=>s+f.benodigdFte*(1+p.verzuim/100),0),act=DB.functies.reduce((s,f)=>s+f.actueelFte,0)*(1+p.ftePct/100);stat=fmtF(act)+' / '+fmtF(ben);sub='actueel / benodigd fte (incl. verzuim)'}
+    if(d.id==='formatie'){
+      if(DB.functies.length){const ben=DB.functies.reduce((s,f)=>s+f.benodigdFte*(1+p.verzuim/100),0),act=DB.functies.reduce((s,f)=>s+f.actueelFte,0)*(1+p.ftePct/100);stat=fmtF(act)+' / '+fmtF(ben);sub='actueel / benodigd fte (incl. verzuim)'}
+      else{const capB=bridgeModel()?bridgeCapaciteit():null;
+        if(capB&&capB.geconfig){const piek=Object.values(capB.perDienst).reduce((s,i)=>s+i.piek,0),grens=Object.values(capB.perDienst).reduce((s,i)=>s+(i.grens||0),0);stat=fmtF(piek)+' / '+fmtF(grens,0);sub='piek FTE-vraag / capaciteit (planning)'}
+        else if(DB.p6Capaciteit){stat=fmtF(DB.p6Capaciteit.totFte);sub='FTE-vraag uit de planning (P6-import)'}
+        else{stat='0 / 0';sub='actueel / benodigd fte (incl. verzuim)'}}}
     else if(d.id==='financien'){const ben=DB.functies.reduce((s,f)=>s+f.onderhoudEur,0)*p.kostenIndex,bud=DB.financien.budgetJr*(1+p.budgetPct/100);stat=fmtE(bud-ben);sub=bud>=ben?'budgetruimte (excl. boeterisico)':'budgettekort per jaar'}
     else if(d.id==='asset'){const under=DB.assets.filter(a=>(100-(100-a.besch)*p.storingsFactor)<normVoor(a)).length;stat=under+' / '+DB.assets.length;sub='assets onder de config-norm'}
     else if(d.id==='planning'){const bm=bridgeModel();stat=bm?String(dt.length):'\u2014';sub=bm?'conflicten in '+esc(bm.bestand):'planning nog niet geladen in de tool'}
@@ -1607,7 +1612,8 @@ function p6CapBlok(){
 /* standalone capaciteitskaart uit de P6-export (zonder tool-model): totale
    FTE-vraag over de tijd + per rol, met koppelstatus. Zo is de capaciteit uit
    het bestand direct zichtbaar, ook v\u00f3\u00f3r de planning in de tool staat. */
-function p6StandaloneKaartHTML(){
+function p6StandaloneKaartHTML(opts){
+  const knoppen=!opts||opts.knoppen!==false;
   const c=DB.p6Capaciteit,kws=p6StandaloneKwartalen(c);
   let chart='<div class="empty">Geen datums in de export om de capaciteit over de tijd te tonen.</div>';
   if(kws.length){
@@ -1624,8 +1630,8 @@ function p6StandaloneKaartHTML(){
     `<tr><td><b>${esc(naam)}</b>${p.pad&&p.pad.length?`<br><span style="font-size:11px;color:var(--sub)">${esc(p.pad.join(' \u203a '))}</span>`:''}</td><td>${p.vc?`<span class="tag gy">${esc(p.vc)}</span>`:'\u2014'}</td><td class="num">${p.nAct}</td><td class="num" style="font-weight:700">${fmtF(p.fte)}</td></tr>`).join('');
   const rolRows=Object.entries(c.perRol||{}).sort((a,b)=>b[1]-a[1]).map(([r,v])=>`<tr><td>${esc(r)}</td><td class="num">${fmtF(v)}</td></tr>`).join('');
   return `<div class="card" style="margin-bottom:0"><h3>Capaciteitsvraag uit de planning <span class="hint">bron: P6-export (${esc(c.bestand)})</span></h3>
-    ${p6CapBlok()}
-    <div class="footnote" style="color:var(--oranje);margin-top:0">Nog niet gekoppeld aan de planningstool. Laad hierboven dezelfde Primavera-export in de tool (knop <b>Planning importeren</b>) voor de uitsplitsing per dienst en toetsing aan de capaciteitsgrenzen. De capaciteit per project en over de tijd staat hieronder.</div>
+    ${knoppen?p6CapBlok():''}
+    <div class="footnote" style="color:var(--oranje);margin-top:0">Nog niet gekoppeld aan de planningstool. Laad ${knoppen?'hierboven ':''}dezelfde Primavera-export in de planningstool (pagina Integrale planning) voor de uitsplitsing per dienst en toetsing aan de capaciteitsgrenzen. De capaciteit per project en over de tijd staat hieronder.</div>
     <div class="p6-stats"><span>totaal <b>${fmtF(c.totFte)}</b> fte over <b>${c.nActiviteiten}</b> activiteiten</span><span><b>${c.nAssign}</b> toewijzingen \u00b7 <b>${c.rollen.length}</b> rollen</span></div>
     <h3 style="font-size:12px;margin:12px 0 6px">Capaciteit per project <span style="font-weight:400;text-transform:none;color:var(--sub)">(uit de WBS van de export)</span></h3>
     <table style="max-width:640px"><thead><tr><th>Project (WBS)</th><th>Verkeerscentrale</th><th class="num">Activiteiten</th><th class="num">FTE</th></tr></thead><tbody>${projRows}</tbody></table>
@@ -1633,21 +1639,27 @@ function p6StandaloneKaartHTML(){
     <table style="margin-top:10px;max-width:420px"><thead><tr><th>Rol (resource)</th><th class="num">FTE</th></tr></thead><tbody>${rolRows}</tbody></table>
     <div class="footnote">Capaciteit rechtstreeks uit de resource-toewijzingen van de Primavera-export (PlannedUnitsPerTime per activiteit), toegewezen aan het project via de WBS-hi\u00ebrarchie.</div></div>`;
 }
-function renderCapKaart(){
-  const el=document.getElementById('ipl-cap-card');if(!el)return;
+function p6ProjectTabelHTML(){
+  if(!(DB.p6Capaciteit&&DB.p6Capaciteit.perProject))return '';
+  return `<h3 style="font-size:12px;margin:14px 0 6px">Capaciteit per project <span style="font-weight:400;text-transform:none;color:var(--sub)">(uit de WBS van de P6-export)</span></h3>
+    <table style="max-width:640px"><thead><tr><th>Project (WBS)</th><th>Verkeerscentrale</th><th class="num">Activiteiten</th><th class="num">FTE</th></tr></thead><tbody>${Object.entries(DB.p6Capaciteit.perProject).sort((a,b)=>b[1].fte-a[1].fte).map(([naam,pr])=>`<tr><td><b>${esc(naam)}</b>${pr.pad&&pr.pad.length?`<br><span style="font-size:11px;color:var(--sub)">${esc(pr.pad.join(' › '))}</span>`:''}</td><td>${pr.vc?`<span class="tag gy">${esc(pr.vc)}</span>`:'—'}</td><td class="num">${pr.nAct}</td><td class="num" style="font-weight:700">${fmtF(pr.fte)}</td></tr>`).join('')}</tbody></table>`;
+}
+/* de volledige capaciteitskaart als HTML-string, herbruikbaar op de planning- en
+   databronnenpagina. Gekoppeld (per dienst) als de planning in de tool staat,
+   anders standalone uit de P6-export. */
+function capaciteitKaartHTML(opts){
+  opts=opts||{};const knoppen=opts.knoppen!==false;
   const m=bridgeModel();
   const cap=m?bridgeCapaciteit():null;
   if(!(cap&&cap.geconfig)){
-    if(DB.p6Capaciteit){el.innerHTML=p6StandaloneKaartHTML();return}
-    if(!m){el.innerHTML='';return}
-    el.innerHTML=`<div class="card" style="margin-bottom:0"><h3>Capaciteitsvraag uit de planning</h3>
-      ${p6CapBlok()}
+    if(DB.p6Capaciteit)return p6StandaloneKaartHTML(opts);
+    if(!m)return '';
+    return `<div class="card" style="margin-bottom:0"><h3>Capaciteitsvraag uit de planning</h3>
+      ${knoppen?p6CapBlok():''}
       <div class="empty">De geladen planning bevat nog geen FTE-toewijzingen (${cap?cap.nTaken:0} taken, 0 met FTE-rollen).<br><br>
-      Houd de capaciteit aan uit je <b>Primavera-export</b> met de knop hierboven (resource-toewijzingen \u2192 FTE per activiteit), \u00f3f gebruik de FTE-configuratie van de planningstool zelf: open in de tool het <b>Config</b>-paneel en ken FTE-rollen toe per taak, of gebruik <b>FTE-templates</b> die matchen op de ActivityCode \u201c[VWM] Fase\u201d. De capaciteit telt daarna mee in de kaart, triggers en Monte Carlo.</div></div>`;
-    return;
+      Houd de capaciteit aan uit je <b>Primavera-export</b>${knoppen?' met de knop hierboven':' (pagina Integrale planning)'} (resource-toewijzingen → FTE per activiteit), óf gebruik de FTE-configuratie van de planningstool zelf.</div></div>`;
   }
-  const kleuren=DIENST_KLEUR;
-  const kws=cap.kwartalen;
+  const kleuren=DIENST_KLEUR,kws=cap.kwartalen;
   const W=Math.max(700,kws.length*34+120),Hh=210,x0=46,plotW=W-x0-14,bw=Math.max(10,plotW/Math.max(1,kws.length)-6);
   const maxTot=Math.max(...kws.map(k=>k.tot),...Object.values(cap.perDienst).map(i=>i.grens||0),1)*1.12;
   const yv=v=>170-v/maxTot*150;
@@ -1656,7 +1668,7 @@ function renderCapKaart(){
   kws.forEach((k,i)=>{
     const x=x0+i*(plotW/kws.length)+3;let y=170;
     cap.diensten.forEach(d=>{const v=k.per[d]||0;if(v<=0)return;const hh=v/maxTot*150;y-=hh;
-      svg+=`<rect x="${x}" y="${y}" width="${bw}" height="${hh}" fill="${kleuren[d]||'#5a6478'}" opacity=".9"><title>${k.label} \u00b7 ${d}: ${fmtF(v)} fte</title></rect>`});
+      svg+=`<rect x="${x}" y="${y}" width="${bw}" height="${hh}" fill="${kleuren[d]||'#5a6478'}" opacity=".9"><title>${k.label} · ${d}: ${fmtF(v)} fte</title></rect>`});
     if(k.q===1)svg+=`<text x="${x+bw/2}" y="184" text-anchor="middle" font-size="8.5" fill="#5a6478">${k.label}</text>`;
   });
   cap.diensten.forEach(d=>{const g=cap.perDienst[d].grens;if(!g)return;
@@ -1664,15 +1676,18 @@ function renderCapKaart(){
   svg+='</svg>';
   const rijen=cap.diensten.map(d=>{const i=cap.perDienst[d];
     const status=i.grens>0?(i.piek>i.grens?(i.piek-i.grens>=2?'<span class="tag r">Overschrijding</span>':'<span class="tag o">Boven grens</span>'):'<span class="tag g">Binnen grens</span>'):'<span class="tag gy">Geen grens</span>';
-    return `<tr><td>${dienstChip(d)}</td><td class="num">${fmtF(i.piek)}</td><td>${esc(i.piekKw)}</td><td class="num">${i.grens||'\u2014'}</td><td class="num">${i.overKw||0}</td><td>${status}</td></tr>`}).join('');
+    return `<tr><td>${dienstChip(d)}</td><td class="num">${fmtF(i.piek)}</td><td>${esc(i.piekKw)}</td><td class="num">${i.grens||'—'}</td><td class="num">${i.overKw||0}</td><td>${status}</td></tr>`}).join('');
   const bron=DB.p6Capaciteit?'P6-export ('+esc(DB.p6Capaciteit.bestand)+')':'FTE-config van de planningstool';
-  el.innerHTML=`<div class="card" style="margin-bottom:0"><h3>Capaciteitsvraag uit de planning <span class="hint">bron: ${bron} \u00b7 grenzen instelbaar in de rule engine \u00b7 telt door in triggers en Monte Carlo</span></h3>
-    ${p6CapBlok()}
+  return `<div class="card" style="margin-bottom:0"><h3>Capaciteitsvraag uit de planning <span class="hint">bron: ${bron} · grenzen instelbaar in de rule engine · telt door in triggers en Monte Carlo</span></h3>
+    ${knoppen?p6CapBlok():''}
     <div class="p6-stats"><span><b>${cap.nMetFte}</b> van <b>${cap.nTaken}</b> taken met FTE</span><span>cumulatief <b>${fmtF(cap.totFte)}</b> fte-toewijzing</span></div>
     <div style="overflow-x:auto">${svg}</div>
     <table style="margin-top:10px;max-width:640px"><thead><tr><th>Dienst</th><th class="num">Piek FTE</th><th>Kwartaal</th><th class="num">Grens</th><th class="num">Kw &gt; grens</th><th>Status</th></tr></thead><tbody>${rijen}</tbody></table>
-    ${DB.p6Capaciteit&&DB.p6Capaciteit.perProject?`<h3 style="font-size:12px;margin:14px 0 6px">Capaciteit per project <span style="font-weight:400;text-transform:none;color:var(--sub)">(uit de WBS van de P6-export)</span></h3>
-      <table style="max-width:640px"><thead><tr><th>Project (WBS)</th><th>Verkeerscentrale</th><th class="num">Activiteiten</th><th class="num">FTE</th></tr></thead><tbody>${Object.entries(DB.p6Capaciteit.perProject).sort((a,b)=>b[1].fte-a[1].fte).map(([naam,pr])=>`<tr><td><b>${esc(naam)}</b>${pr.pad&&pr.pad.length?`<br><span style="font-size:11px;color:var(--sub)">${esc(pr.pad.join(' › '))}</span>`:''}</td><td>${pr.vc?`<span class="tag gy">${esc(pr.vc)}</span>`:'—'}</td><td class="num">${pr.nAct}</td><td class="num" style="font-weight:700">${fmtF(pr.fte)}</td></tr>`).join('')}</tbody></table>`:''}</div>`;
+    ${p6ProjectTabelHTML()}</div>`;
+}
+function renderCapKaart(){
+  const el=document.getElementById('ipl-cap-card');if(!el)return;
+  el.innerHTML=capaciteitKaartHTML({knoppen:true});
 }
 
 /* ─────────────── DATABRONNEN ─────────────── */
@@ -1707,7 +1722,8 @@ function renderData(){
         <div class="frm"><label>Budget dienstverlening \u20ac/jr</label><input type="number" step="10000" value="${DB.financien.budgetJr}" onchange="DB.financien.budgetJr=+this.value;saveDB()">
         <label>Kostenindex</label><input type="number" step="0.01" value="${DB.params.kostenIndex}" onchange="DB.params.kostenIndex=+this.value;saveDB()"></div>
         <div class="footnote">Benodigde middelen: ${fmtE(DB.functies.reduce((s,f)=>s+f.onderhoudEur,0)*p.kostenIndex)} volgens de P\u00d7Q-regels \u00b7 contracteis ${cfg('contract.beschikbaarheidseis',99.5)}% met boete ${fmtE(+cfg('contract.boete_per_uur',500))}/uur uit config.html.</div></div>
-    </div>`;
+    </div>
+    ${(()=>{const h=capaciteitKaartHTML({knoppen:true});return h?`<div style="margin-top:16px">${h}</div>`:''})()}`;
 }
 
 /* ─────────────── SIMULATIE ─────────────── */
