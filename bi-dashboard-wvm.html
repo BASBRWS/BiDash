@@ -531,20 +531,31 @@ function p6ParseCapaciteit(xmlText,bestand){
     (perAct[aoid]=perAct[aoid]||[]).push({rol,fte});
     nAssign++;totFte+=fte;
   });
-  // activiteit-metadata (naam + datums) — nodig om de capaciteit ook zonder de tool
-  // over de tijd te tonen ("capaciteit uit het bestand")
+  // WBS-boom: koppelt elke activiteit aan haar project (bv. "Leidsche Rijntunnel"),
+  // verkeerscentrale (VCxxx) en top-WBS (voor de dienst) — zodat de FTE aan het
+  // juiste project gekoppeld wordt getoond, niet alleen per dienst.
+  const wbs={};
+  [...xml.getElementsByTagName('WBS')].forEach(w=>{const o=T(w,'ObjectId');if(o)wbs[o]={naam:T(w,'Name'),parent:T(w,'ParentObjectId')};});
+  const wbsPad=woid=>{const pad=[],seen={};while(woid&&wbs[woid]&&!seen[woid]){seen[woid]=1;pad.unshift(wbs[woid].naam);woid=wbs[woid].parent;}return pad;};
+  // activiteit-metadata (naam + datums + WBS-pad/project) — ook nodig om de capaciteit
+  // zonder de tool over de tijd én per project te tonen ("capaciteit uit het bestand")
   const actMeta={};
   [...xml.getElementsByTagName('Activity')].forEach(a=>{const o=T(a,'ObjectId');if(!o)return;
-    const t0=dToF(T(a,'StartDate')||T(a,'PlannedStartDate'));
-    const t1=dToF(T(a,'FinishDate')||T(a,'PlannedFinishDate'));
-    actMeta[o]={naam:T(a,'Name'),t0,t1};});
+    const pad=wbsPad(T(a,'WBSObjectId'));
+    actMeta[o]={naam:T(a,'Name'),t0:dToF(T(a,'StartDate')||T(a,'PlannedStartDate')),t1:dToF(T(a,'FinishDate')||T(a,'PlannedFinishDate')),
+      pad,project:pad.length?pad[pad.length-1]:'(geen WBS)',vc:pad.find(n=>/^VC/i.test(n))||'',top:pad[0]||''};});
   const activiteiten=Object.keys(perAct).map(id=>{const m=actMeta[id]||{};
-    return {id,naam:m.naam||id,t0:m.t0,t1:m.t1,fte:Math.round(perAct[id].reduce((s,x)=>s+x.fte,0)*100)/100};});
+    return {id,naam:m.naam||id,t0:m.t0,t1:m.t1,project:m.project||'(geen WBS)',vc:m.vc||'',top:m.top||'',pad:m.pad||[],
+      fte:Math.round(perAct[id].reduce((s,x)=>s+x.fte,0)*100)/100};});
+  // FTE per project (bv. Leidsche Rijntunnel), met VC en top-WBS
+  const perProject={};
+  activiteiten.forEach(a=>{const p=perProject[a.project]=perProject[a.project]||{fte:0,vc:a.vc,top:a.top,pad:a.pad,nAct:0};p.fte+=a.fte;p.nAct++;});
+  Object.values(perProject).forEach(p=>p.fte=Math.round(p.fte*100)/100);
   // FTE per rol (voor de standalone weergave)
   const perRol={};Object.values(perAct).forEach(rs=>rs.forEach(x=>{perRol[x.rol]=(perRol[x.rol]||0)+x.fte}));
   return {bestand,datum:new Date().toISOString().slice(0,10),perActiviteit:perAct,activiteiten,
     nActiviteiten:activiteiten.length,nAssign,totFte:Math.round(totFte*10)/10,
-    rollen:Object.values(resNaam),perRol};
+    rollen:Object.values(resNaam),perRol,perProject};
 }
 /* standalone kwartaalreeks (som FTE actieve activiteiten) uit de P6-export zelf,
    zodat de capaciteit ook zichtbaar is zonder dat de planning in de tool staat */
@@ -1609,14 +1620,18 @@ function p6StandaloneKaartHTML(){
       if(k.q===1)svg+=`<text x="${x+bw/2}" y="174" text-anchor="middle" font-size="8.5" fill="#5a6478">${k.label}</text>`;});
     svg+='</svg>';chart=`<div style="overflow-x:auto">${svg}</div>`;
   }
+  const projRows=Object.entries(c.perProject||{}).sort((a,b)=>b[1].fte-a[1].fte).map(([naam,p])=>
+    `<tr><td><b>${esc(naam)}</b>${p.pad&&p.pad.length?`<br><span style="font-size:11px;color:var(--sub)">${esc(p.pad.join(' \u203a '))}</span>`:''}</td><td>${p.vc?`<span class="tag gy">${esc(p.vc)}</span>`:'\u2014'}</td><td class="num">${p.nAct}</td><td class="num" style="font-weight:700">${fmtF(p.fte)}</td></tr>`).join('');
   const rolRows=Object.entries(c.perRol||{}).sort((a,b)=>b[1]-a[1]).map(([r,v])=>`<tr><td>${esc(r)}</td><td class="num">${fmtF(v)}</td></tr>`).join('');
   return `<div class="card" style="margin-bottom:0"><h3>Capaciteitsvraag uit de planning <span class="hint">bron: P6-export (${esc(c.bestand)})</span></h3>
     ${p6CapBlok()}
-    <div class="footnote" style="color:var(--oranje);margin-top:0">Nog niet gekoppeld aan de planningstool. Laad hierboven dezelfde Primavera-export in de tool (knop <b>Planning importeren</b>) voor de uitsplitsing per dienst en toetsing aan de capaciteitsgrenzen. De totale capaciteit uit het bestand staat hieronder.</div>
+    <div class="footnote" style="color:var(--oranje);margin-top:0">Nog niet gekoppeld aan de planningstool. Laad hierboven dezelfde Primavera-export in de tool (knop <b>Planning importeren</b>) voor de uitsplitsing per dienst en toetsing aan de capaciteitsgrenzen. De capaciteit per project en over de tijd staat hieronder.</div>
     <div class="p6-stats"><span>totaal <b>${fmtF(c.totFte)}</b> fte over <b>${c.nActiviteiten}</b> activiteiten</span><span><b>${c.nAssign}</b> toewijzingen \u00b7 <b>${c.rollen.length}</b> rollen</span></div>
+    <h3 style="font-size:12px;margin:12px 0 6px">Capaciteit per project <span style="font-weight:400;text-transform:none;color:var(--sub)">(uit de WBS van de export)</span></h3>
+    <table style="max-width:640px"><thead><tr><th>Project (WBS)</th><th>Verkeerscentrale</th><th class="num">Activiteiten</th><th class="num">FTE</th></tr></thead><tbody>${projRows}</tbody></table>
     ${chart}
     <table style="margin-top:10px;max-width:420px"><thead><tr><th>Rol (resource)</th><th class="num">FTE</th></tr></thead><tbody>${rolRows}</tbody></table>
-    <div class="footnote">Capaciteit rechtstreeks uit de resource-toewijzingen van de Primavera-export (PlannedUnitsPerTime per activiteit).</div></div>`;
+    <div class="footnote">Capaciteit rechtstreeks uit de resource-toewijzingen van de Primavera-export (PlannedUnitsPerTime per activiteit), toegewezen aan het project via de WBS-hi\u00ebrarchie.</div></div>`;
 }
 function renderCapKaart(){
   const el=document.getElementById('ipl-cap-card');if(!el)return;
@@ -1655,7 +1670,9 @@ function renderCapKaart(){
     ${p6CapBlok()}
     <div class="p6-stats"><span><b>${cap.nMetFte}</b> van <b>${cap.nTaken}</b> taken met FTE</span><span>cumulatief <b>${fmtF(cap.totFte)}</b> fte-toewijzing</span></div>
     <div style="overflow-x:auto">${svg}</div>
-    <table style="margin-top:10px;max-width:640px"><thead><tr><th>Dienst</th><th class="num">Piek FTE</th><th>Kwartaal</th><th class="num">Grens</th><th class="num">Kw &gt; grens</th><th>Status</th></tr></thead><tbody>${rijen}</tbody></table></div>`;
+    <table style="margin-top:10px;max-width:640px"><thead><tr><th>Dienst</th><th class="num">Piek FTE</th><th>Kwartaal</th><th class="num">Grens</th><th class="num">Kw &gt; grens</th><th>Status</th></tr></thead><tbody>${rijen}</tbody></table>
+    ${DB.p6Capaciteit&&DB.p6Capaciteit.perProject?`<h3 style="font-size:12px;margin:14px 0 6px">Capaciteit per project <span style="font-weight:400;text-transform:none;color:var(--sub)">(uit de WBS van de P6-export)</span></h3>
+      <table style="max-width:640px"><thead><tr><th>Project (WBS)</th><th>Verkeerscentrale</th><th class="num">Activiteiten</th><th class="num">FTE</th></tr></thead><tbody>${Object.entries(DB.p6Capaciteit.perProject).sort((a,b)=>b[1].fte-a[1].fte).map(([naam,pr])=>`<tr><td><b>${esc(naam)}</b>${pr.pad&&pr.pad.length?`<br><span style="font-size:11px;color:var(--sub)">${esc(pr.pad.join(' › '))}</span>`:''}</td><td>${pr.vc?`<span class="tag gy">${esc(pr.vc)}</span>`:'—'}</td><td class="num">${pr.nAct}</td><td class="num" style="font-weight:700">${fmtF(pr.fte)}</td></tr>`).join('')}</tbody></table>`:''}</div>`;
 }
 
 /* ─────────────── DATABRONNEN ─────────────── */
