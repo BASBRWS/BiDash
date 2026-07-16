@@ -1578,11 +1578,11 @@ function renderPlanning(){
     host.innerHTML=`
       <div class="pagehead"><h2>Integrale planning</h2><div class="desc">De volledige planningstool (integrale-planning-rws.html) draait hieronder ongewijzigd \u2014 XML-import, shifts, FTE-capaciteit, dashboards en autosave incluis. De trigger engine leest live mee.</div>
       <div class="actions"><span id="ipl-brug-status" class="tag gy">brug: wachten op model\u2026</span></div></div>
-      <div id="ipl-frame-wrap" style="border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow);background:#fff"></div>
-      <div id="ipl-cap-card" style="margin-top:16px"></div>`;
+      <div id="ipl-cap-card" style="margin-bottom:16px"></div>
+      <div id="ipl-frame-wrap" style="border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow);background:#fff"></div>`;
     IPL_FRAME=document.createElement('iframe');
     IPL_FRAME.id='ipl-frame';
-    IPL_FRAME.style.cssText='width:100%;height:calc(100vh - 168px);border:none;display:block;background:#fff';
+    IPL_FRAME.style.cssText='width:100%;height:calc(100vh - 210px);min-height:520px;border:none;display:block;background:#fff';
     // srcdoc i.p.v. blob-URL: een srcdoc-iframe erft de origin van het dashboard,
     // óók wanneer het bestand lokaal via file:// wordt geopend. Een blob-URL krijgt
     // onder file:// een eigen opaque origin ("null"), waardoor de read-only brug
@@ -1687,7 +1687,9 @@ function capaciteitKaartHTML(opts){
 }
 function renderCapKaart(){
   const el=document.getElementById('ipl-cap-card');if(!el)return;
-  el.innerHTML=capaciteitKaartHTML({knoppen:true});
+  const h=capaciteitKaartHTML({knoppen:true});
+  el.innerHTML=h;
+  el.style.marginBottom=h?'16px':'0';
 }
 
 /* ─────────────── DATABRONNEN ─────────────── */
