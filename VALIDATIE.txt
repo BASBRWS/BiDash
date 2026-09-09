@@ -1,0 +1,3 @@
+Browsercontrole geslaagd: oorspronkelijke MS Project XML-import, DVM-totaalimport en IndexedDB-herstel na paginaherlaad. Geen JavaScript-paginafouten en geen externe netwerkverzoeken in de geteste routes. Testdata en daarvan afgeleide aantallen zijn niet gepubliceerd.
+Modeltests geslaagd.
+Ook P6 XML met ResourceAssignment getest op correcte koppeling van capaciteit.

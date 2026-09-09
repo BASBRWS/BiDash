@@ -1,0 +1,22 @@
+BiDash integraal
+
+GitHub Pages
+1. Plaats de uitgepakte projectbestanden in BASBRWS/BiDash.
+2. Kies Settings > Pages > Source > GitHub Actions.
+3. De workflow test het project en publiceert uitsluitend de map site/.
+   Gegevens worden uitsluitend lokaal geladen; bronbestanden nooit toevoegen aan GitHub.
+
+Lokaal testen
+Open een terminal in deze projectmap en voer uit:
+python -m http.server 8080 --directory site
+Open daarna http://localhost:8080 in de browser.
+Gebruik een lokale webserver; dubbelklikken op index.html ondersteunt de JS-modules niet.
+
+Gebruik
+- Laden & exporteren: kies je DVM-totaal-JSON, planning-XML of BI-JSON.
+- Controleer de importvoorvertoning en kies Import uitvoeren.
+- Regels & koppelingen: verbind een DVM-dienst aan een BI-bedrijfsfunctie.
+- Samenhang: bekijk de resultaten en gecombineerde signalen.
+- Dienstimpact of BI: bestaande verdiepingen, memo's en simulaties.
+- Export: kies onderdelen of maak een volledige integrale back-up.
+

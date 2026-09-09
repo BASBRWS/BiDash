@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; frame-src 'self' blob: about:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dienstimpact-analyse DVM-storingen | RWS WVM | versie 72</title>
+<script src="../vendor/xlsx.full.min.js"></script>
+<style>
+/* ── login-scherm ── */
+.login-scherm{position:fixed;inset:0;z-index:500;background:linear-gradient(135deg,#003082 0%,#001f57 100%);display:flex;align-items:center;justify-content:center;padding:20px;font-family:'Segoe UI',system-ui,sans-serif}
+.login-lint{position:absolute;top:0;left:0;right:0;height:6px;background:linear-gradient(to right,#e17000 50%,#F9B000 50%)}
+.login-box{background:#fff;border-radius:12px;box-shadow:0 24px 70px rgba(0,10,40,.45);width:min(400px,94vw);padding:38px 36px 28px;position:relative;animation:loginIn .25s ease}
+@keyframes loginIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.login-logo{font-size:20px;font-weight:800;color:#003082;letter-spacing:-.01em}
+.login-org{font-size:11px;font-weight:700;color:#e17000;text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.login-titel{font-size:18px;color:#1a2236;margin:18px 0 4px;font-weight:700}
+.login-sub{font-size:12.5px;color:#5a6472;line-height:1.5;margin:0 0 20px}
+.login-veld{margin-bottom:14px}
+.login-veld label{display:block;font-size:11px;font-weight:700;color:#5a6472;text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px}
+.login-veld input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d0d6de;border-radius:7px;font-family:inherit;font-size:14px;transition:border-color .15s}
+.login-veld input:focus{outline:none;border-color:#003082;box-shadow:0 0 0 3px rgba(0,48,130,.12)}
+.login-knop{width:100%;background:#003082;color:#fff;border:none;border-radius:7px;padding:12px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-top:6px;transition:background .15s}
+.login-knop:hover{background:#0050a0}
+.login-knop:active{transform:translateY(1px)}
+.login-fout{color:#c0392b;font-size:12.5px;margin-top:12px;min-height:18px;text-align:center;font-weight:600}
+.login-voet{font-size:10.5px;color:#9aa4b2;text-align:center;margin-top:22px;line-height:1.4;border-top:1px solid #eef0f3;padding-top:14px}
+:root{
+  --rws-blauw:#003082; --rws-blauw-dark:#001f57; --rws-blauw-mid:#0050a0;
+  --rws-geel:#F9B000; --rws-geel-l:#fff4d6;
+  --wit:#fff; --bg:#eef1f5; --panel:#f8f9fb;
+  --grijs-mid:#d0d6de; --grijs-donker:#5a6478;
+  --groen:#1a8a4a; --groen-l:#e6f5ed;
+  --oranje:#e06b00; --oranje-l:#fff0e0;
+  --rood:#c0121f; --rood-l:#fde8ea;
+  --text:#1a2236; --sub:#4a5568; --border:#d0d6de;
+  --shadow:0 2px 8px rgba(0,48,130,.10);
+  --radius:4px; --radius-lg:8px;
+  --mono:'Consolas','Cascadia Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:13.5px;line-height:1.45;display:flex;flex-direction:column;min-height:100vh}
+.lint{height:4px;background:linear-gradient(to right,var(--rws-geel) 0 25%,var(--rws-blauw) 25% 75%,var(--rws-geel) 75% 100%);flex-shrink:0}
+.topbar{background:var(--rws-blauw);color:#fff;display:flex;align-items:center;padding:0 20px;height:56px;gap:16px;flex-shrink:0}
+.topbar h1{font-size:16px;font-weight:700;letter-spacing:.01em}
+.topbar h1 .sub{font-weight:400;color:#a9c0e6;font-size:12px;display:block;letter-spacing:0;margin-top:1px}
+.topbar .spacer{flex:1}
+.tb-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;padding:7px 14px;border-radius:var(--radius);cursor:pointer;font-size:12.5px;font-weight:600;font-family:inherit}
+.tb-btn:hover{background:rgba(255,255,255,.22)}
+.tb-btn.primary{background:var(--rws-geel);border-color:var(--rws-geel);color:var(--rws-blauw-dark)}
+.tb-btn.primary:hover{background:#ffc02e}
+.tb-btn:disabled{opacity:.42;cursor:not-allowed;filter:saturate(.4)}
+.tb-btn:disabled:hover{background:rgba(255,255,255,.12)}
+.linkbtn{border:0;background:transparent;color:var(--rws-blauw);font:inherit;font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:0}
+.linkbtn:hover{color:var(--rws-blauw-mid)}
+.wrap{max-width:1400px;margin:0 auto;padding:22px 22px 60px;width:100%}
+.pagehead{margin-bottom:18px}
+.pagehead h2{font-size:20px;color:var(--rws-blauw);font-weight:700}
+.pagehead p{color:var(--sub);font-size:13px;margin-top:3px;max-width:760px}
+.data-gate{background:var(--wit);border:1px solid var(--border);border-left:5px solid var(--rws-blauw);border-radius:var(--radius-lg);padding:15px 17px;box-shadow:var(--shadow);margin-bottom:18px}
+.data-gate-kop{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.data-gate-kop h3{font-size:13px;color:var(--rws-blauw);margin:0;text-transform:none;letter-spacing:0}
+.data-gate-kop p{font-size:11.5px;color:var(--sub);margin:3px 0 0;max-width:850px}
+.data-gate-grid{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:8px}
+.data-stap{border:1px solid var(--border);border-radius:7px;padding:10px 11px;background:var(--panel);min-height:92px;position:relative}
+.data-stap::before{content:'';position:absolute;left:-1px;right:-1px;top:-1px;height:4px;border-radius:7px 7px 0 0;background:var(--grijs-mid)}
+.data-stap.ok{background:var(--groen-l);border-color:#add6bd}.data-stap.ok::before{background:var(--groen)}
+.data-stap.warn{background:var(--rws-geel-l);border-color:#eedb9a}.data-stap.warn::before{background:var(--rws-geel)}
+.data-stap.stop{background:var(--rood-l);border-color:#efbdc2}.data-stap.stop::before{background:var(--rood)}
+.data-stap-volg{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--sub);font-weight:700;margin-bottom:5px}
+.data-stap-titel{font-size:12.5px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px}
+.data-stap-detail{font-size:10.8px;color:var(--sub);line-height:1.38;margin-top:5px;overflow-wrap:anywhere}
+.data-stap-status{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-left:auto}
+.data-stap.ok .data-stap-status{color:var(--groen)}.data-stap.warn .data-stap-status{color:#8a6d00}.data-stap.stop .data-stap-status{color:var(--rood)}
+.data-missing{margin-top:10px;padding:9px 11px;border-radius:6px;background:var(--panel);font-size:11.5px;color:var(--sub);line-height:1.45}
+.data-missing b{color:var(--text)}
+.import-progress{margin:0 0 12px;padding:10px 12px;border:1px solid #b9cbe0;border-radius:7px;background:#f2f7fc}
+.import-progress.done{border-color:#add6bd;background:var(--groen-l)}
+.import-progress.error{border-color:#efbdc2;background:var(--rood-l)}
+.import-progress-kop{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:11.5px;font-weight:800;color:var(--rws-blauw)}
+.import-progress-bestand{overflow-wrap:anywhere}.import-progress-pct{white-space:nowrap;font-variant-numeric:tabular-nums}
+.import-progress-balk{height:9px;margin-top:7px;background:#d7e0e9;border-radius:999px;overflow:hidden;position:relative}
+.import-progress-balk>span{display:block;height:100%;width:0;background:var(--rws-blauw-mid);border-radius:999px;transition:width .18s ease}
+.import-progress.actief.onbepaald .import-progress-balk>span{width:38%;animation:importSchuif 1.15s ease-in-out infinite}
+.import-progress.done .import-progress-balk>span{background:var(--groen)}.import-progress.error .import-progress-balk>span{background:var(--rood)}
+.import-progress-fase{margin-top:5px;font-size:10.8px;color:var(--sub);line-height:1.35}
+@keyframes importSchuif{0%{transform:translateX(-110%)}100%{transform:translateX(290%)}}
+.data-assets{margin-top:8px}
+.data-assets summary{font-size:11.5px;font-weight:700;color:var(--rws-blauw);cursor:pointer}
+.data-assets-list{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.data-assets-list .chip{background:#fff}
+.dataset-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.dataset-card{border:1px solid var(--border);border-left:4px solid var(--rws-blauw);border-radius:8px;background:var(--wit);padding:12px 13px;display:flex;flex-direction:column;gap:8px}
+.dataset-card.warn{border-left-color:var(--rws-geel)}.dataset-card.stop{border-left-color:var(--rood)}
+.dataset-kop{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.dataset-titel{font-weight:800;color:var(--rws-blauw);font-size:13px}
+.dataset-meta{font-size:11.5px;color:var(--sub);line-height:1.45;overflow-wrap:anywhere}
+.dataset-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:auto}
+.dataset-del{background:#fff;border:1px solid #efbdc2;color:var(--rood);border-radius:6px;padding:5px 9px;font-size:11.5px;font-weight:800;cursor:pointer}
+.dataset-del:hover{background:var(--rood-l)}
+.export-select{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin:10px 0 12px}
+.export-opt{border:1px solid var(--border);border-radius:7px;padding:9px 10px;background:var(--panel);font-size:12px;cursor:pointer}
+.export-opt input{margin-right:7px;accent-color:var(--rws-blauw)}
+.export-opt small{display:block;margin-left:23px;color:var(--sub);font-size:10.8px;line-height:1.35}
+.dataset-note{font-size:11.5px;color:var(--sub);line-height:1.5;margin:8px 0 0}
+.load-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.analyse-slot{border:1px solid #efbdc2;background:var(--rood-l);border-radius:var(--radius-lg);padding:18px 20px;color:var(--text)}
+.analyse-slot h3{color:var(--rood);margin-bottom:7px}.analyse-slot ul{margin:7px 0 0 18px;font-size:12px}
+.section-tabs button.tab-locked{color:#8a92a0;cursor:not-allowed}.section-tabs button.tab-locked::after{content:'  🔒';font-size:10px}
+@media(max-width:1120px){.data-gate-grid{grid-template-columns:repeat(2,minmax(180px,1fr))}.topbar{height:auto;min-height:56px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}}
+@media(max-width:650px){.data-gate-grid{grid-template-columns:1fr}.topbar .spacer{display:none}.topbar{gap:7px}.tb-btn{padding:6px 9px}}
+.card{background:var(--wit);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;box-shadow:var(--shadow);margin-bottom:18px}
+.card h3{font-size:12px;color:var(--rws-blauw);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card h3 .badge{background:var(--rws-geel-l);color:#8a6d00;font-size:10px;padding:2px 7px;border-radius:8px;letter-spacing:0;font-weight:700}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+@media(max-width:980px){.grid2,.grid3,.grid4{grid-template-columns:1fr}}
+
+/* dropzone */
+.dropzone{border:2px dashed var(--grijs-mid);border-radius:var(--radius-lg);padding:34px;text-align:center;cursor:pointer;transition:.15s;background:var(--panel)}
+.dropzone:hover,.dropzone.drag{border-color:var(--rws-blauw-mid);background:#eef3fb}
+.dropzone .ic{font-size:34px;margin-bottom:8px;opacity:.6}
+.dropzone b{color:var(--rws-blauw);font-size:15px}
+.dropzone span{display:block;color:var(--sub);font-size:12px;margin-top:5px}
+
+/* service tiles */
+.dienst-tile{border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;background:var(--wit);position:relative;overflow:hidden}
+.dienst-tile::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent,var(--grijs-mid))}
+.dienst-tile .dt-naam{font-weight:700;font-size:13.5px;color:var(--rws-blauw);display:flex;align-items:center;gap:7px;margin-bottom:2px}
+.dienst-tile .dt-doel{font-size:11px;color:var(--sub);margin-bottom:12px}
+.dienst-tile .dt-groot{font-size:30px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.dienst-tile .dt-groot small{font-size:14px;font-weight:600;color:var(--sub)}
+.dienst-tile .dt-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--sub);font-weight:700;margin-bottom:4px}
+.dt-row{display:flex;gap:18px;margin-top:12px}
+.dt-metric{flex:1}
+.dt-norm{font-size:11px;margin-top:8px;padding-top:8px;border-top:1px solid var(--panel);color:var(--sub)}
+.pill{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:10px;letter-spacing:.02em}
+.pill.groen{background:var(--groen-l);color:var(--groen)}
+.pill.geel{background:var(--rws-geel-l);color:#8a6d00}
+.pill.oranje{background:var(--oranje-l);color:var(--oranje)}
+.pill.rood{background:var(--rood-l);color:var(--rood)}
+
+/* KPI strip */
+.kpi{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
+.kpi .k-val{font-size:24px;font-weight:800;color:var(--rws-blauw);font-variant-numeric:tabular-nums;line-height:1}
+.kpi .k-lab{font-size:11px;color:var(--sub);margin-top:4px;text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+
+/* tables */
+table.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+table.tbl th{text-align:left;padding:8px 10px;background:var(--rws-blauw);color:#fff;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.03em;position:sticky;top:0}
+table.tbl th.num,table.tbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+table.tbl td{padding:7px 10px;border-bottom:1px solid var(--panel)}
+table.tbl tbody tr:hover{background:#f5f8fd}
+table.tbl tbody tr.crit{background:var(--rood-l)}
+table.tbl tbody tr.crit:hover{background:#fbdadd}
+.tbl-scroll{max-height:520px;overflow:auto;border:1px solid var(--border);border-radius:var(--radius)}
+.mono{font-family:var(--mono);font-size:11.5px}
+.bar{height:7px;border-radius:4px;background:var(--panel);overflow:hidden;min-width:60px}
+.bar>span{display:block;height:100%;border-radius:4px}
+.tag{display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:3px}
+.tag.r{background:var(--rood-l);color:var(--rood)}.tag.o{background:var(--oranje-l);color:var(--oranje)}
+.tag.g{background:var(--groen-l);color:var(--groen)}.tag.b{background:#e3ebf7;color:var(--rws-blauw)}
+.tag.gy{background:#eef0f3;color:var(--grijs-donker)}
+
+.muted{color:var(--sub)}
+.empty{text-align:center;padding:50px 20px;color:var(--sub)}
+.empty .ic{font-size:44px;opacity:.35;margin-bottom:12px}
+.hidden{display:none!important}
+.stat-line{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.chip{font-size:11px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:3px 11px;color:var(--sub)}
+.chip b{color:var(--text)}
+.filterbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.filterbar select,.filterbar input{padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);font-family:inherit;font-size:12.5px;background:var(--wit)}
+.filterbar label{font-size:11px;color:var(--sub);font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+details.rule{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;background:var(--wit)}
+details.rule summary{padding:9px 13px;cursor:pointer;font-weight:700;font-size:12px;color:var(--rws-blauw);list-style:none;display:flex;align-items:center;gap:9px}
+details.rule summary::before{content:'▸';transition:transform .15s;font-size:10px}
+details.rule[open] summary::before{transform:rotate(90deg)}
+details.rule .rb{padding:2px 13px 13px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--sub);margin-top:6px}
+.legend span{display:flex;align-items:center;gap:5px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+footer{margin-top:auto;padding:16px 22px;background:var(--rws-blauw-dark);color:#a9c0e6;font-size:11px;text-align:center}
+.foot-note{background:var(--rws-geel-l);border:1px solid #eedb9a;border-radius:var(--radius);padding:10px 14px;font-size:11.5px;color:#6b5600;margin-top:12px}
+.section-tabs{display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:18px}
+.section-tabs button{background:none;border:none;padding:10px 16px;font-family:inherit;font-size:13px;font-weight:600;color:var(--sub);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px}
+.section-tabs button.active{color:var(--rws-blauw);border-bottom-color:var(--rws-geel)}
+
+/* ── rekenverslag ── */
+.calc-item{border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:12px;background:var(--wit);overflow:hidden}
+.calc-item>summary{list-style:none;cursor:pointer;padding:12px 16px;display:flex;align-items:center;gap:12px;background:var(--panel)}
+.calc-item>summary::-webkit-details-marker{display:none}
+.calc-item>summary::before{content:'▸';color:var(--rws-blauw-mid);font-size:11px;transition:transform .15s}
+.calc-item[open]>summary::before{transform:rotate(90deg)}
+.calc-item>summary .ci-weg{font-family:var(--mono);font-weight:700;color:var(--rws-blauw);font-size:13px}
+.calc-item>summary .ci-oms{flex:1;font-size:12px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.calc-item>summary .ci-res{font-weight:800;font-variant-numeric:tabular-nums;font-size:14px}
+.calc-body{padding:4px 16px 16px}
+.calc-steps{list-style:none;counter-reset:step;margin:8px 0}
+.calc-steps>li{position:relative;padding:12px 0 12px 44px;border-bottom:1px dashed var(--border)}
+.calc-steps>li:last-child{border-bottom:none}
+.calc-steps>li::before{counter-increment:step;content:counter(step);position:absolute;left:0;top:12px;width:28px;height:28px;border-radius:50%;background:var(--rws-blauw);color:#fff;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center}
+.calc-steps .st-titel{font-weight:700;color:var(--rws-blauw);font-size:12.5px;margin-bottom:3px}
+.calc-steps .st-uitleg{font-size:12px;color:var(--sub);margin-bottom:6px}
+.formule{font-family:var(--mono);font-size:12.5px;background:#f4f7fc;border:1px solid #dde6f4;border-left:3px solid var(--rws-blauw-mid);border-radius:3px;padding:8px 12px;color:var(--text);overflow-x:auto;white-space:nowrap}
+.formule .hl{color:var(--rood);font-weight:700}
+.formule .res{color:var(--groen);font-weight:700}
+.kv{display:inline-block;background:#eef0f3;border-radius:3px;padding:1px 7px;font-family:var(--mono);font-size:11.5px;margin:1px 3px 1px 0}
+.kv b{color:var(--rws-blauw)}
+.calc-final{display:flex;flex-wrap:wrap;gap:16px 20px;margin-top:12px;padding:12px 16px;background:var(--rws-geel-l);border:1px solid #eedb9a;border-radius:var(--radius)}
+.calc-final .cf-metric{min-width:110px}
+.calc-final .cf-metric .cf-lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#8a6d00;font-weight:700}
+.calc-final .cf-metric .cf-val{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+.calc-warn{background:var(--oranje-l);border:1px solid #f5cfa8;color:#8a4b00;border-radius:3px;padding:6px 11px;font-size:11.5px;margin-top:6px}
+
+/* ── wegdeel- & dienstverslag ── */
+.wv-nav{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.wv-nav button{border:1px solid var(--border);background:var(--wit);border-radius:14px;padding:5px 13px;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--rws-blauw);cursor:pointer}
+.wv-nav button:hover{border-color:var(--rws-blauw-mid);background:#eef3fb}
+.wv-nav button.act{background:var(--rws-blauw);color:#fff;border-color:var(--rws-blauw)}
+.wv-mgmt{background:linear-gradient(135deg,#fff 0%,#f4f7fc 100%);border:1px solid var(--border);border-left:5px solid var(--rws-geel);border-radius:var(--radius-lg);padding:18px 22px;margin-bottom:18px}
+.wv-mgmt h4{color:var(--rws-blauw);font-size:15px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.wv-mgmt p{font-size:13px;color:var(--text);margin-bottom:9px;max-width:900px}
+.wv-mgmt .oordeel{display:inline-block;font-weight:800;padding:3px 12px;border-radius:12px;font-size:13px;margin-left:4px}
+.wv-mgmt ul{margin:6px 0 6px 20px;font-size:12.5px;color:var(--text)}
+.wv-mgmt li{margin-bottom:4px}
+.wv-sect{margin-bottom:16px}
+.wv-sect h4{color:var(--rws-blauw);font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--panel)}
+.dienstblok{border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;border-left:4px solid var(--accent,var(--grijs-mid))}
+.dienstblok .db-kop{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.dienstblok .db-naam{font-weight:700;font-size:14px}
+.dienstblok .db-uit{font-size:12px;color:var(--sub);margin-bottom:10px}
+.keten-form{font-family:var(--mono);font-size:12px;background:#f4f7fc;border:1px solid #dde6f4;border-radius:3px;padding:8px 12px;overflow-x:auto;white-space:nowrap;margin-top:6px}
+.wv-summary{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:16px}
+.wv-kpi{flex:1;min-width:130px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
+.wv-kpi .v{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.wv-kpi .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--sub);font-weight:700;margin-top:4px}
+@media print{.wv-nav,.section-tabs,.topbar,.filterbar{display:none!important}.tabpage{display:block!important}}
+
+/* ── bewerkbare rule engine ── */
+.re-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.re-toolbar .tb-btn{background:var(--rws-blauw);border:1px solid var(--rws-blauw);color:#fff}
+.re-toolbar .tb-btn.primary{background:var(--rws-geel);border-color:var(--rws-geel);color:var(--rws-blauw-dark)}
+.re-toolbar .tb-btn.re-sec{background:var(--wit);color:var(--rws-blauw);border-color:var(--border)}
+.re-toolbar .tb-btn.re-sec:hover{background:var(--panel)}
+.apply-result{margin-top:14px;border:1px solid #cfe3d3;background:var(--groen-l);border-radius:var(--radius);padding:12px 14px;animation:ddIn .18s ease}
+.apply-result .ar-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--text);margin-bottom:8px}
+.apply-result .ar-head b{color:var(--groen)}
+.apply-result .ar-goto{margin-left:auto;background:var(--rws-blauw);color:#fff;border:none;border-radius:var(--radius);padding:5px 12px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+.apply-result .ar-goto:hover{background:var(--rws-blauw-mid)}
+.apply-result .mini-tbl{background:var(--wit);border-radius:var(--radius);overflow:hidden}
+.apply-result .ar-none{font-size:12px;color:#6b5600;background:var(--rws-geel-l);border:1px solid #eedb9a;border-radius:var(--radius);padding:8px 11px;margin-top:8px}
+.re-status{font-size:12px;font-weight:600;margin-left:6px}
+.re-status.ok{color:var(--groen)}
+.re-in{width:64px;padding:4px 6px;border:1px solid var(--border);border-radius:3px;font-family:var(--mono);font-size:12px;text-align:right;background:var(--wit)}
+.re-in:focus{outline:none;border-color:var(--rws-blauw-mid);box-shadow:0 0 0 2px rgba(0,80,160,.15)}
+.re-tbl td{padding:6px 8px;vertical-align:middle}
+.re-tbl input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--rws-blauw)}
+.re-lab{font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;display:flex;align-items:center}
+.re-radio{display:block;font-size:12.5px;margin-bottom:5px;cursor:pointer}
+.re-radio input{margin-right:6px;accent-color:var(--rws-blauw);vertical-align:middle}
+.rule-subtabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding:6px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius)}
+.rule-subtabs button{border:1px solid transparent;background:transparent;color:var(--sub);border-radius:4px;padding:8px 13px;font:600 12.5px var(--font);cursor:pointer}
+.rule-subtabs button.active{background:var(--wit);border-color:var(--border);color:var(--rws-blauw);box-shadow:0 1px 3px rgba(0,32,80,.08)}
+.asset-match-link{border:0;background:transparent;color:var(--rws-blauw-mid);font:700 11.5px var(--font);padding:0;text-decoration:underline;cursor:pointer;text-align:left}
+.asset-match-link:hover{color:var(--rws-blauw)}
+.asset-config-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:12px 0}
+.asset-config-kpi{border:1px solid var(--border);background:var(--panel);border-radius:var(--radius);padding:11px 12px}
+.asset-config-kpi .v{font-size:21px;font-weight:800;color:var(--rws-blauw);line-height:1}
+.asset-config-kpi .l{font-size:10.5px;color:var(--sub);text-transform:uppercase;font-weight:700;margin-top:4px}
+.asset-fout{border:1px solid #f1c9a6;border-left:4px solid var(--oranje);border-radius:var(--radius);padding:10px 12px;margin:8px 0;background:#fffaf5}
+.asset-fout-kop{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.asset-fout-acties{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.asset-fout-acties button,.asset-koppel-btn{border:1px solid var(--border);background:var(--wit);color:var(--rws-blauw);border-radius:4px;padding:5px 9px;font:600 11.5px var(--font);cursor:pointer}
+.asset-fout-acties button.primary,.asset-koppel-btn.primary{background:var(--rws-blauw);border-color:var(--rws-blauw);color:#fff}
+.asset-config-row{border:1px solid var(--border);border-radius:var(--radius);margin:8px 0;background:var(--wit);overflow:hidden}
+.asset-config-row>summary{cursor:pointer;list-style:none;padding:10px 12px;display:flex;align-items:flex-start;gap:10px;justify-content:space-between}
+.asset-config-row>summary::-webkit-details-marker{display:none}
+.asset-config-row[open]>summary{background:var(--panel)}
+.asset-config-body{padding:12px;border-top:1px solid var(--border)}
+.asset-config-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin-top:10px}
+.asset-config-fields label{font-size:10.5px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.03em}
+.asset-config-fields input,.asset-config-fields select{display:block;width:100%;margin-top:4px;padding:6px 7px;border:1px solid var(--border);border-radius:4px;background:var(--wit);font:12px var(--mono)}
+.asset-config-focus{border-color:var(--rws-blauw-mid);box-shadow:0 0 0 2px rgba(0,80,160,.12)}
+.asset-config-note{padding:9px 11px;border-radius:var(--radius);background:var(--rws-geel-l);border:1px solid #eedb9a;color:#6b5600;font-size:11.5px;line-height:1.45}
+.asset-alias{display:inline-flex;align-items:center;gap:6px;background:#eef3fb;border:1px solid #d5e0f0;border-radius:12px;padding:3px 8px;margin:2px;font-size:11px}
+.asset-alias button{border:0;background:none;color:var(--rood);cursor:pointer;font-weight:800;padding:0}
+@media(max-width:700px){.asset-config-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.asset-config-row>summary{display:block}.asset-config-row>summary .pill{margin-top:6px}}
+.weg-strip{border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:12px;background:var(--wit)}
+.ws-kop{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.mc-controls{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;padding:12px 14px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius)}
+.mc-controls label{display:block;font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px}
+.mc-controls select{padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-family:inherit;font-size:12.5px;background:var(--wit)}
+.mc-kpis{display:flex;flex-wrap:wrap;gap:14px;margin-top:16px}
+.mc-kpis .wv-kpi{flex:1;min-width:150px}
+.mc-duiding-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:12px}
+.mc-duiding{border:1px solid var(--border);border-left:4px solid var(--rws-blauw);border-radius:var(--radius);padding:9px 11px;background:var(--wit);font-size:12px;line-height:1.45}
+.mc-duiding.oranje{border-left-color:var(--oranje)}
+.mc-duiding.rood{border-left-color:var(--rood)}
+.mc-duiding.groen{border-left-color:var(--groen)}
+.mc-duiding b{display:block;color:var(--rws-blauw-dark);font-size:12.5px;margin-bottom:2px}
+.regio-focus-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:10px}
+.regio-focus-blok{border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;background:var(--wit)}
+.regio-focus-blok h4{margin:0 0 6px;font-size:12.5px;color:var(--rws-blauw-dark)}
+.regio-focus-blok p{margin:0;color:var(--sub);font-size:11.5px;line-height:1.45}
+.regio-focus-list{margin:0;padding-left:16px;color:var(--sub);font-size:11.5px;line-height:1.5}
+.regio-focus-list li{margin:2px 0}
+.regio-keuze{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-top:12px}
+.regio-keuze label{display:flex;flex-direction:column;gap:4px;color:var(--sub);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.regio-keuze select{min-width:230px;padding:7px 9px;border:1px solid var(--border);border-radius:var(--radius);background:var(--wit);font-family:inherit;font-size:12.5px}
+.band{position:relative;height:16px;background:var(--panel);border-radius:8px;overflow:hidden}
+.band-range{position:absolute;top:3px;height:10px;background:#c2d3ea;border-radius:5px}
+.band-med{position:absolute;top:0;width:3px;height:16px;background:var(--rws-blauw)}
+.mc-begeleid{border-left:4px solid var(--rws-blauw);background:linear-gradient(135deg,#fff 0%,#f7faff 100%)}
+.mc-begeleid-kop{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:10px}
+.mc-begeleid-kop h3{margin:0}
+.mc-begeleid-acties{display:flex;gap:7px;flex-wrap:wrap}
+.mc-begeleid-inleiding{font-size:12px;color:var(--sub);margin:0 0 10px;line-height:1.5}
+.mc-begeleid-sectie{padding:10px 0;border-top:1px solid var(--panel)}
+.mc-begeleid-sectie:first-of-type{border-top:0}
+.mc-begeleid-sectie h4{font-size:12.5px;color:var(--rws-blauw);margin:0 0 5px}
+.mc-begeleid-sectie p{font-size:12.5px;line-height:1.58;margin:0;color:var(--text)}
+.mc-begeleid-sectie ul{margin:4px 0 0 18px;padding:0}
+.mc-begeleid-sectie li{font-size:12.5px;line-height:1.5;margin-bottom:4px}
+.mc-begeleid-leeswijzer{margin-top:10px;padding:10px 12px;background:var(--rws-geel-l);border:1px solid #eedb9a;border-radius:var(--radius);font-size:11.5px;line-height:1.5;color:#6b5600}
+@media print{.mc-controls{display:none}}
+
+/* ── memo-modal & document ── */
+.memo-modal{display:none;position:fixed;inset:0;background:rgba(0,20,60,.5);z-index:200;align-items:center;justify-content:center;padding:20px}
+.memo-modal-box{background:var(--wit);border-radius:var(--radius-lg);width:min(1080px,96vw);height:min(90vh,860px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,20,60,.4)}
+.memo-modal-head{background:var(--rws-blauw);color:#fff;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:14px}
+.memo-x{background:rgba(255,255,255,.15);border:none;color:#fff;width:28px;height:28px;border-radius:4px;cursor:pointer;font-size:14px}
+.memo-x:hover{background:rgba(255,255,255,.28)}
+.memo-modal-body{display:grid;grid-template-columns:320px 1fr;flex:1;min-height:0}
+.mc-modal-box{width:min(980px,94vw);height:min(88vh,820px);margin:auto}
+.mc-modal-body{display:block;overflow:auto;min-height:0;padding:18px 20px;background:var(--wit)}
+.mc-popup-inner{max-width:900px;margin:0 auto}
+.mc-popup-actions{position:sticky;top:0;z-index:3;background:var(--wit);padding:0 0 10px;margin-bottom:8px;border-bottom:1px solid var(--border);display:flex;justify-content:flex-start}
+.mc-back-btn{background:var(--rws-blauw);border:1px solid var(--rws-blauw);color:#fff;border-radius:6px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer}
+.mc-back-btn:hover{background:var(--rws-blauw-mid)}
+.mc-asset-row{cursor:pointer}
+.mc-asset-row:hover td{background:#eef3fb}
+.mc-subtle{font-size:11.5px;color:var(--sub);line-height:1.5;margin:8px 0 0}
+.mc-popup-inner h4{margin:8px 0 12px;color:var(--rws-blauw)}
+.mc-popup-inner .tbl-scroll{width:100%;overflow:auto}
+.mc-popup-inner .chart-wrap{max-width:100%;overflow:hidden}
+.viz-label{display:flex;align-items:center;gap:7px;margin:3px 0 8px;font-size:11.5px;font-weight:800;color:var(--rws-blauw);line-height:1.35}
+.viz-label .viz-kind{background:#eef3fb;border:1px solid var(--border);border-radius:999px;padding:2px 8px;color:var(--rws-blauw-dark);white-space:nowrap}
+.viz-label .tip{margin-left:0}
+.memo-config{background:var(--panel);border-right:1px solid var(--border);padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:16px}
+.memo-cfg-blok{display:flex;flex-direction:column;gap:6px}
+.memo-cfg-lab{font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.04em}
+.memo-titel-in{padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-family:inherit;font-size:13px}
+.memo-radio{font-size:12.5px;display:block;cursor:pointer;padding:2px 0}
+.memo-radio input{margin-right:7px;accent-color:var(--rws-blauw);vertical-align:middle}
+.memo-check{font-size:12.5px;cursor:pointer}
+.memo-check input{margin-right:7px;accent-color:var(--rws-blauw);vertical-align:middle}
+.memo-acties{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.memo-acties .tb-btn{background:var(--rws-blauw);border:1px solid var(--rws-blauw);color:#fff;justify-content:center}
+.memo-acties .tb-btn.primary{background:var(--rws-geel);border-color:var(--rws-geel);color:var(--rws-blauw-dark)}
+.memo-acties .tb-btn.re-sec{background:var(--wit);color:var(--rws-blauw);border-color:var(--border)}
+.memo-preview-wrap{overflow-y:auto;padding:22px;background:var(--bg);display:flex;justify-content:center;align-items:flex-start}
+.memo-doc{background:#fff;width:100%;max-width:720px;padding:40px 46px 50px;box-shadow:var(--shadow);position:relative;box-sizing:border-box}
+.memo-doc::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(to right,#e17000 50%,var(--rws-blauw) 50%)}
+.memo-kop{display:flex;justify-content:space-between;gap:14px;border-bottom:2px solid var(--rws-blauw);padding-bottom:12px;margin-bottom:16px}
+.memo-org{font-size:10.5px;color:#e17000;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.memo-titel{font-size:19px;font-weight:700;color:var(--rws-blauw);margin:3px 0;line-height:1.2}
+.memo-meta{font-size:11px;color:var(--sub)}
+.memo-stempel{text-align:right;font-size:9px;color:#999;text-transform:uppercase;white-space:nowrap}
+.memo-concept{color:#e17000;font-weight:700;font-size:12px}
+.memo-body h3{font-size:13px;color:var(--rws-blauw);margin:16px 0 5px;border-bottom:1px solid var(--panel);padding-bottom:3px;text-transform:none;letter-spacing:0}
+.memo-body p{font-size:12.5px;margin:0 0 9px;line-height:1.55;color:var(--text)}
+.memo-body ul{margin:4px 0 9px 18px}
+.memo-body li{font-size:12.5px;margin-bottom:4px;line-height:1.5}
+table.memo-samenvatting{width:100%;border-collapse:collapse;border:1px solid var(--border);margin-bottom:14px}
+table.memo-samenvatting td{padding:4px 9px;font-size:11px;border-bottom:1px solid var(--panel)}
+table.memo-samenvatting td.ml{color:var(--sub);width:130px;font-weight:600}
+.lieke-chart{border:1px solid var(--border);border-radius:6px;background:#fff;margin:8px 0 10px;padding:8px;break-inside:avoid;page-break-inside:avoid}
+.lieke-chart svg,.lieke-chart .mc-svg{width:100%;height:auto;display:block}
+.lieke-legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:10.5px;color:var(--sub);margin:4px 0 10px}
+.lieke-legend span{display:inline-flex;align-items:center;gap:5px}
+.lieke-legend i{width:10px;height:10px;border-radius:50%;display:inline-block}
+table.lieke-blokken{width:100%;border-collapse:collapse;border:1px solid var(--border);margin:8px 0 14px;font-size:10.6px}
+table.lieke-blokken th{background:var(--rws-blauw);color:#fff;text-align:left;padding:6px 7px;font-size:10px}
+table.lieke-blokken td{padding:6px 7px;border-bottom:1px solid var(--panel);vertical-align:top}
+table.lieke-blokken td.num{text-align:right;white-space:nowrap}
+table.lieke-blokken tbody tr:nth-child(even){background:#f7f9fc}
+.lieke-drip-list{margin:0;padding-left:16px}
+.lieke-drip-list li{font-size:10.7px;margin:0 0 3px;line-height:1.35}
+.lieke-duiding{font-size:11px;line-height:1.45;margin:6px 0 10px;color:var(--text)}
+.lieke-drip-curve-card{border:1px solid var(--border);border-left:4px solid var(--rws-blauw);border-radius:6px;padding:9px 10px;margin:9px 0 12px;background:#fff;break-inside:avoid;page-break-inside:avoid}
+.lieke-drip-curve-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:5px;font-size:11px}
+.lieke-drip-curve-head .cat{white-space:nowrap;color:var(--sub);font-size:10px}
+.lieke-drip-curve-card svg{width:100%;height:auto;display:block}
+.memo-onder{margin-top:24px;font-size:12px;color:#444;line-height:2}
+.memo-paraaf{font-size:10px;color:#999}
+/* ── memo-bijlage ── */
+.memo-bijlage{margin-top:30px;padding-top:4px;border-top:3px double var(--rws-blauw)}
+.bjl-kop{background:var(--panel);border-left:4px solid var(--rws-blauw);padding:12px 16px;margin:16px 0 18px}
+.bjl-label{font-size:10px;font-weight:700;color:#e17000;text-transform:uppercase;letter-spacing:.05em}
+.bjl-titel{font-size:16px;font-weight:700;color:var(--rws-blauw);margin:2px 0}
+.bjl-sub{font-size:11.5px;color:var(--sub);line-height:1.5}
+.memo-bijlage h4{font-size:13px;color:var(--rws-blauw);margin:20px 0 6px;padding-bottom:3px;border-bottom:1px solid var(--border);font-weight:700}
+.bjl-p{font-size:11.5px;color:var(--text);line-height:1.55;margin:0 0 8px}
+.bjl-note{font-size:11px;color:var(--sub);font-style:italic;margin:5px 0 8px}
+.bjl-slot{font-size:11px;color:var(--sub);line-height:1.5;margin-top:18px;padding-top:10px;border-top:1px solid var(--border)}
+table.bjl-tbl{width:100%;border-collapse:collapse;margin:6px 0 12px;font-size:11.5px}
+table.bjl-tbl.klein{font-size:10.5px}
+table.bjl-tbl th{background:var(--rws-blauw);color:#fff;text-align:left;padding:5px 8px;font-weight:600;font-size:10.5px}
+table.bjl-tbl th.num,table.bjl-tbl td.num{text-align:right}
+table.bjl-tbl td{padding:4px 8px;border-bottom:1px solid var(--panel);color:var(--text)}
+table.bjl-tbl tbody tr:nth-child(even){background:var(--panel)}
+.bjl-2kol{display:flex;gap:14px;flex-wrap:wrap}
+.bjl-2kol>div{flex:1;min-width:240px}
+.route-context-grid{display:grid;grid-template-columns:1fr;gap:8px;margin:7px 0 12px}
+.route-context-item{border:1px solid var(--border);border-left:3px solid var(--rws-blauw);border-radius:var(--radius);padding:8px 10px;background:#fff}
+.route-context-item.werk{border-left-color:var(--oranje)}
+.route-context-item.route{border-left-color:var(--groen)}
+.route-context-title{font-size:11.5px;font-weight:800;color:var(--rws-blauw);margin-bottom:3px}
+.route-context-meta{font-size:10.8px;color:var(--text);line-height:1.45}
+.route-context-meta b{color:var(--rws-blauw-dark)}
+.route-context-pills{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.route-context-pill{font-size:10px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:2px 7px;color:var(--sub)}
+.route-context-img{margin:7px 0 0}
+.route-context-img img{max-width:100%;border:1px solid var(--border);border-radius:4px;display:block}
+.route-context-img figcaption{font-size:10px;color:var(--sub);margin-top:3px}
+.osm-route-link{display:inline-block;margin-top:6px;border:1px solid var(--rws-blauw-mid);background:#eef6ff;color:var(--rws-blauw);border-radius:4px;padding:5px 8px;font:700 10.8px var(--font);cursor:pointer;text-decoration:none}
+.osm-route-link:hover{background:#dceeff}
+.osm-popup{display:none;position:fixed;inset:0;background:rgba(0,20,60,.58);z-index:260;align-items:center;justify-content:center;padding:18px}
+.osm-popup-box{width:min(640px,96vw);background:var(--wit);border-radius:var(--radius-lg);box-shadow:0 20px 60px rgba(0,20,60,.42);display:flex;flex-direction:column;overflow:hidden}
+.osm-popup-head{background:var(--rws-blauw);color:#fff;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.osm-popup-head span{font-weight:800;font-size:13px}
+.osm-popup-head small{display:block;font-size:10.5px;color:#dceeff;margin-top:2px;word-break:break-all}
+.osm-popup-body{padding:18px 16px;font-size:12px;line-height:1.5;color:var(--text);background:#f7faff}
+.osm-popup-foot{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:8px 12px;border-top:1px solid var(--border);font-size:11px;color:var(--sub);background:var(--panel)}
+.osm-popup-foot a{color:var(--rws-blauw);font-weight:700}
+@media(max-width:720px){.bjl-2kol{flex-direction:column}}
+/* ── DRIP-tabblad ── */
+.drip-wp{border:1px solid var(--border);border-left:4px solid var(--rws-blauw);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;background:var(--wit)}
+.drip-wp-kop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.drip-wp-naam{font-weight:700;font-size:13.5px;color:var(--text)}
+.drip-wp-oms{font-size:12px;color:var(--sub);margin-bottom:8px;line-height:1.5}
+.drip-wp-meta{display:flex;flex-wrap:wrap;gap:16px;font-size:11.5px;color:var(--grijs-donker);margin-bottom:6px}
+.drip-wp-mot{font-size:11.5px;color:var(--text);line-height:1.5;border-top:1px solid var(--panel);padding-top:6px}
+.drip-wp-mot b{color:var(--rws-blauw-dark)}
+.drip-wissel{border:1px solid #eedb9a;background:var(--rws-geel-l);border-radius:var(--radius);padding:12px 14px}
+.drip-sel-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:-4px 0 10px;padding:8px 10px;background:var(--panel);border-radius:8px}
+.drip-sel-teller{font-size:12.5px;font-weight:700;color:var(--rws-blauw)}
+.drip-master{display:flex;align-items:center;gap:7px;font-size:12.5px;cursor:pointer;padding:3px 8px;background:var(--wit);border:1px solid var(--border);border-radius:6px}
+.drip-master input{width:16px;height:16px;cursor:pointer}
+.drip-sel-knoppen{display:flex;gap:6px;flex-wrap:wrap}
+.drip-sel-knoppen .tb-btn{padding:4px 10px;font-size:11.5px}
+tr.drip-uit{opacity:.4}
+tr.drip-uit td{background:var(--panel)}
+.mttr-bron{margin-top:8px;padding:8px 11px;background:var(--rws-geel-l);border-left:3px solid var(--rws-geel);border-radius:6px;font-size:11.5px;color:var(--grijs-donker)}
+.memo-knop{background:var(--rws-geel);border:1px solid var(--rws-geel);color:var(--rws-blauw-dark);padding:6px 13px;border-radius:var(--radius);cursor:pointer;font-size:12.5px;font-weight:700;font-family:inherit}
+.memo-knop:hover{background:#ffc02e}
+@media(max-width:720px){.memo-modal-body{grid-template-columns:1fr;overflow-y:auto}.mc-modal-box{width:96vw;height:90vh}.mc-modal-body{padding:14px}.mc-popup-inner{max-width:none}}
+.tip{position:relative;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:7px;border-radius:50%;background:var(--rws-blauw);color:#fff;font-size:10px;font-weight:700;font-style:normal;cursor:help;vertical-align:middle;flex-shrink:0;font-family:'Segoe UI',sans-serif}
+.tip:hover{background:var(--rws-blauw-mid)}
+.tip .tip-body{visibility:hidden;opacity:0;position:absolute;z-index:50;left:50%;top:calc(100% + 9px);transform:translateX(-50%);width:min(340px,78vw);background:var(--rws-blauw-dark);color:#eef3fb;text-align:left;border-radius:6px;padding:11px 13px;font-size:12px;font-weight:400;line-height:1.5;letter-spacing:0;text-transform:none;box-shadow:0 6px 20px rgba(0,20,60,.35);transition:opacity .15s;pointer-events:none}
+.tip .tip-body::after{content:'';position:absolute;bottom:100%;left:50%;transform:translateX(-50%);border:7px solid transparent;border-bottom-color:var(--rws-blauw-dark)}
+.tip .tip-body b{color:#fff}
+.tip .tip-body .frm{font-family:var(--mono);font-size:11px;color:var(--rws-geel);display:block;margin-top:5px}
+.tip:hover .tip-body,.tip:focus .tip-body{visibility:visible;opacity:1}
+/* tooltips links/rechts nabij de rand niet laten afsnijden */
+.tip.tip-left .tip-body{left:0;transform:none}
+.tip.tip-left .tip-body::after{left:16px}
+h3 .tip,h4 .tip{font-size:10px}
+@media print{.tip{display:none}}
+
+/* ── SVG-grafieken ── */
+.chart{width:100%;height:auto;display:block;font-family:'Segoe UI',sans-serif}
+.chart .lbl{font-size:11px;fill:var(--text);font-weight:600}
+.chart .lbl.mono{font-family:var(--mono);font-weight:700}
+.chart .ax{font-size:9.5px;fill:var(--sub)}
+.chart .val{font-size:11px;font-weight:700}
+.chart .norm{font-size:8.5px;fill:var(--rws-blauw-dark);font-weight:700}
+.chart .onbar{font-size:10px;fill:#fff;font-weight:700}
+.chart-wrap{margin-top:6px}
+.mc-svg{width:100%;height:auto;max-height:280px}
+.mc-svg .ax{font-size:10px;fill:var(--sub)}
+.mc-svg .norm{font-size:9px;font-weight:700}
+.chart-legend{display:flex;flex-wrap:wrap;gap:14px;font-size:11px;color:var(--sub);margin-top:8px}
+.chart-legend span{display:flex;align-items:center;gap:5px}
+.chart-legend i{width:11px;height:11px;border-radius:2px;display:inline-block}
+.choke-map-toolbar{display:flex;align-items:end;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.choke-map-toolbar .map-keuze{display:flex;align-items:end;gap:9px;flex-wrap:wrap}
+.choke-map-toolbar label{display:flex;flex-direction:column;gap:4px;color:var(--sub);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.choke-map-toolbar select{min-width:210px;padding:7px 9px;border:1px solid var(--border);border-radius:var(--radius);background:var(--wit);color:var(--text);font-family:inherit;font-size:12.5px}
+.choke-map-buttons{display:flex;gap:6px;align-items:center}
+.choke-map-buttons button{min-width:36px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--wit);color:var(--rws-blauw);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.choke-map-buttons button:hover{background:var(--panel)}
+.choke-map-box{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--panel)}
+.choke-map-svg{display:block;width:100%;height:auto;max-height:560px;background:linear-gradient(180deg,var(--wit),var(--panel));touch-action:manipulation}
+.choke-map-svg .rijksweg-a{fill:none;stroke:var(--grijs-mid);stroke-width:1.35;stroke-linecap:round;stroke-linejoin:round;opacity:.88}
+.choke-map-svg .rijksweg-n{fill:none;stroke:var(--grijs-mid);stroke-width:.8;stroke-linecap:round;stroke-linejoin:round;opacity:.55}
+.choke-map-svg .choke-halo{fill:var(--wit);stroke:var(--wit);stroke-width:4;opacity:.92}
+.choke-map-svg .choke-punt{stroke:var(--wit);stroke-width:1.5;cursor:pointer}
+.choke-map-svg .choke-punt.geselecteerd{stroke:var(--rws-blauw-dark);stroke-width:3}
+.choke-map-svg .kaart-label{fill:var(--text);font-size:11px;font-weight:700;paint-order:stroke;stroke:var(--wit);stroke-width:3px;stroke-linejoin:round}
+.choke-map-detail{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:9px 11px;border-top:1px solid var(--border);background:var(--wit);font-size:12px;color:var(--sub)}
+.choke-map-detail b{color:var(--text)}
+.choke-map-waarschuwing{padding:16px;color:var(--sub);font-size:12px;line-height:1.5}
+.choke-map-meta{font-size:11.5px;color:var(--sub);margin-top:8px;line-height:1.45}
+.choke-klikrij:hover td{background:var(--rws-blauw-l)}
+.choke-kaart-link{border:0;background:transparent;padding:2px 0;color:var(--rws-blauw);font-family:var(--mono);font-size:inherit;font-weight:700;text-decoration:underline;cursor:pointer}
+@media(max-width:620px){.choke-map-toolbar{align-items:stretch}.choke-map-toolbar .map-keuze{width:100%}.choke-map-toolbar label{flex:1}.choke-map-toolbar select{width:100%;min-width:0}.choke-map-buttons{width:100%}.choke-map-buttons button{flex:1}.choke-map-svg{max-height:430px}.choke-map-detail{align-items:flex-start;gap:6px 12px}}
+.grid2-chart{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:900px){.grid2-chart{grid-template-columns:1fr}}
+.mini-tbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px}
+.mini-tbl th{text-align:left;padding:6px 8px;color:var(--sub);font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;border-bottom:2px solid var(--panel)}
+.mini-tbl th.num,.mini-tbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+.mini-tbl td{padding:6px 8px;border-bottom:1px solid var(--panel)}
+.mini-tbl tbody tr:hover,.mini-tbl tr:hover{background:#f5f8fd}
+.delta-pos{color:var(--groen);font-weight:700}
+.delta-neg{color:var(--rood);font-weight:700}
+
+/* ── klikbare dienst-tiles + subproces-detail ── */
+.dienst-tile.klik{cursor:pointer;transition:.15s;position:relative}
+.dienst-tile.klik:hover{box-shadow:0 4px 14px rgba(0,48,130,.16);transform:translateY(-1px)}
+.dt-klik{margin-top:9px;font-size:11px;font-weight:700;color:var(--accent,var(--rws-blauw));opacity:.85;letter-spacing:.02em}
+.dienst-detail{margin-top:16px;border:1px solid var(--border);border-top:3px solid var(--accent);border-radius:var(--radius-lg);padding:16px 18px;background:linear-gradient(180deg,#fbfcfe,#fff);animation:ddIn .18s ease}
+@keyframes ddIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.dd-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.dd-titel{font-weight:800;font-size:15px}
+.dd-close{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:5px 11px;font-family:inherit;font-size:12px;font-weight:600;color:var(--sub);cursor:pointer}
+.dd-close:hover{background:#e9edf3}
+.sp-blok{border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:9px;background:var(--wit)}
+.sp-kop{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.sp-naam{font-weight:700;font-size:12.5px;color:var(--text)}
+.sp-objs{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+.obj-chip{font-size:10px;background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:1px 8px;color:var(--sub);font-family:var(--mono)}
+.sp-tekst{font-size:11.5px;color:var(--sub);line-height:1.5;margin-bottom:5px}
+.sp-meta{font-size:10.5px;color:var(--grijs-donker);border-top:1px solid var(--panel);padding-top:5px}
+.dd-duiding{margin-top:14px;padding:12px 14px;background:var(--rws-geel-l);border:1px solid #eedb9a;border-radius:var(--radius);font-size:12.5px;color:#6b5600;line-height:1.55}
+.dd-duiding b{color:var(--rws-blauw-dark)}
+@media print{.dt-klik{display:none}.dd-close{display:none}}
+</style>
+</head>
+<body>
+<!-- LOGIN-SCHERM (toegangsdrempel; geen sterke beveiliging) -->
+<div id="loginScherm" class="login-scherm">
+  <div class="login-lint"></div>
+  <div class="login-box">
+    <div class="login-logo">Rijkswaterstaat</div>
+    <div class="login-org">Wegverkeersmanagement — VWM</div>
+    <h2 class="login-titel">Dienstimpact-analyse DVM, versie 72</h2>
+    <p class="login-sub">Lokale toegangsdrempel voor demo en eigen gebruik. Dit is geen autorisatie voor productiegebruik.</p>
+    <div class="login-veld">
+      <label for="loginGebruiker">Gebruiker</label>
+      <input id="loginGebruiker" type="text" autocomplete="username" placeholder="Gebruikersnaam" onkeydown="if(event.key==='Enter')probeerLogin()">
+    </div>
+    <div class="login-veld">
+      <label for="loginWachtwoord">Wachtwoord</label>
+      <input id="loginWachtwoord" type="password" autocomplete="current-password" placeholder="Wachtwoord" onkeydown="if(event.key==='Enter')probeerLogin()">
+    </div>
+    <button class="login-knop" onclick="probeerLogin()">Inloggen</button>
+    <div id="loginFout" class="login-fout"></div>
+    <div class="login-voet">VWM · Rijkswaterstaat · lokale verwerking, geen data verlaat de browser</div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none">
+<div class="lint"></div>
+<div class="topbar">
+  <div>
+    <h1>Dienstimpact-analyse
+      <span class="sub">Gevolgen DVM-storingen · Wegvakbeschikbaarheid · VWM-diensten · versie 72</span>
+    </h1>
+  </div>
+  <div class="spacer"></div>
+  <button class="tb-btn" id="btnAssets" onclick="document.getElementById('dripInput').click()">1 · Assetlijst</button>
+  <button class="tb-btn" id="btnEol" onclick="document.getElementById('eolInputTop').click()" disabled>2 · EOL-referentie</button>
+  <button class="tb-btn" id="btnLogs" onclick="document.getElementById('autoLogInput').click()" disabled>3 · Storingshistorie</button>
+  <button class="tb-btn" id="btnURoutes" onclick="document.getElementById('uRouteInput').click()" disabled>4 · U-routes</button>
+  <button class="tb-btn" id="btnWerk" onclick="document.getElementById('werkInput').click()" disabled>5 · Werkzaamheden</button>
+  <button class="tb-btn" id="btnLive" onclick="document.getElementById('liveLogInput').click()" disabled>6 · Open storingen</button>
+  <button class="tb-btn" id="btnExport" onclick="exportCSV()" disabled>⭳ Resultaat (CSV)</button>
+  <button class="tb-btn" id="btnTotaalExport" onclick="openTotaalExportKeuze()" disabled>⭳ Totaal (JSON)</button>
+  <button class="tb-btn" id="btnTotaalImport" onclick="document.getElementById('totaalImportInput').click()">⭱ Totaal (JSON)</button>
+  <button class="tb-btn" id="btnDatasetBeheer" onclick="toonTab('datasets')" disabled>Datasetbeheer</button>
+  <input type="file" id="totaalImportInput" accept=".json,application/json" class="hidden">
+  <input type="file" id="xlsInput" accept=".xlsx,.xls,.csv" multiple class="hidden">
+  <input type="file" id="dripInput" accept=".xlsx,.xls,.csv" class="hidden">
+  <input type="file" id="dripHistInput" accept=".xlsx,.xls,.csv" multiple class="hidden">
+  <input type="file" id="autoLogInput" accept=".xlsx,.xls,.csv" multiple class="hidden">
+  <input type="file" id="eolInputTop" accept=".csv,.xlsx,.xls" class="hidden">
+  <input type="file" id="uRouteInput" accept=".csv,.xlsx,.xls" class="hidden">
+  <input type="file" id="werkInput" accept=".csv,.xlsx,.xls" class="hidden">
+  <input type="file" id="liveLogInput" accept=".xlsx,.xls,.csv" multiple class="hidden">
+</div>
+
+<div class="wrap">
+  <div class="pagehead">
+    <h2>Gevolgen van DVM-storingen voor de VWM-diensten</h2>
+    <p>Deze tool scheidt historische prognosedata van een actuele lijst met open DVM-storingen (MSI, wegkantcamera, meetlus, wisselbord),
+    rekent uit die open lijst per wegdeel de <b>actuele areaalbeschikbaarheid</b> en <b>prestatie</b> door volgens de rule engine,
+    en vertaalt dat naar de vier diensten die VWM levert: Incidentmanagement, Verkeersmanagement,
+    Reis- &amp; route-informatie en Werk in Uitvoering. Historie, U-routes en werkzaamheden blijven als afzonderlijk herleidbare bronnen zichtbaar.</p>
+  </div>
+
+  <div id="dataStatusPanel" class="data-gate" aria-live="polite"></div>
+
+  <div id="landing">
+    <div class="card">
+      <h3>1 · Eerst All Assets laden</h3>
+      <div class="dropzone" id="dz">
+        <div class="ic">⭱</div>
+        <b>Sleep hier één assetlijst (.xlsx/.xls/.csv) of klik om te kiezen</b>
+        <span>All Assets vormt eerst het stamregister voor identiteit, areaal, locatie en bouwjaar. EOL blijft apart zichtbaar als de assetlijst geen volledige EOL-velden bevat.</span>
+      </div>
+      <div class="load-actions">
+        <button class="tb-btn" id="landingAssetBtn" style="background:var(--rws-blauw);border-color:var(--rws-blauw)" onclick="document.getElementById('dripInput').click()">1 · All Assets laden</button>
+        <button class="tb-btn" id="landingEolBtn" style="background:var(--rws-blauw);border-color:var(--rws-blauw)" onclick="document.getElementById('eolInputTop').click()" disabled>2 · EOL-referentie aanvullen</button>
+        <button class="tb-btn" id="landingLogsBtn" style="background:var(--rws-blauw);border-color:var(--rws-blauw)" onclick="document.getElementById('autoLogInput').click()" disabled>3 · Storingshistorie laden</button>
+        <button class="tb-btn" id="landingURoutesBtn" style="background:var(--rws-blauw);border-color:var(--rws-blauw)" onclick="document.getElementById('uRouteInput').click()" disabled>4 · U-routes laden</button>
+        <button class="tb-btn" id="landingWerkBtn" style="background:var(--rws-blauw);border-color:var(--rws-blauw)" onclick="document.getElementById('werkInput').click()" disabled>5 · Werkzaamheden laden</button>
+        <button class="tb-btn" id="landingLiveBtn" style="background:var(--rws-blauw);border-color:var(--rws-blauw)" onclick="document.getElementById('liveLogInput').click()" disabled>6 · Open storingen laden</button>
+      </div>
+      <div class="foot-note">
+        De tool bouwt eerst de assetindex, verrijkt die daarna met EOL en koppelt vervolgens de historische storingslogs.
+        Historische DVM- en DRIP-storingen worden uitsluitend gebruikt voor kalibratie en prognoses. Ze komen nooit in het actuele prestatiedashboard terecht.
+        Daarna worden U-routes en werkzaamheden als operationele context geladen. De laatste stap is een momentopname met uitsluitend open storingen; alleen die bron voedt het actuele dashboard.
+        De tool herkent WNN-, WNZ-, MN-, ZN- en andere DRIP-incidentwerkmappen automatisch.
+        Is expliciete EOL nog onvolledig, dan gebruikt het model de ingestelde generieke levensduur en Weibullwaarde per assettype.
+        Monte Carlo kan dan door als het areaal, de stichtingsjaren en de storingshistorie voldoende gedekt zijn. De status toont steeds welke bron voor welk doel wordt gebruikt.
+        Een 2-km-koppeling met werkzaamheden wordt alleen toegepast als weg, periode en traject controleerbaar aan DATEX II-werkvakgeometrie of aan meegeleverde hectometers of RD-coördinaten kunnen worden gekoppeld. Een onzekere regel blijft alleen wegcontext.
+        Let op: 85% in de importbalk betekent dat het bestand nog wordt verwerkt; 85% dekking van stichtingsjaren is wél voldoende voor de analysepoort.
+      </div>
+    </div>
+    <div class="card">
+      <h3>Wat de tool berekent</h3>
+      <div class="grid3">
+        <div>
+          <div class="dt-label">1 · Per storing</div>
+          <p class="muted" style="font-size:12px">Classificatie (MSI/CAM/LUS/wisselbord), foutcode-mapping en basisimpact op beschikbaarheid én prestatie, met locatie- en combiregels.</p>
+        </div>
+        <div>
+          <div class="dt-label">2 · Per wegdeel</div>
+          <p class="muted" style="font-size:12px">Aggregatie per wegnummer+richting: areaalbeschikbaarheid = 100 − Σ(impact × duur) / (aantal signaalgevers × periode).</p>
+        </div>
+        <div>
+          <div class="dt-label">3 · Per dienst</div>
+          <p class="muted" style="font-size:12px">Ketenbeschikbaarheid als serieel product over de benodigde objecttypen, getoetst aan de dienstnorm.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="results" class="hidden">
+    <div class="section-tabs" id="tabs">
+      <button data-tab="overzicht" class="active">Overzicht diensten</button>
+      <button data-tab="wegdelen">Wegdelen</button>
+      <button data-tab="storingen">Storingen (doorrekening)</button>
+      <button data-tab="berekening">Rekenverslag</button>
+      <button data-tab="wegdeelverslag">Wegdeel- &amp; dienstverslag</button>
+      <button data-tab="gebied">Gebied &amp; choke-points</button>
+      <button data-tab="prognose" class="hidden" aria-hidden="true">Signaalgeverprognose tijdelijk uit</button>
+      <button data-tab="drips">DRIP-areaal &amp; Monte Carlo</button>
+      <button data-tab="rapport">Regio</button>
+      <button data-tab="datasets">Datasetbeheer</button>
+      <button data-tab="regels">Rule engine</button>
+    </div>
+
+    <div class="tabpage" id="tab-overzicht"></div>
+    <div class="tabpage hidden" id="tab-wegdelen"></div>
+    <div class="tabpage hidden" id="tab-storingen"></div>
+    <div class="tabpage hidden" id="tab-berekening"></div>
+    <div class="tabpage hidden" id="tab-wegdeelverslag"></div>
+    <div class="tabpage hidden" id="tab-gebied"></div>
+    <div class="tabpage hidden" id="tab-prognose"></div>
+    <div class="tabpage hidden" id="tab-drips"></div>
+    <div class="tabpage hidden" id="tab-rapport"></div>
+    <div class="tabpage hidden" id="tab-datasets"></div>
+    <div class="tabpage hidden" id="tab-regels"></div>
+  </div>
+</div>
+
+<!-- MEMO MODAL -->
+<div id="memoModal" class="memo-modal">
+  <div class="memo-modal-box">
+    <div class="memo-modal-head">
+      <span>📄 Memo genereren — VWM aan beheerder</span>
+      <button class="memo-x" onclick="sluitMemo()">✕</button>
+    </div>
+    <div class="memo-modal-body">
+      <div class="memo-config">
+        <div class="memo-cfg-blok">
+          <label class="memo-cfg-lab">Onderwerp</label>
+          <input id="memoModalTitel" class="memo-titel-in" oninput="memoVervers()">
+        </div>
+        <div class="memo-cfg-blok">
+          <label class="memo-cfg-lab">Scope</label>
+          <select id="memoScope" class="memo-titel-in" onchange="memoVervers()">
+            <option value="landelijk">Landelijk VWM</option>
+          </select>
+          <div class="muted" style="font-size:11px;margin-top:5px">Kies landelijk of één verkeerscentrale. Bij landelijk blijft VWM totaal leidend en worden alle verkeerscentrales geduid.</div>
+        </div>
+        <div class="memo-cfg-blok">
+          <label class="memo-cfg-lab">Ontvangerniveau</label>
+          <label class="memo-radio"><input type="radio" name="memoNiveau" value="technisch" onchange="memoVervers()"> Technisch beheerder <span class="muted">— cijfermatig, foutcodes &amp; hm</span></label>
+          <label class="memo-radio"><input type="radio" name="memoNiveau" value="tactisch" checked onchange="memoVervers()"> Tactisch / assetmanager <span class="muted">— areaal &amp; prioriteit</span></label>
+          <label class="memo-radio"><input type="radio" name="memoNiveau" value="bestuurlijk" onchange="memoVervers()"> Bestuurlijk / HID <span class="muted">— dienst, risico, besluit</span></label>
+        </div>
+        <div class="memo-cfg-blok">
+          <label class="memo-cfg-lab">Zwaartepunt: techniek ↔ dienstverlening</label>
+          <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--sub)">
+            <span>Techniek</span>
+            <input type="range" id="memoZwaartepunt" min="0" max="100" value="50" step="10" style="flex:1" oninput="memoVervers()">
+            <span>Dienst</span>
+          </div>
+          <div class="muted" style="font-size:11px;margin-top:2px">Verschuif het accent van de memo van technische feiten (foutcodes, assets, hersteltijd) naar het gevolg voor de VWM-dienstverlening en de weggebruiker.</div>
+        </div>
+        <div class="memo-cfg-blok">
+          <label class="memo-cfg-lab">Opties</label>
+          <label class="memo-check"><input type="checkbox" id="memoKoppelBW" onchange="memoVervers()"> Koppel aan bedrijfswaardenmatrix</label>
+          <label class="memo-check"><input type="checkbox" id="memoLieke" onchange="memoVervers()"> Lieke, beknopte managementmemo</label>
+          <label class="memo-check"><input type="checkbox" id="memoKosten" onchange="memoVervers()"> Kosten meenemen, inclusief bronvermelding</label>
+          <div class="memo-acties">
+            <button class="tb-btn primary" id="memoKopieerBtn" onclick="memoKopieer()">📋 Kopiëren</button>
+            <button class="tb-btn re-sec" onclick="memoWord()">📝 Word (.docx)</button>
+            <button class="tb-btn re-sec" onclick="memoPrint()">🖨️ Afdrukken / PDF</button>
+          </div>
+        </div>
+      </div>
+      <div class="memo-preview-wrap"><div id="memoPreview"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- OSM ROUTE FALLBACK -->
+<div id="osmRoutePopup" class="osm-popup" onclick="if(event.target===this)sluitOsmRoutePopup()">
+  <div class="osm-popup-box">
+    <div class="osm-popup-head">
+      <div>
+        <span id="osmRoutePopupTitle">OSM relatiekaart</span>
+        <small id="osmRoutePopupUrl"></small>
+      </div>
+      <button class="memo-x" onclick="sluitOsmRoutePopup()">✕</button>
+    </div>
+    <div class="osm-popup-body">OpenStreetMap blokkeert weergave binnen deze HTML. Open de relatiekaart daarom in een nieuw tabblad.</div>
+    <div class="osm-popup-foot">
+      <span>Nieuwe tab geblokkeerd door de browser.</span>
+      <a id="osmRoutePopupLink" href="#" target="_blank" rel="noopener noreferrer">Open in nieuw tabblad</a>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Dienstimpact-analyse · Rijkswaterstaat Wegverkeersmanagement · rekenregels conform rule engine (demo5) &amp; taakanalyse IV WVL ·
+  lokale verwerking, geen data verlaat de browser
+</footer>
+</div><!-- /appRoot -->
+
+<script src="dvm-1.js"></script>
+
+<script src="dvm-2.js"></script>
+
+<script src="dvm-3.js"></script>
+<style>@media print{.kosten-invoer{display:none!important}.kosten-blok{break-inside:avoid}} .kosten-blok{border-left:4px solid #003082;padding:12px;margin-top:16px}.kosten-blok p{font-size:12px;line-height:1.5}</style>
+<script src="dvm-adapter.js"></script></body>
+</html>

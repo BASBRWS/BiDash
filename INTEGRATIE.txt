@@ -1,0 +1,60 @@
+BiDash integraal — browserapp
+
+Startpunt: site/index.html. GitHub Pages publiceert uitsluitend site/.
+Lokaal ontwikkelen: npm run serve en http://localhost:8080 openen.
+Testen: npm test. Er zijn geen runtime package-installaties nodig.
+
+GEGEVENS
+De browser leest gekozen bestanden met FileReader/File.text. De gezamenlijke
+werkruimte staat in IndexedDB (bidash-integraal). Planning bewaart daarnaast
+instellingen in lokale browseropslag. Niets wordt naar GitHub verzonden.
+CSP connect-src 'none' blokkeert netwerkverkeer vanuit applicatielogica.
+Spreadsheetbibliotheek staat lokaal onder site/vendor; geen externe CDN.
+Gebruik één werkruimte-tab tegelijk. Exporteer voor back-up of overdracht.
+
+COMPATIBILITEIT
+- DVM-dienstimpact-totaal: oorspronkelijke importer, inclusief oud versie-27 JSON.
+- BI Dash dataset JSON: oorspronkelijke migratie van functies, assets en regels.
+- Planning XML (P6 / MS Project): oorspronkelijke planningimporter.
+- Integrale export: BiDash-integraal, versie 1; gekozen onderdelen worden vervangen,
+  weggelaten onderdelen blijven behouden. Bronnen worden niet impliciet samengevoegd.
+- Voor aanvullend samenvoegen van DVM-streams is de bestaande module-import beschikbaar.
+- Planningback-up bevat originele XML én instellingen (shifts, dienstmapping, FTE).
+- Native exports beschikbaar naast de integrale selectie-export.
+
+EIGENAARSCHAP EN SAMENHANG
+DVM is eigenaar van buitenasset-storingsimpact, diensten, subprocessen en
+verkeerskosten. BI blijft eigenaar van formatie, capaciteit, contract/budget en
+interne bedienketens. Het oude BI-storingsregelscherm is vervangen door een
+verwijzing; oude NDW MSI/DRIP-aggregaatassets gaan naar legacyDvmAssets en worden
+niet nogmaals doorgerekend. Handmatig ingevoerde BI-assets vragen inhoudelijke
+controle op overlap met het DVM-register. Ze zijn niet stilzwijgend verwijderd.
+De aparte BI-ketenbeschikbaarheid is een andere metric dan DVM-dienstbeschikbaarheid.
+
+De centrale samengestelde trigger gebruikt een expliciete dienst-functiekoppeling:
+DVM-dienst onder zijn norm EN BI-formatieregel geeft tekort. Normen worden gelezen
+uit de eigen engine; geen tweede normkopie. Elke trigger heeft een vaste identiteit,
+eigenaar, verantwoordelijke en toegepaste regel. Het is een beoordelingssignaal,
+geen automatische verhoging van formatie, boetes of verkeersschade.
+
+TECHNIEK
+site/core/model.js: selectie-export, deelimport, bronvalidatie en samengestelde signalen.
+site/core/storage.js: IndexedDB opslag in een transactie.
+site/app.js: lokale imports, routing en gezamenlijke weergave.
+site/engines/: bestaande rekenengines en kleine adapters; frames bewaren de rijke
+schermen en eigen DOM, maar wisselen gestructureerde resultaten uit met de hub.
+Planning.html is bytegelijk aan de oorspronkelijke ingebedde planningmodule.
+Deze iteratie is een integratielaag, nog geen volledige herschrijving van de engines.
+
+De grote vooraf ingebedde NDW-, areaal-, historie-, OSM- en routebestanden zijn
+niet opgenomen in de nieuwe site. DVM-totaalexports met NDW-snapshot herstellen
+verkeersgegevens. Zonder verkeersinvoer blijven kosten onbekend. De vaste
+trajectmethode blijft beschikbaar; de oude ingebedde geografische routegrafiek
+is niet vooraf beschikbaar in deze versie. Bron-JSON/XML nooit committen.
+
+HOSTING
+Workflow .github/workflows/pages.yml test en publiceert site/. Indien Pages nog
+niet actief is: repository Settings > Pages > Source: GitHub Actions.
+GitHub App-verbindingen kunnen deze beheerinstelling mogelijk niet wijzigen.
+
+site/ is de nieuwe ingang. De verwijderde oudere repositorybestanden zijn niet teruggezet.

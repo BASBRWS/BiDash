@@ -1,0 +1,10 @@
+node_modules/
+.browser-test/
+project_sources/
+upload/
+downloads/
+*.local.json
+*.local.xml
+*.zip
+playwright-report/
+test-results/
