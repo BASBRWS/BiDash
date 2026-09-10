@@ -20,7 +20,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  assert.equal(await pl.locator('#ipl-timescale').inputValue(),'fit');
  await page.locator('#planningFullscreen').click();await page.waitForTimeout(200);
  assert(await page.locator('body').evaluate(e=>e.classList.contains('planning-fullscreen')));
- assert(await pl.evaluate(()=>document.getElementById('iplCanvas').parentElement.clientWidth>innerWidth-45));
+ assert(await pl.locator('#ipl-fmt-VWM').isVisible());assert(await pl.locator('#ipl-fmt-CIV').isVisible());
  await page.locator('#closePlanningFullscreen').click();await page.waitForTimeout(200);
  assert(!await page.locator('body').evaluate(e=>e.classList.contains('planning-fullscreen')));
 

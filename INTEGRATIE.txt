@@ -82,3 +82,10 @@ periode, waarbij alle jaren binnen de beschikbare breedte passen. Andere
 schalen blijven beschikbaar. Planning volledig scherm gebruikt de hele browser,
 met een sluitknop en Escape. Het formatiepaneel blijft in de normale weergave
 beschikbaar. Volledig scherm wijzigt geen taken, niveaus of verschuivingen.
+
+INTEGRATIE 2.3
+De BI-adapter geeft de bestaande VWM- en CIV-formatieregels expliciet door aan
+de planning na import, herstel en regelwijzigingen. BI blijft eigenaar van deze
+regels. De cumulatieve VWM-grafiek telt de inzet van overlappende taken op.
+Volledig scherm houdt het formatiepaneel zichtbaar naast de planning; op smalle
+schermen staan planning en grafieken onder elkaar, met scrollruimte.
