@@ -43,7 +43,7 @@ site/core/storage.js: IndexedDB opslag in een transactie.
 site/app.js: lokale imports, routing en gezamenlijke weergave.
 site/engines/: bestaande rekenengines en kleine adapters; frames bewaren de rijke
 schermen en eigen DOM, maar wisselen gestructureerde resultaten uit met de hub.
-Planning.html is bytegelijk aan de oorspronkelijke ingebedde planningmodule.
+De oorspronkelijke planningberekeningen blijven behouden. Een adapter opent de geladen tijdlijn direct; gedeelde vormgeving vervangt de oude navigatie.
 Deze iteratie is een integratielaag, nog geen volledige herschrijving van de engines.
 
 De grote vooraf ingebedde NDW-, areaal-, historie-, OSM- en routebestanden zijn
@@ -58,3 +58,17 @@ niet actief is: repository Settings > Pages > Source: GitHub Actions.
 GitHub App-verbindingen kunnen deze beheerinstelling mogelijk niet wijzigen.
 
 site/ is de nieuwe ingang. De verwijderde oudere repositorybestanden zijn niet teruggezet.
+
+VORMGEVING — INTEGRATIE 2
+Taakgerichte hoofdnavigatie: Overzicht, Assetmanagement, Dienstverlening,
+Planning, Formatie & contracten, Regels & signalen, Scenario’s, Data & export.
+Assetmanagement toont het gezamenlijke register met bronidentiteit, filters,
+open meldingen en detailvensters. Dienstverlening toont kosten per wegdeel.
+Planning draait rechtstreeks in de werkruimte; BI leest hetzelfde planningmodel.
+Na import en herstel opent de zichtbare tijdlijn. Vaste voorbeeld-KPI’s en
+voorbeeldfilters uit de oude planning worden niet getoond. Specialistische
+schermen gebruiken gedeelde kleuren en bediening. Berekeningen blijven bij hun
+domeineigenaar; dit voorkomt een tweede implementatie van dezelfde rekenregels.
+
+Zichtbare planningregressie: npm run test:browser (Playwright en Chromium nodig).
+Optioneel PLAYWRIGHT_MODULE en CHROMIUM_PATH voor een bestaande browserinstallatie.

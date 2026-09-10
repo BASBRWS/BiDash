@@ -1,3 +1,17 @@
-Browsercontrole geslaagd: oorspronkelijke MS Project XML-import, DVM-totaalimport en IndexedDB-herstel na paginaherlaad. Geen JavaScript-paginafouten en geen externe netwerkverzoeken in de geteste routes. Testdata en daarvan afgeleide aantallen zijn niet gepubliceerd.
-Modeltests geslaagd.
-Ook P6 XML met ResourceAssignment getest op correcte koppeling van capaciteit.
+Integratie 2 — uitgevoerde controles
+
+Browser: Chromium, desktop en mobiele schermbreedte.
+- MS Project XML en P6 XML met resourcetoewijzing geïmporteerd.
+- Planning als zichtbare tijdlijn geopend, inclusief canvas met geldige afmetingen.
+- Planning na herladen uit browseropslag hersteld en zichtbaar geopend.
+- DVM-totaalimport met het aangeleverde bronbestand gecontroleerd.
+- Gezamenlijk register: filters, paginering, open storingen en detailvenster.
+- Navigatie langs dienstimpact, wegdelen, formatie, regels en planningonderdelen.
+- Selectieve export bevat uitsluitend de gekozen onderdelen.
+- Geen JavaScript-paginafouten of externe dataverzoeken in de geteste routes.
+- Mobiele hoofdpagina zonder horizontale pagina-overloop.
+- Modeltests voor deelimport, export, gekoppelde signalen en JSON-validatie geslaagd.
+
+De regressiecontrole gebruikt synthetische XML. Het echte aangeleverde DVM-bestand
+is uitsluitend lokaal getest en is niet opgenomen in de repository.
+Bestaande rekenengines zijn niet opnieuw statistisch of inhoudelijk gekalibreerd.

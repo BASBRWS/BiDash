@@ -14,7 +14,8 @@
  window.HUB={
   import(db){DB=clean(migreerDB(structuredClone(db)));saveDB();return this.summary();},
   export(){const db=structuredClone(DB);delete db.storingsRegels;return db;},
-  async planningWindow(){renderPlanning();for(let i=0;i<200;i++){const w=iplWin();if(w?.ipl_parseXML)return w;await new Promise(r=>setTimeout(r,50));}throw Error('Planning is niet gereed.');},
+  attachPlanning(frame){window.HUB_PLANNING_FRAME=frame;IPL_FRAME=frame;},
+  async planningWindow(){if(window.HUB_PLANNING_FRAME)IPL_FRAME=window.HUB_PLANNING_FRAME;else renderPlanning();for(let i=0;i<200;i++){const w=iplWin();if(w?.ipl_parseXML)return w;await new Promise(r=>setTimeout(r,50));}throw Error('Planning is niet gereed.');},
   async importPlanning(p){
    const w=await this.planningWindow();
    // Laat de oorspronkelijke importer ook mapping, afgeleide datums en renders verzorgen.
@@ -24,12 +25,14 @@
    for(let i=0;i<300;i++){if(w.IPL_RAW_XML===p.xml)break;await new Promise(r=>setTimeout(r,50));}
    if(w.IPL_RAW_XML!==p.xml)throw Error('De planning kon niet worden hersteld.');
    if(p.state)w.app_applyState(p.state);
+   w.showScreen('s16');
    try{const cap=p6ParseCapaciteit(p.xml,p.name||'planning.xml');if(cap.nActiviteiten)DB.p6Capaciteit=cap;else delete DB.p6Capaciteit;}catch(e){console.info('Geen P6 resource-toewijzingen:',e.message);}
    refresh();notify();
   },
   planning(){const w=iplWin();return w?.IPL_RAW_XML?{name:w.IPL_RAW_FILENAME,xml:w.IPL_RAW_XML,state:w.app_collectState()}:null;},
-  summary(){const p=activeParams(),model=bridgeModel();return {peildatum:DB.meta?.peildatum||null,functies:DB.functies.map(f=>({id:f.id,naam:f.naam,benodigd:Number(f.benodigdFte)*(1+p.verzuim/100),actueel:Number(f.actueelFte)*(1+p.ftePct/100)})),triggers:evalTriggers(p),planning:model?{naam:model.bestand,regels:model.regels.length,van:model.t0,tot:model.t1}:null,legacyDvmAssets:DB.legacyDvmAssets?.length||0};},
-  open(tab){goto(tab);}
+  summary(){const p=activeParams(),model=bridgeModel();return {simulation:simActive(),peildatum:DB.meta?.peildatum||null,functies:DB.functies.map(f=>({id:f.id,naam:f.naam,benodigd:Number(f.benodigdFte)*(1+p.verzuim/100),actueel:Number(f.actueelFte)*(1+p.ftePct/100)})),triggers:evalTriggers(p),planning:model?{naam:model.bestand,regels:model.regels.length,van:model.t0,tot:model.t1}:null,legacyDvmAssets:DB.legacyDvmAssets?.length||0};},
+  assets(){return (DB.assets||[]).map(a=>({...a,source:'BI',key:String(a.id),naam:a.naam,assetType:a.type,vc:a.vc||'',weg:a.locatie||'',status:a.besch==null?'Onbekend':a.besch+'% beschikbaar'}));},
+  open(tab){if(tab==='vwm'||tab==='civ'){goto('rules');civRuleTab(tab);}else goto(tab);}
  };
  const save=saveDB;window.saveDB=function(){clean(DB);save();notify();};
  document.addEventListener('change',()=>setTimeout(notify,800));

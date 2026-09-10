@@ -22,7 +22,7 @@ jobs:
       - run: npm test
       - name: JavaScript controleren
         run: |
-          for file in site/engines/*.js site/core/*.js site/app.js; do
+          for file in site/engines/*.js site/core/*.js site/ui/*.js site/app.js; do
             node --check "$file"
           done
       - uses: actions/configure-pages@v5

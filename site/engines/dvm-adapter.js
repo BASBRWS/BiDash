@@ -17,7 +17,17 @@
    const roads=kostenDagRows().map(w=>{const c=kostenDagResultaat(w);return {id:w.key,naam:w.naam||w.wegdeel||w.key,vc:w.vc||'',kosten:c.kosten,vvu:c.vvu,status:c.status,bron:c.bron};});
    return {peildatum:STATE?.peildatum||null,assets:model.assets,roads,diensten:model.diensten.map(r=>({id:r.d.id,naam:String(r.d.naam||r.d.label||r.d.id).replace(/&amp;/g,'&'),norm:r.d.norm,besch:r.besch,prestatie:r.prestatie,lo:r.loB,hi:r.hiB,dekking:r.dekking})),liveBronnen:LIVE_STORINGSBRONNEN.length};
   },
-  open(tab){const el=document.querySelector('[data-tab="'+tab+'"]');if(el)el.click();},
+  assets(){return ASSET_REGISTER_STATE?.assets||[];},
+  faults(){return (STATE?.meldingen||[]).map((m,i)=>({id:i,assetKey:m.assetKey||'',naam:m.assetNaam||m.asset||'',weg:m.weg||'',richting:m.richting||'',vc:m.vc||'',hm:m.hm,code:m.code||m.foutcode||'',impact:m.avail,prestatie:m.perf,omschrijving:m.omschrijving||m.storingsomschrijving||'',wegKey:m.wegKey||''}));},
+  detail(key){return {asset:(ASSET_REGISTER_STATE?.assets||[]).find(a=>a.key===key),faults:this.faults().filter(m=>m.assetKey===key)};},
+  open(tab){const renderers={overzicht:renderOverzicht,wegdelen:renderWegdelen,storingen:renderStoringen,berekening:renderBerekening,wegdeelverslag:renderWegdeelverslag,gebied:renderGebied,rapport:renderRapport,drips:renderDrips,datasets:renderDatasetBeheer,regels:renderRegels};if(tabToegestaan(tab)&&renderers[tab])renderers[tab]();toonTab(tab);if(tab==='datasets'){
+    const host=document.getElementById('tab-datasets');if(host){host.querySelector('.hub-source-tools')?.remove();const bar=document.createElement('div');bar.className='hub-source-tools';
+    for(const [label,id] of [['Assetlijst','dripInput'],['EOL-referentie','eolInputTop'],['Storingshistorie','autoLogInput'],['Open storingen','liveLogInput'],['U-routes','uRouteInput'],['Werkzaamheden','werkInput']]){const b=document.createElement('button');b.textContent=label+' laden';b.onclick=()=>document.getElementById(id).click();bar.append(b);}host.prepend(bar);}
+   }},
+  scenario(kind){if(kind==='current')tmc70Open();else f71Open();},
+  openCosts(key){kostenOpenWeg(encodeURIComponent(key));},
+  importFile(id){const input=document.getElementById(id);if(!input)throw Error('Onbekende broninvoer');input.click();},
+
  };
  for(const name of ['sc67Bewaar','kostenBewaar','parametersLezen']){
   const fn=window[name];if(typeof fn==='function')window[name]=function(...args){const r=fn.apply(this,args);notify();return r;};

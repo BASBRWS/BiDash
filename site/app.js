@@ -1,3 +1,4 @@
+import {GROUPS,ROUTES,resolveRoute} from './ui/routes.js';
 import {DEFAULT_STATE,DVM_PARTS,BI_RULE_KEYS,LABELS,validate,makeExport,mergeImport,combine} from './core/model.js';
 import {read,write} from './core/storage.js';
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -6,21 +7,40 @@ const money=n=>Number.isFinite(n)?n.toLocaleString('nl-NL',{style:'currency',cur
 const date=s=>s?new Date(s).toLocaleDateString('nl-NL'):'geen bron geladen';
 let state=DEFAULT_STATE(),summaries={},busy=false,failedImport=false,timer,view='overview';const frames={},ready={};
 function status(s,error=false){$('#status').textContent=s;$('#status').classList.toggle('error',error);}
-function show(v){window.scrollTo(0,0);view=v;document.querySelectorAll('.view').forEach(el=>el.hidden=el.id!==v);document.querySelectorAll('.engine').forEach(el=>el.hidden=el.id!=='engine-'+v);document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));if(v==='bi'||v==='dvm')engine(v).catch(fail);}
+let routeTicket=0,assetPage=0;const pageSize=60;
+async function ensurePlanning(){const p=await engine('planning'),b=await engine('bi');b.attachPlanning(frames.planning);return p;}
+async function show(id){
+ const route=resolveRoute(id),group=GROUPS.find(g=>g.id===route.group),ticket=++routeTicket;view=route.id;
+ window.scrollTo(0,0);if(location.hash!=='#'+route.id)history.replaceState(null,'','#'+route.id);
+ $('#pageTitle').textContent=route.label;$('#pageDescription').textContent=group.desc;$('#breadcrumb').textContent=group.label+' / '+route.label;
+ $('#primaryNav').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.group===group.id));
+ $('#secondaryNav').innerHTML=group.items.map(([key,label])=>`<button data-route="${key}" class="${key===route.id?'active':''}">${esc(label)}</button>`).join('');
+ document.querySelectorAll('.view').forEach(el=>el.hidden=route.engine!=='native'||el.id!==route.target);
+ document.querySelectorAll('.engine').forEach(el=>el.hidden=true);
+ try{
+  if(route.engine==='planning'){const p=await ensurePlanning();if(ticket!==routeTicket)return;$('#engine-planning').hidden=false;p.open(route.target);}
+  else if(route.engine==='dvm'||route.engine==='bi'){const e=await engine(route.engine);if(ticket!==routeTicket)return;$('#engine-'+route.engine).hidden=false;e.open(route.target);}
+  else if(['assets','faults','costs'].includes(route.id)){await engine('dvm');if(route.id==='assets'&&state.bi)await engine('bi');}
+  else if(route.id==='organisation')await engine('bi');
+  if(ticket!==routeTicket)return;
+  for(const name of ['dvm','bi'])if(ready[name])summaries[name]=(await engine(name)).summary();
+  render();
+ }catch(e){fail(e);}
+}
 function fail(e){status(e.message||String(e),true);console.error(e);}
 async function engine(name){
  if(ready[name])return ready[name];
- ready[name]=new Promise((resolve,reject)=>{const f=document.createElement('iframe');frames[name]=f;f.title=name==='dvm'?'Dienstimpact en kosten':'Planning, formatie en contracten';f.sandbox='allow-scripts allow-same-origin allow-downloads allow-modals allow-popups';f.src='engines/'+name+'.html';const timeout=setTimeout(()=>reject(Error('Module '+name+' reageert niet.')),30000);f.onload=()=>{if(f.contentWindow.HUB){clearTimeout(timeout);resolve(f.contentWindow.HUB);}else{clearTimeout(timeout);reject(Error('Module '+name+' is niet volledig geladen.'));}};$('#engine-'+name).append(f);});
+ ready[name]=new Promise((resolve,reject)=>{const f=document.createElement('iframe');frames[name]=f;f.title=name==='dvm'?'Asset- en dienstanalyse':name==='planning'?'Integrale planning':'Organisatieanalyse';f.sandbox='allow-scripts allow-same-origin allow-downloads allow-modals allow-popups';f.src='engines/'+name+'.html';const timeout=setTimeout(()=>reject(Error('Module '+name+' reageert niet.')),30000);f.onload=()=>{if(f.contentWindow.HUB){clearTimeout(timeout);resolve(f.contentWindow.HUB);}else{clearTimeout(timeout);reject(Error('Module '+name+' is niet volledig geladen.'));}};$('#engine-'+name).append(f);});
  return ready[name];
 }
 async function restore(next){
  if(next.bi){const b=await engine('bi');b.import(next.bi);}
- if(next.planning){const b=await engine('bi');await b.importPlanning(next.planning);}
+ if(next.planning){await ensurePlanning();const b=await engine('bi');await b.importPlanning(next.planning);}
  if(next.dvm?.assetregister?.rijen?.length){const d=await engine('dvm');await d.import(next.dvm);}
 }
 async function capture(){
  if(failedImport)throw Error("Herlaad eerst de pagina om de vorige opgeslagen werkruimte te herstellen.");
- for(const name of Object.keys(ready)){const e=await engine(name);if(name==='dvm'){const b=e.export();if(b.assetregister)state.dvm=b;}else{state.bi=e.export();const p=e.planning();if(p)state.planning=p;}summaries[name]=e.summary();}
+ for(const name of Object.keys(ready)){if(name==='planning')continue;const e=await engine(name);if(name==='dvm'){const b=e.export();if(b.assetregister)state.dvm=b;}else{state.bi=e.export();const p=e.planning();if(p)state.planning=p;}summaries[name]=e.summary();}
 }
 async function sync(){if(busy||failedImport)return;busy=true;status('Lokale gegevens en uitkomsten bijwerken…');try{await capture();await write(state);render();status('Lokaal opgeslagen · '+new Date().toLocaleTimeString('nl-NL'));}catch(e){fail(e);}finally{busy=false;}}
 function queue(){clearTimeout(timer);timer=setTimeout(sync,1800);}
@@ -31,10 +51,11 @@ function render(){
  $('#services').innerHTML=d?.liveBronnen?`<table><thead><tr><th>Dienst</th><th>Beschikbaarheid</th><th>Norm</th></tr></thead><tbody>${d.diensten.map(s=>`<tr><td>${esc(s.naam)}</td><td>${s.besch==null?num(s.lo)+'–'+num(s.hi):num(s.besch,2)}%${s.besch==null?' (onvolledige dekking)':''}</td><td>${num(s.norm)}%</td></tr>`).join('')}</tbody></table>`:'<p class="muted">Laad een DVM-totaalbestand met open storingen.</p>';
  $('#capacity').innerHTML=fte.length?`<table><thead><tr><th>Bedrijfsfunctie</th><th>Benodigd FTE</th><th>Beschikbaar FTE</th></tr></thead><tbody>${fte.map(f=>`<tr><td>${esc(f.naam)}</td><td>${num(f.benodigd)}</td><td>${num(f.actueel)}</td></tr>`).join('')}</tbody></table>`:'<p class="muted">Laad je BI-gegevens of vul bedrijfsfuncties en formatie in bij BI Dash.</p>';
  const triggers=combine(d,b,state.links),filter=$('#signalFilter').value;$('#signalCount').textContent='('+triggers.length+')';
- $('#signals').innerHTML=triggers.filter(t=>!filter||t.eigenaar===filter).map(t=>`<article class="signal"><small>${esc(t.eigenaar)} · ${esc(t.sev||'signaal')} · ${esc(t.resp||'Verantwoordelijke nog vastleggen')}</small><strong>${esc(t.titel)}</strong><p>${esc(t.msg)}</p><small>Toegepaste regel: ${esc(t.regel)}</small></article>`).join('')||'<p class="muted">Geen signalen voor deze selectie. Controleer of alle benodigde bronnen zijn geladen.</p>';
+ $('#signalsList').innerHTML=triggers.filter(t=>!filter||t.eigenaar===filter).map(t=>`<article class="signal"><small>${esc(t.eigenaar)} · ${esc(t.sev||'signaal')} · ${esc(t.resp||'Verantwoordelijke nog vastleggen')}</small><strong>${esc(t.titel)}</strong><p>${esc(t.msg)}</p><small>Toegepaste regel: ${esc(t.regel)}</small></article>`).join('')||'<p class="muted">Geen signalen voor deze selectie. Controleer of alle benodigde bronnen zijn geladen.</p>';
  $('#linkService').innerHTML='<option value="">Kies dienst</option>'+(d?.diensten||[]).map(s=>`<option value="${esc(s.id)}">${esc(s.naam)}</option>`).join('');
  $('#linkFunction').innerHTML='<option value="">Kies bedrijfsfunctie</option>'+fte.map(f=>`<option value="${esc(f.id)}">${esc(f.naam)}</option>`).join('');
  $('#links').innerHTML=state.links.map((l,i)=>`<p>${esc(d?.diensten.find(x=>x.id===l.dienst)?.naam||l.dienst)} ↔ ${esc(fte.find(f=>f.id===l.functie)?.naam||l.functie)} · ${esc(l.eigenaar)} <button data-remove="${i}">Verwijderen</button></p>`).join('')||'<p class="muted">Nog geen koppelingen. Laad beide domeinen om te kunnen koppelen.</p>';
+ renderNative();
  $('#inventory').textContent=`Lokaal: DVM ${state.dvm?'geladen':'leeg'} · BI ${state.bi?'geladen':'leeg'} · planning ${state.planning?'geladen':'leeg'} · ${state.links.length} koppelingen.`;
 }
 function download(obj,name,type='application/json'){const blob=new Blob([typeof obj==='string'?obj:JSON.stringify(obj)],{type}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);}
@@ -62,5 +83,45 @@ for(const [id,key,name] of [['exportDvm','dvm','dvm-dienstimpact-totaal.json'],[
 $('#save').onclick=sync;$('#refresh').onclick=sync;$('#signalFilter').onchange=render;
 $('#linkForm').onsubmit=e=>{e.preventDefault();const l={dienst:$('#linkService').value,functie:$('#linkFunction').value,eigenaar:$('#linkOwner').value.trim()};state.links=state.links.filter(x=>x.dienst!==l.dienst||x.functie!==l.functie);state.links.push(l);sync();};
 $('#links').onclick=e=>{if(e.target.dataset.remove!==undefined){state.links.splice(Number(e.target.dataset.remove),1);sync();}};
-document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.view)show(b.dataset.view);if(b.dataset.open){const [name,tab]=b.dataset.open.split(':');show(name);try{(await engine(name)).open(tab);}catch(e){fail(e);}}});
+document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.route)show(b.dataset.route);if(b.dataset.open){const [name,tab]=b.dataset.open.split(':');const r=Object.values(ROUTES).find(r=>r.engine===name&&r.target===tab);show(r?.id||'overview');}if(b.dataset.scenario){await show('services');const d=await engine('dvm');d.scenario(b.dataset.scenario);}});
+$('#primaryNav').innerHTML=GROUPS.map(g=>`<button data-route="${g.items[0][0]}" data-group="${g.id}"><span class="nav-icon" aria-hidden="true">${g.icon}</span>${g.label}</button>`).join('');
+window.addEventListener('hashchange',()=>show(location.hash.slice(1)));
+
 try{busy=true;state=(await read())||DEFAULT_STATE();await restore(state);await capture();render();status('Werkruimte gereed. Kies Laden & exporteren voor jouw bestanden.');}catch(e){fail(e);}finally{busy=false;}
+
+show(location.hash.slice(1)||'overview');
+
+// Gezamenlijke presentatielaag; berekeningen blijven bij hun bestaande eigenaar.
+function empty(title,text,route='data'){return `<div class="empty"><b>${esc(title)}</b>${esc(text)}<br><button data-route="${route}">${route==='data'?'Bestanden laden':'Openen'} →</button></div>`;}
+function options(id,values){const el=$(id),selected=el.value;el.innerHTML='<option value="">Alle centrales</option>'+[...new Set(values.filter(Boolean))].sort().map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');el.value=selected;}
+function sourceApi(name){return frames[name]?.contentWindow?.HUB;}
+function catalogue(){return [...(sourceApi('dvm')?.assets()||[]).map(a=>({source:'DVM',key:a.key,naam:a.naam,tp:a.tp,vc:a.vc,weg:[a.weg,a.richting,a.hm!=null?'hm '+num(a.hm,3):''].filter(Boolean).join(' '),status:a.prognoseActief===false?'Niet operationeel':a.status||'Operationeel',raw:a})),...(sourceApi('bi')?.assets()||[]).map(a=>({source:'BI',key:a.key,naam:a.naam,tp:a.assetType,vc:a.vc,weg:a.weg,status:a.status,raw:a}))];}
+function allFaults(){return sourceApi('dvm')?.faults()||[];}
+
+function renderNative(){
+ const d=summaries.dvm,b=summaries.bi;
+ $('#simulationBadge').hidden=!b?.simulation;
+ $('#sourceBadge').textContent=d?.peildatum?'Storingsbeeld · '+date(d.peildatum):state.planning?'Planning geladen':'Nog geen storingsbron';
+ const signals=combine(d,b,state.links);
+ $('#prioritySignals').innerHTML=signals.length?signals.slice(0,3).map(t=>`<article class="signal"><small>${esc(t.eigenaar)} · ${esc(t.resp||'Verantwoordelijke vastleggen')}</small><strong>${esc(t.titel)}</strong><p>${esc(t.msg)}</p></article>`).join(''):empty('Nog geen gezamenlijke prioriteiten','Laad bronnen en verbind diensten aan bedrijfsfuncties.','rules');
+ $('#services').innerHTML=d?.liveBronnen?d.diensten.map(x=>`<div class="service-row"><div class="service-line"><span>${esc(x.naam)}</span><b class="${x.besch==null?'range':''}">${x.besch==null?num(x.lo)+'–'+num(x.hi):num(x.besch,2)}%</b></div>${x.besch==null?'<div class="range-band"></div>':`<progress max="100" value="${x.besch}"></progress>`}<small>Norm ${num(x.norm)}% · ${x.besch==null?'brondekking nog niet bevestigd':'berekend uit de subprocessen'}</small></div>`).join(''):empty('Dienstimpact wacht op brondata','Laad een DVM-totaalbestand met de open storingen.');
+ $('#capacity').innerHTML=b?.functies.length?b.functies.map(f=>`<div class="capacity-line"><span>${esc(f.naam)}</span><b>${num(f.actueel)} / ${num(f.benodigd)} FTE</b></div>`).join(''):empty('Formatie nog niet ingevuld','Laad BI-gegevens of vul bedrijfsfuncties in.','businessData');
+ $('#planningStatus').innerHTML=b?.planning?`<b>${num(b.planning.regels,0)} planningsactiviteiten</b><span>${esc(b.planning.naam)}</span><br><button data-route="planning">Tijdlijn bekijken →</button>`:'<span>Planning-XML nog niet geladen.</span><br><button data-route="planning">Planning openen →</button>';
+ $('#organisationTable').innerHTML=b?.functies.length?`<div class="table-scroll"><table><thead><tr><th>Bedrijfsfunctie</th><th>Benodigd FTE</th><th>Beschikbaar FTE</th><th>Verschil</th></tr></thead><tbody>${b.functies.map(f=>`<tr><td>${esc(f.naam)}</td><td>${num(f.benodigd)}</td><td>${num(f.actueel)}</td><td>${num(f.actueel-f.benodigd)}</td></tr>`).join('')}</tbody></table></div>`:empty('Nog geen bedrijfsfuncties','Vul de formatie in bij Bedrijfsgegevens.','businessData');
+ if(view==='assets'){options('#assetVc',catalogue().map(a=>a.vc));renderAssets();}
+ if(view==='faults'){options('#faultVc',allFaults().map(f=>f.vc));renderFaults();}
+ if(view==='costs'){options('#costVc',(d?.roads||[]).map(r=>r.vc));renderCosts();}
+}
+function renderAssets(){
+ const all=catalogue(),faults=allFaults(),affected=new Set(faults.map(m=>m.assetKey)),q=$('#assetSearch').value.toLowerCase(),vc=$('#assetVc').value,src=$('#assetSource').value,only=$('#assetFaultOnly').checked;
+ const rows=all.filter(a=>(!src||src===a.source)&&(!vc||vc===a.vc)&&(!only||(a.source==='DVM'&&affected.has(a.key)))&&(!q||[a.naam,a.weg,a.tp,a.raw.contract,a.raw.aannemer,a.raw.leverancier].join(' ').toLowerCase().includes(q)));
+ assetPage=Math.min(assetPage,Math.max(0,Math.ceil(rows.length/pageSize)-1));
+ $('#assetKpis').innerHTML=[['Assets in register',num(all.length,0),'Alle geladen assets, inclusief niet-operationele'],['Open storingen',num(faults.length,0),'Op de brondag '+date(summaries.dvm?.peildatum)],['Bronnen','DVM + BI','Impactregels en identiteit blijven bij hun bron']].map(c=>`<div class="card">${c[0]}<strong>${c[1]}</strong><small>${esc(c[2])}</small></div>`).join('');
+ $('#assetTable').innerHTML=rows.length?`<table><thead><tr><th>Asset</th><th>Type / bron</th><th>Locatie</th><th>VC</th><th>Status</th><th>Open</th></tr></thead><tbody>${rows.slice(assetPage*pageSize,(assetPage+1)*pageSize).map(a=>`<tr><td><button data-asset="${esc(a.key)}" data-source="${a.source}">${esc(a.naam)}</button></td><td>${esc(a.tp)} <span class="pill">${a.source}</span></td><td>${esc(a.weg)}</td><td>${esc(a.vc||'Onbekend')}</td><td>${esc(a.status)}</td><td>${a.source==='DVM'?faults.filter(m=>m.assetKey===a.key).length:'—'}</td></tr>`).join('')}</tbody></table>`:empty('Geen assets in deze selectie',all.length?'Pas de filters aan.':'Laad je DVM-totaalbestand of BI-assets.');
+ $('#assetCount').textContent=`${num(rows.length,0)} resultaten · pagina ${assetPage+1} van ${Math.max(1,Math.ceil(rows.length/pageSize))}`;$('#assetPrev').disabled=assetPage===0;$('#assetNext').disabled=(assetPage+1)*pageSize>=rows.length;
+}
+function renderFaults(){const q=$('#faultSearch').value.toLowerCase(),vc=$('#faultVc').value,rows=allFaults().filter(m=>(!vc||m.vc===vc)&&[m.naam,m.weg,m.code,m.omschrijving].join(' ').toLowerCase().includes(q));$('#faultTable').innerHTML=rows.length?`<table><thead><tr><th>Asset / melding</th><th>Weg / richting</th><th>VC</th><th>Code</th><th>Impact</th></tr></thead><tbody>${rows.map(m=>`<tr><td>${m.assetKey?`<button data-asset="${esc(m.assetKey)}" data-source="DVM">${esc(m.naam||m.assetKey)}</button>`:esc(m.naam||'Niet gekoppeld')}<br><small class="muted">${esc(m.omschrijving)}</small></td><td>${esc(m.weg+' '+m.richting)} ${m.hm!=null?'· '+esc(m.hm):''}</td><td>${esc(m.vc)}</td><td>${esc(m.code)}</td><td>${num(m.impact)}%</td></tr>`).join('')}</tbody></table>`:empty('Geen open storingen in deze selectie','Laad open storingen of pas de filters aan.');}
+function renderCosts(){const vc=$('#costVc').value,rows=(summaries.dvm?.roads||[]).filter(r=>!vc||r.vc===vc),known=rows.filter(r=>Number.isFinite(r.kosten)),total=known.reduce((s,r)=>s+r.kosten,0);$('#costKpis').innerHTML=[['Bekend subtotaal / brondag',known.length?money(total):'Onbekend'],['Berekenbare wegdelen',known.length+' / '+rows.length],['Brondag',date(summaries.dvm?.peildatum)]].map(c=>`<div class="card">${c[0]}<strong>${esc(c[1])}</strong></div>`).join('');$('#costTable').innerHTML=rows.length?`<table><thead><tr><th>Wegdeel</th><th>VC</th><th>VVU / brondag</th><th>Kosten / brondag</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.naam)}</td><td>${esc(r.vc)}</td><td>${num(r.vvu)}</td><td>${money(r.kosten)}</td><td><button data-cost="${esc(r.id)}">Bekijk berekening →</button></td></tr>`).join('')}</tbody></table>`:empty('Nog geen wegdelen','Laad een actuele storingsbron met assetregister.');}
+$('#assetSearch').oninput=()=>{assetPage=0;renderAssets();};for(const id of ['assetVc','assetSource','assetFaultOnly'])$('#'+id).onchange=()=>{assetPage=0;renderAssets();};$('#assetPrev').onclick=()=>{assetPage--;renderAssets();};$('#assetNext').onclick=()=>{assetPage++;renderAssets();};$('#faultSearch').oninput=renderFaults;$('#faultVc').onchange=renderFaults;$('#costVc').onchange=renderCosts;
+$('#closeAsset').onclick=()=>$('#assetDialog').close();
+document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.asset){const src=b.dataset.source,key=b.dataset.asset,a=src==='DVM'?sourceApi('dvm').detail(key).asset:sourceApi('bi').assets().find(a=>a.key===key);if(!a)return;const fields=[['Bron',src],['Naam',a.naam],['Type',a.tp||a.assetType],['Verkeerscentrale',a.vc],['Weg',a.weg],['Bouwjaar',a.bouwjaar],['EOL',a.eol],['Contract',a.contract],['Aannemer',a.aannemer],['Leverancier',a.leverancier]];const faults=src==='DVM'?sourceApi('dvm').detail(key).faults:[];$('#assetDetail').innerHTML=`<div class="detail-grid">${fields.map(([k,v])=>`<div><small>${k}</small><b>${esc(v??'Onbekend')}</b></div>`).join('')}</div><h3>${faults.length} gekoppelde open meldingen</h3>${faults.map(m=>`<p>${esc(m.code)} · ${num(m.impact)}% impact · ${esc(m.omschrijving)}</p>`).join('')}<button id="detailFaults">${src==='DVM'?'Storingen en impact':'Bedienketens'} bekijken →</button>`;$('#detailFaults').onclick=()=>{$('#assetDialog').close();if(src==='DVM'){$('#faultSearch').value=a.naam;show('faults');}else show('chains');};$('#assetDialog').showModal();}if(b.dataset.cost){await show('services');sourceApi('dvm').openCosts(b.dataset.cost);}});

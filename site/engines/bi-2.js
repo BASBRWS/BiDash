@@ -359,6 +359,7 @@ function renderAM(){
 /* ─────────────── INTEGRALE PLANNING (originele tool embedded) ─────────────── */
 function renderPlanning(){
   const host=$('#page-planning');
+  if(window.HUB_PLANNING_FRAME){IPL_FRAME=window.HUB_PLANNING_FRAME;host.innerHTML='<div class="hub-context">De planning staat rechtstreeks onder Planning in het hoofdmenu.</div>';return;}
   if(!document.getElementById('ipl-frame')){
     host.innerHTML=`
       <div class="pagehead"><h2>Integrale planning</h2><div class="desc">De volledige planningstool (integrale-planning-rws.html) draait hieronder ongewijzigd \u2014 XML-import, shifts, FTE-capaciteit, dashboards en autosave incluis. De trigger engine leest live mee.</div>

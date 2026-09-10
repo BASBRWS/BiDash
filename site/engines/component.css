@@ -1,0 +1,22 @@
+/* Gedeelde visuele taal voor alle specialistische schermen. */
+:root{--rws-blauw:#123b61;--rws-blauw-dark:#102d46;--rws-blauw-mid:#245980;--rws-geel:#f6be37;--bg:#f4f6f9;--text:#213449;--sub:#607386;--border:#dfe6ed;--radius:7px;--radius-lg:10px;--shadow:none;--wit:#fff;--grijs-licht:#f4f6f9}
+body{font-family:'Segoe UI',Arial,sans-serif!important;font-size:14px!important;background:#f4f6f9!important;color:#213449!important}
+body>.lint,body>.topbar,body[data-module=dvm] #appRoot>.lint,body[data-module=dvm] #appRoot>.topbar{display:none!important}
+body[data-module=bi] main{padding:16px!important}body[data-module=bi] .page{max-width:none!important}body[data-module=bi] .pagehead>h2{display:none}
+body[data-module=dvm] .wrap{max-width:none!important;margin:0!important;padding:16px!important}body[data-module=dvm] .wrap>.pagehead,body[data-module=dvm] #tabs,body[data-module=dvm] #landing,body[data-module=dvm] #dataStatusPanel{display:none!important}
+body[data-module=dvm] #results{display:block!important}
+.card,.domtile,.dash-card,.kosten-blok,.data-gate{border-radius:10px!important;box-shadow:none!important;border-color:#dfe6ed!important}.card{padding:18px!important}
+button,.btn,.tb-btn{font-family:inherit!important;border-radius:6px!important;cursor:pointer}input,select,textarea{border-radius:5px!important;font-family:inherit!important}
+thead th,.tbl thead th{background:#edf2f6!important;color:#38516a!important;border-bottom:1px solid #d8e2ec!important;font-size:11px!important;text-transform:uppercase;letter-spacing:.025em}
+th,td{padding:10px 9px!important}h2,h3,h4{color:#123b61!important}h3{font-size:16px!important}
+.tbl-scroll{border-radius:8px}.pagehead .desc{font-size:13px!important}.hint,.footnote,.muted{line-height:1.6!important}
+body[data-module=planning] #topbar,body[data-module=planning] #sidenav{display:none!important}
+body[data-module=planning] #layout{height:100vh!important;padding:0!important}body[data-module=planning] #main{margin:0!important;padding:16px!important;width:100%!important;max-width:none!important}
+body[data-module=planning] .screen{max-width:none!important}body[data-module=planning] #main>.page-header{display:none!important}
+body[data-module=planning] #main>.breadcrumb,body[data-module=planning] #main>.filterbar{display:none!important}
+.hub-context{padding:12px 16px;background:#eaf2fa;border:1px solid #ccddec;border-radius:8px;margin-bottom:14px;font-size:13px}
+@media print{body>.topbar{display:none!important}}
+
+body[data-module=planning] #kpi-bar,body[data-module=planning] #filters-bar,body[data-module=planning] #s16>.screen-header,body[data-module=planning] #s16>.screen-header+div{display:none!important}
+body[data-module=planning] #main{height:100vh!important;overflow:auto!important}
+.hub-source-tools{display:flex;gap:8px;flex-wrap:wrap;padding:14px 0}.hub-source-tools button{padding:8px 12px;border:1px solid #ccdbe8;background:white;color:#123b61}
