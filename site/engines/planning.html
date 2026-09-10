@@ -1487,7 +1487,7 @@
         </div>
 
         <!-- CONTROLS -->
-        <div style="background:var(--wit);border:1px solid var(--border);border-radius:6px;padding:10px 16px;margin-bottom:8px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div id="ipl-controls" style="background:var(--wit);border:1px solid var(--border);border-radius:6px;padding:10px 16px;margin-bottom:8px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
           <div style="font-size:12px;font-weight:700;color:var(--text-sub);">Verschuif keten:</div>
           <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:180px;">
             <span style="font-size:11px;color:var(--text-sub)">−12</span>
@@ -1498,7 +1498,7 @@
           <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="ipl-rel" checked onchange="renderIPL()"> Relaties</label>
           <label style="font-size:11px;display:flex;align-items:center;gap:5px;color:var(--text-sub);font-weight:700;">Tijdschaal
             <button onclick="ipl_openLiveFullscreen()" style="padding:6px 11px;border:1px solid #003082;background:#003082;color:#fff;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer">⛶ Volledig scherm</button><select id="ipl-timescale" onchange="ipl_setTimeScale(this.value)" style="padding:5px 8px;border:1px solid var(--border);border-radius:4px;background:#fff;color:#003082;font-size:11px;font-weight:700;">
-              <option value="week">Weken</option><option value="month">Maanden</option><option value="quarter" selected>Kwartalen</option><option value="year">Jaren</option>
+              <option value="week">Weken</option><option value="month">Maanden</option><option value="quarter">Kwartalen</option><option value="fit" selected>Hele periode</option><option value="year">Jaren</option>
             </select>
           </label>
           <label style="font-size:11px;display:flex;align-items:center;gap:5px;color:var(--text-sub);font-weight:700;">Toon t/m niveau
@@ -1533,7 +1533,7 @@
         </div>
 
         <!-- GANTT + ZWEVEND FORMATIE-PANEEL -->
-        <div style="display:flex;gap:14px;align-items:flex-start;">
+        <div id="ipl-chart-row" style="display:flex;gap:14px;align-items:flex-start;">
           <div style="background:var(--wit);border:1px solid var(--border);border-radius:6px;overflow:auto;position:relative;max-height:680px;flex:1;min-width:0;">
             <canvas id="iplCanvas" style="display:block;cursor:default;"></canvas>
             <div id="ipl-tooltip" style="position:absolute;display:none;background:#1a2236;color:#fff;font-size:11px;padding:8px 12px;border-radius:4px;pointer-events:none;max-width:320px;z-index:200;line-height:1.5;border:1px solid #F9B000;"></div>
@@ -5799,7 +5799,7 @@ function ipl_finishDrag(canvas,label){if(IPL_DRAG_RAF){cancelAnimationFrame(IPL_
 var IPL_LAYOUT = null;
 var IPL_SHOWREL = true;
 var IPL_COLLAPSED = {};     // wbsId -> true als ingeklapt
-var IPL_TSTART = 2024, IPL_TEND = 2042, IPL_TIMESCALE='quarter';
+var IPL_TSTART = 2024, IPL_TEND = 2042, IPL_TIMESCALE='fit';
 var IPL_LINELAYOUT = [];
 
 // Dienst-mapping: WBS-hoofdgroep (blok-id) → dienst (GPO/CIV/VWM/PPO/Regio).
@@ -6553,13 +6553,13 @@ function renderIPL(viewportOnly){
   if(!viewportOnly)ipl_computeCascade();
   if(canvas.parentElement.clientWidth===0)return;
 
-  var LBL=300, RH=18, HH=30, BH=22, SGH=16, dpr=window.devicePixelRatio||1;
+  var LBL=IPL_TIMESCALE==='fit'?Math.min(300,canvas.parentElement.clientWidth*.3):300, RH=18, HH=30, BH=22, SGH=16, dpr=window.devicePixelRatio||1;
   var ordered=ipl_buildOrdered();
   var nBlok=0,nReg=0,nSub=0;
   ordered.forEach(function(o){ if(o.type==='blok')nBlok++; else if(o.type==='regel')nReg++; else nSub++; });
   var span=Math.max(0.01,IPL_TEND-IPL_TSTART), unitPx={week:18,month:34,quarter:58,year:90}[IPL_TIMESCALE]||58;
   var units=IPL_TIMESCALE==='week'?span*52.1775:IPL_TIMESCALE==='month'?span*12:IPL_TIMESCALE==='quarter'?span*4:span;
-  var cW=Math.max(1100,canvas.parentElement.clientWidth-4,LBL+32+units*unitPx);
+  var cW=IPL_TIMESCALE==='fit'?Math.max(360,canvas.parentElement.clientWidth-2):Math.max(1100,canvas.parentElement.clientWidth-4,LBL+32+units*unitPx);
   var cH=HH+nBlok*BH+nSub*SGH+nReg*RH+12;
   var plotW=cW-LBL-16;
   var viewport=ipl_canvasViewport(canvas,cW,cH),ctx=viewport.ctx;
@@ -6572,7 +6572,7 @@ function renderIPL(viewportOnly){
   ctx.fillText('WBS / activiteit  (klik groep = in/uitklappen · sleep balk = verschuiven)',6,HH-10);
   function labelAt(t){
     var d=ipl_yearToDate(t),y=d.getFullYear(),m=d.getMonth();
-    if(IPL_TIMESCALE==='year')return String(y);
+    if(IPL_TIMESCALE==='year'||IPL_TIMESCALE==='fit')return String(y);
     if(IPL_TIMESCALE==='quarter')return 'K'+(Math.floor(m/3)+1)+' '+y;
     if(IPL_TIMESCALE==='month')return ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'][m]+' '+y;
     return 'W'+ipl_isoWeek(d)+' '+y;

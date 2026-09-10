@@ -20,3 +20,12 @@ body[data-module=planning] #main>.breadcrumb,body[data-module=planning] #main>.f
 body[data-module=planning] #kpi-bar,body[data-module=planning] #filters-bar,body[data-module=planning] #s16>.screen-header,body[data-module=planning] #s16>.screen-header+div{display:none!important}
 body[data-module=planning] #main{height:100vh!important;overflow:auto!important}
 .hub-source-tools{display:flex;gap:8px;flex-wrap:wrap;padding:14px 0}.hub-source-tools button{padding:8px 12px;border:1px solid #ccdbe8;background:white;color:#123b61}
+
+body.hub-planning-focus #main{padding:8px!important;height:100vh!important;overflow:hidden!important}
+body.hub-planning-focus #s16,body.hub-planning-focus #ipl-workspace{height:100%;min-height:0}
+body.hub-planning-focus #ipl-workspace{display:flex!important;flex-direction:column}
+body.hub-planning-focus #ipl-workspace>div:not(#ipl-controls):not(#ipl-chart-row){display:none!important}
+body.hub-planning-focus #ipl-controls{flex-shrink:0;padding:8px!important;gap:8px!important}
+body.hub-planning-focus #ipl-chart-row{flex:1;min-height:0;align-items:stretch!important}
+body.hub-planning-focus #ipl-chart-row>div:first-child{max-height:none!important;height:100%;width:100%}
+body.hub-planning-focus #ipl-chart-row>div:last-child{display:none!important}

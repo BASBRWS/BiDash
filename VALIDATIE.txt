@@ -24,3 +24,10 @@ Balkenplanning, correctie voor grote bestanden
   weekschaal, in- en uitklappen, schermformaat wijzigen en herladen gecontroleerd.
 - Test gebruikt synthetische gegevens. De exacte XML uit de laatste melding
   is niet meegeleverd en is dus niet afzonderlijk getest.
+
+Integratie 2.2
+- Getest met het aangeleverde planningbestand. Dit bestand blijft lokaal.
+- Hele periode, volledig scherm via beide knoppen, sluiten en Escape gecontroleerd.
+- Wisselen van tijdschaal blijft behouden bij afsluiten van volledig scherm.
+- Horizontale navigatie en mobiele paginabreedte gecontroleerd.
+- Bestaande modeltests en import/export-browsercontrole geslaagd.

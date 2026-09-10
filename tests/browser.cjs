@@ -17,6 +17,13 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  await page.locator('#primaryNav [data-route=planning]').click();
  const pl=page.frames().find(f=>new URL(f.url()).pathname.endsWith('/planning.html'));
  await pl.locator('#iplCanvas').waitFor({state:'visible'});await pl.locator('#iplCanvas').scrollIntoViewIfNeeded();assert((await pl.locator('#iplCanvas').boundingBox()).height>40);assert(await pl.locator('#kpi-bar').isHidden());
+ assert.equal(await pl.locator('#ipl-timescale').inputValue(),'fit');
+ await page.locator('#planningFullscreen').click();await page.waitForTimeout(200);
+ assert(await page.locator('body').evaluate(e=>e.classList.contains('planning-fullscreen')));
+ assert(await pl.evaluate(()=>document.getElementById('iplCanvas').parentElement.clientWidth>innerWidth-45));
+ await page.locator('#closePlanningFullscreen').click();await page.waitForTimeout(200);
+ assert(!await page.locator('body').evaluate(e=>e.classList.contains('planning-fullscreen')));
+
  
  await page.locator('#primaryNav [data-route=data]').click();await page.locator('#none').click();await page.locator('[data-part=planning]').check();
  const downloadPromise=page.waitForEvent('download');await page.locator('#export').click();const dl=await downloadPromise;const bundle=JSON.parse(fs.readFileSync(await dl.path(),'utf8'));assert.deepEqual(Object.keys(bundle.delen),['planning']);assert.equal(bundle.delen.planning.xml,p6);
