@@ -29,3 +29,8 @@ body.hub-planning-focus #ipl-controls{flex-shrink:0;padding:8px!important;gap:8p
 body.hub-planning-focus #ipl-chart-row{flex:1;min-height:0;align-items:stretch!important}
 body.hub-planning-focus #ipl-chart-row>div:first-child{max-height:none!important;height:100%;width:100%}
 body.hub-planning-focus #ipl-chart-row>div:last-child{display:none!important}
+
+/* Formatie blijft naast de balkenplanning zichtbaar in volledig scherm. */
+body.hub-planning-focus #ipl-chart-row>div:first-child{width:auto;flex:1;min-width:0}
+body.hub-planning-focus #ipl-chart-row>div:last-child{display:flex!important;width:clamp(280px,30vw,400px)!important;flex:0 0 clamp(280px,30vw,400px)!important;height:100%;max-height:100%!important;position:relative!important;top:0!important;overflow:auto}
+@media(max-width:760px){body.hub-planning-focus #ipl-chart-row{flex-direction:column!important;overflow:auto}body.hub-planning-focus #ipl-chart-row>div:first-child{flex:0 0 55%!important;min-height:220px;height:55%!important}body.hub-planning-focus #ipl-chart-row>div:last-child{width:100%!important;flex:0 0 45%!important;min-height:220px;height:auto!important;max-height:none!important}}

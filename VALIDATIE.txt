@@ -31,3 +31,10 @@ Integratie 2.2
 - Wisselen van tijdschaal blijft behouden bij afsluiten van volledig scherm.
 - Horizontale navigatie en mobiele paginabreedte gecontroleerd.
 - Bestaande modeltests en import/export-browsercontrole geslaagd.
+
+Integratie 2.3
+- Cumulatieve VWM-grafiek gecontroleerd met het lokaal aangeleverde planningbestand.
+- Synthetische regressietest: overlappende taken, gewijzigde BI-formatie en herstel.
+- VWM- en CIV-grafieken blijven zichtbaar in volledig scherm.
+- Mobiele fullscreen-weergave en bestaande import/export-browsercontrole getest.
+- Geen bronbestanden of operationele gegevens opgenomen in de repository.

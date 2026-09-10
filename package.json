@@ -1,1 +1,1 @@
-{"name":"bidash-integraal","private":true,"type":"module","scripts":{"test":"node --test tests/*.test.js","serve":"python3 -m http.server 8080 --directory site","test:browser":"node tests/browser.cjs && node tests/planning-large.cjs"}}
+{"name":"bidash-integraal","private":true,"type":"module","scripts":{"test":"node --test tests/*.test.js","serve":"python3 -m http.server 8080 --directory site","test:browser":"node tests/browser.cjs && node tests/planning-large.cjs && node tests/planning-formation.cjs"}}

@@ -14,3 +14,6 @@ window.addEventListener('load',()=>HUB.open('s16'));
 window.ipl_openLiveFullscreen=()=>parent.postMessage({type:'hub:planning-fullscreen',active:true},location.origin);
 window.ipl_closeLiveFullscreen=()=>parent.postMessage({type:'hub:planning-fullscreen',active:false},location.origin);
 document.addEventListener('keydown',e=>{if(e.key==='Escape')window.ipl_closeLiveFullscreen();});
+
+const hubShowLoaded=ipl_showLoaded;
+window.ipl_showLoaded=function(...args){const r=hubShowLoaded(...args);parent.postMessage({type:'hub:planning-loaded'},location.origin);return r;};
