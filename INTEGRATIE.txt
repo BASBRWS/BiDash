@@ -72,3 +72,6 @@ domeineigenaar; dit voorkomt een tweede implementatie van dezelfde rekenregels.
 
 Zichtbare planningregressie: npm run test:browser (Playwright en Chromium nodig).
 Optioneel PLAYWRIGHT_MODULE en CHROMIUM_PATH voor een bestaande browserinstallatie.
+
+De planning tekent het zichtbare scrollgebied met begrensd canvasgeheugen.
+De volledige planning blijft in het model en in de XML-export behouden.
