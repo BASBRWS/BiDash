@@ -11,6 +11,8 @@ let routeTicket=0,assetPage=0;const pageSize=60;
 async function ensurePlanning(){const p=await engine('planning'),b=await engine('bi');b.attachPlanning(frames.planning);return p;}
 async function show(id){
  const route=resolveRoute(id),group=GROUPS.find(g=>g.id===route.group),ticket=++routeTicket;view=route.id;
+ if(route.engine!=='planning'&&document.body.classList.contains('planning-fullscreen'))setPlanningFullscreen(false);
+ $('#planningFullscreen').hidden=route.id!=='planning';
  window.scrollTo(0,0);if(location.hash!=='#'+route.id)history.replaceState(null,'','#'+route.id);
  $('#pageTitle').textContent=route.label;$('#pageDescription').textContent=group.desc;$('#breadcrumb').textContent=group.label+' / '+route.label;
  $('#primaryNav').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.group===group.id));
@@ -30,7 +32,7 @@ async function show(id){
 function fail(e){status(e.message||String(e),true);console.error(e);}
 async function engine(name){
  if(ready[name])return ready[name];
- ready[name]=new Promise((resolve,reject)=>{const f=document.createElement('iframe');frames[name]=f;f.title=name==='dvm'?'Asset- en dienstanalyse':name==='planning'?'Integrale planning':'Organisatieanalyse';f.sandbox='allow-scripts allow-same-origin allow-downloads allow-modals allow-popups';f.src='engines/'+name+'.html'+(name==='planning'?'?v=canvas2':'');const timeout=setTimeout(()=>reject(Error('Module '+name+' reageert niet.')),30000);f.onload=()=>{if(f.contentWindow.HUB){clearTimeout(timeout);resolve(f.contentWindow.HUB);}else{clearTimeout(timeout);reject(Error('Module '+name+' is niet volledig geladen.'));}};$('#engine-'+name).append(f);});
+ ready[name]=new Promise((resolve,reject)=>{const f=document.createElement('iframe');frames[name]=f;f.title=name==='dvm'?'Asset- en dienstanalyse':name==='planning'?'Integrale planning':'Organisatieanalyse';f.sandbox='allow-scripts allow-same-origin allow-downloads allow-modals allow-popups';f.src='engines/'+name+'.html'+(name==='planning'?'?v=planning22':'');const timeout=setTimeout(()=>reject(Error('Module '+name+' reageert niet.')),30000);f.onload=()=>{if(f.contentWindow.HUB){clearTimeout(timeout);resolve(f.contentWindow.HUB);}else{clearTimeout(timeout);reject(Error('Module '+name+' is niet volledig geladen.'));}};$('#engine-'+name).append(f);});
  return ready[name];
 }
 async function restore(next){
@@ -44,7 +46,7 @@ async function capture(){
 }
 async function sync(){if(busy||failedImport)return;busy=true;status('Lokale gegevens en uitkomsten bijwerken…');try{await capture();await write(state);render();status('Lokaal opgeslagen · '+new Date().toLocaleTimeString('nl-NL'));}catch(e){fail(e);}finally{busy=false;}}
 function queue(){clearTimeout(timer);timer=setTimeout(sync,1800);}
-window.addEventListener('message',ev=>{if(ev.origin!==location.origin||!Object.values(frames).some(f=>f.contentWindow===ev.source))return;if(ev.data?.type==='hub:changed'&&!busy)queue();});
+window.addEventListener('message',ev=>{if(ev.origin!==location.origin||!Object.values(frames).some(f=>f.contentWindow===ev.source))return;if(ev.data?.type==='hub:planning-fullscreen'&&ev.source===frames.planning?.contentWindow)setPlanningFullscreen(ev.data.active);if(ev.data?.type==='hub:changed'&&!busy)queue();});
 function render(){
  const d=summaries.dvm,b=summaries.bi,roads=d?.roads||[],known=roads.filter(r=>Number.isFinite(r.kosten)),total=known.reduce((s,r)=>s+r.kosten,0),fte=b?.functies||[];
  $('#cards').innerHTML=[['DVM-brondag',date(d?.peildatum),'Open storingen uit de laatste geladen bron'],['Verkeerskosten / brondag',known.length?money(total):'Onbekend',`${known.length} van ${roads.length} wegdelen berekenbaar${known.length<roads.length?' · bekend subtotaal':''}; som scenario’s, controleer overlap`],['Beschikbare formatie',fte.length?num(fte.reduce((s,f)=>s+f.actueel,0))+' FTE':'Onbekend','BI-brondatum: '+date(b?.peildatum)],['Planning',b?.planning?num(b.planning.regels,0)+' activiteiten':'Nog niet geladen',b?.planning?.naam||'Laad je bestaande XML']].map(c=>`<div class="card">${esc(c[0])}<strong>${esc(c[1])}</strong><small>${esc(c[2])}</small></div>`).join('');
@@ -125,3 +127,15 @@ function renderCosts(){const vc=$('#costVc').value,rows=(summaries.dvm?.roads||[
 $('#assetSearch').oninput=()=>{assetPage=0;renderAssets();};for(const id of ['assetVc','assetSource','assetFaultOnly'])$('#'+id).onchange=()=>{assetPage=0;renderAssets();};$('#assetPrev').onclick=()=>{assetPage--;renderAssets();};$('#assetNext').onclick=()=>{assetPage++;renderAssets();};$('#faultSearch').oninput=renderFaults;$('#faultVc').onchange=renderFaults;$('#costVc').onchange=renderCosts;
 $('#closeAsset').onclick=()=>$('#assetDialog').close();
 document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.asset){const src=b.dataset.source,key=b.dataset.asset,a=src==='DVM'?sourceApi('dvm').detail(key).asset:sourceApi('bi').assets().find(a=>a.key===key);if(!a)return;const fields=[['Bron',src],['Naam',a.naam],['Type',a.tp||a.assetType],['Verkeerscentrale',a.vc],['Weg',a.weg],['Bouwjaar',a.bouwjaar],['EOL',a.eol],['Contract',a.contract],['Aannemer',a.aannemer],['Leverancier',a.leverancier]];const faults=src==='DVM'?sourceApi('dvm').detail(key).faults:[];$('#assetDetail').innerHTML=`<div class="detail-grid">${fields.map(([k,v])=>`<div><small>${k}</small><b>${esc(v??'Onbekend')}</b></div>`).join('')}</div><h3>${faults.length} gekoppelde open meldingen</h3>${faults.map(m=>`<p>${esc(m.code)} · ${num(m.impact)}% impact · ${esc(m.omschrijving)}</p>`).join('')}<button id="detailFaults">${src==='DVM'?'Storingen en impact':'Bedienketens'} bekijken →</button>`;$('#detailFaults').onclick=()=>{$('#assetDialog').close();if(src==='DVM'){$('#faultSearch').value=a.naam;show('faults');}else show('chains');};$('#assetDialog').showModal();}if(b.dataset.cost){await show('services');sourceApi('dvm').openCosts(b.dataset.cost);}});
+
+function setPlanningFullscreen(active){
+ active=!!active;if(active&&!frames.planning)return;
+ document.body.classList.toggle('planning-fullscreen',active);$('#planningFullscreenBar').hidden=!active;
+ frames.planning?.contentWindow?.HUB?.fullscreen(active);
+ if(!active&&document.fullscreenElement)document.exitFullscreen().catch(()=>{});
+ if(active)$('#closePlanningFullscreen').focus();
+}
+$('#planningFullscreen').onclick=()=>{setPlanningFullscreen(true);if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{});};
+$('#closePlanningFullscreen').onclick=()=>setPlanningFullscreen(false);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')setPlanningFullscreen(false);});
+document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&document.body.classList.contains('planning-fullscreen'))setPlanningFullscreen(false);});

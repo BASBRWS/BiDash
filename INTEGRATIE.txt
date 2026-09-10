@@ -75,3 +75,10 @@ Optioneel PLAYWRIGHT_MODULE en CHROMIUM_PATH voor een bestaande browserinstallat
 
 De planning tekent het zichtbare scrollgebied met begrensd canvasgeheugen.
 De volledige planning blijft in het model en in de XML-export behouden.
+
+INTEGRATIE 2.2
+Het hoofdmenu staat standaard horizontaal bovenaan. De tijdlijn start met Hele
+periode, waarbij alle jaren binnen de beschikbare breedte passen. Andere
+schalen blijven beschikbaar. Planning volledig scherm gebruikt de hele browser,
+met een sluitknop en Escape. Het formatiepaneel blijft in de normale weergave
+beschikbaar. Volledig scherm wijzigt geen taken, niveaus of verschuivingen.
