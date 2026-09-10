@@ -6545,12 +6545,13 @@ function ipl_drawSummaryBar(ctx,wbsId,yy,h,X,kleur){
 
 function ipl_darken(hex,amt){ amt=amt||-30; var n=parseInt(hex.slice(1),16); var r=Math.max(0,Math.min(255,((n>>16)&255)+amt)); var g=Math.max(0,Math.min(255,((n>>8)&255)+amt)); var b=Math.max(0,Math.min(255,(n&255)+amt)); return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1); }
 
-function renderIPL(){
+function renderIPL(viewportOnly){
   var canvas=document.getElementById('iplCanvas'); if(!canvas) return;
   if(!IPL_MODEL){ return; }
   IPL_SHOWREL=document.getElementById('ipl-rel')?document.getElementById('ipl-rel').checked:true;
   IPL_TSTART=IPL_MODEL.t0; IPL_TEND=IPL_MODEL.t1;
-  ipl_computeCascade();
+  if(!viewportOnly)ipl_computeCascade();
+  if(canvas.parentElement.clientWidth===0)return;
 
   var LBL=300, RH=18, HH=30, BH=22, SGH=16, dpr=window.devicePixelRatio||1;
   var ordered=ipl_buildOrdered();
@@ -6561,8 +6562,7 @@ function renderIPL(){
   var cW=Math.max(1100,canvas.parentElement.clientWidth-4,LBL+32+units*unitPx);
   var cH=HH+nBlok*BH+nSub*SGH+nReg*RH+12;
   var plotW=cW-LBL-16;
-  canvas.width=cW*dpr; canvas.height=cH*dpr; canvas.style.width=cW+'px'; canvas.style.height=cH+'px';
-  var ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr);
+  var viewport=ipl_canvasViewport(canvas,cW,cH),ctx=viewport.ctx;
   function X(t){ return ipl_tToX(t,LBL,plotW); }
 
   ctx.fillStyle='#f8f9fc'; ctx.fillRect(0,0,cW,cH);
@@ -6591,6 +6591,9 @@ function renderIPL(){
   var rowY={}, layout=[], hitGroups=[], yy=HH;
   for(var i2=0;i2<ordered.length;i2++){
     var row=ordered[i2];
+    var rowHeight=row.type==='blok'?BH:row.type==='wbs'?SGH:RH;
+    if(row.type==='regel')rowY[row.regel.id]=yy+RH/2;
+    if(yy+rowHeight<viewport.y || yy>viewport.y+viewport.h){yy+=rowHeight;continue;}
     if(row.type==='blok'){
       var bl=row.blok; var collapsed=IPL_COLLAPSED[bl.wbsId];
       var checkedBl=IPL_PROJ_CHECKED[bl.wbsId];
@@ -6672,6 +6675,7 @@ function renderIPL(){
       var rel=IPL_MODEL.relaties[ri];
       var py=rowY[rel.from], sy=rowY[rel.to];
       if(py===undefined||sy===undefined) continue; // verborgen door inklappen
+      if(Math.max(py,sy)<viewport.y||Math.min(py,sy)>viewport.y+viewport.h)continue;
       var pa=ipl_regelById(rel.from), sa=ipl_regelById(rel.to);
       var pe=ipl_eff(pa), se=ipl_eff(sa);
       var px=(rel.type==='FS'||rel.type==='FF')?X(pe.t1):X(pe.t0);
@@ -6685,16 +6689,16 @@ function renderIPL(){
     }
   }
 
-  IPL_LAYOUT={layout:layout,hitGroups:hitGroups,X:X,xToT:function(x){return ipl_xToT(x,LBL,plotW);},LBL:LBL,cW:cW,plotW:plotW};
+  IPL_LAYOUT={offsetX:viewport.x,offsetY:viewport.y,layout:layout,hitGroups:hitGroups,X:X,xToT:function(x){return ipl_xToT(x,LBL,plotW);},LBL:LBL,cW:cW,plotW:plotW};
   ipl_attachEvents(canvas);
   ipl_positionFloat();
-  if(!IPL_DRAG_ACTIVE){if(typeof renderIPLImpact==='function')renderIPLImpact();if(typeof ipl_refreshFormatie==='function')ipl_refreshFormatie();if(typeof renderIPLFormatieConflicten==='function')renderIPLFormatieConflicten();}
+  if(!viewportOnly&&!IPL_DRAG_ACTIVE){if(typeof renderIPLImpact==='function')renderIPLImpact();if(typeof ipl_refreshFormatie==='function')ipl_refreshFormatie();if(typeof renderIPLFormatieConflicten==='function')renderIPLFormatieConflicten();}
 }
 
 function ipl_attachEvents(canvas){
   canvas.onmousedown=function(e){
     if(!IPL_LAYOUT) return;
-    var rect=canvas.getBoundingClientRect(); var mx=e.clientX-rect.left, my=e.clientY-rect.top;
+    var rect=canvas.getBoundingClientRect(); var mx=e.clientX-rect.left+(IPL_LAYOUT?.offsetX||0), my=e.clientY-rect.top+(IPL_LAYOUT?.offsetY||0);
     // klik in label-gebied op een groepsregel
     if(mx<IPL_LAYOUT.LBL){
       for(var g=0;g<IPL_LAYOUT.hitGroups.length;g++){ var G=IPL_LAYOUT.hitGroups[g];
@@ -6718,7 +6722,7 @@ function ipl_attachEvents(canvas){
       if(hit){ IPL_DRAG={id:L.id,startX:mx,orig:(IPL_MSHIFT[L.id]||0)}; canvas.style.cursor='grabbing'; e.preventDefault(); return; } }
   };
   canvas.onmousemove=function(e){
-    var rect=canvas.getBoundingClientRect(); var mx=e.clientX-rect.left, my=e.clientY-rect.top;
+    var rect=canvas.getBoundingClientRect(); var mx=e.clientX-rect.left+(IPL_LAYOUT?.offsetX||0), my=e.clientY-rect.top+(IPL_LAYOUT?.offsetY||0);
     var tt=document.getElementById('ipl-tooltip');
     if(IPL_DRAG&&IPL_LAYOUT){
       var dxT=IPL_LAYOUT.xToT(mx)-IPL_LAYOUT.xToT(IPL_DRAG.startX); var dM=Math.round(dxT*12);
@@ -9352,5 +9356,6 @@ window.addEventListener('resize', ()=>{
 });
 </script>
 
+<script src="planning-canvas.js"></script>
 <script src="planning-adapter.js"></script></body>
 </html>

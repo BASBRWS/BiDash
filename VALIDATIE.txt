@@ -15,3 +15,12 @@ Browser: Chromium, desktop en mobiele schermbreedte.
 De regressiecontrole gebruikt synthetische XML. Het echte aangeleverde DVM-bestand
 is uitsluitend lokaal getest en is niet opgenomen in de repository.
 Bestaande rekenengines zijn niet opnieuw statistisch of inhoudelijk gekalibreerd.
+
+Balkenplanning, correctie voor grote bestanden
+- Fout gereproduceerd met 4.000 activiteiten en schermschaal 2.
+- Oude canvas 7.160 bij 144.128 pixels tekende transparant.
+- Nieuwe renderer gebruikt uitsluitend het zichtbare scrollgebied.
+- Grote P6 XML-import, zichtbare pixels, beide scrollrichtingen, balk verslepen,
+  weekschaal, in- en uitklappen, schermformaat wijzigen en herladen gecontroleerd.
+- Test gebruikt synthetische gegevens. De exacte XML uit de laatste melding
+  is niet meegeleverd en is dus niet afzonderlijk getest.
