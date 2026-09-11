@@ -1,0 +1,367 @@
+# BiDash — systeemwerking en kwaliteitscontract
+
+Status: beschrijving van Integratie 2.3, gecontroleerd op 11 september 2026 tegen
+GitHub-commit `85086d3c7c7ed42e691ad216110c823d6081fee7`.
+Dit document bevat geen operationele brongegevens. Bij een functionele wijziging
+moeten code, tests en deze beschrijving samen worden bijgewerkt.
+
+## 1. Doel en grenzen
+
+BiDash brengt dienstverlening, buitenassets, verkeerskosten, personele capaciteit,
+contracten en planning samen voor besluitvorming. De gebruiker laadt eigen lokale
+bestanden. GitHub Pages host uitsluitend de applicatie; gegevensverwerking en
+opslag vinden in de browser plaats.
+
+Het systeem is momenteel een gezamenlijke gebruikersinterface met drie bestaande
+rekenmodules. Het is geen volledig herschreven, uniforme engine. De adapters
+verbinden de modules. Hun DOM, globale variabelen en oorspronkelijke rekenfuncties
+blijven van belang. Een visueel geslaagde wijziging bewijst geen correcte berekening.
+
+Dit document beschrijft de bestaande werking en de voorwaarden voor wijzigingen.
+Het is geen onafhankelijke validatie van de verkeerskundige of statistische modellen.
+Modelaannames mogen niet als metingen of zekerheden worden gepresenteerd.
+
+## 2. Architectuur en eigenaarschap
+
+| Onderdeel | Code | Verantwoordelijkheid |
+| --- | --- | --- |
+| Ingang en vormgeving | `site/index.html`, `site/style.css` | Gezamenlijke werkruimte, horizontaal hoofdmenu, fullscreen |
+| Navigatie | `site/ui/routes.js` | Hoofdgroepen, subroutes en doelmodule |
+| Orchestratie | `site/app.js` | Importvoorstel, herstel, opslag, gezamenlijke weergave, adapters |
+| Gegevenscontract | `site/core/model.js` | Deelimport, selectie-export, validatie, gecombineerde signalen |
+| Opslag | `site/core/storage.js` | IndexedDB, transactioneel schrijven |
+| DVM | `site/engines/dvm.html`, `dvm-1.js` t/m `dvm-3.js` | Buitenassets, storingen, dienstimpact, verkeerskosten, prognoses, memo’s |
+| BI | `site/engines/bi.html`, `bi-1.js` t/m `bi-3.js` | Formatie, capaciteit, contracten, interne bedienketens |
+| Planning | `site/engines/planning.html` | XML-model, WBS, afhankelijkheden, verschuivingen, planninggrafieken |
+| Bruggen | `*-adapter.js` | Expliciete gegevensuitwisseling via `window.HUB` |
+| Canvas | `site/engines/planning-canvas.js` | Begrensd tekenvlak en scrollcoördinaten |
+| Gedeelde modulestijl | `site/engines/component.css` | Vormgeving binnen de frames |
+| Lokale bibliotheek | `site/vendor/` | Spreadsheetverwerking zonder externe CDN |
+
+Eén eigenaar per rekenregel:
+
+- DVM berekent buitenasset-impact, subprocessen, dienstbeschikbaarheid en verkeerskosten.
+- BI beheert de VWM/CIV-formatienormen en capaciteit; planning past die regels toe.
+- BI beheert contract- en interne bedienketenregels. Ketenbeschikbaarheid is niet
+  automatisch hetzelfde als DVM-dienstbeschikbaarheid.
+- De hub combineert uitkomsten en expliciete koppelingen; hij introduceert geen
+  tweede dienst-, kosten- of formatiemodel.
+
+`bi-adapter.js` verplaatst oude BI-aggregaatassets met IDs volgens
+`ndw_(msi|drip)_` naar `legacyDvmAssets`. Oude storingsregels worden waar aanwezig
+bewaard als `legacyDvmRegels`, maar niet opnieuw toegepast. Andere BI-assets worden
+niet automatisch als duplicaat verwijderd. Overlap vraagt inhoudelijke beoordeling.
+
+## 3. Gebruikersfuncties
+
+| Hoofdgroep | Inhoud |
+| --- | --- |
+| Overzicht | Dienstverlening, capaciteit, brondag en gezamenlijke signalen |
+| Assetmanagement | Register, open storingen, wegdelen, levensduur/DRIP, bedienketens |
+| Dienstverlening | Impact, verkeerskosten, gebied, regio, rekenverslag, memo’s |
+| Planning | Tijdlijn, planningsdashboard, project/budget, dashboardbeheer |
+| Formatie & contracten | Functies, VWM- en CIV-model, contracten, bedrijfsgegevens |
+| Regels & signalen | Signalering, dienst-functiekoppelingen, domeinregels |
+| Scenario’s | Huidige verkeerskosten, MSI-toekomst, BI-scenario’s; DRIP via DVM |
+| Data & export | Lokale import, selectieve back-up, oorspronkelijke broninvoer |
+
+Behoud verdiepende doorklikken, filters, bronvermelding, scope en terugnavigatie.
+Een nieuwe navigatie mag oorspronkelijke analyses niet onbereikbaar maken.
+
+## 4. Lokale gegevens en beveiliging
+
+De hoofdwerkruimte heeft `schema: 1` en bevat `dvm`, `bi`, `planning`, `links` en
+`history`. IndexedDB gebruikt database `bidash-integraal`, objectstore `workspace`,
+sleutel `current`. Modules gebruiken daarnaast lokale browseropslag. Een back-up
+is een gedownloade export; browseropslag is geen garantie tegen gegevensverlies.
+Gebruik één werkruimte-tab tegelijk; er is geen uitgewerkte meergebruikerssynchronisatie.
+
+- Geen uploads van gebruikersbestanden naar GitHub, telemetrie of externe AI-diensten.
+- Geen operationele XML/JSON, uitsneden, screenshots of afgeleide operationele
+  tellingen in de repository of publieke CI-logs. Gebruik synthetische testgegevens.
+- Behoud het bestaande Content Security Policy en `connect-src 'none'`. Externe
+  bronlinks kunnen de browser verlaten; dat is geen toestemming om datasets te verzenden.
+- Modules draaien onder dezelfde origin. Frames met `allow-scripts` en
+  `allow-same-origin` zijn geen beveiligingsgrens tegen kwaadaardige eigen code.
+- `postMessage` wordt alleen verwerkt voor dezelfde origin én bekende bronframes.
+- JSON-validatie weigert `__proto__`, `constructor`, `prototype` en te diepe nesting.
+  Dit vervangt niet de inhoudelijke validatie van een dataset.
+- XML wordt met de bestaande parsers verwerkt. Controleer parserfouten en houd
+  geïmporteerde labels veilig bij HTML-weergave; voer broninhoud nooit als code uit.
+
+## 5. Import, herstel en export
+
+### Formaten en volgorde
+
+Ondersteund zijn de bestaande DVM-totaal-JSON, BI-dataset-JSON en planning-XML
+(MS Project en Primavera P6), plus de integrale JSON. Specialistische DVM-invoer
+blijft via bronbeheer beschikbaar. ZIP is geen beloofd hub-importformaat: pak een
+planningarchief uit en laad de XML, tenzij ZIP-ondersteuning apart is geïmplementeerd.
+
+De hub maakt eerst een importvoorstel. Bij uitvoeren herstelt `restore()` eerst BI,
+dan planning, dan DVM. Planning gebruikt de oorspronkelijke XML-importer voor
+mapping en afgeleide datums. DVM heeft een assetregister nodig voor herberekening.
+Een aanvullende DVM-selectie kan het al aanwezige register gebruiken.
+
+Pas na geslaagd herstel en `capture()` wordt de nieuwe werkruimte opgeslagen.
+Bij een mislukte import blijft de vorige opgeslagen werkruimte behouden;
+`failedImport` blokkeert verdere opslag/export van de deels gewijzigde runtime.
+Herlaad dan om de opgeslagen toestand terug te zetten. Dit is geen volledige
+rollback van ieder al gewijzigd moduleobject in het geheugen.
+
+### Selectiecontract
+
+Integrale export: `formaat: BiDash-integraal`, `versie: 1`, met `delen`, `selectie`,
+`regelsEigenaar`, `opgeslagen` en afhankelijkheidsmeldingen.
+
+| Selectie | Inhoud |
+| --- | --- |
+| DVM-onderdelen | `assetregister`, `eol`, `storingshistorie`, `liveStoringen`, `dripHistorie`, `uRoutes`, `werkzaamheden`, `parameters`, `dripSelectie` |
+| `parameters` | DVM-regels, diensten, subprocessen, assetconfiguratie, kosteninstellingen en daarin opgeslagen verkeersmodel/simulaties/NDW-export |
+| `biRules` | Alleen de actuele `BI_RULE_KEYS`: `config`, `configBron`, `richtlijnen`, `amRegels`, `impact`, `capgrens` |
+| `biData` | Alle overige BI-velden; momenteel óók `vwmFte`, `cap`, `vwmRolCap`, `civFormatie` |
+| `planning` | Originele XML, bestandsnaam en `app_collectState()`-instellingen |
+| `links` | Expliciete dienst-functiekoppelingen en eigenaar |
+
+Belangrijk: de naam “BI-rekenregels” dekt momenteel niet alle formatievelden.
+Voor volledige overdracht van de BI-instellingen beide BI-selecties meenemen.
+Een toekomstige herindeling vereist compatibiliteits- en deelimporttests.
+
+Niet aangeleverde onderdelen blijven behouden. Expliciet aangeleverde lege lijsten
+vervangen de bestaande inhoud. DVM `exportSelectie[k] === false` slaat dat onderdeel
+over. BI-deelimport vervangt aangeleverde velden op het bovenste niveau; dit is
+geen algemene diepe merge. Identiteiten mogen niet op alleen de zichtbare naam
+worden samengevoegd.
+
+DVM-export gebruikt intern formaatversie 54; dat is niet de UI-versie 2.3.
+Oude DVM-totaalbestanden blijven via de bestaande importer ondersteund.
+Native hub-XML-export levert de originele XML. De planningknop voor terugexport
+van een scenario past de datums toe in een kopie. Verwar deze twee exports niet.
+
+`history` bestaat in het integrale model en wordt programmatisch ondersteund,
+maar staat niet in de huidige hub-selectievakken. DVM-kostendagstanden zijn een
+aparte opslagroute binnen de DVM-kostenconfiguratie. Presenteer die niet als dezelfde historie.
+
+## 6. DVM: van storing naar dienstverlening
+
+Actueel en prognose zijn gescheiden:
+
+- Live resultaten gebruiken de open storingen op de bronpeildatum van de geladen lijst.
+- Storingshistorie dient voor prognose/kalibratie en wordt niet bij live meldingen opgeteld.
+- De brondag is niet automatisch vandaag. NDW-meetmoment, exportdatum en prognoseperiode
+  zijn afzonderlijke datums en moeten herkenbaar blijven.
+- Assetregister en EOL bepalen populatie, kenmerken en levensduurgegevens.
+- U-routes en werkzaamheden zijn context voor bestaande analyses, geen automatische
+  vermenigvuldigers voor alle kosten.
+
+Rekenketen: open meldingen → asset-/objectimpact → subprocessen → dienstverlening.
+`subprocesWaarde`, `dienstWaardeUitSubprocessen` en `dienstAssetAfhankelijkheid`
+beheren de gewogen afleiding. Beschikbaarheid en prestatie zijn verschillende velden.
+
+Per dienstverlening vormen de subprocesaandelen samen 100%. Bij aanpassen van één
+aandeel blijft dat aandeel staan en wordt de rest naar verhouding verdeeld over
+de overige subprocessen. Oude relatieve gewichten worden genormaliseerd; bij nul
+som geldt een gelijke verdeling. Pas dit gesloten-verdelingsgedrag niet toe op
+andere percentagevelden, zoals assetafhankelijkheden of impactwaarden.
+
+Het landelijke `v68LandelijkModel()` gebruikt volledigheid per assettype.
+`v68Subproces()` en `v68Dienst()` leveren bij onvolledige dekking een bereik en
+`besch: null`, in plaats van een schijnbaar exact percentage. Een ontbrekende
+storingsbron is geen bewijs voor 100% beschikbaarheid. Andere oudere detailroutes
+kunnen andere dekkinglogica hebben: maak ze bij wijzigingen niet stilzwijgend gelijk.
+
+Wegdelen kunnen verschillende identiteiten hebben op basis van weg, richting en
+verkeerscentrale. Behoud de domeinsleutels. Los schijnbare dubbelen op bij de
+gegevensgroepering, niet door uitsluitend identieke schermteksten te verwijderen.
+
+## 7. Verkeerskosten en eenheden
+
+Assetverliesuren beschrijven assetuitval. Voertuigverliesuren (VVU) beschrijven
+extra reistijd van verkeer. Er bestaat geen vaste omzettingsfactor tussen beide.
+De actuele berekening staat in `kostenDagResultaat()` en het `sc67*`-verkeersmodel.
+
+```text
+VVU = getroffen voertuigen/uur × hinderuren × extra minuten per voertuig / 60
+Autotarief = bestuurderstarief + extra passagiers × passagierstarief
+Gewogen tarief = (1 − vrachtaandeel) × autotarief + vrachtaandeel × vrachttarief
+Kosten = VVU × gewogen tarief
+```
+
+Hinderuren zijn de uren binnen de brondag waarin het verkeer extra reistijd
+ondervindt, bijvoorbeeld spitsvensters. Ze zijn niet vanzelf de volledige
+storings- of herstelduur; geldig bereik is 0–24 uur.
+
+Twee invoermethoden:
+
+1. Rechtstreekse extra minuten: het ingevoerde effect geldt voor de huidige uitval.
+   Vermenigvuldig de storingsimpact niet nogmaals.
+2. Trajectmodel: basisreistijd = km / basissnelheid × 60. De snelheidsreductie
+   wordt gewogen met de hoogste beschikbaarheidsimpact van de open meldingen
+   binnen het representatieve wegdeel. Reistijd met storing = basisreistijd /
+   (1 − reductie × impact). Het verschil vormt de extra minuten.
+
+Een passende optionele OSM-route kan de trajecttijden leveren. Weggeometrie is
+niet vooraf geladen in deze browserversie; zonder route geldt de ingevoerde lengte.
+Dit is geen volledig verkeersmodel: geen wachtrijopbouw, terugslag of automatisch
+rijstrookverlies. Meerdere storingen worden in dit actuele trajectmodel niet opgeteld.
+
+Bestaande standaardtarieven (`kostenBasis()`): bestuurder 10,42; passagier 8,34;
+extra passagiers 0,25; vracht 63,10; vrachtpercentage 10; prijspeil 2022.
+Daaruit volgt intern 17,5645 euro per VVU. Rond pas de weergave af.
+Dit zijn bestaande instelbare uitgangspunten, geen opnieuw geverifieerde actuele tarieven.
+Behoud de bronuitleg uit `kostenBronHtml()`; wijzig tarieven alleen met expliciet
+prijspeil en onderbouwing, niet stilzwijgend naar een ander jaar.
+
+NDW-voertuigintensiteit helpt bij q, maar een minuutmeting is geen gemeten
+spitsgemiddelde. Meetpunt, weg, richting, toepasbaarheid en tijd blijven zichtbaar.
+Tel voertuigklassen niet nogmaals bij een rijstrooktotaal. Gemeten snelheid is
+niet automatisch de snelheid zonder assetstoring. Animatie-aantallen zijn geen telling.
+
+`v68KostenStatus()` onderscheidt niet berekenbaar, scenario en onderbouwd.
+Ongeldige verkeersinvoer of ontbrekende bron geeft niet berekenbaar; gebruik van
+NDW-minuutdata blijft scenario. Onbekende kosten zijn `null`, geen nul.
+Toon dekking, bekend subtotaal en overlapstatus. Dezelfde verkeersstroom kan
+meerdere wegdelen raken; een som van wegdeelscenario’s is niet automatisch landelijke schade.
+
+Opgeslagen kostenscenario’s horen bij de bronpeildatum. Dag/week/maandweergaven
+middelen beschikbare dagstanden in de betreffende groep; ontbrekende dagen
+worden niet als nul ingevuld. Vergelijkbaarheid vraagt dezelfde aannames en dekking.
+
+## 8. Monte Carlo en memo’s
+
+| Model | Doel en grenzen |
+| --- | --- |
+| `tmc70*` | Onzekerheid rond verkeerskosten van de huidige brondag; geen toekomstige assetuitval |
+| `f71*` | Toekomstige locatie-episodes en verkeerskosten van operationele MSI-signaalgevers |
+| DRIP Monte Carlo | Eigen selectie, leeftijd/levensduur en storingshistorie; eigen beschikbaarheids- en dienstresultaten |
+| BI-scenario’s | Formatie/contracten; niet automatisch een verkeerskostenprognose |
+
+Huidige kosten: minimum/modus/maximum voor q, hinderuren en extra minuten;
+driehoeksverdelingen, seed, aantal runs en keuze voor onafhankelijke of samen
+oplopende trekkingen. Gelijke grenzen geven terecht geen spreiding. Voorgestelde
+marges zijn aannames. Tarieven blijven vast. Bron/configuratie-wijzigingen maken
+oude resultaten niet opnieuw geldig; behoud fingerprint- en herberekeningscontroles.
+
+MSI-toekomst (`f71Help`, `f71Build`, `f71Simulate`): historie wordt ruimtelijk aan
+registerlocaties gekoppeld; dubbele locatie/start-episodes tellen eenmaal.
+Het model combineert leeftijdsafhankelijke blootstelling met Gamma-Poisson-kalibratie
+en een gedeelde prior. Levensduur is een modelschaal, geen harde uitvaldatum.
+Ontbrekend bouwjaar geeft een stationair aandeel. Zonder voldoende herstelduren
+wordt MTTR met spreiding gebruikt. Herstel verjongt de asset niet. De starttoestand
+is operationeel; het model veronderstelt geen geplande vervanging. Dit zijn
+locatie-episodes, geen bewezen individuele lampdefecten.
+
+Verkeerskosten ontstaan bij overlap van uitval met ingestelde spitsvensters.
+Overlap binnen één wegdeel telt eenmaal; overlap tussen wegdelen blijft een risico.
+Beperkte brondekking, gebruik van het huidige register voor het verleden en
+modelaannames moeten in de uitleg blijven staan.
+
+Percentielen gelden voor de benoemde grootheid: kosten-P95 betekent hoge kosten;
+beschikbaarheids-P95 betekent hoge beschikbaarheid. P5–P95 omvat de middelste 90%
+van simulatie-uitkomsten. P50 is de mediaan, niet noodzakelijk het gemiddelde.
+Tel eerst binnen iedere run op en bereken daarna percentielen van het totaal.
+Tel nooit losse P50/P95-regels op als totaalpercentiel.
+
+Memo’s moeten dezelfde scope, peildatum, selectie en run gebruiken als de analyse.
+Maak geselecteerde en daadwerkelijk gesimuleerde operationele assets onderscheidbaar.
+Niet-operationele uitsluitingen verklaren een verschil in aantallen. Lieke-memo’s
+houden managementduiding, individuele DRIP-namen en jaarblokken. Kosten gaan alleen
+mee wanneer gekozen en toepasselijk. Een DRIP-beschikbaarheidsrun levert niet
+zonder verkeersmodel een kostenprognose. Grafieken moeten ook in print/PDF zichtbaar zijn.
+
+## 9. Planning en formatie: regressiegevoelige werking
+
+Planning bewaart originele XML en afgeleid `IPL_MODEL`, inclusief WBS, activiteiten,
+relaties en verschuivingen. Behoud de bestaande MS Project/P6-parser en identifiers.
+Planning en BI zijn naast elkaar geladen frames; `parent.DB` is geen geldige
+algemene route naar de BI-configuratie.
+
+`ensurePlanning()` koppelt het frame aan BI. `HUB.syncPlanningRules()` geeft
+`DB.vwmFte`, `DB.cap`, `DB.vwmRolCap` en `DB.civFormatie` expliciet door aan
+`ipl_applyVwm()` en `ipl_applyCivFormatie()`. Dit gebeurt bij koppelen, import,
+herstel en BI-opslag. `hub:planning-loaded` dekt ook de oorspronkelijke laadroute.
+De vergelijking van modelidentiteit en regelinhoud voorkomt onnodige herhaling.
+
+VWM: `vwmIndividueleTaken()` kiest geldige individuele taken met herkenbare fase
+in het WBS-pad en passende niet-CIV-hoofdgroep. Mijlpalen dragen niet als duurtaak bij.
+`roleAt()` telt de FTE per fase/rol op voor alle op dat moment actieve taken,
+met effectieve datums na verschuiving. `totalAt()` telt de rollen op.
+Dit is gelijktijdige wekelijkse inzet, geen cumulatieve som van alle voorgaande weken.
+Bij 36 uur per week betekent 0,5 FTE 18 uur per week. Onbekende fasen kunnen buiten
+het model vallen; een nulcurve bewijst daarom niet dat er geen werk is.
+
+CIV gebruikt het eigen formatiemodel. Maak VWM niet gelijk aan CIV om alleen
+het beeld te repareren. P6-resourcetoewijzingen vormen daarnaast hun eigen invoerroute.
+
+De canvasrenderer tekent uitsluitend het zichtbare gebied. Een spacer bewaart de
+volledige logische scrollruimte. Het fysieke canvas is begrensd rond 4 miljoen
+pixels en 4096 per dimensie; device-pixelratio wordt begrensd. Scrollen en pointer-
+coördinaten moeten dezelfde transformatie gebruiken. Verwijder nooit activiteiten
+uit het model om een tekenprobleem op te lossen.
+
+Standaardschaal is Hele periode. Volledig scherm houdt tijdlijn én formatiepaneel
+beschikbaar; op smalle schermen onder elkaar. Sluiten, Escape, scrollen, resizen,
+uit-/inklappen en slepen moeten blijven werken. Fullscreen verandert geen taken.
+
+## 10. Signalen en samenhang
+
+`combine()` neemt BI-signalen over, maakt DVM-dienstnormsignalen en gebruikt
+expliciete `links` tussen dienst-ID en functie-ID voor het gecombineerde signaal.
+Voor die combinatie moeten beide voorwaarden gelden: bekende dienstbeschikbaarheid
+onder norm én actuele FTE onder benodigde FTE. Normen komen uit hun eigen module.
+
+Iedere signalering heeft een stabiele identiteit, eigenaar en toegepaste regel.
+Dubbele IDs worden binnen de samenstelling verwijderd. Geen automatische kosten-
+vermenigvuldiging, extra formatie, contractboete of bewezen causaliteit op basis
+van alleen een gecombineerd signaal. Onbekende beschikbaarheid is geen bewezen normoverschrijding.
+
+## 11. Verplichte werkwijze bij AI-wijzigingen
+
+1. Lees dit document en de relevante actuele code. Controleer remote `main`, lokale
+   wijzigingen en open PR’s; een andere AI kan intussen wijzigingen hebben gedaan.
+2. Benoem welk domein eigenaar is en welke invoer/uitvoer geraakt wordt. Houd de
+   wijziging gericht. Verander geen formules, defaults of schema’s als bijeffect van styling.
+3. Reproduceer de fout waar mogelijk. Voeg een synthetische regressietest toe voor
+   een functionele fout; een screenshot of syntaxiscontrole alleen is onvoldoende.
+4. Behoud oude imports en selectieve exports. Bij een schemawijziging: expliciete
+   versie/migratie en tests met ontbrekende én lege velden; geen stille dataverwijdering.
+5. Controleer brondata, herkomst, scope, eenheden, null/0 en actualiteit van resultaten.
+6. Voer de relevante controles uit. Rapporteer wat niet is getest en waarom.
+7. Werk deze beschrijving en validatienotities bij als de werking verandert.
+8. Publiceer via een gerichte branch en reviewbare PR. Controleer vóór samenvoegen
+   opnieuw de basisbranch. Behoud wijzigingen van andere auteurs; niet force-pushen.
+9. Voor functionele releases: controleer de Pages-run en claim pas daarna dat de
+   nieuwe versie live is. Commit nooit lokale brondata om tests eenvoudiger te maken.
+
+Een AI mag deze voorwaarden niet schrappen of afzwakken om zijn eigen wijziging
+als geslaagd te laten gelden. Een bewust gewijzigde producteis moet herkenbaar
+worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
+
+## 12. Testmatrix en oplevercriterium
+
+| Wijziging | Vereiste gerichte controle |
+| --- | --- |
+| Model/merge/export/signalen | `npm test` (`tests/model.test.js`) |
+| Navigatie/import/opslag | `tests/browser.cjs`: MS Project, P6, zichtbare tijdlijn, export/herstel, mobiel |
+| Canvas/tijdschaal/drag | `tests/planning-large.cjs`: grote synthetische planning, scrollen, slepen, resizen |
+| Formatie/BI-brug/fullscreen | `tests/planning-formation.cjs`: overlappende taken, regelwijziging, reload, grafieken |
+| DVM-regels/kosten/prognose | Aanvullende gerichte numerieke tests en scopes; bestaande tests dekken niet alle formules |
+| Memo/print | Controleer selectie, bron/run, optionele kosten en grafieken in printweergave |
+| Privacy | Geen externe gegevensverzoeken in browserroutes; geen operationele data in diff/artifact |
+| Alleen documentatie | Controleer beweringen, bestands-/functienamen, links en diff; geen volledige simulatie nodig |
+
+`npm run test:browser` voert de drie browserscripts uit en vereist Playwright en
+Chromium. `PLAYWRIGHT_MODULE` en `CHROMIUM_PATH` kunnen naar een bestaande installatie
+wijzen. `npm run serve` serveert `site/` lokaal op poort 8080.
+
+De Pages-workflow voert momenteel modeltests en JavaScript-syntaxiscontroles uit,
+maar niet de browsersuite. Een groene Pages-run bewijst dus geen correcte grafiek
+of volledige rekenkundige regressievrijheid. Er zijn nog geen allesomvattende
+statistische, verkeerskundige of memo-regressietests.
+
+De workflow publiceert alleen `site/`. Alleen wijzigingen aan documentatie buiten
+`site/` starten door het huidige padfilter geen deployment. Dat is verwacht.
+
+Oplevering benoemt: wat veranderde, waarom, uitgevoerde controles, resterende
+beperkingen, commit/PR en indien van toepassing publicatiestatus. “Alles werkt”
+is geen vervanging voor deze concrete onderbouwing.
