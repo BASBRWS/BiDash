@@ -8,3 +8,7 @@ onderhoud hier geen afwijkende kopie van de regels.
 Controleer de actuele GitHub-branch en wijzigingen van andere auteurs. Codex en
 andere hulpmiddelen kunnen tegelijk aan dit project werken. Neem geen lokale
 brondata op in commits en rapporteer welke controles werkelijk zijn uitgevoerd.
+
+Werk bij iedere wijziging [CHANGELOG.md](CHANGELOG.md) bij volgens `AGENTS.md`,
+in dezelfde branch/PR. Controleer de systeembeschrijving en werk die bij als de
+werking verandert. Deze afspraak geldt ook voor documentatiewijzigingen.

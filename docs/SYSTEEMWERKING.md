@@ -327,7 +327,12 @@ van alleen een gecombineerd signaal. Onbekende beschikbaarheid is geen bewezen n
    versie/migratie en tests met ontbrekende én lege velden; geen stille dataverwijdering.
 5. Controleer brondata, herkomst, scope, eenheden, null/0 en actualiteit van resultaten.
 6. Voer de relevante controles uit. Rapporteer wat niet is getest en waarom.
-7. Werk deze beschrijving en validatienotities bij als de werking verandert.
+7. Werk bij iedere wijziging `CHANGELOG.md` bij in dezelfde branch/PR. Vermeld
+   doel, gewijzigd gedrag, uitgevoerde controles, beperkingen en publicatiestatus.
+   Controleer de relevante Markdown-documenten; werk deze systeembeschrijving bij
+   als de werking verandert en de AI-instructies als werkafspraken veranderen.
+   Bestaande releasehistorie blijft behouden. Documentatiewijzigingen krijgen ook
+   een vermelding; kopieer de historie niet naar elk document.
 8. Publiceer via een gerichte branch en reviewbare PR. Controleer vóór samenvoegen
    opnieuw de basisbranch. Behoud wijzigingen van andere auteurs; niet force-pushen.
 9. Voor functionele releases: controleer de Pages-run en claim pas daarna dat de
