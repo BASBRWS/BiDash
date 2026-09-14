@@ -77,3 +77,9 @@ test('browserpatch filtert alleen de actuele doorrekening en laat snapshotbron i
   assert.match(source,/A↔B-vergelijking en automatische historisering/);
   assert.match(forecast,/installDvmLiveSnapshotPatch\(globalThis\);\s*installDvmLiveOverviewFilterPatch\(globalThis\);/s);
 });
+
+test('filter reist mee met bestaande DVM parameterexport en -import',()=>{
+  const dvm3=read('site/engines/dvm-3.js');
+  assert.match(dvm3,/cfg:RULES\.cfg/);
+  assert.match(dvm3,/RULES\.cfg=\{\.\.\.RULES\.cfg,\.\.\.b\.cfg\}/);
+});
