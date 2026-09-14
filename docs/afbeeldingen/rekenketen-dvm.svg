@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="320" viewBox="0 0 1000 320" role="img" aria-label="Rekenketen binnen DVM: open storingen leiden tot verlies per assettype, dat via gewichten per subproces en per dienst tot een dienstbeschikbaarheid leidt; is een storingsbron niet als volledig bevestigd, dan volgt een databand in plaats van een exact percentage.">
+    <rect x="0" y="0" width="1000" height="320" fill="#ffffff"/><defs>
+      <marker id="ar-d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path fill="#93a4bc" d="M0 0 L10 5 L0 10 z"/>
+      </marker>
+    </defs>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" letter-spacing="0.11em" fill="#003082" x="30" y="32">DE REKENKETEN BINNEN DVM</text>
+
+    <rect fill="#ffffff" stroke="#93a4bc" stroke-width="1.25" x="30" y="58" width="200" height="118" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="600" fill="#0f1724" x="42" y="84">Open storingen</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="42" y="106">meldingen uit de laatst</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="42" y="120">geladen bron, met peildatum</text>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="42" y="146">bijdrageAvail /</text>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="42" y="160">bijdragePerf per melding</text>
+
+    <rect fill="#ffffff" stroke="#93a4bc" stroke-width="1.25" x="280" y="58" width="200" height="118" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="600" fill="#0f1724" x="292" y="84">Verlies per assettype</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="292" y="106">MSI · CAM · LUS · DRIP ·</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="292" y="120">WISSELBORD · COMM</text>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="292" y="146">100 − verlies ÷</text>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="292" y="160">(areaal × periode-uren)</text>
+
+    <rect fill="#ffffff" stroke="#93a4bc" stroke-width="1.25" x="530" y="58" width="200" height="118" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="600" fill="#0f1724" x="542" y="84">Subproces</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="542" y="106">elk subproces weegt de</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="542" y="120">objecttypen waarop het leunt</text>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="542" y="146">kruisen plaatsen:</text>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="542" y="160">MSI 0,8 · CAM 0,2</text>
+
+    <rect fill="#ffffff" stroke="#93a4bc" stroke-width="1.25" x="780" y="58" width="200" height="118" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="600" fill="#0f1724" x="792" y="84">Dienst en norm</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="792" y="106">IM 99% · VM 99%</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="792" y="120">RRI 98% · WIU 98%</text>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="792" y="146">onder norm →</text>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="792" y="160">rood signaal</text>
+
+    <line fill="none" stroke="#93a4bc" stroke-width="1.5" x1="230" y1="117" x2="278" y2="117" marker-end="url(#ar-d)"/>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="254" y="109" text-anchor="middle">verlies</text>
+    <line fill="none" stroke="#93a4bc" stroke-width="1.5" x1="480" y1="117" x2="528" y2="117" marker-end="url(#ar-d)"/>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="504" y="109" text-anchor="middle">gewicht</text>
+    <line fill="none" stroke="#93a4bc" stroke-width="1.5" x1="730" y1="117" x2="778" y2="117" marker-end="url(#ar-d)"/>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="754" y="109" text-anchor="middle">gewicht</text>
+
+    <line fill="none" stroke="#93a4bc" stroke-width="1.25" stroke-dasharray="4 4" x1="380" y1="176" x2="380" y2="226" marker-end="url(#ar-d)"/>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#b8530b" x="390" y="206">bron niet bevestigd</text>
+
+    <rect fill="#fdf6ef" stroke="#b8530b" stroke-width="1.5" x="280" y="228" width="700" height="74" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="600" fill="#b8530b" x="296" y="252">Niet bevestigd als volledige bron? Dan geen exact percentage</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="296" y="274">DVM toont dan een band in plaats van één getal: onbekende bronnen tellen 0 % in de ondergrens en</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="296" y="290">100 % in de bovengrens. Dat is een datadekkingsband, geen statistische onzekerheidsmarge.</text>
+  </svg>

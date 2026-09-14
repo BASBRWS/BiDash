@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="330" viewBox="0 0 1000 330" role="img" aria-label="De koppelregel: een DVM-dienst onder norm geeft altijd een eigen signaal en BI-signalen worden ongewijzigd doorgegeven, maar het samengestelde signaal ontstaat alleen wanneer een door de gebruiker vastgelegde dienstkoppeling bestaat en beide voorwaarden waar zijn.">
+    <rect x="0" y="0" width="1000" height="330" fill="#ffffff"/><defs>
+      <marker id="ar-c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path fill="#93a4bc" d="M0 0 L10 5 L0 10 z"/>
+      </marker>
+      <marker id="ar-cj" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path fill="#b8530b" d="M0 0 L10 5 L0 10 z"/>
+      </marker>
+    </defs>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" letter-spacing="0.11em" fill="#003082" x="40" y="30">WANNEER ONTSTAAT WELK SIGNAAL</text>
+
+    <rect fill="#ffffff" stroke="#93a4bc" stroke-width="1.25" x="40" y="48" width="200" height="82" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="600" fill="#0f1724" x="52" y="74">DVM-dienst</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="52" y="96">beschikbaarheid onder</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="52" y="110">de eigen DVM-norm</text>
+
+    <rect fill="#ffffff" stroke="#93a4bc" stroke-width="1.25" x="40" y="218" width="200" height="82" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="600" fill="#0f1724" x="52" y="244">BI-bedrijfsfunctie</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="52" y="266">actueel FTE onder</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="52" y="280">benodigd FTE</text>
+
+    <rect fill="#fdf6ef" stroke="#b8530b" stroke-width="1.5" x="340" y="126" width="220" height="76" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="600" fill="#b8530b" x="354" y="152">Dienstkoppeling</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="354" y="172">door jou vastgelegd,</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="354" y="186">met verantwoordelijke</text>
+
+    <rect fill="#ffffff" stroke="#93a4bc" stroke-width="1.25" x="660" y="42" width="300" height="66" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="600" fill="#0f1724" x="674" y="68">DVM-signaal</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="674" y="90">dienst onder norm, met de toegepaste regel erbij</text>
+
+    <rect fill="#fdf6ef" stroke="#b8530b" stroke-width="1.5" x="660" y="128" width="300" height="72" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="600" fill="#b8530b" x="674" y="154">Samenhang-signaal</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="674" y="176">dienst onder norm én tekort bij de</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="674" y="190">gekoppelde functie</text>
+
+    <rect fill="#ffffff" stroke="#93a4bc" stroke-width="1.25" x="660" y="220" width="300" height="72" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="600" fill="#0f1724" x="674" y="246">BI-signalen</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="674" y="268">formatie, financiën, assets, bedienketens</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="674" y="282">en planning, ongewijzigd doorgegeven</text>
+
+    <line fill="none" stroke="#93a4bc" stroke-width="1.5" x1="240" y1="75" x2="658" y2="75" marker-end="url(#ar-c)"/>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="450" y="67" text-anchor="middle">altijd, zodra besch &lt; norm</text>
+
+    <line fill="none" stroke="#93a4bc" stroke-width="1.5" x1="240" y1="256" x2="658" y2="256" marker-end="url(#ar-c)"/>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="450" y="248" text-anchor="middle">evalTriggers(), ongewijzigd</text>
+
+    <polyline fill="none" stroke="#b8530b" stroke-width="1.75" points="240,110 290,110 290,148 338,148" marker-end="url(#ar-cj)"/>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#b8530b" x="296" y="102">onder norm</text>
+    <polyline fill="none" stroke="#b8530b" stroke-width="1.75" points="240,232 290,232 290,180 338,180" marker-end="url(#ar-cj)"/>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#b8530b" x="296" y="226">FTE-tekort</text>
+    <line fill="none" stroke="#b8530b" stroke-width="1.75" x1="560" y1="164" x2="658" y2="164" marker-end="url(#ar-cj)"/>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#b8530b" x="609" y="156" text-anchor="middle">beide waar</text>
+  </svg>

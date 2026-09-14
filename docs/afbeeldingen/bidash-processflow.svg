@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="640" viewBox="0 0 1040 640" role="img" aria-label="Processflow van BiDash: GitHub Pages levert alleen de applicatie; daarna kiest de gebruiker lokale bestanden, die na een voorvertoning en validatie naar twee gescheiden rekenengines gaan, waarvan de samenvattingen in de samenhangfunctie worden gecombineerd, en waarvan de werkruimte in IndexedDB wordt bewaard en selectief geëxporteerd.">
+    <rect x="0" y="0" width="1040" height="640" fill="#ffffff"/><defs>
+      <marker id="ar-f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path fill="#93a4bc" d="M0 0 L10 5 L0 10 z"/>
+      </marker>
+      <marker id="ar-fj" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path fill="#b8530b" d="M0 0 L10 5 L0 10 z"/>
+      </marker>
+    </defs>
+
+    <!-- levering -->
+    <rect fill="#f5f7fb" stroke="#ccd5e2" stroke-width="1" x="40" y="20" width="214" height="48" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="600" fill="#0f1724" x="54" y="41">GitHub Pages</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="54" y="58">levert alleen de applicatie</text>
+    <line fill="none" stroke="#93a4bc" stroke-width="1.5" x1="147" y1="68" x2="147" y2="100" marker-end="url(#ar-f)"/>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="157" y="90">eenmalig, statisch</text>
+
+    <!-- browsergrens -->
+    <rect fill="none" stroke="#93a4bc" stroke-width="1.25" stroke-dasharray="5 4" x="28" y="102" width="984" height="520" rx="10"/>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" letter-spacing="0.11em" fill="#003082" x="46" y="126">DEZE BROWSER — geen netwerkverkeer (connect-src 'none'), geen upload, geen account</text>
+
+    <!-- 1 bronnen -->
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" letter-spacing="0.11em" fill="#003082" x="56" y="152">1 · BRONBESTANDEN</text>
+    <rect fill="#ffffff" stroke="#93a4bc" stroke-width="1.25" x="56" y="164" width="170" height="30" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="500" fill="#0f1724" x="68" y="183">DVM-totaal-JSON</text>
+    <rect fill="#ffffff" stroke="#93a4bc" stroke-width="1.25" x="56" y="200" width="170" height="30" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="500" fill="#0f1724" x="68" y="219">BiDash-integraal JSON</text>
+    <rect fill="#ffffff" stroke="#93a4bc" stroke-width="1.25" x="56" y="236" width="170" height="30" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="500" fill="#0f1724" x="68" y="255">BI Dash JSON</text>
+    <rect fill="#ffffff" stroke="#93a4bc" stroke-width="1.25" x="56" y="272" width="170" height="30" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="500" fill="#0f1724" x="68" y="291">Planning-XML · P6 / MSP</text>
+
+    <line fill="none" stroke="#93a4bc" stroke-width="1.5" x1="226" y1="233" x2="280" y2="233" marker-end="url(#ar-f)"/>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="253" y="225" text-anchor="middle">je kiest</text>
+
+    <!-- 2 voorvertoning -->
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" letter-spacing="0.11em" fill="#003082" x="286" y="152">2 · VOORVERTONING</text>
+    <rect fill="#ffffff" stroke="#93a4bc" stroke-width="1.25" x="286" y="164" width="170" height="138" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="600" fill="#0f1724" x="298" y="188">Controle vooraf</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="298" y="210">validate() weert onveilige</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="298" y="224">sleutels en te diepe JSON</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="298" y="246">je ziet welke delen</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="298" y="260">worden vervangen; de</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="298" y="274">rest blijft ongemoeid</text>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#b8530b" x="298" y="294">pas na 'Import uitvoeren'</text>
+
+    <polyline fill="none" stroke="#93a4bc" stroke-width="1.5" points="456,233 491,233"/>
+    <line fill="none" stroke="#93a4bc" stroke-width="1.5" x1="491" y1="214" x2="491" y2="368"/>
+    <line fill="none" stroke="#93a4bc" stroke-width="1.5" x1="491" y1="214" x2="526" y2="214" marker-end="url(#ar-f)"/>
+    <line fill="none" stroke="#93a4bc" stroke-width="1.5" x1="491" y1="368" x2="526" y2="368" marker-end="url(#ar-f)"/>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="491" y="206" text-anchor="middle">import</text>
+
+    <!-- 3 engines -->
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" letter-spacing="0.11em" fill="#003082" x="526" y="152">3 · TWEE ENGINES</text>
+    <rect fill="#ffffff" stroke="#93a4bc" stroke-width="1.25" x="526" y="164" width="210" height="118" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="600" fill="#0f1724" x="538" y="188">DVM · Dienstimpact &amp; kosten</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="538" y="210">open storingen → assetverlies</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="538" y="224">→ subprocessen → diensten,</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="538" y="238">plus VVU en verkeerskosten</text>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="538" y="262">eigen iframe · window.HUB</text>
+
+    <rect fill="#ffffff" stroke="#93a4bc" stroke-width="1.25" x="526" y="310" width="210" height="118" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="600" fill="#0f1724" x="538" y="334">BI · Formatie &amp; contracten</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="538" y="356">FTE en verzuim, budget en</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="538" y="370">boeterisico, ISO 55001,</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="538" y="384">bedienketens, planning-XML</text>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="538" y="408">eigen iframe · window.HUB</text>
+
+    <line fill="none" stroke="#93a4bc" stroke-width="1.5" x1="736" y1="214" x2="796" y2="214" marker-end="url(#ar-f)"/>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="766" y="206" text-anchor="middle">summary()</text>
+    <polyline fill="none" stroke="#93a4bc" stroke-width="1.5" points="736,368 766,368 766,258 796,258" marker-end="url(#ar-f)"/>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="772" y="322">summary()</text>
+
+    <!-- 4 samenhang -->
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" letter-spacing="0.11em" fill="#003082" x="796" y="152">4 · SAMENHANG</text>
+    <rect fill="#ffffff" stroke="#93a4bc" stroke-width="1.25" x="796" y="164" width="196" height="130" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="600" fill="#0f1724" x="808" y="188">combine()</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="808" y="210">bundelt drie soorten</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="808" y="224">signalen: BI-signalen,</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="808" y="238">dienst onder DVM-norm,</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="808" y="252">en — alleen bij koppeling —</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="808" y="266">het samengestelde signaal</text>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="808" y="286">nooit kosten opgeteld</text>
+
+    <rect fill="#fdf6ef" stroke="#b8530b" stroke-width="1.5" x="796" y="326" width="196" height="76" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="600" fill="#b8530b" x="808" y="350">Dienstkoppeling</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="808" y="370">jij legt vast: dienst ↔</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="808" y="384">functie + verantwoordelijke</text>
+    <line fill="none" stroke="#b8530b" stroke-width="1.75" x1="894" y1="326" x2="894" y2="298" marker-end="url(#ar-fj)"/>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#b8530b" x="902" y="318">expliciet</text>
+
+    <!-- 5 bewaren -->
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" letter-spacing="0.11em" fill="#003082" x="286" y="500">5 · BEWAREN</text>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" letter-spacing="0.11em" fill="#003082" x="286" y="516">&amp; UITVOEREN</text>
+    <rect fill="#ffffff" stroke="#93a4bc" stroke-width="1.25" x="526" y="486" width="210" height="96" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="600" fill="#0f1724" x="538" y="510">Werkruimte · state</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="538" y="530">bewaard in IndexedDB</text>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="538" y="546">bidash-integraal</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="538" y="566">op dit apparaat, dit tabblad</text>
+
+    <line fill="none" stroke="#93a4bc" stroke-width="1.5" x1="596" y1="428" x2="596" y2="484" marker-end="url(#ar-f)"/>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="590" y="462" text-anchor="end">opslaan</text>
+    <line fill="none" stroke="#93a4bc" stroke-width="1.5" x1="666" y1="486" x2="666" y2="430" marker-end="url(#ar-f)"/>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="672" y="462">herstel</text>
+
+    <rect fill="#ffffff" stroke="#93a4bc" stroke-width="1.25" x="796" y="486" width="196" height="96" rx="3"/>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="600" fill="#0f1724" x="808" y="510">Export</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="808" y="530">makeExport(): jij kiest</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="808" y="544">welke delen meegaan</text>
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="500" fill="#4d5a6e" x="808" y="566">bestand naar je eigen schijf</text>
+    <line fill="none" stroke="#93a4bc" stroke-width="1.5" x1="736" y1="532" x2="796" y2="532" marker-end="url(#ar-f)"/>
+    <text font-family="'DejaVu Sans Mono',Consolas,monospace" font-size="10" fill="#6f7d92" x="766" y="524" text-anchor="middle">selectie</text>
+  </svg>
