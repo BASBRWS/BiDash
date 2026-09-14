@@ -4,12 +4,13 @@ Achtergrond bij BiDash integraal. De applicatie zelf staat in [`site/`](../site)
 
 | Pagina | Waarover |
 |---|---|
-| [Gebruikershulp](GEBRUIKERSHULP.md) | Praktische laadvolgorde, actuele storingslijst, opslag en hoofdproces |
-| [Processflow](processflow.md) | Hoe de applicatie in elkaar zit, van bestand kiezen tot signaal, opslag en export |
+| [Gebruikershulp](GEBRUIKERSHULP.md) | Praktische laadvolgorde, actuele storingslijst, storingsfilter, opslag en hoofdproces |
+| [Processflow](processflow.md) | Hoe de applicatie in elkaar zit, van bestand kiezen en actuele storingsselectie tot signaal, opslag en export |
 | [Systeemwerking](SYSTEEMWERKING.md) | Architectuur, kwaliteitscontract, importregels, rekenketens en verplichte wijzigingscontroles |
 | [Logische architectuur](architectuur.md) | Leeswijzer bij de architectuurtekening: de vier lagen, het eigenaarschap en welke grenzen echt grenzen zijn |
 | [Rekenvoorbeeld signaalgevers](rekenvoorbeeld-signaalgevers.md) | Tien jaar geen signaalgevers vervangen, doorgerekend tot beschikbaarheid, dienstverlening en kosten |
 | [Release notes actuele storingslijst](release-notes-2026-09-14-live-storingen.md) | Vervangen van live momentopnamen en automatisch historiseren van verdwenen MSI-storingen |
+| [Release notes storingsfilter](release-notes-2026-09-14-storingsfilter.md) | Zelf instellen welke actuele open storingen meetellen zonder de bron- en historielogica te wijzigen |
 | [Release notes Markdown Help](release-notes-2026-09-14-help-markdown.md) | Help toont de echte `.md`-inhoud, tabellen en SVG-procesflows |
 
 ## Mappen
@@ -22,7 +23,7 @@ Achtergrond bij BiDash integraal. De applicatie zelf staat in [`site/`](../site)
 
 `scripts/stage-docs.mjs` kopieert `docs/` naar de tijdelijke publicatiemap `site/docs/` en genereert `site/help-docs.js` met de inhoud van alle Markdown-bestanden op het hoogste niveau van deze map. Beide gegenereerde paden staan in `.gitignore`.
 
-De Help-viewer in `site/help.html` gebruikt die bundel met `site/help.js` en `site/core/markdown.js`. Relatieve afbeeldingsverwijzingen zoals `afbeeldingen/bidash-processflow.svg` blijven daardoor zowel op GitHub als in de gepubliceerde Help werken. Een wijziging onder `docs/**` start de Pages-workflow opnieuw.
+De Help-viewer in `site/help.html` gebruikt die bundel met `site/help.js` en `site/core/markdown.js`. Relatieve afbeeldingsverwijzingen zoals `afbeeldingen/bidash-processflow.svg` en `afbeeldingen/storingsfilter-flow.svg` blijven daardoor zowel op GitHub als in de gepubliceerde Help werken. Een wijziging onder `docs/**` start de Pages-workflow opnieuw.
 
 ## Documentatiecontract
 
