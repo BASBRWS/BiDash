@@ -11,7 +11,8 @@ De standaardweergave is de processflow. Via de documentnavigatie zijn onder ande
 3. Laad historische storingsbestanden voor historie en prognosekalibratie.
 4. Laad U-routes en geplande werkzaamheden als operationele context.
 5. Laad als laatste de actuele open storingslijst voor het live dashboard.
-6. Laad BI-gegevens en planning voor formatie, contracten en uitvoerbaarheid.
+6. Stel desgewenst in Datasetbeheer het filter in voor de open storingen die in het actuele overzicht mogen meetellen.
+7. Laad BI-gegevens en planning voor formatie, contracten en uitvoerbaarheid.
 
 Historische storingen en actuele open storingen zijn twee verschillende gegevensstromen. Historische meldingen mogen het live dashboard niet beïnvloeden.
 
@@ -29,6 +30,31 @@ BiDash vergelijkt de vorige en nieuwe momentopname. Een event-id heeft voorrang 
 | Afgesloten storing staat al in historie | Niet opnieuw toevoegen |
 
 Automatisch afgesloten MSI-storingen gaan alleen naar de historische stroom. De actuele dashboards gebruiken alleen de nieuwe open momentopname.
+
+## Filter wat meetelt in het actuele overzicht
+
+Na het laden van een open-storingenmomentopname kun je in DVM onder Datasetbeheer bepalen welke regels uit die lijst werkelijk meetellen in de actuele doorrekening. Bovenaan het actuele overzicht blijft zichtbaar hoeveel bronregels er zijn en hoeveel daarvan na jouw filter meetellen.
+
+Je kunt filteren op de waarden die daadwerkelijk in jouw bestand voorkomen. BiDash biedt daarbij de volgende groepen aan:
+
+- storingstype of afgeleide foutregel;
+- gevolg;
+- noodmaatregel;
+- assettype;
+- oorzaak;
+- prioriteit of ernst;
+- verkeerscentrale;
+- regionale dienst;
+- district;
+- weg.
+
+Binnen één groep kun je meerdere waarden tegelijk laten meetellen. Verschillende groepen werken samen: een melding moet aan alle ingestelde groepen voldoen. Lege bronvelden verschijnen als `(geen waarde)` en kunnen dus ook bewust worden uitgesloten. Met **Alles meetellen** zet je alle uitsluitingen terug.
+
+Het filter bewaart uitsluitingen in plaats van een vaste lijst met toegestane waarden. Daardoor telt een nieuwe, nog niet eerder geziene waarde in een volgende storingslijst standaard wél mee. Het filter blijft staan als je een nieuwe momentopname laadt en reist mee wanneer je de DVM-parameters in een totaalexport opneemt.
+
+![De volledige actuele momentopname gaat zowel naar de snapshot- en historielogica als naar het gebruikersfilter. Alleen de tweede route wordt gefilterd; de A-B-vergelijking en automatische MSI-historisering blijven altijd op de volledige bron werken.](afbeeldingen/storingsfilter-flow.svg)
+
+Belangrijk: het filter verwijdert niets uit de geladen bronlijst. De vergelijking tussen oude lijst A en nieuwe lijst B gebruikt altijd de volledige momentopnamen. Een MSI-storing die uit B verdwijnt kan dus nog steeds correct worden afgesloten en aan de historie worden toegevoegd, ook wanneer die storing in het actuele overzicht was uitgefilterd. Historische analyses en prognosekalibratie worden eveneens niet door dit live-overzichtsfilter gewijzigd.
 
 ## Hoofdproces
 
