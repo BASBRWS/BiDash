@@ -16,7 +16,9 @@ Wat de gebruiker ophaalt zijn dus alleen statische applicatiebestanden, uitleg e
 
 Onder Laden en exporteren kies je een DVM-totaal-JSON, een integrale BiDash-bundel, een BI Dash-JSON of een planning-XML uit Primavera P6 of MS Project. Voordat er iets verandert draait `validate()` over de inhoud. Objectsleutels als `__proto__` worden geweigerd en te diep geneste bestanden afgebroken. Daarna krijg je een lijst van precies die onderdelen die vervangen gaan worden. Alles wat het bestand niet meelevert blijft staan. Mislukt de import halverwege, dan blijft de vorige opgeslagen werkruimte behouden en moet de pagina worden herladen om de opgeslagen toestand terug te zetten.
 
-Specialistische technische bronnen, zoals All Assets, EOL, historische storingen, open storingen, U-routes en werkzaamheden, laad je via DVM-bronbeheer.
+Tijdens deze stap toont de hoofdapp een voortgangsbalk onder de statusregel. Voor bestanden die via **Data & export** worden gekozen, wordt de leesfase gemeten met `FileReader` en echte bytevoortgang. Zodra het lezen klaar is krijgt de browser eerst gelegenheid de status te tekenen voordat JSON- of XML-parsing begint. Zware parsing kan de hoofdthread nog kort blokkeren; de voortgang kan dan tijdelijk stilstaan zonder dat dit betekent dat het proces is afgebroken.
+
+Specialistische technische bronnen, zoals All Assets, EOL, historische storingen, open storingen, U-routes en werkzaamheden, laad je via DVM-bronbeheer. De bestaande DVM-importfasen en percentages worden via `hub:import-progress` ook naar dezelfde voortgangsbalk in de hoofdapp gestuurd. Daardoor ziet de gebruiker één doorlopende importstatus voor zowel de hub-import als de specialistische DVM-bronnen.
 
 ## 3. Actuele storingslijst is een vervangende momentopname
 
@@ -127,6 +129,8 @@ De standaardweergave is deze processflow. Alle Markdown-bestanden op het hoogste
 | [`site/core/markdown.js`](../site/core/markdown.js) | Lokale Markdown-rendering, tabellen, links en relatieve afbeeldingspaden |
 | [`scripts/stage-docs.mjs`](../scripts/stage-docs.mjs) | Bundelt `docs/` en genereert de Help-documenten voor test/publicatie |
 | [`site/app.js`](../site/app.js) | Import met voorvertoning, staat ophalen, opslaan, tekenen en exporteren |
+| [`site/core/load-progress.js`](../site/core/load-progress.js) | Algemene voortgangsbalk, echte bytevoortgang voor hubbestanden en zichtbare fasen bij zware verwerking |
+| [`site/core/import-progress-bridge.js`](../site/core/import-progress-bridge.js) | Stuurt specialistische DVM-importfasen en percentages via `postMessage` naar de hoofdapp |
 | [`site/core/model.js`](../site/core/model.js) | Validatie, samenvoegen, exportselectie en `combine()` |
 | [`site/core/storage.js`](../site/core/storage.js) | Lezen en schrijven van de werkruimte in IndexedDB |
 | [`site/core/live-snapshot.js`](../site/core/live-snapshot.js) | Synchronisatie tussen opeenvolgende open-storingenmomentopnamen en historisering van verdwenen MSI-storingen |
