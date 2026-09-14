@@ -2,7 +2,7 @@
 
 Deze tekening beschrijft de denkwijze van BiDash, niet de technische map- of iframe-indeling. De centrale vraag is: kunnen we de VWM-dienstverlening nu en in de toekomst uitvoeren, en welke interne, technische en externe factoren beïnvloeden dat?
 
-![Logische architectuur: VWM-dienstverlening bovenaan, daaronder de rule engine en trigger engine, gevoed door bedrijfsvoering BI, technische DVM-assets en planning/externe invloeden](afbeeldingen/architectuur.svg)
+![Logische architectuur: VWM-dienstverlening bovenaan, daaronder de rule engine en trigger engine, gevoed door bedrijfsvoering BI, technische DVM-assets en planning/externe invloeden](afbeeldingen/architectuur-dienstverlening.svg)
 
 ## De bovenste laag is dienstverlening
 
@@ -57,7 +57,7 @@ De rule engine vertaalt gegevens uit de drie domeinen naar betekenis voor de die
 - welke afhankelijkheden en expliciete koppelingen gelden;
 - hoe meerdere feiten worden gecombineerd zonder dezelfde regel dubbel te modelleren.
 
-De nieuwe telregels voor actuele storingen zijn onderdeel van deze laag. De geladen open-storingslijst blijft volledig als bron bewaard. De gebruiker kan voor het actuele overzicht bepalen welke waarden meetellen voor onder andere type storing/asset, gevolg, noodmaatregel en foutcode. Alleen de geselecteerde regels gaan door naar de actuele impactberekening. Het filter sluit geen storing af en verandert de A/B-vergelijking met de volgende momentopname niet.
+De nieuwe telregels voor actuele storingen zijn onderdeel van deze laag. De geladen open-storingslijst blijft volledig als bron bewaard. De gebruiker kan voor het actuele overzicht bepalen welke waarden meetellen voor assettype, type storing/omschrijving, gevolg, noodmaatregel en foutcode. Alleen de geselecteerde regels gaan door naar de actuele impactberekening. Het filter sluit geen storing af en verandert de A/B-vergelijking met de volgende momentopname niet.
 
 ## Trigger engine: wanneer vraagt een uitkomst aandacht
 
@@ -82,4 +82,4 @@ De echte bovenliggende laag is de dienstverlening. Daarmee voorkom je dat het li
 
 De huidige applicatie bestaat technisch nog uit een gezamenlijke schil met bestaande DVM-, BI- en planningmodules en adapters via `window.HUB`. Dat is een implementatiekeuze en hoeft niet één-op-één gelijk te zijn aan de logische architectuur.
 
-De norm blijft: één eigenaar per bronregel en geen tweede rekenmodel in de schil. `SYSTEEMWERKING.md` beschrijft de technische eigenaarsgrenzen, imports, opslag en adapters. Deze pagina beschrijft hoe de informatie inhoudelijk hoort te stromen.
+De technische architectuur blijft apart vastgelegd in `SYSTEEMWERKING.md` en `afbeeldingen/architectuur.svg`. De norm blijft: één eigenaar per bronregel en geen tweede rekenmodel in de schil. Deze pagina beschrijft hoe de informatie inhoudelijk hoort te stromen.
