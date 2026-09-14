@@ -56,5 +56,5 @@
 
   // Hergebruik exact de bestaande adaptercode als afzonderlijke bron.
   // document.write is hier bewust parser-synchroon, zodat HUB vóór window.load bestaat.
-  document.write('<script src="dvm-adapter-original.js"><\\/script>');
+  document.write('<script src="dvm-adapter-original.js"></script>');
 })();
