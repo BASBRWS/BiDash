@@ -22,7 +22,7 @@ Bij het kiezen van bestanden verschijnt onder de statusregel van BiDash een voor
 
 Ook specialistische DVM-bronnen, zoals All Assets, EOL, open storingen, storingshistorie, U-routes en werkzaamheden, sturen hun bestaande importfasen naar dezelfde voortgangsbalk in de hoofdapp. Daardoor blijft zichtbaar welk bestand en welke verwerkingsstap bezig is, ook wanneer een grote bron tijdelijk veel rekentijd vraagt.
 
-De balk onderscheidt lezen, controleren/verwerken, toepassen in de rekenmodules en afronden/opslag. Bij een fout wordt de balk rood en blijft de laatste fase zichtbaar. Bij een geslaagde import wordt 100% getoond en verdwijnt de melding na enkele seconden.
+De balk onderscheidt lezen, controleren/verwerken, toepassen in de rekenmodules en afronden/opslag. Bij een fout blijft de laatste fase met een waarschuwingsmarkering zichtbaar. Bij een geslaagde import wordt 100% getoond en verdwijnt de melding na enkele seconden.
 
 Belangrijk: een voortgangsbalk voorkomt niet dat een zeer grote XML- of spreadsheetparse de JavaScript-hoofdthread kort belast. BiDash laat vóór zo'n zware parse bewust eerst de voortgangsstatus schilderen, zodat een tijdelijke pauze niet als een onverklaarde vastloper wordt ervaren.
 
