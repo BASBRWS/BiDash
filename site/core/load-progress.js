@@ -31,7 +31,6 @@ function install(scope){
   const title=box.querySelector('.load-progress-title'),pctEl=box.querySelector('.load-progress-pct'),progressEl=box.querySelector('.load-progress-native'),phase=box.querySelector('.load-progress-phase'),detail=box.querySelector('.load-progress-detail');
   let hideTimer=null,session=null,applyActive=false;
   const fmtBytes=n=>{const v=Math.max(0,Number(n)||0);if(v<1024)return v+' B';if(v<1024*1024)return (v/1024).toLocaleString('nl-NL',{maximumFractionDigits:1})+' kB';return (v/(1024*1024)).toLocaleString('nl-NL',{maximumFractionDigits:1})+' MB';};
-  const nextPaint=cb=>{const raf=scope.requestAnimationFrame||((fn)=>setTimeout(fn,0));raf(()=>setTimeout(cb,0));};
 
   function show({name='Gegevens verwerken',pct=null,fase='',detailText='',active=true,error=false,done=false,autoHide=false}={}){
     clearTimeout(hideTimer);shell.hidden=false;
@@ -44,45 +43,22 @@ function install(scope){
 
   function startFiles(files){
     const list=[...(files||[])];if(!list.length)return;
-    const total=list.reduce((s,f)=>s+(Number(f.size)||0),0);let offset=0;const meta=new WeakMap();
-    list.forEach((f,i)=>{meta.set(f,{index:i,offset,size:Number(f.size)||0});offset+=Number(f.size)||0;});
-    session={files:list,total,meta};
-    show({name:list.length===1?list[0].name:list.length+' bestanden',pct:0,fase:'Bestanden voorbereiden',detailText:fmtBytes(total)});
+    const total=list.reduce((s,f)=>s+(Number(f.size)||0),0);
+    session={files:list,total};
+    // PR 22 verving hier wereldwijd File.prototype.text door FileReader. Dat
+    // veranderde de daadwerkelijke importsemantiek en bleek bij grote JSON op
+    // mobiel een regressie. De voortgangslaag observeert voortaan alleen; de
+    // browser houdt zijn native Blob/File.text implementatie volledig in bezit.
+    show({name:list.length===1?list[0].name:list.length+' bestanden',pct:null,fase:'Bestand lezen en inhoud controleren',detailText:`${list.length} bestand(en) · ${fmtBytes(total)}`});
   }
 
   const input=doc.getElementById('files');
   input?.addEventListener('change',event=>startFiles(event.target.files),true);
 
-  const nativeText=scope.File?.prototype?.text;
-  if(nativeText&&!scope.__BIDASH_FILE_TEXT_PROGRESS_PATCHED__){
-    try{
-      scope.File.prototype.text=function(){
-        const active=session&&session.meta.get(this);
-        if(!active||typeof scope.FileReader!=='function')return nativeText.call(this);
-        const file=this;
-        return new Promise((resolve,reject)=>{
-          const reader=new scope.FileReader();
-          reader.onprogress=e=>{
-            const read=overallReadPercent(session.total,active.offset,e.loaded);
-            show({name:file.name,pct:progressBarPercent(read),fase:'Bestand lezen',detailText:`Bestand ${active.index+1} van ${session.files.length} · ${fmtBytes(e.loaded)} van ${fmtBytes(file.size)}`});
-          };
-          reader.onerror=()=>{show({name:file.name,pct:null,fase:'Bestand lezen mislukt',detailText:reader.error?.message||'',active:false,error:true,autoHide:true});reject(reader.error||new Error('Bestand lezen mislukt.'));};
-          reader.onload=()=>{
-            const read=overallReadPercent(session.total,active.offset,active.size);
-            show({name:file.name,pct:Math.min(82,progressBarPercent(read)??78),fase:'Bestand gelezen · inhoud controleren',detailText:`Bestand ${active.index+1} van ${session.files.length} · ${fmtBytes(file.size)}`});
-            nextPaint(()=>resolve(String(reader.result??'')));
-          };
-          reader.readAsText(file);
-        });
-      };
-      scope.__BIDASH_FILE_TEXT_PROGRESS_PATCHED__=true;
-    }catch(e){console.info('Bestandsvoortgang kon File.text niet uitbreiden:',e.message);}
-  }
-
   doc.addEventListener('click',event=>{
     const button=event.target.closest?.('button');if(!button)return;
     if(button.id==='applyImport'){
-      applyActive=true;show({name:'Import uitvoeren',pct:null,fase:'Gegevens naar de rekenmodules overbrengen',detailText:'De voortgang kan tijdens een zware parse kort stilstaan.'});
+      applyActive=true;show({name:'Import uitvoeren',pct:null,fase:'Gegevens naar de rekenmodules overbrengen',detailText:'De modules melden hun eigen verwerkingsfasen.'});
     }else if(button.id==='cancelImport'){
       session=null;applyActive=false;shell.hidden=true;
     }
