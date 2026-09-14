@@ -3,9 +3,13 @@ import {installDvmLiveOverviewFilterPatch} from './live-overview-filter.js';
 import {installLiveOverviewFilterSync} from './live-overview-filter-sync.js';
 import {installDvmImportProgressBridge} from './import-progress-bridge.js';
 import {installDvmAnalysisRebuildPerformance} from './dvm-analysis-rebuild-performance.js';
+import {installDvmCombiPerformance} from './dvm-combi-performance.js';
 export * from './signal-forecast-original.js';
 export * from './live-filter.js';
 
+// Eerst de zware historische doorrekening optimaliseren. Latere filters mogen
+// deze versie vervolgens veilig wrappen zonder de oude N x N-combiloop terug te brengen.
+installDvmCombiPerformance(globalThis);
 installDvmLiveSnapshotPatch(globalThis);
 installDvmLiveOverviewFilterPatch(globalThis);
 installLiveOverviewFilterSync(globalThis);
