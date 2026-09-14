@@ -1,6 +1,8 @@
 # BiDash gebruikershulp
 
-Deze uitleg hoort bij de Help-knop rechtsboven in BiDash. De gepubliceerde versie staat in `site/help.html`. Bij functionele wijzigingen moeten deze uitleg, de procesflow en waar nodig `SYSTEEMWERKING.md` samen met de code worden bijgewerkt.
+Deze uitleg hoort bij de Help-knop rechtsboven in BiDash. Help bevat geen tweede, handmatig bijgehouden kopie van deze tekst. Tijdens testen en publicatie wordt de map `docs/` gebundeld en toont `site/help.html` de echte Markdown-bestanden rechtstreeks, inclusief tabellen, links en SVG-afbeeldingen uit `docs/afbeeldingen/`.
+
+De standaardweergave is de processflow. Via de documentnavigatie zijn onder andere deze gebruikershulp, het rekenvoorbeeld, de systeemwerking en release notes bereikbaar. Daardoor wordt een wijziging in de Markdown-documentatie bij de eerstvolgende publicatie ook de inhoud van Help.
 
 ## Aanbevolen laadvolgorde
 
@@ -33,3 +35,9 @@ Automatisch afgesloten MSI-storingen gaan alleen naar de historische stroom. De 
 Lokale bronbestanden gaan naar de eigen rekenmodule. DVM berekent buitenassets, storingsimpact, dienstverlening en verkeerskosten. BI beheert formatie, capaciteit, contracten en interne bedienketens. Planning beheert activiteiten, afhankelijkheden en tijdlijnen. De BiDash-schil combineert samenvattingen en expliciete dienst-functiekoppelingen.
 
 De bronbestanden blijven lokaal in de browser. De werkruimte wordt in IndexedDB opgeslagen. Voor overdracht of back-up gebruik je een integrale export.
+
+## Documentatie in Help
+
+De publicatiestap voert `scripts/stage-docs.mjs` uit. Die maakt voor de browser een Help-bundel van alle Markdown-bestanden in `docs/` en kopieert de overige documentatiebestanden naar `site/docs/` in het publicatie-artifact. De gegenereerde bundel en kopie worden niet in Git opgeslagen.
+
+Afbeeldingen in Markdown blijven relatieve bronverwijzingen gebruiken, bijvoorbeeld `afbeeldingen/bidash-processflow.svg`. In Help worden die paden vanuit het bijbehorende Markdown-bestand opgelost, zodat dezelfde SVG zowel op GitHub als in de applicatie zichtbaar is.
