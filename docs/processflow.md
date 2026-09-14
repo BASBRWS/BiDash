@@ -29,29 +29,49 @@ BiDash vergelijkt de vorige actuele lijst A met de nieuwe lijst B. Een event-id 
 | MSI-storing staat in A maar ontbreekt in B | Afsluiten op de peildatum van B en toevoegen aan storingshistorie |
 | Afgesloten storing bestaat al in historie | Niet opnieuw toevoegen |
 
-De actuele dashboards gebruiken daarna alleen lijst B. Automatisch afgesloten MSI-storingen gaan alleen naar de historische stroom en kunnen daardoor wel bijdragen aan historische analyse en prognosekalibratie, maar niet aan het actuele prestatiebeeld.
+De volledige lijst B blijft de actuele bronmomentopname. Automatisch afgesloten MSI-storingen gaan alleen naar de historische stroom en kunnen daardoor wel bijdragen aan historische analyse en prognosekalibratie, maar niet aan het actuele prestatiebeeld.
 
-## 4. De engines rekenen apart door
+## 4. De gebruiker bepaalt wat van lijst B meetelt in het actuele overzicht
+
+De bronmomentopname en de selectie voor de actuele doorrekening zijn bewust twee verschillende dingen. Nadat lijst B volledig is opgeslagen, mag de gebruiker in Datasetbeheer een filter instellen. Dat filter bepaalt alleen welke open meldingen doorstromen naar actuele assetimpact, wegdelen, subprocessen, dienstverlening en verkeerskosten.
+
+![De volledige actuele momentopname gaat zowel naar de snapshot- en historielogica als naar het gebruikersfilter. Alleen de tweede route wordt gefilterd; de A-B-vergelijking en automatische MSI-historisering blijven altijd op de volledige bron werken.](afbeeldingen/storingsfilter-flow.svg)
+
+Het filter kan waarden uitsluiten op storingstype of foutregel, gevolg, noodmaatregel, assettype, oorzaak, prioriteit of ernst, verkeerscentrale, regionale dienst, district en weg. Binnen één groep kunnen meerdere waarden meetellen; tussen groepen gelden de voorwaarden gezamenlijk. Een leeg bronveld is een expliciete waarde `(geen waarde)` en kan dus ook worden uitgesloten.
+
+De configuratie slaat alleen uitgesloten waarden op. Een nieuw type of gevolg dat in een volgende momentopname voor het eerst verschijnt, telt daardoor standaard mee. De filterconfiguratie staat in de DVM-configuratie (`RULES.cfg.liveOverviewFilter`) en reist mee wanneer de DVM-parameters worden geëxporteerd.
+
+De filterlaag mag de volgende stromen nooit veranderen:
+
+- de volledige actuele bronlijst in `LIVE_STORINGSBRONNEN`;
+- de vergelijking A ↔ B;
+- het automatisch afsluiten en historiseren van verdwenen MSI-storingen;
+- historische storingsanalyse en prognosekalibratie;
+- de inhoud van de bronbestanden zelf.
+
+Het actuele overzicht toont daarom altijd hoeveel open bronregels er zijn, hoeveel daarvan meetellen en hoeveel door de actieve filterkeuze zijn uitgesloten. Zo blijft zichtbaar dat een gunstiger of ongunstiger prestatiebeeld door een analysekeuze kan zijn beïnvloed.
+
+## 5. De engines rekenen apart door
 
 De oorspronkelijke applicaties draaien elk in een eigen sandboxed `iframe`. Ze praten met de schil via `window.HUB`, met functies voor import, export, samenvatting en openen van verdiepende schermen. De schil kent hun binnenwerk niet en herrekent de domeinregels niet zelf.
 
-![Rekenketen binnen DVM: open storingen leiden tot verlies per assettype, dat via gewichten per subproces en per dienst tot een dienstbeschikbaarheid leidt; is een bron niet als volledig bevestigd, dan volgt een databand in plaats van een exact percentage](afbeeldingen/rekenketen-dvm.svg)
+![Rekenketen binnen DVM: open storingen die na het actuele storingsfilter meetellen leiden tot verlies per assettype, dat via gewichten per subproces en per dienst tot een dienstbeschikbaarheid leidt; is een bron niet als volledig bevestigd, dan volgt een databand in plaats van een exact percentage](afbeeldingen/rekenketen-dvm.svg)
 
-DVM blijft eigenaar van storingsimpact, assetafhankelijkheden, subprocessen, dienstnormen, verkeersscenario's en tarieven. BI blijft eigenaar van formatie, contracten, budget, bedienketens en planningscapaciteit. De oude BI-storingsimport is bewust stilgezet, zodat dezelfde storing niet twee keer meetelt.
+DVM blijft eigenaar van storingsimpact, de actuele storingsselectie, assetafhankelijkheden, subprocessen, dienstnormen, verkeersscenario's en tarieven. BI blijft eigenaar van formatie, contracten, budget, bedienketens en planningscapaciteit. De oude BI-storingsimport is bewust stilgezet, zodat dezelfde storing niet twee keer meetelt.
 
-## 5. Samenhang ontstaat alleen waar jij die legt
+## 6. Samenhang ontstaat alleen waar jij die legt
 
 ![De koppelregel: een dienst onder norm geeft altijd een eigen signaal en BI-signalen gaan ongewijzigd door, maar het samengestelde signaal ontstaat alleen wanneer een vastgelegde dienstkoppeling bestaat en beide voorwaarden waar zijn](afbeeldingen/koppelregel.svg)
 
 BI-signalen worden ongewijzigd doorgegeven. Een DVM-dienst onder zijn eigen norm levert een eigen signaal. Het gecombineerde signaal, dienstimpact en capaciteitstekort in één melding, ontstaat uitsluitend wanneer in Regels en koppelingen is vastgelegd welke bedrijfsfunctie verantwoordelijk is voor welke dienst. BiDash leidt zo'n verband nooit af uit een gelijkende naam.
 
-## 6. Lokaal bewaren, zelf samenstellen wat je meeneemt
+## 7. Lokaal bewaren, zelf samenstellen wat je meeneemt
 
 Zodra een engine iets wijzigt stuurt die een bericht naar de schil. Na ongeveer anderhalve seconde rust schrijft de schil de volledige staat naar IndexedDB, onder de naam `bidash-integraal`. Bij het herladen wordt diezelfde staat teruggeduwd in de engines, inclusief de planning-XML.
 
 Die opslag zit aan dit apparaat en deze browser vast. Wis je browsergegevens, dan is de kopie weg. Export is daarom de aangewezen route voor overdracht en back-up.
 
-## 7. Gebruikershulp toont de echte Markdown-documentatie
+## 8. Gebruikershulp toont de echte Markdown-documentatie
 
 Rechtsboven in BiDash staat een Help-knop. Die opent `site/help.html`. De pagina bevat alleen de viewer en navigatie. De inhoud zelf komt tijdens iedere test/publicatie opnieuw uit de bestanden in `docs/`.
 
@@ -64,6 +84,7 @@ Bij functionele wijzigingen aan bediening, gegevensstromen, opslag, export of re
 | Grens | Waarom |
 |---|---|
 | Geen data naar buiten | Geen upload, geen accountopslag en geen synchronisatie. Bronbestanden horen ook nooit in de repository. |
+| Geen bronregels verwijderen door een overzichtsfilter | Het filter beïnvloedt alleen de actuele doorrekening; snapshotvergelijking en historie blijven op de volledige momentopname werken. |
 | Geen afgeleide koppelingen | Een dienst en een bedrijfsfunctie worden nooit aan elkaar gekoppeld omdat ze op elkaar lijken. |
 | Geen opgetelde bedragen | Verkeerskosten, contractkosten en capaciteit houden hun eigen betekenis. Onbekende kosten verschijnen als onbekend, nooit als nul. |
 | Geen verborgen onzekerheid | Is de dekking van een storingsbron niet bevestigd, dan volgt een band in plaats van een exact percentage. |
@@ -81,7 +102,8 @@ Bij functionele wijzigingen aan bediening, gegevensstromen, opslag, export of re
 | [`site/core/model.js`](../site/core/model.js) | Validatie, samenvoegen, exportselectie en `combine()` |
 | [`site/core/storage.js`](../site/core/storage.js) | Lezen en schrijven van de werkruimte in IndexedDB |
 | [`site/core/live-snapshot.js`](../site/core/live-snapshot.js) | Synchronisatie tussen opeenvolgende open-storingenmomentopnamen en historisering van verdwenen MSI-storingen |
-| [`site/core/signal-forecast.js`](../site/core/signal-forecast.js) | De signaalgeverprognose en de WIS-berekening |
+| [`site/core/live-overview-filter.js`](../site/core/live-overview-filter.js) | Gebruikersfilter voor welke actuele open meldingen meetellen in de live DVM-doorrekening, zonder de bronmomentopname te wijzigen |
+| [`site/core/signal-forecast.js`](../site/core/signal-forecast.js) | Activeert de DVM runtime-uitbreidingen en exporteert de signaalgeverprognose |
 | [`site/engines/dvm-*.js`](../site/engines) | De DVM-engine, diensten, subprocessen, assetimpact en tarieven |
 | [`site/engines/bi-*.js`](../site/engines) | De BI-engine, formatie, financiën, contracten en bedienketens |
 | [`site/engines/planning.html`](../site/engines/planning.html) | De planningstool die P6- en MS Project-XML leest |
