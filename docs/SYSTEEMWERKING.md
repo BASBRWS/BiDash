@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van Integratie 2.3, bijgewerkt op 14 september 2026 voor de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter en de geïntegreerde Help-pagina.
+Status: beschrijving van Integratie 2.3, bijgewerkt op 14 september 2026 voor de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina en zichtbare voortgang bij gegevensimport.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -31,6 +31,7 @@ Een leeswijzer bij deze tekening staat in [architectuur.md](architectuur.md). De
 | Gebruikershulp | `site/help.html`, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md` | Bedieningsuitleg, laadvolgorde en procesflows |
 | Navigatie | `site/ui/routes.js` | Hoofdgroepen, subroutes en doelmodule |
 | Orchestratie | `site/app.js` | Importvoorstel, herstel, opslag, gezamenlijke weergave, adapters |
+| Datalaadvoortgang | `site/core/load-progress.js`, `site/core/import-progress-bridge.js` | Eén zichtbare importstatus voor hubbestanden en specialistische DVM-bronnen; bytevoortgang waar de browser die kan meten en fasestatus tijdens parsing/doorrekening |
 | Gegevenscontract | `site/core/model.js` | Deelimport, selectie-export, validatie, gecombineerde signalen |
 | Live storingssync | `site/core/live-snapshot.js` | Vervangen actuele momentopname, vergelijken met vorige lijst en historiseren verdwenen MSI-storingen |
 | Live overzichtsfilter | `site/core/live-overview-filter.js` | Gebruikersselectie van open meldingen die in de actuele DVM-doorrekening meetellen, zonder de bronmomentopname te veranderen |
@@ -66,7 +67,7 @@ niet automatisch als duplicaat verwijderd. Overlap vraagt inhoudelijke beoordeli
 | Formatie & contracten | Functies, VWM- en CIV-model, contracten, bedrijfsgegevens |
 | Regels & signalen | Signalering, dienst-functiekoppelingen, domeinregels |
 | Scenario’s | Huidige verkeerskosten, MSI-toekomst, BI-scenario’s; DRIP via DVM |
-| Data & export | Lokale import, datasetbeheer inclusief live storingsfilter, selectieve back-up, oorspronkelijke broninvoer |
+| Data & export | Lokale import met zichtbare voortgang, datasetbeheer inclusief live storingsfilter, selectieve back-up, oorspronkelijke broninvoer |
 | Help | Gebruikersuitleg, aanbevolen laadvolgorde, actuele storingslijst en procesflow |
 
 Rechtsboven in de hoofdwerkruimte staat een Help-knop naar `site/help.html`. Die pagina is onderdeel van de gepubliceerde `site/`-map en werkt dus ook wanneer de repository later niet publiek toegankelijk is. De inhoud volgt de documentatie in `docs/`.
@@ -100,6 +101,10 @@ blijft via bronbeheer beschikbaar. ZIP is geen beloofd hub-importformaat: pak ee
 planningarchief uit en laad de XML, tenzij ZIP-ondersteuning apart is geïmplementeerd.
 
 De aanbevolen DVM-volgorde is All Assets, EOL, historische storingen, U-routes, werkzaamheden en als laatste de actuele open storingslijst. De actuele storingslijst is de volledige momentopname voor het live dashboard. Daarna kan de gebruiker in Datasetbeheer instellen welke open meldingen in de actuele doorrekening meetellen. Historische storingen zijn een aparte gegevensstroom voor historie en prognose en worden door dat live filter niet gewijzigd.
+
+De hoofdapp activeert `site/core/load-progress.js` voordat `app.js` de bestandkeuze verwerkt. Voor de gewone Data & export-route wordt `File.text()` alleen tijdens een actieve importsessie vervangen door een `FileReader`-lezing met dezelfde tekstuitkomst en echte bytevoortgang. Na het leesmoment laat de module eerst een browserpaint plaatsvinden voordat de bestaande JSON- of XML-verwerking verdergaat. Dit voorkomt geen zware synchrone parse, maar zorgt dat de gebruiker vóór zo'n parse ziet welk bestand en welke fase actief is.
+
+DVM had al eigen fasen en percentages via `zetImportVoortgang()`. `site/core/import-progress-bridge.js` geeft die status via `hub:import-progress` door aan de hoofdapp. De bronimport zelf blijft eigenaar van zijn percentages; de hub verzint geen schijnnauwkeurigheid wanneer alleen bekend is dat een parse of moduleherstel bezig is. In dat geval wordt een onbepaalde geanimeerde balk getoond.
 
 De hub maakt eerst een importvoorstel. Bij uitvoeren herstelt `restore()` eerst BI,
 dan planning, dan DVM. Planning gebruikt de oorspronkelijke XML-importer voor
@@ -345,6 +350,7 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 | --- | --- |
 | Model/merge/export/signalen | `npm test` (`tests/model.test.js`) |
 | Navigatie/import/opslag | `tests/browser.cjs`: MS Project, P6, zichtbare tijdlijn, export/herstel, mobiel |
+| Datalaadvoortgang | `tests/data-load-progress.test.js`: byteaggregatie, begrenzing, FileReader-pad, paint-yield en DVM-voortgangsbrug |
 | Canvas/tijdschaal/drag | `tests/planning-large.cjs`: grote synthetische planning, scrollen, slepen, resizen |
 | Formatie/BI-brug/fullscreen | `tests/planning-formation.cjs`: overlappende taken, regelwijziging, reload, grafieken |
 | Live storingsmomentopname | `tests/live-snapshot.test.js`: identiteit, dubbelen, verdwijnen en afsluiten |
@@ -358,14 +364,3 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 `npm run test:browser` voert de drie browserscripts uit en vereist Playwright en
 Chromium. `PLAYWRIGHT_MODULE` en `CHROMIUM_PATH` kunnen naar een bestaande installatie
 wijzen. `npm run serve` serveert `site/` lokaal op poort 8080.
-
-De Pages-workflow voert momenteel model-/regressietests en JavaScript-syntaxiscontroles uit,
-maar niet de browsersuite. Een groene Pages-run bewijst dus geen correcte grafiek
-of volledige rekenkundige regressievrijheid. Er zijn nog geen allesomvattende
-statistische, verkeerskundige of memo-regressietests.
-
-De workflow publiceert `site/`. Voor het artifact voert hij `scripts/stage-docs.mjs` uit, zodat `docs/` en de SVG-afbeeldingen als Help-inhoud onder `site/docs/` terechtkomen. Wijzigingen onder `docs/**` activeren daarom ook de Pages-workflow.
-
-Oplevering benoemt: wat veranderde, waarom, uitgevoerde controles, resterende
-beperkingen, commit/PR en indien van toepassing publicatiestatus. “Alles werkt”
-is geen vervanging voor deze concrete onderbouwing.

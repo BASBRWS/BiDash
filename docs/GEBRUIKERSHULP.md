@@ -16,6 +16,16 @@ De standaardweergave is de processflow. Via de documentnavigatie zijn onder ande
 
 Historische storingen en actuele open storingen zijn twee verschillende gegevensstromen. Historische meldingen mogen het live dashboard niet beïnvloeden.
 
+## Voortgang tijdens data laden
+
+Bij het kiezen van bestanden verschijnt onder de statusregel van BiDash een voortgangsbalk. Voor bestanden die via **Data & export** worden gelezen toont de balk de leesvoortgang op basis van werkelijk gelezen bytes. Zodra het bestand volledig is gelezen verandert de fase naar inhoud controleren; tijdens JSON- of XML-verwerking kan het percentage daardoor kort stilstaan terwijl de browser de inhoud parseert.
+
+Ook specialistische DVM-bronnen, zoals All Assets, EOL, open storingen, storingshistorie, U-routes en werkzaamheden, sturen hun bestaande importfasen naar dezelfde voortgangsbalk in de hoofdapp. Daardoor blijft zichtbaar welk bestand en welke verwerkingsstap bezig is, ook wanneer een grote bron tijdelijk veel rekentijd vraagt.
+
+De balk onderscheidt lezen, controleren/verwerken, toepassen in de rekenmodules en afronden/opslag. Bij een fout blijft de laatste fase met een waarschuwingsmarkering zichtbaar. Bij een geslaagde import wordt 100% getoond en verdwijnt de melding na enkele seconden.
+
+Belangrijk: een voortgangsbalk voorkomt niet dat een zeer grote XML- of spreadsheetparse de JavaScript-hoofdthread kort belast. BiDash laat vóór zo'n zware parse bewust eerst de voortgangsstatus schilderen, zodat een tijdelijke pauze niet als een onverklaarde vastloper wordt ervaren.
+
 ## Nieuwe actuele storingslijst
 
 De invoer Open storingen accepteert XLSX, XLS en CSV met herkenbare DVM-storingsregels. De gekozen lijst is een volledige nieuwe momentopname en vervangt de vorige actuele lijst, ook als de bestandsnaam anders is.
