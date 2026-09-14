@@ -46,14 +46,19 @@ over. Wie de planning als een vierde zelfstandige gegevensbron behandelt, bouwt
 een route die er niet is.
 
 **D · Modules** zijn de drie oorspronkelijke applicaties, elk in een eigen
-`iframe`. Hier zit alle domeinkennis, en hier ligt het eigenaarschap.
+`iframe`. Hier zit alle domeinkennis, en hier ligt het eigenaarschap. Het filter
+waarmee de gebruiker bepaalt welke open storingen in het actuele DVM-overzicht
+meetellen hoort daarom in deze DVM-laag. De gedeelde snapshotlogica blijft in de
+kern verantwoordelijk voor het intact bewaren en vergelijken van de volledige
+momentopnamen.
 
 ## Eén eigenaar per rekenregel
 
 Dit is het dragende principe, en het is de reden dat de architectuur eruitziet
-zoals hij eruitziet. DVM bezit dienstimpact en verkeerskosten. BI bezit de
-formatienormen, contracten en interne bedienketens. Planning bezit het XML-model
-en past de BI-formatieregels toe zonder ze te herdefiniëren.
+zoals hij eruitziet. DVM bezit dienstimpact, de selectie van storingen die voor
+het actuele DVM-beeld meetellen en verkeerskosten. BI bezit de formatienormen,
+contracten en interne bedienketens. Planning bezit het XML-model en past de
+BI-formatieregels toe zonder ze te herdefiniëren.
 
 De schil combineert uitkomsten en expliciete koppelingen. Hij introduceert geen
 tweede dienst-, kosten- of formatiemodel. Een getal dat in twee lagen wordt
@@ -101,7 +106,9 @@ Ze zegt niets over de juistheid van de verkeerskundige of statistische modellen
 daarbinnen. Een nette laagindeling is geen validatie van een formule, en een
 visueel geslaagde wijziging bewijst geen correcte berekening.
 
-Ze toont ook niet elke route. Oudere detailschermen binnen de modules kunnen
+Ze toont ook niet elke route. De actuele storingsfilterflow is bijvoorbeeld
+bewust als aparte procesflow vastgelegd in `processflow.md`, omdat die geen nieuwe
+architectuurlaag introduceert. Oudere detailschermen binnen de modules kunnen
 eigen dekkingslogica hebben die afwijkt van de landelijke route; maak die bij een
 wijziging niet stilzwijgend gelijk.
 
