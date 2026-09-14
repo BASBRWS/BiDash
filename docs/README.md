@@ -17,6 +17,7 @@ Achtergrond bij BiDash integraal. De applicatie zelf staat in [`site/`](../site)
 | [Release notes snelle combiregels](release-notes-2026-09-14-combiregel-performance.md) | Vervangt de kwadratische N x N-combiloop door selectie op weg, type, afstand en tijdvenster bij grote totaalimports |
 | [Release notes grote integrale import](release-notes-2026-09-14-integrale-import-memory.md) | Wacht op de DVM-performancepatches en voorkomt een overbodige volledige kopie van grote DVM-bundles |
 | [Release notes universele importer](release-notes-2026-09-14-universele-importer.md) | Herkent JSON, CSV, TSV en Excel op inhoud, normaliseert kolomaliassen en zet losse DVM-bronnen om naar compatibele deelimports |
+| [Release notes grote historie uitgesteld](release-notes-2026-09-14-grote-historie-uitgesteld.md) | Laat het live dashboard eerst starten en voert de kostbare historische assetkoppeling pas uit wanneer de prognose die nodig heeft |
 | [Release notes Markdown Help](release-notes-2026-09-14-help-markdown.md) | Help toont de echte `.md`-inhoud, tabellen en SVG-procesflows |
 | [Release notes dienstverleningsarchitectuur](release-notes-2026-09-14-dienstverleningsarchitectuur.md) | Scheiding tussen de inhoudelijke dienstverleningslogica en de technische implementatiearchitectuur |
 
