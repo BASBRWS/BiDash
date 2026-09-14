@@ -11,6 +11,7 @@ Achtergrond bij BiDash integraal. De applicatie zelf staat in [`site/`](../site)
 | [Rekenvoorbeeld signaalgevers](rekenvoorbeeld-signaalgevers.md) | Tien jaar geen signaalgevers vervangen, doorgerekend tot beschikbaarheid, dienstverlening en kosten |
 | [Release notes actuele storingslijst](release-notes-2026-09-14-live-storingen.md) | Vervangen van live momentopnamen en automatisch historiseren van verdwenen MSI-storingen |
 | [Release notes storingsfilter](release-notes-2026-09-14-storingsfilter.md) | Zelf instellen welke actuele open storingen meetellen zonder de bron- en historielogica te wijzigen |
+| [Release notes filter-dashboard synchronisatie](release-notes-2026-09-14-live-filter-sync.md) | Filterwijzigingen automatisch doorrekenen en bron-, selectie- en dashboardaantallen uit elkaar houden |
 | [Release notes Markdown Help](release-notes-2026-09-14-help-markdown.md) | Help toont de echte `.md`-inhoud, tabellen en SVG-procesflows |
 | [Release notes dienstverleningsarchitectuur](release-notes-2026-09-14-dienstverleningsarchitectuur.md) | Scheiding tussen de inhoudelijke dienstverleningslogica en de technische implementatiearchitectuur |
 

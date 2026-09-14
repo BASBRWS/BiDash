@@ -33,7 +33,7 @@ Automatisch afgesloten MSI-storingen gaan alleen naar de historische stroom. De 
 
 ## Filter wat meetelt in het actuele overzicht
 
-Na het laden van een open-storingenmomentopname kun je in DVM onder Datasetbeheer bepalen welke regels uit die lijst werkelijk meetellen in de actuele doorrekening. Bovenaan het actuele overzicht blijft zichtbaar hoeveel bronregels er zijn en hoeveel daarvan na jouw filter meetellen.
+Na het laden van een open-storingenmomentopname kun je in DVM onder Datasetbeheer bepalen welke regels uit die lijst werkelijk meetellen in de actuele doorrekening.
 
 Je kunt filteren op de waarden die daadwerkelijk in jouw bestand voorkomen. BiDash biedt daarbij de volgende groepen aan:
 
@@ -50,28 +50,22 @@ Je kunt filteren op de waarden die daadwerkelijk in jouw bestand voorkomen. BiDa
 
 Binnen één groep kun je meerdere waarden tegelijk laten meetellen. Verschillende groepen werken samen: een melding moet aan alle ingestelde groepen voldoen. Lege bronvelden verschijnen als `(geen waarde)` en kunnen dus ook bewust worden uitgesloten. Met **Alles meetellen** zet je alle uitsluitingen terug.
 
+Wijzigingen aan vinkjes worden automatisch toegepast. Je hoeft de selectie niet apart op te slaan of eerst een knop onderaan de filterkaart te gebruiken. De knop **Dienstimpact bekijken** is alleen nog navigatie naar het actuele dienstoverzicht.
+
+De teller boven de filterkaart onderscheidt vier stappen:
+
+1. **open bronregels**: alle regels uit de geladen actuele momentopname;
+2. **geselecteerd voor DVM**: bronregels die door jouw filter komen;
+3. **uitgesloten door filter**: bronregels die jij bewust buiten de actuele doorrekening houdt;
+4. **doorgerekende meldingen**: regels die na DVM-validatie, locatiecontrole, foutregelcontrole en ontdubbeling daadwerkelijk in het actuele dashboard terechtkomen.
+
+Daarom hoeven bijvoorbeeld 657 open bronregels niet gelijk te zijn aan 657 doorgerekende open meldingen. Als 657 bronregels door het filter komen en de DVM-doorrekening daarna 435 unieke geldige meldingen overhoudt, dan is dat geen verdwenen brondata. Het is het verschil tussen de bronlaag en de doorgerekende analyselaag.
+
 Het filter bewaart uitsluitingen in plaats van een vaste lijst met toegestane waarden. Daardoor telt een nieuwe, nog niet eerder geziene waarde in een volgende storingslijst standaard wél mee. Het filter blijft staan als je een nieuwe momentopname laadt en reist mee wanneer je de DVM-parameters in een totaalexport opneemt.
 
 ![De volledige actuele momentopname gaat zowel naar de snapshot- en historielogica als naar het gebruikersfilter. Alleen de tweede route wordt gefilterd; de A-B-vergelijking en automatische MSI-historisering blijven altijd op de volledige bron werken.](afbeeldingen/storingsfilter-flow.svg)
 
 Belangrijk: het filter verwijdert niets uit de geladen bronlijst. De vergelijking tussen oude lijst A en nieuwe lijst B gebruikt altijd de volledige momentopnamen. Een MSI-storing die uit B verdwijnt kan dus nog steeds correct worden afgesloten en aan de historie worden toegevoegd, ook wanneer die storing in het actuele overzicht was uitgefilterd. Historische analyses en prognosekalibratie worden eveneens niet door dit live-overzichtsfilter gewijzigd.
-
-## Hoofdproces
-
-Na het laden van een actuele open-storingslijst verschijnt het blok `Storingsfilter / telregels`. Daar bepaal je welke meldingen daadwerkelijk door de actuele impactberekening gaan.
-
-Je kunt afzonderlijk filteren op:
-
-- type storing / assettype;
-- gevolg;
-- noodmaatregel;
-- foutcode / rekenregel.
-
-Per categorie kun je alles, niets of afzonderlijke waarden selecteren. Bovenin het blok staan steeds vier aantallen: geladen open meldingen, meldingen die meetellen, meldingen die door de telregels zijn uitgesloten en meetellende meldingen die aan een asset gekoppeld zijn.
-
-Belangrijk: de filterlaag verandert het bronbestand niet. Een uitgesloten melding blijft onderdeel van de actuele momentopname. Daardoor blijft de vergelijking met de volgende storingslijst correct en wordt een uitgesloten storing niet ten onrechte als opgelost beschouwd. De telregels beïnvloeden alleen de actuele doorrekening naar assetimpact, dienstverlening en kosten.
-
-De instellingen worden onderdeel van de DVM-parameters en gaan daarmee mee in een parameter- of totaalexport.
 
 ## Hoofdproces en logische architectuur
 
