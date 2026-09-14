@@ -1,9 +1,7 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van Integratie 2.3, gecontroleerd op 11 september 2026 tegen
-GitHub-commit `85086d3c7c7ed42e691ad216110c823d6081fee7`.
-Dit document bevat geen operationele brongegevens. Bij een functionele wijziging
-moeten code, tests en deze beschrijving samen worden bijgewerkt.
+Status: beschrijving van Integratie 2.3, bijgewerkt op 14 september 2026 voor de actuele storingslijstsynchronisatie en de geïntegreerde Help-pagina.
+Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
 
@@ -25,10 +23,12 @@ Modelaannames mogen niet als metingen of zekerheden worden gepresenteerd.
 
 | Onderdeel | Code | Verantwoordelijkheid |
 | --- | --- | --- |
-| Ingang en vormgeving | `site/index.html`, `site/style.css` | Gezamenlijke werkruimte, horizontaal hoofdmenu, fullscreen |
+| Ingang en vormgeving | `site/index.html`, `site/style.css` | Gezamenlijke werkruimte, horizontaal hoofdmenu, fullscreen en Help-ingang |
+| Gebruikershulp | `site/help.html`, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md` | Bedieningsuitleg, laadvolgorde en procesflows |
 | Navigatie | `site/ui/routes.js` | Hoofdgroepen, subroutes en doelmodule |
 | Orchestratie | `site/app.js` | Importvoorstel, herstel, opslag, gezamenlijke weergave, adapters |
 | Gegevenscontract | `site/core/model.js` | Deelimport, selectie-export, validatie, gecombineerde signalen |
+| Live storingssync | `site/core/live-snapshot.js` | Vervangen actuele momentopname, vergelijken met vorige lijst en historiseren verdwenen MSI-storingen |
 | Opslag | `site/core/storage.js` | IndexedDB, transactioneel schrijven |
 | DVM | `site/engines/dvm.html`, `dvm-1.js` t/m `dvm-3.js` | Buitenassets, storingen, dienstimpact, verkeerskosten, prognoses, memo’s |
 | BI | `site/engines/bi.html`, `bi-1.js` t/m `bi-3.js` | Formatie, capaciteit, contracten, interne bedienketens |
@@ -42,10 +42,8 @@ Eén eigenaar per rekenregel:
 
 - DVM berekent buitenasset-impact, subprocessen, dienstbeschikbaarheid en verkeerskosten.
 - BI beheert de VWM/CIV-formatienormen en capaciteit; planning past die regels toe.
-- BI beheert contract- en interne bedienketenregels. Ketenbeschikbaarheid is niet
-  automatisch hetzelfde als DVM-dienstbeschikbaarheid.
-- De hub combineert uitkomsten en expliciete koppelingen; hij introduceert geen
-  tweede dienst-, kosten- of formatiemodel.
+- BI beheert contract- en interne bedienketenregels. Ketenbeschikbaarheid is niet automatisch hetzelfde als DVM-dienstbeschikbaarheid.
+- De hub combineert uitkomsten en expliciete koppelingen; hij introduceert geen tweede dienst-, kosten- of formatiemodel.
 
 `bi-adapter.js` verplaatst oude BI-aggregaatassets met IDs volgens
 `ndw_(msi|drip)_` naar `legacyDvmAssets`. Oude storingsregels worden waar aanwezig
@@ -64,6 +62,9 @@ niet automatisch als duplicaat verwijderd. Overlap vraagt inhoudelijke beoordeli
 | Regels & signalen | Signalering, dienst-functiekoppelingen, domeinregels |
 | Scenario’s | Huidige verkeerskosten, MSI-toekomst, BI-scenario’s; DRIP via DVM |
 | Data & export | Lokale import, selectieve back-up, oorspronkelijke broninvoer |
+| Help | Gebruikersuitleg, aanbevolen laadvolgorde, actuele storingslijst en procesflow |
+
+Rechtsboven in de hoofdwerkruimte staat een Help-knop naar `site/help.html`. Die pagina is onderdeel van de gepubliceerde `site/`-map en werkt dus ook wanneer de repository later niet publiek toegankelijk is. De inhoud volgt de documentatie in `docs/`.
 
 Behoud verdiepende doorklikken, filters, bronvermelding, scope en terugnavigatie.
 Een nieuwe navigatie mag oorspronkelijke analyses niet onbereikbaar maken.
@@ -77,17 +78,12 @@ is een gedownloade export; browseropslag is geen garantie tegen gegevensverlies.
 Gebruik één werkruimte-tab tegelijk; er is geen uitgewerkte meergebruikerssynchronisatie.
 
 - Geen uploads van gebruikersbestanden naar GitHub, telemetrie of externe AI-diensten.
-- Geen operationele XML/JSON, uitsneden, screenshots of afgeleide operationele
-  tellingen in de repository of publieke CI-logs. Gebruik synthetische testgegevens.
-- Behoud het bestaande Content Security Policy en `connect-src 'none'`. Externe
-  bronlinks kunnen de browser verlaten; dat is geen toestemming om datasets te verzenden.
-- Modules draaien onder dezelfde origin. Frames met `allow-scripts` en
-  `allow-same-origin` zijn geen beveiligingsgrens tegen kwaadaardige eigen code.
+- Geen operationele XML/JSON, uitsneden, screenshots of afgeleide operationele tellingen in de repository of publieke CI-logs. Gebruik synthetische testgegevens.
+- Behoud het bestaande Content Security Policy en `connect-src 'none'`. Externe bronlinks kunnen de browser verlaten; dat is geen toestemming om datasets te verzenden.
+- Modules draaien onder dezelfde origin. Frames met `allow-scripts` en `allow-same-origin` zijn geen beveiligingsgrens tegen kwaadaardige eigen code.
 - `postMessage` wordt alleen verwerkt voor dezelfde origin én bekende bronframes.
-- JSON-validatie weigert `__proto__`, `constructor`, `prototype` en te diepe nesting.
-  Dit vervangt niet de inhoudelijke validatie van een dataset.
-- XML wordt met de bestaande parsers verwerkt. Controleer parserfouten en houd
-  geïmporteerde labels veilig bij HTML-weergave; voer broninhoud nooit als code uit.
+- JSON-validatie weigert `__proto__`, `constructor`, `prototype` en te diepe nesting. Dit vervangt niet de inhoudelijke validatie van een dataset.
+- XML wordt met de bestaande parsers verwerkt. Controleer parserfouten en houd geïmporteerde labels veilig bij HTML-weergave; voer broninhoud nooit als code uit.
 
 ## 5. Import, herstel en export
 
@@ -97,6 +93,8 @@ Ondersteund zijn de bestaande DVM-totaal-JSON, BI-dataset-JSON en planning-XML
 (MS Project en Primavera P6), plus de integrale JSON. Specialistische DVM-invoer
 blijft via bronbeheer beschikbaar. ZIP is geen beloofd hub-importformaat: pak een
 planningarchief uit en laad de XML, tenzij ZIP-ondersteuning apart is geïmplementeerd.
+
+De aanbevolen DVM-volgorde is All Assets, EOL, historische storingen, U-routes, werkzaamheden en als laatste de actuele open storingslijst. De actuele storingslijst is de momentopname voor het live dashboard. Historische storingen zijn een aparte gegevensstroom voor historie en prognose.
 
 De hub maakt eerst een importvoorstel. Bij uitvoeren herstelt `restore()` eerst BI,
 dan planning, dan DVM. Planning gebruikt de oorspronkelijke XML-importer voor
@@ -146,13 +144,17 @@ aparte opslagroute binnen de DVM-kostenconfiguratie. Presenteer die niet als dez
 
 Actueel en prognose zijn gescheiden:
 
-- Live resultaten gebruiken de open storingen op de bronpeildatum van de geladen lijst.
+- Live resultaten gebruiken de open storingen op de bronpeildatum van de laatst geladen actuele lijst.
+- Een nieuw open-storingenbestand vervangt de vorige actuele momentopname volledig, ook als de bestandsnaam anders is.
+- De invoer Open storingen accepteert XLSX, XLS en CSV wanneer de inhoud herkenbare DVM-storingsregels bevat. De expliciete open-storingenroute vereist niet meer dat de oude snapshot-heuristiek op basis van status of peildatum slaagt.
+- Bij vervanging vergelijkt `site/core/live-snapshot.js` de oude en nieuwe momentopname. Event-id heeft voorrang als storingidentiteit. Zonder event-id wordt een stabiele combinatie gebruikt van asset, starttijd, weg, richting, hectometer, strook, foutcode, melding en gevolg.
+- Een MSI-storing die in de vorige actuele lijst stond en in de nieuwe lijst ontbreekt wordt afgesloten op de peildatum van de nieuwe lijst en toegevoegd aan `STORINGSBRONNEN` als automatische historische bron.
+- Automatisch afgesloten storingen worden ontdubbeld tegen de bestaande historie. Dezelfde verdwenen storing mag dus niet bij iedere volgende import opnieuw worden toegevoegd.
+- Alleen MSI-storingen worden door deze overgang automatisch naar de signaalgever-storingshistorie verplaatst. Andere assettypen blijven buiten deze specifieke automatische historisering totdat daarvoor een expliciete productregel bestaat.
 - Storingshistorie dient voor prognose/kalibratie en wordt niet bij live meldingen opgeteld.
-- De brondag is niet automatisch vandaag. NDW-meetmoment, exportdatum en prognoseperiode
-  zijn afzonderlijke datums en moeten herkenbaar blijven.
+- De brondag is niet automatisch vandaag. NDW-meetmoment, exportdatum en prognoseperiode zijn afzonderlijke datums en moeten herkenbaar blijven.
 - Assetregister en EOL bepalen populatie, kenmerken en levensduurgegevens.
-- U-routes en werkzaamheden zijn context voor bestaande analyses, geen automatische
-  vermenigvuldigers voor alle kosten.
+- U-routes en werkzaamheden zijn context voor bestaande analyses, geen automatische vermenigvuldigers voor alle kosten.
 
 Rekenketen: open meldingen → asset-/objectimpact → subprocessen → dienstverlening.
 `subprocesWaarde`, `dienstWaardeUitSubprocessen` en `dienstAssetAfhankelijkheid`
@@ -193,12 +195,8 @@ storings- of herstelduur; geldig bereik is 0–24 uur.
 
 Twee invoermethoden:
 
-1. Rechtstreekse extra minuten: het ingevoerde effect geldt voor de huidige uitval.
-   Vermenigvuldig de storingsimpact niet nogmaals.
-2. Trajectmodel: basisreistijd = km / basissnelheid × 60. De snelheidsreductie
-   wordt gewogen met de hoogste beschikbaarheidsimpact van de open meldingen
-   binnen het representatieve wegdeel. Reistijd met storing = basisreistijd /
-   (1 − reductie × impact). Het verschil vormt de extra minuten.
+1. Rechtstreekse extra minuten: het ingevoerde effect geldt voor de huidige uitval. Vermenigvuldig de storingsimpact niet nogmaals.
+2. Trajectmodel: basisreistijd = km / basissnelheid × 60. De snelheidsreductie wordt gewogen met de hoogste beschikbaarheidsimpact van de open meldingen binnen het representatieve wegdeel. Reistijd met storing = basisreistijd / (1 − reductie × impact). Het verschil vormt de extra minuten.
 
 Een passende optionele OSM-route kan de trajecttijden leveren. Weggeometrie is
 niet vooraf geladen in deze browserversie; zonder route geldt de ingevoerde lengte.
@@ -317,21 +315,15 @@ van alleen een gecombineerd signaal. Onbekende beschikbaarheid is geen bewezen n
 
 ## 11. Verplichte werkwijze bij AI-wijzigingen
 
-1. Lees dit document en de relevante actuele code. Controleer remote `main`, lokale
-   wijzigingen en open PR’s; een andere AI kan intussen wijzigingen hebben gedaan.
-2. Benoem welk domein eigenaar is en welke invoer/uitvoer geraakt wordt. Houd de
-   wijziging gericht. Verander geen formules, defaults of schema’s als bijeffect van styling.
-3. Reproduceer de fout waar mogelijk. Voeg een synthetische regressietest toe voor
-   een functionele fout; een screenshot of syntaxiscontrole alleen is onvoldoende.
-4. Behoud oude imports en selectieve exports. Bij een schemawijziging: expliciete
-   versie/migratie en tests met ontbrekende én lege velden; geen stille dataverwijdering.
+1. Lees dit document en de relevante actuele code. Controleer remote `main`, lokale wijzigingen en open PR’s; een andere AI kan intussen wijzigingen hebben gedaan.
+2. Benoem welk domein eigenaar is en welke invoer/uitvoer geraakt wordt. Houd de wijziging gericht. Verander geen formules, defaults of schema’s als bijeffect van styling.
+3. Reproduceer de fout waar mogelijk. Voeg een synthetische regressietest toe voor een functionele fout; een screenshot of syntaxiscontrole alleen is onvoldoende.
+4. Behoud oude imports en selectieve exports. Bij een schemawijziging: expliciete versie/migratie en tests met ontbrekende én lege velden; geen stille dataverwijdering.
 5. Controleer brondata, herkomst, scope, eenheden, null/0 en actualiteit van resultaten.
 6. Voer de relevante controles uit. Rapporteer wat niet is getest en waarom.
-7. Werk deze beschrijving en validatienotities bij als de werking verandert.
-8. Publiceer via een gerichte branch en reviewbare PR. Controleer vóór samenvoegen
-   opnieuw de basisbranch. Behoud wijzigingen van andere auteurs; niet force-pushen.
-9. Voor functionele releases: controleer de Pages-run en claim pas daarna dat de
-   nieuwe versie live is. Commit nooit lokale brondata om tests eenvoudiger te maken.
+7. Werk `GEBRUIKERSHULP.md`, `processflow.md`, `site/help.html` en deze beschrijving bij wanneer de gebruikerswerking of gegevensstroom verandert.
+8. Publiceer via een gerichte branch en reviewbare PR. Controleer vóór samenvoegen opnieuw de basisbranch. Behoud wijzigingen van andere auteurs; niet force-pushen.
+9. Voor functionele releases: controleer de Pages-run en claim pas daarna dat de nieuwe versie live is. Commit nooit lokale brondata om tests eenvoudiger te maken.
 
 Een AI mag deze voorwaarden niet schrappen of afzwakken om zijn eigen wijziging
 als geslaagd te laten gelden. Een bewust gewijzigde producteis moet herkenbaar
@@ -345,6 +337,8 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 | Navigatie/import/opslag | `tests/browser.cjs`: MS Project, P6, zichtbare tijdlijn, export/herstel, mobiel |
 | Canvas/tijdschaal/drag | `tests/planning-large.cjs`: grote synthetische planning, scrollen, slepen, resizen |
 | Formatie/BI-brug/fullscreen | `tests/planning-formation.cjs`: overlappende taken, regelwijziging, reload, grafieken |
+| Live storingsmomentopname | `tests/live-snapshot.test.js`: identiteit, dubbelen, verdwijnen en afsluiten |
+| Help/documentatie | Controleer `site/help.html`, Help-link in `site/index.html` en overeenstemming met `docs/GEBRUIKERSHULP.md` en `docs/processflow.md` |
 | DVM-regels/kosten/prognose | Aanvullende gerichte numerieke tests en scopes; bestaande tests dekken niet alle formules |
 | Memo/print | Controleer selectie, bron/run, optionele kosten en grafieken in printweergave |
 | Privacy | Geen externe gegevensverzoeken in browserroutes; geen operationele data in diff/artifact |
