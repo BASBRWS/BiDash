@@ -14,8 +14,8 @@
 <rect x="250" y="300" width="330" height="125" rx="12" fill="#fff8e5" stroke="#e5ad28" stroke-width="1.7"/>
 <text x="275" y="332" font-size="19" font-weight="700" fill="#7a5b00">Rule engine</text>
 <text x="275" y="357" font-size="12" fill="#475569">Bepaalt wat meetelt en hoe bronnen doorwerken.</text>
-<text x="275" y="382" font-size="11.5" fill="#475569">• telregels: type, melding, gevolg, noodmaatregel, foutcode</text>
-<text x="275" y="404" font-size="11.5" fill="#475569">• afhankelijkheden, gewichten, koppelingen, impact</text>
+<text x="275" y="382" font-size="11.5" fill="#475569">• filters, afhankelijkheden, gewichten en koppelingen</text>
+<text x="275" y="404" font-size="11.5" fill="#475569">• bronfeit → functie/proces → invloed op dienstverlening</text>
 <rect x="620" y="300" width="330" height="125" rx="12" fill="#fff1ea" stroke="#e17000" stroke-width="1.7"/>
 <text x="645" y="332" font-size="19" font-weight="700" fill="#9a4100">Trigger engine</text>
 <text x="645" y="357" font-size="12" fill="#475569">Bepaalt wanneer een uitkomst aandacht of actie vraagt.</text>
