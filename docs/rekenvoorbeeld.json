@@ -1,0 +1,257 @@
+{
+ "gemaakt": "2026-09-14",
+ "corridor": {
+  "weg": "A12",
+  "richting": "RE",
+  "vc": "ZWN",
+  "vanHm": 60,
+  "totHm": 78,
+  "aantalSignaalgevers": 90,
+  "routeKm": 17.4,
+  "fases": [
+   {
+    "vanHm": 60,
+    "totHm": 66,
+    "bouwjaar": 2012
+   },
+   {
+    "vanHm": 66,
+    "totHm": 72,
+    "bouwjaar": 2016
+   },
+   {
+    "vanHm": 72,
+    "totHm": 78,
+    "bouwjaar": 2020
+   }
+  ],
+  "eolJaren": [
+   2032,
+   2036,
+   2040
+  ]
+ },
+ "regels": {
+  "referenceYear": 2026,
+  "startYear": 2026,
+  "endYear": 2036,
+  "baseFte": 300,
+  "ftePerReferenceKm": 12,
+  "referenceKm": 95,
+  "fallbackKmPerLocation": 1,
+  "fteCostYear": 95000,
+  "mcRuns": 1000,
+  "degradeStartPct": 20,
+  "permanentChancePct": 75,
+  "seed": 7102026,
+  "defaultLifeYears": 20,
+  "triggerExtraFtePct": 5,
+  "triggerAnnualCost": 1000000,
+  "triggerPermanentPct": 10
+ },
+ "signaalgewichtPerDienst": {
+  "im": 0.24,
+  "vm": 0.55,
+  "rri": 0.16666666666666666,
+  "wiu": 0.35
+ },
+ "normen": {
+  "im": 99,
+  "vm": 99,
+  "rri": 98,
+  "wiu": 98
+ },
+ "cumulatief": {
+  "fteJaren": 6.85,
+  "kosten": 650732
+ },
+ "triggers": [
+  {
+   "id": "forecast-msi-permanent",
+   "sev": "rood",
+   "titel": "Permanente signaalgeveruitval boven grens",
+   "msg": "Aan het einde van 2036 is de verwachte cumulatieve permanente uitval 33.2% van het MSI-areaal.",
+   "resp": "Assetmanagement DVM",
+   "regel": "Cumulatieve permanente MSI-uitval ≥ 10%",
+   "val": "33.2%"
+  }
+ ],
+ "rows": [
+  {
+   "jaar": 2026,
+   "uitvalPct": 0,
+   "beschPct": 100,
+   "permPct": 0,
+   "aangetastKm": 0,
+   "fte": 0,
+   "kosten": 0,
+   "cumKosten": 0,
+   "diensten": {
+    "im": 100,
+    "vm": 100,
+    "rri": 100,
+    "wiu": 100
+   }
+  },
+  {
+   "jaar": 2027,
+   "uitvalPct": 0,
+   "beschPct": 100,
+   "permPct": 0,
+   "aangetastKm": 0,
+   "fte": 0,
+   "kosten": 0,
+   "cumKosten": 0,
+   "diensten": {
+    "im": 100,
+    "vm": 100,
+    "rri": 100,
+    "wiu": 100
+   }
+  },
+  {
+   "jaar": 2028,
+   "uitvalPct": 6.22,
+   "beschPct": 93.78,
+   "permPct": 0,
+   "aangetastKm": 1.08,
+   "fte": 0.14,
+   "kosten": 12980,
+   "cumKosten": 12980,
+   "diensten": {
+    "im": 98.51,
+    "vm": 96.58,
+    "rri": 98.96,
+    "wiu": 97.82
+   }
+  },
+  {
+   "jaar": 2029,
+   "uitvalPct": 12.51,
+   "beschPct": 87.49,
+   "permPct": 0,
+   "aangetastKm": 2.18,
+   "fte": 0.27,
+   "kosten": 26114,
+   "cumKosten": 39094,
+   "diensten": {
+    "im": 97,
+    "vm": 93.12,
+    "rri": 97.92,
+    "wiu": 95.62
+   }
+  },
+  {
+   "jaar": 2030,
+   "uitvalPct": 18.76,
+   "beschPct": 81.24,
+   "permPct": 0,
+   "aangetastKm": 3.27,
+   "fte": 0.41,
+   "kosten": 39180,
+   "cumKosten": 78274,
+   "diensten": {
+    "im": 95.5,
+    "vm": 89.68,
+    "rri": 96.87,
+    "wiu": 93.43
+   }
+  },
+  {
+   "jaar": 2031,
+   "uitvalPct": 25.02,
+   "beschPct": 74.98,
+   "permPct": 0,
+   "aangetastKm": 4.35,
+   "fte": 0.55,
+   "kosten": 52246,
+   "cumKosten": 130521,
+   "diensten": {
+    "im": 93.99,
+    "vm": 86.24,
+    "rri": 95.83,
+    "wiu": 91.24
+   }
+  },
+  {
+   "jaar": 2032,
+   "uitvalPct": 31.24,
+   "beschPct": 68.76,
+   "permPct": 0,
+   "aangetastKm": 5.44,
+   "fte": 0.69,
+   "kosten": 65238,
+   "cumKosten": 195759,
+   "diensten": {
+    "im": 92.5,
+    "vm": 82.82,
+    "rri": 94.79,
+    "wiu": 89.06
+   }
+  },
+  {
+   "jaar": 2033,
+   "uitvalPct": 43.72,
+   "beschPct": 56.28,
+   "permPct": 25.02,
+   "aangetastKm": 7.61,
+   "fte": 0.96,
+   "kosten": 91290,
+   "cumKosten": 287049,
+   "diensten": {
+    "im": 89.51,
+    "vm": 75.95,
+    "rri": 92.71,
+    "wiu": 84.7
+   }
+  },
+  {
+   "jaar": 2034,
+   "uitvalPct": 51.58,
+   "beschPct": 48.42,
+   "permPct": 31.27,
+   "aangetastKm": 8.98,
+   "fte": 1.13,
+   "kosten": 107704,
+   "cumKosten": 394753,
+   "diensten": {
+    "im": 87.62,
+    "vm": 71.63,
+    "rri": 91.4,
+    "wiu": 81.95
+   }
+  },
+  {
+   "jaar": 2035,
+   "uitvalPct": 58.18,
+   "beschPct": 41.82,
+   "permPct": 32.82,
+   "aangetastKm": 10.12,
+   "fte": 1.28,
+   "kosten": 121482,
+   "cumKosten": 516235,
+   "diensten": {
+    "im": 86.04,
+    "vm": 68,
+    "rri": 90.3,
+    "wiu": 79.64
+   }
+  },
+  {
+   "jaar": 2036,
+   "uitvalPct": 64.41,
+   "beschPct": 35.59,
+   "permPct": 33.2,
+   "aangetastKm": 11.21,
+   "fte": 1.42,
+   "kosten": 134497,
+   "cumKosten": 650732,
+   "diensten": {
+    "im": 84.54,
+    "vm": 64.57,
+    "rri": 89.26,
+    "wiu": 77.45
+   }
+  }
+ ]
+}
