@@ -14,7 +14,7 @@ Bij het laden van grotere JSON-, XML- en DVM-bronbestanden kon de browser tijdel
 - Voor specialistische DVM-bronnen worden de bestaande fasen en percentages uit `zetImportVoortgang()` doorgestuurd naar de hoofdapp.
 - Tijdens een fase zonder betrouwbaar percentage gebruikt BiDash een onbepaalde geanimeerde balk in plaats van een verzonnen percentage.
 - Voor een zware parse krijgt de browser eerst een paint-moment zodat de gebruiker de voortgangsstatus ziet voordat de hoofdthread mogelijk kort bezet raakt.
-- Bij geslaagde afronding wordt 100% getoond; bij een fout wordt de laatste fase rood weergegeven.
+- Bij geslaagde afronding wordt 100% getoond; bij een fout blijft de laatste fase met een waarschuwingsmarkering zichtbaar.
 
 ## Techniek
 
