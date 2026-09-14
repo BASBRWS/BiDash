@@ -80,10 +80,9 @@ export function installLiveOverviewFilterSync(scope=globalThis){
   }
 
   function wire(card){
-    if(!card)return;
-    decorateCard(card);
-    if(card.dataset.liveFilterAutoSync==='1')return;
+    if(!card||card.dataset.liveFilterAutoSync==='1')return;
     card.dataset.liveFilterAutoSync='1';
+    decorateCard(card);
     card.addEventListener('change',event=>{
       if(event.target?.matches?.('input[data-live-filter-value]'))schedule(card);
     });
