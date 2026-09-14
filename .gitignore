@@ -8,3 +8,5 @@ downloads/
 *.zip
 playwright-report/
 test-results/
+site/docs/
+site/help-docs.js
