@@ -22,34 +22,24 @@ function install(scope){
   const status=doc.getElementById('status');
   if(!status)return false;
 
-  const style=doc.createElement('style');
-  style.id='bidash-load-progress-style';
-  style.textContent=`
-    .load-progress{margin:0 32px 10px;padding:10px 12px;border:1px solid #bfd0df;border-radius:8px;background:#f4f8fc;color:#24445f;box-shadow:0 2px 10px #173b5710}
-    .load-progress.error{border-color:#efbdc2;background:#fff2f3}.load-progress.done{border-color:#add6bd;background:#f2fbf5}
-    .load-progress-head{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:11px;font-weight:700}.load-progress-title{overflow-wrap:anywhere}.load-progress-pct{font-variant-numeric:tabular-nums;white-space:nowrap;color:#496478}
-    .load-progress-track{height:9px;margin:7px 0;background:#dce5ed;border-radius:999px;overflow:hidden;position:relative}.load-progress-track>span{display:block;height:100%;width:0;background:#2d6e9d;border-radius:999px;transition:width .18s ease}
-    .load-progress.indeterminate .load-progress-track>span{width:38%;animation:bidashLoadSlide 1.15s ease-in-out infinite}.load-progress.done .load-progress-track>span{background:#4b9b70}.load-progress.error .load-progress-track>span{background:#bd3b47}
-    .load-progress-phase{font-size:11px;color:#62798c;line-height:1.4}.load-progress-detail{font-size:10px;color:#8796a3;margin-top:3px}
-    @keyframes bidashLoadSlide{0%{transform:translateX(-110%)}50%{transform:translateX(95%)}100%{transform:translateX(260%)}}
-    @media(max-width:720px){.load-progress{margin:0 14px 10px}}
-    @media print{.load-progress{display:none!important}}
-  `;
-  doc.head.append(style);
-
-  const box=doc.createElement('div');
-  box.id='globalLoadProgress';box.className='load-progress';box.hidden=true;box.setAttribute('role','status');box.setAttribute('aria-live','polite');
-  box.innerHTML='<div class="load-progress-head"><span class="load-progress-title">Gegevens verwerken</span><span class="load-progress-pct"></span></div><div class="load-progress-track"><span></span></div><div class="load-progress-phase"></div><div class="load-progress-detail"></div>';
-  status.insertAdjacentElement('afterend',box);
-  const title=box.querySelector('.load-progress-title'),pctEl=box.querySelector('.load-progress-pct'),bar=box.querySelector('.load-progress-track>span'),phase=box.querySelector('.load-progress-phase'),detail=box.querySelector('.load-progress-detail');
+  const shell=doc.createElement('div');
+  shell.id='globalLoadProgressShell';shell.className='page-content';shell.hidden=true;
+  const box=doc.createElement('section');
+  box.id='globalLoadProgress';box.setAttribute('role','status');box.setAttribute('aria-live','polite');
+  box.innerHTML='<div class="section-heading"><h2 class="load-progress-title">Gegevens verwerken</h2><span class="load-progress-pct muted"></span></div><progress class="load-progress-native" max="100"></progress><p class="load-progress-phase muted"></p><small class="load-progress-detail muted"></small>';
+  shell.append(box);status.insertAdjacentElement('afterend',shell);
+  const title=box.querySelector('.load-progress-title'),pctEl=box.querySelector('.load-progress-pct'),progressEl=box.querySelector('.load-progress-native'),phase=box.querySelector('.load-progress-phase'),detail=box.querySelector('.load-progress-detail');
   let hideTimer=null,session=null,applyActive=false;
   const fmtBytes=n=>{const v=Math.max(0,Number(n)||0);if(v<1024)return v+' B';if(v<1024*1024)return (v/1024).toLocaleString('nl-NL',{maximumFractionDigits:1})+' kB';return (v/(1024*1024)).toLocaleString('nl-NL',{maximumFractionDigits:1})+' MB';};
   const nextPaint=cb=>{const raf=scope.requestAnimationFrame||((fn)=>setTimeout(fn,0));raf(()=>setTimeout(cb,0));};
 
   function show({name='Gegevens verwerken',pct=null,fase='',detailText='',active=true,error=false,done=false,autoHide=false}={}){
-    clearTimeout(hideTimer);box.hidden=false;box.className='load-progress'+(error?' error':done?' done':'')+(pct==null&&active?' indeterminate':'');
-    title.textContent=name;pct=clampProgress(pct);pctEl.textContent=pct==null?(active?'bezig':''):Math.round(pct)+'%';bar.style.width=pct==null?'':pct+'%';phase.textContent=fase||'Bestand verwerken';detail.textContent=detailText||'';
-    if(autoHide&&(done||error))hideTimer=setTimeout(()=>{if(!applyActive)box.hidden=true;},5500);
+    clearTimeout(hideTimer);shell.hidden=false;
+    title.textContent=(error?'⚠ ':done?'✓ ':'')+name;
+    pct=clampProgress(pct);pctEl.textContent=pct==null?(active?'bezig':''):Math.round(pct)+'%';
+    if(pct==null)progressEl.removeAttribute('value');else progressEl.value=pct;
+    phase.textContent=fase||'Bestand verwerken';detail.textContent=detailText||'';
+    if(autoHide&&(done||error))hideTimer=setTimeout(()=>{if(!applyActive)shell.hidden=true;},5500);
   }
 
   function startFiles(files){
@@ -94,7 +84,7 @@ function install(scope){
     if(button.id==='applyImport'){
       applyActive=true;show({name:'Import uitvoeren',pct:null,fase:'Gegevens naar de rekenmodules overbrengen',detailText:'De voortgang kan tijdens een zware parse kort stilstaan.'});
     }else if(button.id==='cancelImport'){
-      session=null;applyActive=false;box.hidden=true;
+      session=null;applyActive=false;shell.hidden=true;
     }
   },true);
 
@@ -123,7 +113,7 @@ function install(scope){
     show({name:p.bestand||((p.engine||'').toUpperCase()+' gegevens'),pct:p.pct,fase:p.fase||'Bron verwerken',detailText:p.engine?('Module: '+String(p.engine).toUpperCase()):'',active,error,done,autoHide:done||error});
   });
 
-  scope.BIDASH_LOAD_PROGRESS={show,startFiles,hide:()=>{box.hidden=true;},element:box};
+  scope.BIDASH_LOAD_PROGRESS={show,startFiles,hide:()=>{shell.hidden=true;},element:box};
   scope.__BIDASH_LOAD_PROGRESS_ACTIVE__=true;
   return true;
 }
