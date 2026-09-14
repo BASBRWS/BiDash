@@ -123,3 +123,33 @@ test('lege historische inspectie wordt niet nogmaals door de matchbeeldpass geha
   assert.equal(scope.__BIDASH_LAST_REBUILD_PERF__.historyRecognizable,0);
   assert.equal(scope.__BIDASH_LAST_REBUILD_PERF__.historyPassSkipped,true);
 });
+
+test('grote historie wordt tijdens live totaalimport niet volledig gekoppeld en blijft beschikbaar voor latere analyse',async()=>{
+  let inspectCalls=0,rowsInMatch=-1,activateCalls=0;
+  const historyRows=Array.from({length:25000},(_,i)=>({locatie:'A1 L '+(i%3000),weg:'A1',start:'2025-01-01'}));
+  const liveRows=[{os_id:'A1 Li 1.000',melding:'open',aantal_dagen:1}];
+  const scope=basisScope({
+    inspecteerStoringsRijen(rows){inspectCalls++;return {totaalRijen:rows.length,herkenbaar:rows.length,typen:{MSI:{n:rows.length}},typenGeladen:['MSI']};},
+    gecombineerdeStoringsRijen(){return historyRows;},
+    herbouwAssetMatchBeeld(){rowsInMatch=scope.gecombineerdeStoringsRijen().length;},
+    probeerAnalyseActiveren(){activateCalls++;}
+  });
+  scope.totaalImportJson=async function(){
+    scope.zetImportVoortgang('totaal.json',92,'Koppelingen en analysebeeld herbouwen',{});
+    const hist=scope.inspecteerStoringsRijen(historyRows);
+    assert.equal(hist.koppelingUitgesteld,true);
+    scope.inspecteerStoringsRijen(liveRows);
+    scope.herbouwAssetMatchBeeld();
+    scope.probeerAnalyseActiveren('overzicht');
+  };
+  installDvmAnalysisRebuildPerformance(scope);
+  await scope.totaalImportJson();
+  assert.equal(inspectCalls,1,'alleen de kleine live inspectie draait volledig tijdens import');
+  assert.equal(rowsInMatch,0,'historie gaat niet door de initiële matchbeeldpass');
+  assert.equal(scope.__BIDASH_LAST_REBUILD_PERF__.historyDeferred,true);
+  assert.equal(scope.__BIDASH_LAST_REBUILD_PERF__.deferredHistoryRows,25000);
+  assert.equal(scope.__BIDASH_HISTORY_DEFERRED__.rows,25000);
+  scope.probeerAnalyseActiveren('prognose');
+  assert.equal(inspectCalls,2,'historie wordt pas bij prognose volledig geïnspecteerd');
+  assert.equal(activateCalls,2);
+});
