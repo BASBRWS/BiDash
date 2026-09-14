@@ -1,3 +1,5 @@
+import '../core/load-progress.js';
+
 export const GROUPS=[
  {id:'overview',label:'Overzicht',icon:'◈',desc:'Dienstverlening, capaciteit en risico’s in samenhang.',items:[['overview','Integraal overzicht','native','overview']]},
  {id:'assets',label:'Assetmanagement',icon:'▦',desc:'Eén register, open storingen en de gevolgen op de weg.',items:[['assets','Assetregister','native','assets'],['faults','Open storingen','native','faults'],['roads','Wegdelen','dvm','wegdelen'],['signalForecast','Signaalgeverprognose & WIS','dvm','prognose'],['lifecycle','Levensduur & DRIP','dvm','drips'],['chains','Bedienketens','bi','am']]},
