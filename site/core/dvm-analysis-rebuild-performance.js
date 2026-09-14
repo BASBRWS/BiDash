@@ -29,6 +29,8 @@ export function installDvmAnalysisRebuildPerformance(scope=globalThis){
 
     let totalImportActive=false,rebuildPhase=false,assetRegisterBuilt=false,currentFile='DVM-totaalbestand';
     let inspectCall=0,historyRecognizable=null,historyPassSkipped=false,coverageSkips=0;
+    let historyDeferred=false,deferredHistoryRows=0,deferredAnalyseActive=false;
+    const LARGE_HISTORY_THRESHOLD=20000;
     const cache=new Map();
     let hits=0,misses=0;
     const timings={};
@@ -50,9 +52,56 @@ export function installDvmAnalysisRebuildPerformance(scope=globalThis){
         return true;
       }catch(e){return false;}
     };
+    const inspectWithoutAssetLinks=rows=>{
+      if(typeof scope.eval!=='function')return null;
+      const hold='__BIDASH_IMPORT_ASSET_INDEX_HOLD__';
+      try{
+        scope[hold]=scope.eval('typeof ASSET_INDEX!=="undefined"?ASSET_INDEX:null');
+        scope.eval('ASSET_INDEX=null');
+        const result=timeCall('historieLichteInspectieMs',()=>originalInspect.call(scope,rows));
+        if(result&&result.typen){
+          Object.values(result.typen).forEach(g=>{
+            g.genoeg=false;g.frequentieGenoeg=false;g.koppelingUitgesteld=true;
+          });
+          result.koppelingUitgesteld=true;
+        }
+        return result;
+      }catch(e){return null;}
+      finally{
+        try{scope.eval('ASSET_INDEX=globalThis.__BIDASH_IMPORT_ASSET_INDEX_HOLD__');}catch(e){}
+        try{delete scope[hold];}catch(e){}
+      }
+    };
+    const setHistoryInspection=result=>{
+      if(typeof scope.eval!=='function')return false;
+      try{
+        scope.__BIDASH_DEFERRED_HISTORY_INSPECTION__=result;
+        scope.eval('STORINGS_INSPECTIE=globalThis.__BIDASH_DEFERRED_HISTORY_INSPECTION__');
+        delete scope.__BIDASH_DEFERRED_HISTORY_INSPECTION__;
+        return true;
+      }catch(e){
+        try{delete scope.__BIDASH_DEFERRED_HISTORY_INSPECTION__;}catch(ignore){}
+        return false;
+      }
+    };
+    const analyseDeferredHistory=()=>{
+      if(!historyDeferred||typeof originalCombinedHistory!=='function')return false;
+      const rows=originalCombinedHistory();
+      deferredAnalyseActive=true;resetCache();
+      try{
+        const result=timeCall('historieUitgesteldeInspectieMs',()=>originalInspect.call(scope,rows));
+        setHistoryInspection(result);
+        historyRecognizable=result&&Number.isFinite(Number(result.herkenbaar))?Number(result.herkenbaar):null;
+        historyDeferred=false;
+        deferredHistoryRows=0;
+        return true;
+      }finally{
+        deferredAnalyseActive=false;
+      }
+    };
 
     scope.koppelMeldingAanAsset=function(m,typeId){
-      if(!totalImportActive||!rebuildPhase)return originalMatch.call(this,m,typeId);
+      if(!((totalImportActive&&rebuildPhase)||deferredAnalyseActive))return originalMatch.call(this,m,typeId);
       const key=dvmAssetMatchMemoKey(m,typeId);
       if(cache.has(key)){hits++;return cache.get(key);}
       misses++;
@@ -85,7 +134,14 @@ export function installDvmAnalysisRebuildPerformance(scope=globalThis){
     scope.inspecteerStoringsRijen=function(...args){
       if(!totalImportActive||!rebuildPhase)return originalInspect.apply(this,args);
       inspectCall++;
-      const eerste=inspectCall===1;
+      const eerste=inspectCall===1,rows=Array.isArray(args[0])?args[0]:[];
+      if(eerste&&rows.length>=LARGE_HISTORY_THRESHOLD){
+        historyDeferred=true;deferredHistoryRows=rows.length;
+        phase(94,`${rows.length.toLocaleString('nl-NL')} historische regels registreren, assetkoppeling uitgesteld`);
+        const light=inspectWithoutAssetLinks(rows)||{totaalRijen:rows.length,herkenbaar:0,typen:{},typenGeladen:[],koppelingUitgesteld:true};
+        if(light&&Number.isFinite(Number(light.herkenbaar)))historyRecognizable=Number(light.herkenbaar);
+        return light;
+      }
       phase(eerste?94:95,eerste?'Storingshistorie inspecteren':'Open storingen inspecteren');
       const result=timeCall(eerste?'historieInspectieMs':'liveInspectieMs',()=>originalInspect.apply(this,args));
       if(eerste&&result&&Number.isFinite(Number(result.herkenbaar)))historyRecognizable=Number(result.herkenbaar);
@@ -102,8 +158,8 @@ export function installDvmAnalysisRebuildPerformance(scope=globalThis){
 
     scope.herbouwAssetMatchBeeld=function(...args){
       if(!totalImportActive||!rebuildPhase)return originalRebuild.apply(this,args);
-      phase(97,'Assetkoppelingen en restlijst opbouwen');
-      if(historyRecognizable===0&&typeof originalCombinedHistory==='function'){
+      phase(97,historyDeferred?'Actuele assetkoppelingen en restlijst opbouwen':'Assetkoppelingen en restlijst opbouwen');
+      if((historyDeferred||historyRecognizable===0)&&typeof originalCombinedHistory==='function'){
         const saved=scope.gecombineerdeStoringsRijen;
         scope.gecombineerdeStoringsRijen=()=>[];
         historyPassSkipped=true;
@@ -114,24 +170,30 @@ export function installDvmAnalysisRebuildPerformance(scope=globalThis){
     };
 
     scope.probeerAnalyseActiveren=function(...args){
-      if(totalImportActive&&rebuildPhase)phase(98,'Analysebeeld en scherm opbouwen');
+      const doel=String(args[0]||'').toLowerCase();
+      if(!totalImportActive&&historyDeferred&&doel==='prognose')analyseDeferredHistory();
+      if(totalImportActive&&rebuildPhase)phase(98,historyDeferred?'Live analysebeeld opbouwen, historie later koppelen':'Analysebeeld en scherm opbouwen');
       return timeCall(totalImportActive&&rebuildPhase?'analyseActiverenMs':'analyseBuitenImportMs',()=>originalActivate.apply(this,args));
     };
 
     scope.totaalImportJson=async function(...args){
       totalImportActive=true;rebuildPhase=false;assetRegisterBuilt=false;inspectCall=0;historyRecognizable=null;historyPassSkipped=false;coverageSkips=0;
+      historyDeferred=false;deferredHistoryRows=0;deferredAnalyseActive=false;
       currentFile=args[0]&&args[0].name?String(args[0].name):'DVM-totaalbestand';
       Object.keys(timings).forEach(k=>delete timings[k]);resetCache();
       try{return await originalTotalImport.apply(this,args);}
       finally{
         scope.__BIDASH_LAST_REBUILD_PERF__={
           hits,misses,cacheEntries:cache.size,coverageSkips,historyRecognizable,historyPassSkipped,
+          historyDeferred,deferredHistoryRows,
           timings:Object.fromEntries(Object.entries(timings).map(([k,v])=>[k,Math.round(v)]))
         };
+        scope.__BIDASH_HISTORY_DEFERRED__=historyDeferred?{rows:deferredHistoryRows,reason:'grote historische set, wordt gekoppeld bij prognose'}:null;
         totalImportActive=false;rebuildPhase=false;assetRegisterBuilt=false;cache.clear();
       }
     };
 
+    scope.__BIDASH_ANALYSEER_HISTORIE__=()=>analyseDeferredHistory();
     scope.__BIDASH_ANALYSIS_REBUILD_PERF__=true;
     return true;
   };
