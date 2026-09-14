@@ -1,118 +1,85 @@
 # Logische architectuur
 
-Deze pagina tekent de vorm van BiDash: welke lagen er zijn, wie welke rekenregel
-bezit, en welke grenzen echt grenzen zijn. Het is een leeswijzer bij
-[SYSTEEMWERKING.md, hoofdstuk 2](SYSTEEMWERKING.md#2-architectuur-en-eigenaarschap).
-Die beschrijving is normatief; deze tekening vervangt haar niet en bevat geen
-tweede set regels. Wijkt de tekening af van de code, dan heeft de code gelijk en
-moeten beide worden bijgewerkt.
+Deze tekening beschrijft de denkwijze van BiDash, niet de technische map- of iframe-indeling. De centrale vraag is: kunnen we de VWM-dienstverlening nu en in de toekomst uitvoeren, en welke interne, technische en externe factoren beïnvloeden dat?
 
-![Logische architectuur van BiDash in vier lagen binnen één browserorigin: de schil met schermen en orchestratie, de kern met gedeelde contracten, de bruggen via window.HUB, en de drie rekenmodules DVM, BI en planning in eigen iframes, met daarnaast de lokale opslag](afbeeldingen/architectuur.svg)
+![Logische architectuur: VWM-dienstverlening bovenaan, daaronder de rule engine en trigger engine, gevoed door bedrijfsvoering BI, technische DVM-assets en planning/externe invloeden](afbeeldingen/architectuur.svg)
 
-## Waarom er vier lagen zijn
+## De bovenste laag is dienstverlening
 
-BiDash is geen herschreven engine. Het is een gezamenlijke werkruimte om drie
-bestaande applicaties, die elk hun eigen DOM, globale variabelen en rekenfuncties
-hebben. De laagindeling bestaat om die erfenis werkbaar te houden: hoe verder je
-naar beneden gaat, hoe meer het oorspronkelijke binnenwerk telt, en hoe
-voorzichtiger een wijziging moet zijn.
+De hoogste laag is bewust niet DVM, BI of Planning maar de dienstverlening zelf. Incidentmanagement, Verkeersmanagement, Reis- en route-informatie en Werk in Uitvoering zijn de uitkomsten waarop BiDash stuurt.
 
-**A · Schil** is wat de gebruiker ziet: schermen, hoofdmenu, navigatie en de
-orchestratie van importeren, herstellen, opslaan en tonen. De schil rekent geen
-domeinregels uit. Hij vraagt op, ontvangt samenvattingen en zet ze naast elkaar;
-wat hij optelt is een weergavetotaal, geen nieuwe norm.
+Het systeem moet uiteindelijk antwoord geven op vragen als:
 
-**B · Kern** bevat de afspraken die alle partijen delen: wat een geldig bestand
-is, welke delen een import vervangt, wat een export meeneemt, hoe opeenvolgende
-storingslijsten zich tot elkaar verhouden, en hoe losse signalen tot één lijst
-worden samengevoegd. Dit is de enige laag waar een regel van niemand in het
-bijzonder is — en juist daarom de laag waar je een nieuwe domeinregel *niet*
-neerzet.
+- kunnen we de dienst leveren;
+- met welke beschikbaarheid en prestatie;
+- is er voldoende personele en contractuele capaciteit;
+- welke technische middelen beperken de dienst;
+- welke geplande of externe veranderingen beïnvloeden de uitvoerbaarheid;
+- wat zijn de kosten, risico's en toekomstige knelpunten.
 
-**C · Bruggen** zijn de adapters. Elke module krijgt precies één luik naar buiten,
-`window.HUB`. De schil kent het binnenwerk van een module niet en mag er niet
-omheen grijpen. Dat is de reden dat `parent.DB` geen geldige route naar de
-BI-configuratie is: wat niet door het luik gaat, bestaat voor de rest van het
-systeem niet.
+## Drie informatiedomeinen onder de dienstverlening
 
-De drie luiken zijn niet even breed, en dat verschil is architectuur en geen
-slordigheid. `dvm-adapter.js` en `bi-adapter.js` dragen allebei `import`,
-`export` en `summary`, aangevuld met ingangen naar hun verdiepende schermen.
-`planning-adapter.js` heeft alleen `open`, `fullscreen` en `summary`: de planning
-levert geen eigen gegevensstroom aan de schil. Haar XML en de toe te passen
-formatieregels komen via `bi-adapter.js`, met `attachPlanning`, `importPlanning`
-en `syncPlanningRules`; `capture()` slaat de planning-adapter dan ook expliciet
-over. Wie de planning als een vierde zelfstandige gegevensbron behandelt, bouwt
-een route die er niet is.
+### 1. Bedrijfsvoering, nu aangeduid als BI
 
-**D · Modules** zijn de drie oorspronkelijke applicaties, elk in een eigen
-`iframe`. Hier zit alle domeinkennis, en hier ligt het eigenaarschap.
+BI gaat logisch over hoe de organisatie de dienstverlening kan uitvoeren. Daar horen formatie, beschikbare capaciteit, contracten, budget, leveranciers, functies en interne bedienketens bij.
 
-## Eén eigenaar per rekenregel
+De naam Business Intelligence is breder dan de huidige inhoud. In de architectuur betekent BI daarom vooral de bedrijfsvoerings- en uitvoeringsvermogensblik. BI is geen eigenaar van technische assetregels of planningslogica.
 
-Dit is het dragende principe, en het is de reden dat de architectuur eruitziet
-zoals hij eruitziet. DVM bezit dienstimpact en verkeerskosten. BI bezit de
-formatienormen, contracten en interne bedienketens. Planning bezit het XML-model
-en past de BI-formatieregels toe zonder ze te herdefiniëren.
+### 2. Technische middelen, nu aangeduid als DVM
 
-De schil combineert uitkomsten en expliciete koppelingen. Hij introduceert geen
-tweede dienst-, kosten- of formatiemodel. Een getal dat in twee lagen wordt
-uitgerekend gaat vroeg of laat uiteenlopen, en dan is niet meer vast te stellen
-welk getal klopt. Zie hoofdstuk 2 van de systeemwerking voor de precieze
-verdeling en voor de behandeling van oude BI-aggregaatassets.
+DVM is als naam historisch gegroeid en dekt het domein niet volledig. Logisch gaat deze laag over de technische middelen die nodig zijn om de diensten te kunnen leveren.
 
-## Drie grenzen, en maar één daarvan is een beveiligingsgrens
+Daaronder vallen onder andere:
 
-De tekening bevat drie soorten scheiding. Ze worden makkelijk door elkaar
-gehaald, dus hier staan ze uit elkaar.
+- assetregister en areaal;
+- EOL en levensduur;
+- actuele open storingen;
+- storingshistorie;
+- technische beschikbaarheid en prestatie;
+- technische prognoses;
+- verkeerskundige gevolgen en verkeerskosten die uit assetverlies volgen.
 
-**De netwerkgrens is echt.** De gestippelde rand is de browser. De Content
-Security Policy met `connect-src 'none'` betekent dat de applicatie geen
-netwerkverzoek voor brondata kan doen. Er is geen upload, geen accountopslag en
-geen telemetrie. GitHub levert de applicatie; de gegevens blijven aan deze kant
-van de rand. Dit is de grens waarop de privacybelofte rust.
+Een toekomstige naam als `Technische middelen` of `Assets & techniek` zou de inhoud beter beschrijven dan alleen DVM. De code hoeft daarvoor niet direct te worden hernoemd.
 
-**De eigenaarsgrens is een afspraak.** Niets in de techniek verhindert dat iemand
-een dienstnorm in de schil programmeert. Wat dat verhindert is de afspraak, de
-review en de testmatrix. Een architectuurtekening maakt zo'n grens zichtbaar, niet
-afdwingbaar.
+### 3. Planning en externe invloeden
 
-**De framegrens is functioneel, geen beveiligingsgrens.** De modules draaien in
-`iframe`s met `allow-scripts` en `allow-same-origin`, op dezelfde origin als de
-schil. Dat isoleert de DOM en de globale variabelen van de modules netjes van
-elkaar, wat precies de bedoeling is. Het beschermt niet tegen kwaadaardige eigen
-code. Wie een module aanpast, past effectief het geheel aan. `postMessage` wordt
-daarom alleen verwerkt voor dezelfde origin én een bekend bronframe.
+Planning beschrijft wat rondom de dienstverlening verandert en wanneer. Het is daarmee geen zelfstandig dienstmodel, maar een bron van tijdgebonden invloed en uitvoerbaarheidscontext.
 
-## Opslag zit aan het apparaat vast
+Daaronder vallen P6- en MS Project-activiteiten, afhankelijkheden, werkzaamheden, tijdvensters, U-routes, afsluitingen en vergelijkbare externe context.
 
-De schil schrijft de volledige werkruimte naar IndexedDB, database
-`bidash-integraal`, objectstore `workspace`, sleutel `current`. De modules
-gebruiken daarnaast hun eigen lokale browseropslag voor instellingen.
+## Rule engine: van bronfeit naar invloed
 
-Beide zijn gebonden aan deze browser op dit apparaat. Browseropslag is geen
-back-up: wis je je browsergegevens en de kopie is weg. Een export is de enige
-overdraagbare vorm. Gebruik één werkruimte-tab tegelijk; er is geen uitgewerkte
-meergebruikerssynchronisatie.
+De rule engine vertaalt gegevens uit de drie domeinen naar betekenis voor de dienstverlening. Hier horen regels thuis die bepalen:
 
-## Wat deze tekening niet zegt
+- welke bronregel meetelt;
+- welke asset, functie, processtap of dienst wordt geraakt;
+- welk gewicht of impactniveau geldt;
+- welke afhankelijkheden en expliciete koppelingen gelden;
+- hoe meerdere feiten worden gecombineerd zonder dezelfde regel dubbel te modelleren.
 
-Ze zegt niets over de juistheid van de verkeerskundige of statistische modellen
-daarbinnen. Een nette laagindeling is geen validatie van een formule, en een
-visueel geslaagde wijziging bewijst geen correcte berekening.
+De nieuwe telregels voor actuele storingen zijn onderdeel van deze laag. De geladen open-storingslijst blijft volledig als bron bewaard. De gebruiker kan voor het actuele overzicht bepalen welke waarden meetellen voor onder andere type storing/asset, gevolg, noodmaatregel en foutcode. Alleen de geselecteerde regels gaan door naar de actuele impactberekening. Het filter sluit geen storing af en verandert de A/B-vergelijking met de volgende momentopname niet.
 
-Ze toont ook niet elke route. Oudere detailschermen binnen de modules kunnen
-eigen dekkingslogica hebben die afwijkt van de landelijke route; maak die bij een
-wijziging niet stilzwijgend gelijk.
+## Trigger engine: wanneer vraagt een uitkomst aandacht
 
-## Waar je moet zijn bij een wijziging
+De trigger engine gebruikt de berekende toestand om te bepalen wanneer een signaal, waarschuwing of besluitmoment ontstaat. Voorbeelden zijn:
 
-Bepaal eerst in welke laag je zit en welk domein eigenaar is. Een wijziging in
-laag D raakt de domeinregels van één eigenaar. Een wijziging in laag B raakt het
-gegevenscontract van iedereen en vraagt om compatibiliteits- en
-deelimportcontroles. Een wijziging in laag C raakt de afspraak zelf en is
-zelden alleen technisch.
+- dienstverlening onder norm;
+- capaciteitstekort;
+- combinatie van technische impact en personele krapte;
+- overschrijding van kosten- of risicodrempels;
+- prognose die binnen een ingestelde termijn een grens passeert;
+- samenloop met geplande werkzaamheden.
 
-De verplichte werkwijze en de bijbehorende gerichte controles staan in
-[SYSTEEMWERKING.md, hoofdstuk 11 en 12](SYSTEEMWERKING.md#11-verplichte-werkwijze-bij-ai-wijzigingen).
-Die matrix wordt hier bewust niet herhaald.
+Rule engine en trigger engine zijn dus niet hetzelfde. De rule engine bepaalt de betekenis en doorwerking. De trigger engine bepaalt wanneer de uitkomst belangrijk genoeg is om als signaal naar voren te komen.
+
+## Waarom BI niet letterlijk de ouder van DVM en Planning is
+
+De gedachte dat BI boven DVM en Planning hoort is inhoudelijk begrijpelijk: de bedrijfsvoering bepaalt hoe de dienstverlening kan worden uitgevoerd. In een causale gegevensarchitectuur is het echter zuiverder om Bedrijfsvoering, Technische middelen en Planning naast elkaar als drie bron- of invloeddomeinen te tekenen.
+
+De echte bovenliggende laag is de dienstverlening. Daarmee voorkom je dat het lijkt alsof BI eigenaar is van technische assetlogica of externe planningsfeiten. Alle drie leveren zelfstandig feiten aan de centrale vertaling naar dienstverlening.
+
+## Technische implementatie blijft gescheiden van dit logische model
+
+De huidige applicatie bestaat technisch nog uit een gezamenlijke schil met bestaande DVM-, BI- en planningmodules en adapters via `window.HUB`. Dat is een implementatiekeuze en hoeft niet één-op-één gelijk te zijn aan de logische architectuur.
+
+De norm blijft: één eigenaar per bronregel en geen tweede rekenmodel in de schil. `SYSTEEMWERKING.md` beschrijft de technische eigenaarsgrenzen, imports, opslag en adapters. Deze pagina beschrijft hoe de informatie inhoudelijk hoort te stromen.
