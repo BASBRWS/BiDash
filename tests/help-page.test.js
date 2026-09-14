@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {existsSync,readFileSync} from 'node:fs';
 
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 
@@ -9,12 +9,21 @@ test('hoofdpagina bevat Help knop naar gepubliceerde uitleg',()=>{
   assert.match(html,/href="help\.html"[^>]*>\? Help<\/a>/);
 });
 
-test('Help pagina beschrijft actuele storingslijst en hoofdproces',()=>{
+test('Help pagina is een viewer voor de echte Markdown documentatie',()=>{
   const html=read('site/help.html');
-  assert.match(html,/Wat gebeurt er als je een nieuwe XLSX met open storingen laadt/);
-  assert.match(html,/MSI-storing staat in A maar niet meer in B/);
-  assert.match(html,/Van bronbestand naar besluitinformatie/);
+  assert.match(html,/id="helpNav"/);
+  assert.match(html,/id="helpContent"/);
+  assert.match(html,/src="help\.js"/);
+  assert.match(html,/De Help toont rechtstreeks de Markdown-documentatie/);
   assert.match(html,/Terug naar BiDash/);
+});
+
+test('documentatie wordt voor publicatie inclusief afbeeldingen gebundeld',()=>{
+  assert.equal(existsSync(new URL('../site/docs/processflow.md',import.meta.url)),true);
+  assert.equal(existsSync(new URL('../site/docs/afbeeldingen/bidash-processflow.svg',import.meta.url)),true);
+  const bundle=read('site/help-docs.js');
+  assert.match(bundle,/docs\/processflow\.md/);
+  assert.match(bundle,/Processflow van BiDash/);
 });
 
 test('repo documentatie bevat dezelfde functionele storingsflow',()=>{

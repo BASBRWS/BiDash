@@ -2,11 +2,13 @@
 
 BiDash voegt twee bestaande rekenwerelden samen, dienstimpact en kosten uit DVM, planning, formatie en contracten uit BI, zonder dat een van beide zijn eigen regels afstaat. Alles rekent in de browser van de gebruiker. Er gaat geen bronbestand het apparaat af.
 
-![Processflow: GitHub Pages levert alleen de applicatie; daarna kiest de gebruiker lokale bestanden, die na voorvertoning en validatie naar twee gescheiden rekenengines gaan, waarvan de samenvattingen worden gecombineerd, en waarvan de werkruimte in IndexedDB wordt bewaard en selectief geëxporteerd](afbeeldingen/bidash-processflow.svg)
+![Processflow: GitHub Pages levert de statische BiDash-applicatie en documentatie; daarna kiest de gebruiker lokale bestanden, die na voorvertoning en validatie naar twee gescheiden rekenengines gaan, waarvan de samenvattingen worden gecombineerd, en waarvan de werkruimte in IndexedDB wordt bewaard en selectief geëxporteerd](afbeeldingen/bidash-processflow.svg)
 
-## 1. De app komt van GitHub, de gegevens nooit
+## 1. De app en documentatie komen van GitHub, de gegevens nooit
 
-De workflow publiceert alleen de map `site/` naar GitHub Pages. Wat je daar ophaalt is de applicatie zelf. De pagina draagt een Content Security Policy met `connect-src 'none'`, waardoor de app geen netwerkverzoek voor brondata kan doen. Er is geen accountopslag of synchronisatie van gebruikersbestanden.
+De workflow publiceert de map `site/` naar GitHub Pages. Vóór het publicatie-artifact wordt gemaakt voert de teststap `scripts/stage-docs.mjs` uit. Die kopieert de repositorydocumentatie naar `site/docs/` en maakt `site/help-docs.js` uit de echte Markdown-bestanden. Deze twee paden zijn gegenereerd en worden niet in Git opgeslagen.
+
+Wat de gebruiker ophaalt zijn dus alleen statische applicatiebestanden, uitleg en afbeeldingen. Operationele bronbestanden worden nooit onderdeel van die publicatie. De hoofdapp behoudt een Content Security Policy met `connect-src 'none'`; de Help-viewer heeft geen fetch of externe Markdown-service nodig, omdat de Markdown tijdens publicatie lokaal in de Help-bundel is opgenomen.
 
 ## 2. Je kiest bestanden en ziet eerst wat er verandert
 
@@ -49,9 +51,13 @@ Zodra een engine iets wijzigt stuurt die een bericht naar de schil. Na ongeveer 
 
 Die opslag zit aan dit apparaat en deze browser vast. Wis je browsergegevens, dan is de kopie weg. Export is daarom de aangewezen route voor overdracht en back-up.
 
-## 7. Gebruikershulp in de applicatie
+## 7. Gebruikershulp toont de echte Markdown-documentatie
 
-Rechtsboven in BiDash staat een Help-knop. Die opent `site/help.html`. De inhoud daarvan volgt `docs/GEBRUIKERSHULP.md` en deze processflow. Bij functionele wijzigingen aan bediening, gegevensstromen, opslag, export of rekenketens moeten deze documenten en de Help-pagina tegelijk worden gecontroleerd en waar nodig bijgewerkt.
+Rechtsboven in BiDash staat een Help-knop. Die opent `site/help.html`. De pagina bevat alleen de viewer en navigatie. De inhoud zelf komt tijdens iedere test/publicatie opnieuw uit de bestanden in `docs/`.
+
+De standaardweergave is deze processflow. Alle Markdown-bestanden op het hoogste niveau van `docs/` verschijnen automatisch in de documentnavigatie. Afbeeldingen en SVG's blijven via hun relatieve Markdown-paden gekoppeld en worden vanuit `site/docs/` getoond. Daardoor is er geen aparte HTML-kopie van de gebruikersuitleg meer die handmatig gelijk moet worden gehouden.
+
+Bij functionele wijzigingen aan bediening, gegevensstromen, opslag, export of rekenketens worden de relevante `.md`-bestanden en afbeeldingen bijgewerkt. Een wijziging onder `docs/**` activeert ook de Pages-workflow, zodat Help opnieuw wordt opgebouwd en gepubliceerd.
 
 ## Wat het systeem bewust niet doet
 
@@ -67,7 +73,10 @@ Rechtsboven in BiDash staat een Help-knop. Die opent `site/help.html`. De inhoud
 | Bestand | Verantwoordelijkheid |
 |---|---|
 | [`site/index.html`](../site/index.html) | De schil met de schermen, Help-knop en de Content Security Policy |
-| [`site/help.html`](../site/help.html) | Gepubliceerde gebruikershulp en procesflows |
+| [`site/help.html`](../site/help.html) | De gepubliceerde Help-shell en documentnavigatie |
+| [`site/help.js`](../site/help.js) | Selecteren en tonen van de gebundelde Markdown-documenten |
+| [`site/core/markdown.js`](../site/core/markdown.js) | Lokale Markdown-rendering, tabellen, links en relatieve afbeeldingspaden |
+| [`scripts/stage-docs.mjs`](../scripts/stage-docs.mjs) | Bundelt `docs/` en genereert de Help-documenten voor test/publicatie |
 | [`site/app.js`](../site/app.js) | Import met voorvertoning, staat ophalen, opslaan, tekenen en exporteren |
 | [`site/core/model.js`](../site/core/model.js) | Validatie, samenvoegen, exportselectie en `combine()` |
 | [`site/core/storage.js`](../site/core/storage.js) | Lezen en schrijven van de werkruimte in IndexedDB |
