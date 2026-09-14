@@ -30,6 +30,7 @@ export function mergeImport(current,bundle){
 export function combine(dvm,bi,links){
  const out=[];const seen=new Set();const add=t=>{if(!seen.has(t.id)){seen.add(t.id);out.push(t);}};
  for(const [i,t] of (bi?.triggers||[]).entries())add({...t,id:'bi:'+JSON.stringify([t.dom,t.aid,t.fid,t.titel,t.val]),eigenaar:'BI',regel:'BI / '+(t.titel||t.dom||i)});
+ for(const [i,t] of (dvm?.triggers||[]).entries())add({...t,id:'dvm-prognose:'+(t.id||i),eigenaar:'DVM',regel:t.regel||('DVM prognose / '+(t.titel||i))});
  for(const d of dvm?.diensten||[]){
   const low=d.besch!=null&&d.besch<d.norm;
   if(low)add({id:'dvm:'+d.id,sev:'rood',titel:d.naam+' onder dienstnorm',msg:`${d.besch.toFixed(2)}% beschikbaar; norm ${d.norm}%.`,eigenaar:'DVM',regel:'DVM.diensten.'+d.id+'.norm',resp:'Dienstverantwoordelijke'});
