@@ -1,5 +1,5 @@
 const EMPTY='(leeg)';
-export const LIVE_FILTER_DIMENSIONS=['type','gevolg','noodmaatregel','foutcode'];
+export const LIVE_FILTER_DIMENSIONS=['type','melding','gevolg','noodmaatregel','foutcode'];
 
 export function liveFilterValue(value){
   const text=String(value==null?'':value).trim();
@@ -56,7 +56,13 @@ const PATCH_SOURCE=String.raw`
   const H=globalThis.__BIDASH_LIVE_FILTER_HELPERS__;
   if(!H||typeof doorrekenen!=='function'||typeof normRij!=='function'||typeof classificeer!=='function')return;
 
-  const LABELS={type:'Type storing / asset',gevolg:'Gevolg',noodmaatregel:'Noodmaatregel',foutcode:'Foutcode / rekenregel'};
+  const LABELS={
+    type:'Assettype',
+    melding:'Type storing / omschrijving',
+    gevolg:'Gevolg',
+    noodmaatregel:'Noodmaatregel',
+    foutcode:'Foutcode / rekenregel'
+  };
 
   function html(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   function cfg(){
@@ -68,7 +74,7 @@ const PATCH_SOURCE=String.raw`
     const m=normRij(raw),type=classificeer(m)||'ONBEKEND';
     let foutcode='';
     try{const f=foutregel(m,type);foutcode=f&&f.code!=null?String(f.code):'';}catch(e){}
-    return {type,gevolg:m.gevolg||'',noodmaatregel:m.noodmaatregel||'',foutcode};
+    return {type,melding:m.melding||'',gevolg:m.gevolg||'',noodmaatregel:m.noodmaatregel||'',foutcode};
   }
   function filteredRows(){return H.filterLiveRows(rawRows(),facets,cfg());}
   function linkedCount(rows){
@@ -80,9 +86,13 @@ const PATCH_SOURCE=String.raw`
     }
     return n;
   }
+  function notify(){
+    try{if(parent!==window)parent.postMessage({type:'hub:changed',engine:'dvm'},location.origin);}catch(e){}
+  }
   function invalidate(){
     ANALYSE_SIGNATURE='';
     if(typeof probeerAnalyseActiveren==='function')probeerAnalyseActiveren('overzicht');
+    notify();
   }
   function setDimensionAll(key){
     const f=cfg();f.dimensies[key]={mode:'all',values:[]};invalidate();
@@ -129,6 +139,32 @@ const PATCH_SOURCE=String.raw`
     if(opties&&opties.actueel&&Array.isArray(rows))rows=H.filterLiveRows(rows,facets,cfg());
     return originalDoorrekenen(rows,opties);
   };
+
+  if(typeof totaalExportBundle==='function'){
+    const originalExport=totaalExportBundle;
+    totaalExportBundle=function(...args){
+      const bundle=originalExport.apply(this,args);
+      if(bundle&&bundle.parameters)bundle.parameters.liveFilter=structuredClone(cfg());
+      return bundle;
+    };
+  }
+
+  if(typeof totaalImportJson==='function'){
+    const originalImport=totaalImportJson;
+    totaalImportJson=async function(file,...args){
+      let importedFilter=null;
+      try{
+        if(file&&typeof file.text==='function'){
+          const parsed=JSON.parse(await file.text());
+          importedFilter=parsed&&parsed.parameters&&parsed.parameters.liveFilter;
+        }
+      }catch(e){}
+      const result=await originalImport.call(this,file,...args);
+      if(importedFilter){RULES.liveFilter=H.normalizeLiveFilter(importedFilter);ANALYSE_SIGNATURE='';if(typeof probeerAnalyseActiveren==='function')probeerAnalyseActiveren('overzicht');}
+      return result;
+    };
+  }
+
   const originalActivate=probeerAnalyseActiveren;
   probeerAnalyseActiveren=function(...args){const result=originalActivate.apply(this,args);render();return result;};
 
