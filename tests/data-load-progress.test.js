@@ -19,12 +19,11 @@ test('voortgangspercentages worden begrensd',()=>{
   assert.equal(clampProgress(null),null);
 });
 
-test('hoofdapp leest bestanden met echte FileReader voortgang en laat voor zware parse eerst schilderen',()=>{
+test('voortgangslaag observeert import zonder de native File.text te vervangen',()=>{
   const source=read('site/core/load-progress.js');
-  assert.match(source,/scope\.File\.prototype\.text=function/);
-  assert.match(source,/reader\.onprogress/);
-  assert.match(source,/requestAnimationFrame/);
-  assert.match(source,/Bestand gelezen · inhoud controleren/);
+  assert.doesNotMatch(source,/scope\.File\.prototype\.text\s*=/);
+  assert.doesNotMatch(source,/new scope\.FileReader\(/);
+  assert.match(source,/Bestand lezen en inhoud controleren/);
   assert.match(source,/hub:import-progress/);
   assert.match(source,/applyImport/);
 });

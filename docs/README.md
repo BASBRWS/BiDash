@@ -13,6 +13,7 @@ Achtergrond bij BiDash integraal. De applicatie zelf staat in [`site/`](../site)
 | [Release notes storingsfilter](release-notes-2026-09-14-storingsfilter.md) | Zelf instellen welke actuele open storingen meetellen zonder de bron- en historielogica te wijzigen |
 | [Release notes filter-dashboard synchronisatie](release-notes-2026-09-14-live-filter-sync.md) | Filterwijzigingen automatisch doorrekenen en bron-, selectie- en dashboardaantallen uit elkaar houden |
 | [Release notes datalaadvoortgang](release-notes-2026-09-14-data-load-progress.md) | Zichtbare byte- en fasevoortgang bij hub-import en specialistische DVM-bronnen |
+| [Release notes importregressie PR 22](release-notes-2026-09-14-import-regressie-pr22.md) | Herstelt native File.text en voorkomt een tweede volledige parse van bekende grote BiDash-JSON |
 | [Release notes snellere analysebeeldherbouw](release-notes-2026-09-14-import-analysebeeld-performance.md) | Vermijdt herhaalde assetkoppelingen en een dubbele matchbeeldpass tijdens een grote DVM-totaalimport |
 | [Release notes snelle combiregels](release-notes-2026-09-14-combiregel-performance.md) | Vervangt de kwadratische N x N-combiloop door selectie op weg, type, afstand en tijdvenster bij grote totaalimports |
 | [Release notes grote integrale import](release-notes-2026-09-14-integrale-import-memory.md) | Wacht op de DVM-performancepatches en voorkomt een overbodige volledige kopie van grote DVM-bundles |

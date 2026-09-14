@@ -1,3 +1,4 @@
+import './import-known-json-fastpath.js';
 import './universal-importer.js';
 
 export const DVM_PARTS=['assetregister','eol','storingshistorie','liveStoringen','dripHistorie','uRoutes','werkzaamheden','parameters','dripSelectie'];
