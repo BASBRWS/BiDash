@@ -21,6 +21,10 @@ Modelaannames mogen niet als metingen of zekerheden worden gepresenteerd.
 
 ## 2. Architectuur en eigenaarschap
 
+![Logische architectuur van BiDash in vier lagen binnen één browserorigin: de schil met schermen en orchestratie, de kern met gedeelde contracten, de bruggen via window.HUB, en de drie rekenmodules DVM, BI en planning in eigen iframes, met daarnaast de lokale opslag](afbeeldingen/architectuur.svg)
+
+Een leeswijzer bij deze tekening staat in [architectuur.md](architectuur.md). De onderstaande tabel blijft de normatieve indeling.
+
 | Onderdeel | Code | Verantwoordelijkheid |
 | --- | --- | --- |
 | Ingang en vormgeving | `site/index.html`, `site/style.css` | Gezamenlijke werkruimte, horizontaal hoofdmenu, fullscreen en Help-ingang |

@@ -7,6 +7,7 @@ Achtergrond bij BiDash integraal. De applicatie zelf staat in [`site/`](../site)
 | [Gebruikershulp](GEBRUIKERSHULP.md) | Praktische laadvolgorde, actuele storingslijst, opslag en hoofdproces |
 | [Processflow](processflow.md) | Hoe de applicatie in elkaar zit, van bestand kiezen tot signaal, opslag en export |
 | [Systeemwerking](SYSTEEMWERKING.md) | Architectuur, kwaliteitscontract, importregels, rekenketens en verplichte wijzigingscontroles |
+| [Logische architectuur](architectuur.md) | Leeswijzer bij de architectuurtekening: de vier lagen, het eigenaarschap en welke grenzen echt grenzen zijn |
 | [Rekenvoorbeeld signaalgevers](rekenvoorbeeld-signaalgevers.md) | Tien jaar geen signaalgevers vervangen, doorgerekend tot beschikbaarheid, dienstverlening en kosten |
 | [Release notes actuele storingslijst](release-notes-2026-09-14-live-storingen.md) | Vervangen van live momentopnamen en automatisch historiseren van verdwenen MSI-storingen |
 
