@@ -13,6 +13,7 @@ Achtergrond bij BiDash integraal. De applicatie zelf staat in [`site/`](../site)
 | [Release notes storingsfilter](release-notes-2026-09-14-storingsfilter.md) | Zelf instellen welke actuele open storingen meetellen zonder de bron- en historielogica te wijzigen |
 | [Release notes filter-dashboard synchronisatie](release-notes-2026-09-14-live-filter-sync.md) | Filterwijzigingen automatisch doorrekenen en bron-, selectie- en dashboardaantallen uit elkaar houden |
 | [Release notes datalaadvoortgang](release-notes-2026-09-14-data-load-progress.md) | Zichtbare byte- en fasevoortgang bij hub-import en specialistische DVM-bronnen |
+| [Release notes snellere analysebeeldherbouw](release-notes-2026-09-14-import-analysebeeld-performance.md) | Vermijdt herhaalde assetkoppelingen en een dubbele matchbeeldpass tijdens een grote DVM-totaalimport |
 | [Release notes Markdown Help](release-notes-2026-09-14-help-markdown.md) | Help toont de echte `.md`-inhoud, tabellen en SVG-procesflows |
 | [Release notes dienstverleningsarchitectuur](release-notes-2026-09-14-dienstverleningsarchitectuur.md) | Scheiding tussen de inhoudelijke dienstverleningslogica en de technische implementatiearchitectuur |
 
