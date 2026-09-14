@@ -109,7 +109,7 @@ function install(scope){
   scope.addEventListener('message',event=>{
     const p=event.data;if(event.origin!==scope.location.origin||!p||p.type!=='hub:import-progress')return;
     const active=p.active!==false,error=!!p.error,done=!active&&!error;
-    if(applyActive&&done){show({name:p.bestand||'DVM-bron',pct:92,fase:(p.fase||'DVM gereed')+' · werkruimte afronden',detailText:'Lokale opslag en gezamenlijke uitkomsten worden nog bijgewerkt.'});return;}
+    if(applyActive&&done){show({name:p.bestand||'DVM-bron',pct:null,fase:(p.fase||'DVM gereed')+' · werkruimte opslaan',detailText:'De DVM-import is klaar. BiDash verwerkt nu alleen nog de gezamenlijke werkruimte.'});return;}
     show({name:p.bestand||((p.engine||'').toUpperCase()+' gegevens'),pct:p.pct,fase:p.fase||'Bron verwerken',detailText:p.engine?('Module: '+String(p.engine).toUpperCase()):'',active,error,done,autoHide:done||error});
   });
 
