@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van Integratie 2.3, bijgewerkt op 14 september 2026 voor de actuele storingslijstsynchronisatie en de geïntegreerde Help-pagina.
+Status: beschrijving van Integratie 2.3, bijgewerkt op 14 september 2026 voor de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter en de geïntegreerde Help-pagina.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -33,6 +33,7 @@ Een leeswijzer bij deze tekening staat in [architectuur.md](architectuur.md). De
 | Orchestratie | `site/app.js` | Importvoorstel, herstel, opslag, gezamenlijke weergave, adapters |
 | Gegevenscontract | `site/core/model.js` | Deelimport, selectie-export, validatie, gecombineerde signalen |
 | Live storingssync | `site/core/live-snapshot.js` | Vervangen actuele momentopname, vergelijken met vorige lijst en historiseren verdwenen MSI-storingen |
+| Live overzichtsfilter | `site/core/live-overview-filter.js` | Gebruikersselectie van open meldingen die in de actuele DVM-doorrekening meetellen, zonder de bronmomentopname te veranderen |
 | Opslag | `site/core/storage.js` | IndexedDB, transactioneel schrijven |
 | DVM | `site/engines/dvm.html`, `dvm-1.js` t/m `dvm-3.js` | Buitenassets, storingen, dienstimpact, verkeerskosten, prognoses, memo’s |
 | BI | `site/engines/bi.html`, `bi-1.js` t/m `bi-3.js` | Formatie, capaciteit, contracten, interne bedienketens |
@@ -44,7 +45,7 @@ Een leeswijzer bij deze tekening staat in [architectuur.md](architectuur.md). De
 
 Eén eigenaar per rekenregel:
 
-- DVM berekent buitenasset-impact, subprocessen, dienstbeschikbaarheid en verkeerskosten.
+- DVM berekent buitenasset-impact, de actuele storingsselectie, subprocessen, dienstbeschikbaarheid en verkeerskosten.
 - BI beheert de VWM/CIV-formatienormen en capaciteit; planning past die regels toe.
 - BI beheert contract- en interne bedienketenregels. Ketenbeschikbaarheid is niet automatisch hetzelfde als DVM-dienstbeschikbaarheid.
 - De hub combineert uitkomsten en expliciete koppelingen; hij introduceert geen tweede dienst-, kosten- of formatiemodel.
@@ -58,14 +59,14 @@ niet automatisch als duplicaat verwijderd. Overlap vraagt inhoudelijke beoordeli
 
 | Hoofdgroep | Inhoud |
 | --- | --- |
-| Overzicht | Dienstverlening, capaciteit, brondag en gezamenlijke signalen |
+| Overzicht | Dienstverlening, capaciteit, brondag en gezamenlijke signalen; DVM toont zichtbaar hoeveel open storingen na het ingestelde live filter meetellen |
 | Assetmanagement | Register, open storingen, wegdelen, levensduur/DRIP, bedienketens |
 | Dienstverlening | Impact, verkeerskosten, gebied, regio, rekenverslag, memo’s |
 | Planning | Tijdlijn, planningsdashboard, project/budget, dashboardbeheer |
 | Formatie & contracten | Functies, VWM- en CIV-model, contracten, bedrijfsgegevens |
 | Regels & signalen | Signalering, dienst-functiekoppelingen, domeinregels |
 | Scenario’s | Huidige verkeerskosten, MSI-toekomst, BI-scenario’s; DRIP via DVM |
-| Data & export | Lokale import, selectieve back-up, oorspronkelijke broninvoer |
+| Data & export | Lokale import, datasetbeheer inclusief live storingsfilter, selectieve back-up, oorspronkelijke broninvoer |
 | Help | Gebruikersuitleg, aanbevolen laadvolgorde, actuele storingslijst en procesflow |
 
 Rechtsboven in de hoofdwerkruimte staat een Help-knop naar `site/help.html`. Die pagina is onderdeel van de gepubliceerde `site/`-map en werkt dus ook wanneer de repository later niet publiek toegankelijk is. De inhoud volgt de documentatie in `docs/`.
@@ -98,7 +99,7 @@ Ondersteund zijn de bestaande DVM-totaal-JSON, BI-dataset-JSON en planning-XML
 blijft via bronbeheer beschikbaar. ZIP is geen beloofd hub-importformaat: pak een
 planningarchief uit en laad de XML, tenzij ZIP-ondersteuning apart is geïmplementeerd.
 
-De aanbevolen DVM-volgorde is All Assets, EOL, historische storingen, U-routes, werkzaamheden en als laatste de actuele open storingslijst. De actuele storingslijst is de momentopname voor het live dashboard. Historische storingen zijn een aparte gegevensstroom voor historie en prognose.
+De aanbevolen DVM-volgorde is All Assets, EOL, historische storingen, U-routes, werkzaamheden en als laatste de actuele open storingslijst. De actuele storingslijst is de volledige momentopname voor het live dashboard. Daarna kan de gebruiker in Datasetbeheer instellen welke open meldingen in de actuele doorrekening meetellen. Historische storingen zijn een aparte gegevensstroom voor historie en prognose en worden door dat live filter niet gewijzigd.
 
 De hub maakt eerst een importvoorstel. Bij uitvoeren herstelt `restore()` eerst BI,
 dan planning, dan DVM. Planning gebruikt de oorspronkelijke XML-importer voor
@@ -119,7 +120,7 @@ Integrale export: `formaat: BiDash-integraal`, `versie: 1`, met `delen`, `select
 | Selectie | Inhoud |
 | --- | --- |
 | DVM-onderdelen | `assetregister`, `eol`, `storingshistorie`, `liveStoringen`, `dripHistorie`, `uRoutes`, `werkzaamheden`, `parameters`, `dripSelectie` |
-| `parameters` | DVM-regels, diensten, subprocessen, assetconfiguratie, kosteninstellingen en daarin opgeslagen verkeersmodel/simulaties/NDW-export |
+| `parameters` | DVM-regels, diensten, subprocessen, assetconfiguratie, live-overzichtsfilter (`RULES.cfg.liveOverviewFilter`), kosteninstellingen en daarin opgeslagen verkeersmodel/simulaties/NDW-export |
 | `biRules` | Alleen de actuele `BI_RULE_KEYS`: `config`, `configBron`, `richtlijnen`, `amRegels`, `impact`, `capgrens` |
 | `biData` | Alle overige BI-velden; momenteel óók `vwmFte`, `cap`, `vwmRolCap`, `civFormatie` |
 | `planning` | Originele XML, bestandsnaam en `app_collectState()`-instellingen |
@@ -148,19 +149,24 @@ aparte opslagroute binnen de DVM-kostenconfiguratie. Presenteer die niet als dez
 
 Actueel en prognose zijn gescheiden:
 
-- Live resultaten gebruiken de open storingen op de bronpeildatum van de laatst geladen actuele lijst.
+- Live resultaten beginnen met de volledige open storingsmomentopname op de bronpeildatum van de laatst geladen actuele lijst.
 - Een nieuw open-storingenbestand vervangt de vorige actuele momentopname volledig, ook als de bestandsnaam anders is.
 - De invoer Open storingen accepteert XLSX, XLS en CSV wanneer de inhoud herkenbare DVM-storingsregels bevat. De expliciete open-storingenroute vereist niet meer dat de oude snapshot-heuristiek op basis van status of peildatum slaagt.
 - Bij vervanging vergelijkt `site/core/live-snapshot.js` de oude en nieuwe momentopname. Event-id heeft voorrang als storingidentiteit. Zonder event-id wordt een stabiele combinatie gebruikt van asset, starttijd, weg, richting, hectometer, strook, foutcode, melding en gevolg.
 - Een MSI-storing die in de vorige actuele lijst stond en in de nieuwe lijst ontbreekt wordt afgesloten op de peildatum van de nieuwe lijst en toegevoegd aan `STORINGSBRONNEN` als automatische historische bron.
 - Automatisch afgesloten storingen worden ontdubbeld tegen de bestaande historie. Dezelfde verdwenen storing mag dus niet bij iedere volgende import opnieuw worden toegevoegd.
 - Alleen MSI-storingen worden door deze overgang automatisch naar de signaalgever-storingshistorie verplaatst. Andere assettypen blijven buiten deze specifieke automatische historisering totdat daarvoor een expliciete productregel bestaat.
+- `site/core/live-overview-filter.js` past daarna uitsluitend op de actuele `doorrekenen(...,{actueel:true})`-route een gebruikersfilter toe. De bronmomentopname zelf blijft ongewijzigd.
+- Het filter kan waarden uitsluiten op storingstype/foutregel, gevolg, noodmaatregel, assettype, oorzaak, prioriteit/ernst, VC, RD, district en weg. Lege waarden zijn expliciet filterbaar.
+- De filterconfiguratie bewaart alleen uitsluitingen. Onbekende waarden uit een latere momentopname tellen daardoor standaard mee. Standaard zijn er geen uitsluitingen.
+- De A↔B-vergelijking, automatische historisering, historische storingsanalyse en prognosekalibratie gebruiken altijd de volledige relevante bronstroom en worden nooit door het live-overzichtsfilter beïnvloed.
+- Het actuele overzicht toont bronregels, meegetelde en uitgesloten regels zodat een actieve analysekeuze zichtbaar blijft.
 - Storingshistorie dient voor prognose/kalibratie en wordt niet bij live meldingen opgeteld.
 - De brondag is niet automatisch vandaag. NDW-meetmoment, exportdatum en prognoseperiode zijn afzonderlijke datums en moeten herkenbaar blijven.
 - Assetregister en EOL bepalen populatie, kenmerken en levensduurgegevens.
 - U-routes en werkzaamheden zijn context voor bestaande analyses, geen automatische vermenigvuldigers voor alle kosten.
 
-Rekenketen: open meldingen → asset-/objectimpact → subprocessen → dienstverlening.
+Rekenketen: volledige open momentopname → gebruikersfilter voor actuele doorrekening → asset-/objectimpact → subprocessen → dienstverlening.
 `subprocesWaarde`, `dienstWaardeUitSubprocessen` en `dienstAssetAfhankelijkheid`
 beheren de gewogen afleiding. Beschikbaarheid en prestatie zijn verschillende velden.
 
@@ -325,7 +331,7 @@ van alleen een gecombineerd signaal. Onbekende beschikbaarheid is geen bewezen n
 4. Behoud oude imports en selectieve exports. Bij een schemawijziging: expliciete versie/migratie en tests met ontbrekende én lege velden; geen stille dataverwijdering.
 5. Controleer brondata, herkomst, scope, eenheden, null/0 en actualiteit van resultaten.
 6. Voer de relevante controles uit. Rapporteer wat niet is getest en waarom.
-7. Werk `GEBRUIKERSHULP.md`, `processflow.md`, `site/help.html` en deze beschrijving bij wanneer de gebruikerswerking of gegevensstroom verandert.
+7. Werk `GEBRUIKERSHULP.md`, `processflow.md`, relevante SVG’s en deze beschrijving bij wanneer de gebruikerswerking of gegevensstroom verandert. `site/help.html` is alleen de viewer; `docs/` is de inhoudelijke bron voor Help.
 8. Publiceer via een gerichte branch en reviewbare PR. Controleer vóór samenvoegen opnieuw de basisbranch. Behoud wijzigingen van andere auteurs; niet force-pushen.
 9. Voor functionele releases: controleer de Pages-run en claim pas daarna dat de nieuwe versie live is. Commit nooit lokale brondata om tests eenvoudiger te maken.
 
@@ -342,6 +348,7 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 | Canvas/tijdschaal/drag | `tests/planning-large.cjs`: grote synthetische planning, scrollen, slepen, resizen |
 | Formatie/BI-brug/fullscreen | `tests/planning-formation.cjs`: overlappende taken, regelwijziging, reload, grafieken |
 | Live storingsmomentopname | `tests/live-snapshot.test.js`: identiteit, dubbelen, verdwijnen en afsluiten |
+| Live overzichtsfilter | `tests/live-overview-filter.test.js`: defaults, uitsluitingen, lege waarden, nieuwe waarden, bronbehoud en DVM-parameteropslag |
 | Help/documentatie | Controleer `site/help.html`, Help-link in `site/index.html` en overeenstemming met `docs/GEBRUIKERSHULP.md` en `docs/processflow.md` |
 | DVM-regels/kosten/prognose | Aanvullende gerichte numerieke tests en scopes; bestaande tests dekken niet alle formules |
 | Memo/print | Controleer selectie, bron/run, optionele kosten en grafieken in printweergave |
@@ -352,13 +359,12 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 Chromium. `PLAYWRIGHT_MODULE` en `CHROMIUM_PATH` kunnen naar een bestaande installatie
 wijzen. `npm run serve` serveert `site/` lokaal op poort 8080.
 
-De Pages-workflow voert momenteel modeltests en JavaScript-syntaxiscontroles uit,
+De Pages-workflow voert momenteel model-/regressietests en JavaScript-syntaxiscontroles uit,
 maar niet de browsersuite. Een groene Pages-run bewijst dus geen correcte grafiek
 of volledige rekenkundige regressievrijheid. Er zijn nog geen allesomvattende
 statistische, verkeerskundige of memo-regressietests.
 
-De workflow publiceert alleen `site/`. Alleen wijzigingen aan documentatie buiten
-`site/` starten door het huidige padfilter geen deployment. Dat is verwacht.
+De workflow publiceert `site/`. Voor het artifact voert hij `scripts/stage-docs.mjs` uit, zodat `docs/` en de SVG-afbeeldingen als Help-inhoud onder `site/docs/` terechtkomen. Wijzigingen onder `docs/**` activeren daarom ook de Pages-workflow.
 
 Oplevering benoemt: wat veranderde, waarom, uitgevoerde controles, resterende
 beperkingen, commit/PR en indien van toepassing publicatiestatus. “Alles werkt”
