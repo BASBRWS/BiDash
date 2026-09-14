@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {classifyTable,normalizeRows,parseDelimited,makeDvmPartBundle,normHeader} from '../site/core/universal-importer.js';
+import {classifyTable,normalizeRows,parseDelimited,makeDvmPartBundle,normHeader,recognizeFile} from '../site/core/universal-importer.js';
 
 test('herkent assetregister op inhoud en afwijkende kolomnamen',()=>{
   const rows=[{'Asset ID':'a1','Asset naam':'MSI A12 1','Rijksweg':'A12','Hectometer':'12,3','Asset type':'MSI','Bouwjaar':2018,'Verkeerscentrale':'MN'}];
@@ -41,6 +41,15 @@ test('los herkend onderdeel wordt compatibele DVM deelimport',()=>{
   assert.equal(b.exportSelectie.werkzaamheden,true);
   assert.equal(b.exportSelectie.assetregister,false);
   assert.equal(b.werkzaamheden.rijen.length,1);
+});
+
+test('oude DVM totaalexport blijft ongewijzigd en direct bruikbaar',async()=>{
+  const bron={formaat:'DVM-dienstimpact-totaal',versie:27,assetregister:{bestand:'assets.csv',rijen:[{entityid:'1',asset:'MSI 1'}]}};
+  const file=new File([JSON.stringify(bron)],'dvm-dienstimpact-totaal_oud.json',{type:'application/json'});
+  const r=await recognizeFile(file);
+  assert.equal(r.kind,'known-json');
+  assert.equal(r.passthrough,true);
+  assert.equal(r.files[0],file);
 });
 
 test('header normalisatie is hoofdletter-, accent- en scheidingstekenongevoelig',()=>{
