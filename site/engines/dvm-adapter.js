@@ -1,12 +1,29 @@
 /* DVM-adapter startguard voor grote integrale imports.
    De oorspronkelijke adapter blijft ongewijzigd in dvm-adapter-original.js.
-   Deze wrapper zorgt dat de performancepatches echt actief zijn voordat HUB.import start
-   en voorkomt een volledige structuredClone van het DVM-deel van de werkruimte. */
+   Deze wrapper zorgt dat de performancepatches echt actief zijn voordat HUB.import start,
+   voorkomt een volledige structuredClone van het DVM-deel van de werkruimte en laat
+   grote opgeslagen DVM-werkruimtes niet opnieuw via de totaalimport lopen tijdens opstart. */
 (() => {
   const wacht = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const restorePolicy = import('../core/dvm-restore-policy.js');
   const optimalisatiesGereed = () =>
     window.__BIDASH_DVM_COMBI_PERF_ACTIVE__ === true &&
     window.__BIDASH_ANALYSIS_REBUILD_PERF__ === true;
+
+  function ouderStartNog(){
+    try{
+      if(parent===window)return false;
+      const tekst=String(parent.document?.getElementById('status')?.textContent||'');
+      return /Werkruimte starten/i.test(tekst);
+    }catch(error){return false;}
+  }
+  function bronbeheerActief(){
+    try{return parent!==window&&String(parent.location.hash||'')==='#sources';}
+    catch(error){return false;}
+  }
+  function legeSamenvatting(){
+    return {peildatum:null,assets:[],roads:[],diensten:[],liveBronnen:0,forecast:null,triggers:[],restoreDeferred:true};
+  }
 
   function installeerImportGuard(){
     const hub=window.HUB;
@@ -15,6 +32,24 @@
 
     hub.import=async function(bundle,...args){
       const gestart=performance.now();
+      const policy=await restorePolicy;
+      const zwaar=policy.shouldDeferDvmRestore(bundle);
+
+      // Belangrijk: een grote eerder opgeslagen DVM-werkruimte werd bij iedere
+      // pagina-start opnieuw door totaalImportJson gehaald. Daardoor verscheen
+      // dvm-lokaal.json / "Koppelingen en analysebeeld herbouwen" nog vóór de
+      // bron-specifieke upload. Voor een zware werkruimte slaan we die automatische
+      // totaalherbouw nu over. De gebruiker kan DVM-bronnen daarna één voor één laden.
+      if(zwaar&&(ouderStartNog()||bronbeheerActief())){
+        const profiel=policy.dvmRestoreProfile(bundle);
+        window.__BIDASH_DVM_RESTORE_DEFERRED__={...profiel,reden:bronbeheerActief()?'bronbeheer':'opstart',tijd:new Date().toISOString()};
+        console.info('BiDash: zware DVM-werkruimte niet automatisch herbouwd.',window.__BIDASH_DVM_RESTORE_DEFERRED__);
+        try{
+          if(parent!==window)parent.postMessage({type:'hub:dvm-restore-deferred',engine:'dvm',profile:profiel},location.origin);
+        }catch(error){}
+        return legeSamenvatting();
+      }
+
       for(let poging=0;poging<1500&&!optimalisatiesGereed();poging++)await wacht(10);
       if(!optimalisatiesGereed()){
         throw new Error('DVM-importoptimalisaties zijn niet gereed. Herlaad de pagina en probeer opnieuw.');
@@ -25,7 +60,7 @@
 
       // De adapter gebruikte structuredClone(bundle) direct voor JSON.stringify.
       // totaalImportJson leest daarna toch een nieuw JSON-object in. Voor exact dit
-      // bronobject is die extra kopie dus overbodig en zeer duur bij 40+ MB DVM-data.
+      // bronobject is die extra kopie dus overbodig en zeer duur bij grote DVM-data.
       window.structuredClone=function(value,options){
         if(value===bundle)return value;
         return nativeClone.call(window,value,options);
