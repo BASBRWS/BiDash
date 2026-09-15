@@ -24,6 +24,28 @@
   function legeSamenvatting(){
     return {peildatum:null,assets:[],roads:[],diensten:[],liveBronnen:0,forecast:null,triggers:[],restoreDeferred:true};
   }
+  function herstelVerkeerscontext(bundle){
+    try{
+      const kosten=bundle?.parameters?.kosten;
+      if(!kosten||typeof kosten!=='object'||typeof RULES==='undefined'||!RULES)return null;
+      // Alleen de lichte parameter-/verkeerscontext herstellen. Geen assets,
+      // historie of totaalimport uitvoeren. Hierdoor blijven eerder aangeleverde
+      // NDW-meetlocaties beschikbaar terwijl zware operationele data uitgesteld blijft.
+      RULES.kosten={...(RULES.kosten||{}),...kosten};
+      const snapshot=kosten.ndw69Snapshot;
+      const info={
+        sites:Array.isArray(snapshot?.sites)?snapshot.sites.length:0,
+        validSites:Number(snapshot?.stats?.validSites)||0,
+        publication:snapshot?.publication||null,
+        files:Array.isArray(snapshot?.files)?snapshot.files.slice():[]
+      };
+      window.__BIDASH_DVM_TRAFFIC_RESTORED__=info;
+      return info;
+    }catch(error){
+      console.warn('BiDash: verkeerscontext uit uitgestelde werkruimte kon niet worden hersteld.',error);
+      return null;
+    }
+  }
 
   function installeerImportGuard(){
     const hub=window.HUB;
@@ -40,12 +62,15 @@
       // dvm-lokaal.json / "Koppelingen en analysebeeld herbouwen" nog vóór de
       // bron-specifieke upload. Voor een zware werkruimte slaan we die automatische
       // totaalherbouw nu over. De gebruiker kan DVM-bronnen daarna één voor één laden.
+      // De verkeers-/kostenparameters herstellen we wél selectief, zodat de eerder
+      // aangeleverde NDW-meetdata niet verloren gaat door deze performanceguard.
       if(zwaar&&(ouderStartNog()||bronbeheerActief())){
         const profiel=policy.dvmRestoreProfile(bundle);
-        window.__BIDASH_DVM_RESTORE_DEFERRED__={...profiel,reden:bronbeheerActief()?'bronbeheer':'opstart',tijd:new Date().toISOString()};
+        const verkeer=herstelVerkeerscontext(bundle);
+        window.__BIDASH_DVM_RESTORE_DEFERRED__={...profiel,reden:bronbeheerActief()?'bronbeheer':'opstart',tijd:new Date().toISOString(),verkeer};
         console.info('BiDash: zware DVM-werkruimte niet automatisch herbouwd.',window.__BIDASH_DVM_RESTORE_DEFERRED__);
         try{
-          if(parent!==window)parent.postMessage({type:'hub:dvm-restore-deferred',engine:'dvm',profile:profiel},location.origin);
+          if(parent!==window)parent.postMessage({type:'hub:dvm-restore-deferred',engine:'dvm',profile:profiel,verkeer},location.origin);
         }catch(error){}
         return legeSamenvatting();
       }
