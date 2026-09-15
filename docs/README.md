@@ -9,6 +9,7 @@ Achtergrond bij BiDash integraal. De applicatie zelf staat in [`site/`](../site)
 | [Systeemwerking](SYSTEEMWERKING.md) | Technische architectuur, kwaliteitscontract, importregels, rekenketens en verplichte wijzigingscontroles |
 | [Logische architectuur](architectuur.md) | Dienstverlening als doellaag, de drie invloeddomeinen, rule engine en trigger engine, plus de relatie met de technische vierlagenarchitectuur |
 | [Rekenvoorbeeld signaalgevers](rekenvoorbeeld-signaalgevers.md) | Tien jaar geen signaalgevers vervangen, doorgerekend tot beschikbaarheid, dienstverlening en kosten |
+| [Release notes RIA4- en Windwaarschuwingfilter assetregister](release-notes-2026-09-15-assetregister-ria4-windfilter.md) | Voegt dezelfde speciale DRIP-selectie als bij Open storingen toe aan het gezamenlijke assetregister |
 | [Release notes speciale DRIP-referentielijsten](release-notes-2026-09-15-drip-speciale-referentielijsten.md) | Voegt aparte uploads voor Windwaarschuwing- en RIA4-DRIP’s toe en koppelt die classificatie aan het actuele Open storingen-beeld |
 | [Release notes open DRIP-storingen uit historie](release-notes-2026-09-15-drip-open-uit-historie.md) | Toont aantoonbaar nog open DRIP-incidenten uit de historische werkmap ook in het actuele Open storingen-beeld, zonder nieuwe impactaanname |
 | [Release notes expliciete NDW-laadknop](release-notes-2026-09-15-ndw-laadknop.md) | Laadt NDW-verkeersdata expliciet met voortgang, koppelt wegdelen en vult 6 spitsuren en 30% snelheidsreductie |

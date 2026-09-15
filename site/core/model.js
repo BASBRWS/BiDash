@@ -1,5 +1,6 @@
 import './import-known-json-fastpath.js';
 import './universal-importer.js';
+import './asset-register-special-filter.js';
 
 export const DVM_PARTS=['assetregister','eol','storingshistorie','liveStoringen','dripHistorie','uRoutes','werkzaamheden','parameters','dripSelectie'];
 export const BI_RULE_KEYS=['config','configBron','richtlijnen','amRegels','impact','capgrens'];
