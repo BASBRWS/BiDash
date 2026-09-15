@@ -3,6 +3,7 @@ import {installDvmImportProgressBridge} from './import-progress-bridge.js';
 import {installDvmAnalysisRebuildPerformance} from './dvm-analysis-rebuild-performance.js';
 import {installDvmCombiPerformance} from './dvm-combi-performance.js';
 import {installTrafficScenarioDefaults} from './traffic-scenario-defaults.js';
+import {installNdwLoader} from './ndw-loader.js';
 export * from './signal-forecast-original.js';
 export * from './live-filter.js';
 
@@ -16,3 +17,4 @@ installDvmLiveSnapshotPatch(globalThis);
 installDvmImportProgressBridge(globalThis);
 installDvmAnalysisRebuildPerformance(globalThis);
 installTrafficScenarioDefaults(globalThis);
+installNdwLoader(globalThis);

@@ -2,8 +2,8 @@
    Doel: losse DVM-bronnen rechtstreeks naar hun eigen parser sturen en daarmee
    de generieke BiDash-/DVM-herkenningsroute omzeilen. */
 (() => {
-  const BIDASH_VERSION='2.6';
-  const DVM_VERSION='75';
+  const BIDASH_VERSION='2.7';
+  const DVM_VERSION='76';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
     eol:{input:'eolInputTop',label:'EOL-referentie laden',multiple:false,requiresAsset:true,handler:'leesEolReferentie'},
