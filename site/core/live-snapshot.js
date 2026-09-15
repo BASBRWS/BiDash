@@ -77,25 +77,31 @@ const PATCH_SOURCE=String.raw`
   async function leesOpenStoringenBron(file,voortgang){
     const vg=(f,fase)=>{if(voortgang)voortgang(f,fase);};
     if(!H.useTargetedLiveXlsx(file&&file.name))return storingsBronUitBestand(file,voortgang);
-    if(typeof xlsxEersteBladLicht!=='function'||typeof STORINGS_KOLOMMEN_LICHT==='undefined')return storingsBronUitBestand(file,voortgang);
+    if(typeof STORINGS_KOLOMMEN_LICHT==='undefined')return storingsBronUitBestand(file,voortgang);
 
-    vg(.02,'Open-storingenwerkmap gericht uitlezen');
-    let rijen;
-    try{
-      // Voor actuele XLSX-momentopnamen lezen we alleen ZIP-index, gedeelde
-      // teksten en het eerste werkblad. Zo vermijden we de volledige
-      // file.arrayBuffer()+SheetJS-route die op sommige werkplekken blijft
-      // hangen bij "Bestand lezen".
-      rijen=await xlsxEersteBladLicht(file,STORINGS_KOLOMMEN_LICHT,null,vg);
-    }catch(lichtErr){
-      if(typeof sheetJsWorkerRijen!=='function')throw lichtErr;
-      vg(.04,'Gerichte lezer niet mogelijk; Excel-worker proberen');
-      const worker=sheetJsWorkerRijen(file,STORINGS_KOLOMMEN_LICHT,null,vg);
-      const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error('Excel-worker reageert niet binnen 30 seconden')),30000));
-      try{rijen=await Promise.race([worker,timeout]);}
-      catch(workerErr){throw new Error('open-storingenlezer: '+lichtErr.message+'; fallback: '+workerErr.message);}
+    let rijen,workerErr=null;
+    if(typeof sheetJsWorkerRijen==='function'){
+      vg(.02,'Open-storingenwerkmap in achtergrond verwerken');
+      try{
+        const worker=sheetJsWorkerRijen(file,STORINGS_KOLOMMEN_LICHT,null,vg);
+        const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error('Excel-worker reageert niet binnen 90 seconden')),90000));
+        rijen=await Promise.race([worker,timeout]);
+      }catch(error){workerErr=error;}
     }
-    if(!rijen||!rijen.length)throw new Error('geen rijen gevonden in het eerste tabblad');
+
+    if((!rijen||!rijen.length)&&typeof xlsxEersteBladLicht==='function'){
+      vg(.06,workerErr?'Achtergrondworker niet gelukt; gerichte werkbladlezer proberen':'Geen Excel-worker beschikbaar; gerichte werkbladlezer proberen');
+      try{rijen=await xlsxEersteBladLicht(file,STORINGS_KOLOMMEN_LICHT,null,vg);}
+      catch(lichtErr){
+        if(workerErr)throw new Error('open-storingenlezer: '+workerErr.message+'; fallback: '+lichtErr.message);
+        throw lichtErr;
+      }
+    }
+
+    if(!rijen||!rijen.length){
+      if(workerErr)throw new Error('open-storingenlezer: '+workerErr.message);
+      return storingsBronUitBestand(file,voortgang);
+    }
     vg(.98,rijen.length.toLocaleString('nl-NL')+' open-storingsregels gereed voor controle');
     return {key:String(file.name||'').toLowerCase(),naam:file.name,rijen,size:file.size||0};
   }
@@ -133,10 +139,8 @@ const PATCH_SOURCE=String.raw`
     const archivedCount=archiveerVerdwenen(oudeRijen,nieuweRijen,nieuwPeil,bronNaam);
     LIVE_STORINGSBRONNEN=bronnen;
     LIVE_PEILDATUM=nieuwPeil;
-    STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeStoringsRijen());
     LIVE_STORINGS_INSPECTIE=inspecteerStoringsRijen(nieuweRijen);
     ANALYSE_SIGNATURE='';
-    herbouwAssetMatchBeeld();
     return {liveCount:nieuweRijen.length,archivedCount};
   }
 
@@ -153,13 +157,13 @@ const PATCH_SOURCE=String.raw`
         if(!inspecteerStoringsRijen(bron.rijen).herkenbaar)throw new Error('geen herkenbare DVM-storingen gevonden in dit bestand');
         bron._fileLastModified=Number(file.lastModified)||0;
         nieuw.push(bron);
-        zetImportVoortgang(file.name,86,'Open meldingen vergelijken met vorige momentopname',{direct:true});
+        zetImportVoortgang(file.name,86,'Open meldingen activeren',{direct:true});await uiPauze();
       }catch(err){fouten.push(file.name+': '+err.message);importMislukt(file.name,err.message);}
     }
     if(nieuw.length){
       const resultaat=vervangLiveBronnen(nieuw);
-      zetImportVoortgang(nieuw[nieuw.length-1].naam,96,'Actueel dienstimpactbeeld en historie bijwerken',{direct:true});await uiPauze();
-      probeerAnalyseActiveren('overzicht',{inspectieAlGereed:true,matchAlGereed:true});
+      zetImportVoortgang(nieuw[nieuw.length-1].naam,94,'Actueel dienstimpactbeeld berekenen',{direct:true});await uiPauze();
+      probeerAnalyseActiveren('overzicht',{inspectieAlGereed:true,matchAlGereed:false});
       const tekst=resultaat.archivedCount
         ? resultaat.liveCount.toLocaleString('nl-NL')+' open meldingen geladen. '+resultaat.archivedCount.toLocaleString('nl-NL')+' verdwenen signaalgeverstoring(en) zijn afgesloten en aan de storingshistorie toegevoegd.'
         : resultaat.liveCount.toLocaleString('nl-NL')+' open meldingen geladen. Geen verdwenen signaalgeverstoringen gevonden.';
