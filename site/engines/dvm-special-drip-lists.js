@@ -4,8 +4,8 @@
    gericht op Windwaarschuwing en RIA4 gefilterd kunnen worden. */
 (() => {
   const EMPTY=()=>({bestand:'',geladenOp:'',rijen:0,identifiers:[],matchedAssets:0,matchedDrips:0,unmatched:[]});
-  const STATE=window.DVM_SPECIAL_DRIP_LISTS||{wind:EMPTY(),ria4:EMPTY()};
-  window.DVM_SPECIAL_DRIP_LISTS=STATE;
+  const SPECIAL=window.DVM_SPECIAL_DRIP_LISTS||{wind:EMPTY(),ria4:EMPTY()};
+  window.DVM_SPECIAL_DRIP_LISTS=SPECIAL;
 
   const norm=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,'');
   const normHeader=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
@@ -14,7 +14,6 @@
     'drip','drip id','drip code','dripcode','dynac','drip dynac','drip dynac id','cdms','drip cdms','drip cdms id','id cdms','id dynac','code','os id','osid'
   ].map(normHeader));
   const tokenOk=t=>t&&t.length>=3&&!/^\d{1,2}$/.test(t);
-  const yes=v=>v===true||v===1||/^(1|ja|yes|true|x)$/i.test(String(v??'').trim());
 
   function progress(file,pct,fase,opties={}){
     try{if(typeof zetImportVoortgang==='function')zetImportVoortgang(file?.name||'DRIP-referentielijst',pct,fase,{actief:opties.actief!==false,fout:!!opties.fout,direct:true});}catch(e){}
@@ -44,21 +43,12 @@
   function hasToken(x,set){for(const t of objectTokens(x))if(set.has(t))return true;return false;}
 
   function currentAssets(){try{return ASSET_REGISTER_STATE?.assets||[];}catch(e){return [];}}
-  function currentDrips(){
-    try{
-      const d=(STATE&&window.STATE&&window.STATE.drips)?window.STATE.drips:null;
-      if(d?.drips)return d.drips;
-    }catch(e){}
-    try{return DRIP_STATE?.drips||[];}catch(e){return [];}
-  }
-  function currentDripsLexical(){
-    try{return ((typeof STATE!=='undefined'&&STATE&&STATE.drips)||DRIP_STATE)?.drips||[];}catch(e){return currentDrips();}
-  }
+  function currentDrips(){try{return DRIP_STATE?.drips||[];}catch(e){return [];}}
 
   function applyOne(kind){
-    const data=STATE[kind]||EMPTY(),set=new Set((data.identifiers||[]).map(x=>norm(x.token||x.raw||x)).filter(tokenOk));
+    const data=SPECIAL[kind]||EMPTY(),set=new Set((data.identifiers||[]).map(x=>norm(x.token||x.raw||x)).filter(tokenOk));
     const prop=kind==='wind'?'specialWind':'specialRia4';
-    const assets=currentAssets(),drips=currentDripsLexical();
+    const assets=currentAssets(),drips=currentDrips();
     let ma=0,md=0;
     for(const a of assets){a[prop]=set.size?hasToken(a,set):false;if(a[prop])ma++;}
     for(const d of drips){d[prop]=set.size?hasToken(d,set):false;if(d[prop])md++;}
@@ -98,27 +88,34 @@
       const rows=await workbookRows(file);progress(file,72,`${label}-DRIP’s herkennen`);
       const ids=uniqIds(rows);
       if(!ids.length)throw new Error('Geen herkenbare DRIP-code, asset-id, Dynac- of CDMS-kolom gevonden.');
-      STATE[kind]={bestand:file.name,geladenOp:new Date().toISOString(),rijen:rows.length,identifiers:ids,matchedAssets:0,matchedDrips:0,unmatched:[]};
+      SPECIAL[kind]={bestand:file.name,geladenOp:new Date().toISOString(),rijen:rows.length,identifiers:ids,matchedAssets:0,matchedDrips:0,unmatched:[]};
       progress(file,84,`${label}-DRIP’s koppelen aan All Assets`);
       const result=applyOne(kind);
-      if(typeof ANALYSE_SIGNATURE!=='undefined')ANALYSE_SIGNATURE='';
+      try{ANALYSE_SIGNATURE='';}catch(e){}
       try{if(typeof probeerAnalyseActiveren==='function')probeerAnalyseActiveren('drips');}catch(e){}
       try{if(typeof renderDataGereedheid==='function')renderDataGereedheid();}catch(e){}
       klaar(file,`${label}: ${ids.length} referenties, ${result.matchedAssets} assets gekoppeld.`);
-      return {...STATE[kind]};
-    }catch(error){
-      progress(file,null,error.message||String(error),{actief:false,fout:true});throw error;
-    }
+      return {...SPECIAL[kind]};
+    }catch(error){progress(file,null,error.message||String(error),{actief:false,fout:true});throw error;}
+  };
+
+  window.clearDripSpecialList=function(kind){
+    if(!['wind','ria4'].includes(kind))return false;
+    SPECIAL[kind]=EMPTY();applyOne(kind);
+    try{ANALYSE_SIGNATURE='';}catch(e){}
+    try{if(typeof probeerAnalyseActiveren==='function')probeerAnalyseActiveren('drips');}catch(e){}
+    try{if(typeof renderDataGereedheid==='function')renderDataGereedheid();}catch(e){}
+    return true;
   };
 
   function exportState(){
-    const clean=k=>{const x=STATE[k]||EMPTY();return {bestand:x.bestand||'',geladenOp:x.geladenOp||'',rijen:Number(x.rijen)||0,identifiers:(x.identifiers||[]).map(i=>({raw:i.raw||String(i),token:norm(i.token||i.raw||i),kolom:i.kolom||''})).filter(i=>tokenOk(i.token))};};
+    const clean=k=>{const x=SPECIAL[k]||EMPTY();return {bestand:x.bestand||'',geladenOp:x.geladenOp||'',rijen:Number(x.rijen)||0,identifiers:(x.identifiers||[]).map(i=>({raw:i.raw||String(i),token:norm(i.token||i.raw||i),kolom:i.kolom||''})).filter(i=>tokenOk(i.token))};};
     return {wind:clean('wind'),ria4:clean('ria4')};
   }
   window.getDripSpecialListsExport=exportState;
   window.restoreDripSpecialLists=function(data){
     if(!data||typeof data!=='object')return false;
-    for(const k of ['wind','ria4'])if(data[k])STATE[k]={...EMPTY(),...data[k],identifiers:Array.isArray(data[k].identifiers)?data[k].identifiers:[]};
+    for(const k of ['wind','ria4'])if(data[k])SPECIAL[k]={...EMPTY(),...data[k],identifiers:Array.isArray(data[k].identifiers)?data[k].identifiers:[]};
     applyAll();return true;
   };
 
@@ -129,7 +126,5 @@
     };
   }
 
-  // Als het assetregister of DRIP-areaal later opnieuw wordt opgebouwd, kan de
-  // bronbeheerlaag applyDripSpecialLists() opnieuw aanroepen zonder de XLS opnieuw te lezen.
   applyAll();
 })();
