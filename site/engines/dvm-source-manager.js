@@ -2,8 +2,8 @@
    Doel: losse DVM-bronnen rechtstreeks naar hun eigen parser sturen en daarmee
    de generieke BiDash-/DVM-herkenningsroute omzeilen. */
 (() => {
-  const BIDASH_VERSION='2.4';
-  const DVM_VERSION='73';
+  const BIDASH_VERSION='2.5';
+  const DVM_VERSION='74';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
     eol:{input:'eolInputTop',label:'EOL-referentie laden',multiple:false,requiresAsset:true,handler:'leesEolReferentie'},
@@ -32,14 +32,13 @@
       const badge=document.createElement('span');badge.id='dvmVersionBadge';badge.textContent='DVM v'+DVM_VERSION;
       badge.style.cssText='font-size:11px;font-weight:800;white-space:nowrap;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);padding:5px 8px;border-radius:4px';
       topbar.appendChild(badge);
-    }
+    }else if(document.getElementById('dvmVersionBadge'))document.getElementById('dvmVersionBadge').textContent='DVM v'+DVM_VERSION;
     try{
       if(parent===window)return;
       const actions=parent.document.querySelector('.head-actions');
-      if(actions&&!parent.document.getElementById('bidashVersionBadge')){
-        const badge=parent.document.createElement('span');badge.id='bidashVersionBadge';badge.className='source-badge';badge.textContent='v'+BIDASH_VERSION;badge.title='BiDash integratie '+BIDASH_VERSION;
-        actions.prepend(badge);
-      }
+      let badge=parent.document.getElementById('bidashVersionBadge');
+      if(actions&&!badge){badge=parent.document.createElement('span');badge.id='bidashVersionBadge';badge.className='source-badge';actions.prepend(badge);}
+      if(badge){badge.textContent='v'+BIDASH_VERSION;badge.title='BiDash integratie '+BIDASH_VERSION;}
       const sidebar=parent.document.querySelector('.sidebar-foot .version');if(sidebar)sidebar.textContent='Integratie '+BIDASH_VERSION;
     }catch(error){}
   }
