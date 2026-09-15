@@ -27,7 +27,7 @@ test('speciale DRIP-lijsten zijn classificatiebronnen en geen storingshistorie',
   assert.match(source,/RIA4 DRIP’s laden/);
   assert.match(source,/window\.loadDripSpecialList\('wind'/);
   assert.match(source,/window\.loadDripSpecialList\('ria4'/);
-  assert.match(source,/classificatielijsten opnieuw aangebracht/);
+  assert.match(source,/\['assetregister','dripHistorie'\]\.includes\(type\).*window\.applyDripSpecialLists\(\)/);
 });
 
 test('historieknoppen omzeilen de generieke storingsherkenner',()=>{
