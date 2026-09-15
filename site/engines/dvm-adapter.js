@@ -57,4 +57,8 @@
   // Hergebruik exact de bestaande adaptercode als afzonderlijke bron.
   // document.write is hier bewust parser-synchroon, zodat HUB vóór window.load bestaat.
   document.write('<script src="dvm-adapter-original.js"></script>');
+  // DVM-bronbeheer krijgt daarnaast een eigen bron-specifieke uploadlaag.
+  // Deze wordt na dvm-1/2/3 geladen en kan daardoor de bestaande bronparsers
+  // rechtstreeks gebruiken zonder de generieke totaal-/autodetectieroute.
+  document.write('<script src="dvm-source-manager.js"></script>');
 })();
