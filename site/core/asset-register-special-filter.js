@@ -2,6 +2,7 @@
    Windwaarschuwing en RIA4 gebruiken dezelfde classificatie als Open storingen.
    De onderliggende DVM/BI-data en rekenlogica blijven ongewijzigd. */
 (() => {
+  if(typeof window==='undefined'||typeof document==='undefined')return;
   const IDS={wind:'assetWind',ria4:'assetRia4'};
   const patched=new WeakMap();
   const yes=v=>v===true||v===1||/^(1|ja|yes|true|x)$/i.test(String(v??'').trim());
