@@ -2,10 +2,13 @@
    Doel: losse DVM-bronnen rechtstreeks naar hun eigen parser sturen en daarmee
    de generieke BiDash-/DVM-herkenningsroute omzeilen. */
 (() => {
-  const BIDASH_VERSION='2.8';
-  const DVM_VERSION='77';
+  const BIDASH_VERSION='2.9';
+  const DVM_VERSION='78';
+  const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
+    windDrips:{input:'windDripListInput',label:'Windwaarschuwing DRIP’s laden',multiple:false,requiresAsset:true,handler:'special:wind',accept:SPECIAL_ACCEPT},
+    ria4Drips:{input:'ria4DripListInput',label:'RIA4 DRIP’s laden',multiple:false,requiresAsset:true,handler:'special:ria4',accept:SPECIAL_ACCEPT},
     eol:{input:'eolInputTop',label:'EOL-referentie laden',multiple:false,requiresAsset:true,handler:'leesEolReferentie'},
     storingshistorie:{input:'autoLogInput',label:'Storingshistorie toevoegen',multiple:true,requiresAsset:true,handler:'leesStoringsBestanden'},
     dripHistorie:{input:'dripHistInput',label:'DRIP-historie toevoegen',multiple:true,requiresAsset:true,handler:'leesDripHistorieBestanden'},
@@ -13,9 +16,11 @@
     werkzaamheden:{input:'werkInput',label:'Werkzaamheden laden',multiple:false,requiresAsset:true,handler:'leesWerkBestand'},
     liveStoringen:{input:'liveLogInput',label:'Open storingen laden',multiple:true,requiresAsset:true,handler:'leesLiveStoringsBestanden'}
   });
-  const SOURCE_ORDER=['assetregister','eol','storingshistorie','dripHistorie','uRoutes','werkzaamheden','liveStoringen'];
+  const SOURCE_ORDER=['assetregister','windDrips','ria4Drips','eol','storingshistorie','dripHistorie','uRoutes','werkzaamheden','liveStoringen'];
   const PLACEHOLDERS={
     assetregister:{titel:'Assetregister / All Assets',meta:'Nog niet geladen. Laad dit stamregister als eerste.'},
+    windDrips:{titel:'Windwaarschuwing DRIP’s',meta:'Nog geen referentielijst geladen. Deze bron markeert welke DRIP-assets bij windwaarschuwing horen.'},
+    ria4Drips:{titel:'RIA4 DRIP’s',meta:'Nog geen referentielijst geladen. Deze bron markeert welke DRIP-assets bij RIA4 horen.'},
     eol:{titel:'EOL-referentie',meta:'Niet geladen; generieke levensduur blijft mogelijk.'},
     storingshistorie:{titel:'Storingshistorie',meta:'Nog geen historische DVM-storingsbron geladen. Deze bron voedt alleen prognoses.'},
     dripHistorie:{titel:'DRIP-storingshistorie',meta:'Nog geen DRIP-storingshistorie geladen. Historie voedt DRIP Monte Carlo; expliciet openstaande incidenten worden ook aan het actuele storingsbeeld toegevoegd.'},
@@ -44,124 +49,115 @@
   }
 
   function meldWijzigingAanSchil(type,files){
-    try{
-      if(parent!==window)parent.postMessage({type:'hub:changed',engine:'dvm',sourceSpecific:true,bron:type,bestand:files?.[0]?.name||''},location.origin);
-    }catch(error){}
+    try{if(parent!==window)parent.postMessage({type:'hub:changed',engine:'dvm',sourceSpecific:true,bron:type,bestand:files?.[0]?.name||''},location.origin);}catch(error){}
   }
-
-  function assetAanwezig(){
-    try{return !!ASSET_REGISTER_STATE;}catch(error){return false;}
-  }
+  function assetAanwezig(){try{return !!ASSET_REGISTER_STATE;}catch(error){return false;}}
   function config(type){return SOURCE_CONFIG[type]||null;}
   function bronGeblokkeerd(type){const c=config(type);return !!(c&&c.requiresAsset&&!assetAanwezig());}
-  function knopTekst(item){
-    const c=config(item.type);if(!c)return '';
-    if(!item.aanwezig)return c.label;
-    return c.multiple?'Nog een bron toevoegen':'Bron vervangen';
+  function isSpecial(type){return type==='windDrips'||type==='ria4Drips';}
+  function specialKind(type){return type==='windDrips'?'wind':type==='ria4Drips'?'ria4':'';}
+  function specialState(type){const k=specialKind(type);return k?(window.DVM_SPECIAL_DRIP_LISTS?.[k]||null):null;}
+  function knopTekst(item){const c=config(item.type);if(!c)return '';if(!item.aanwezig)return c.label;return c.multiple?'Nog een bron toevoegen':'Bron vervangen';}
+  function specialMeta(type){
+    const s=specialState(type);if(!s||!s.bestand)return PLACEHOLDERS[type].meta;
+    const ids=s.identifiers?.length||0,un=s.unmatched?.length||0;
+    return `${s.bestand} · ${ids} referenties · ${s.matchedAssets||0} assets gekoppeld${un?` · ${un} niet gekoppeld`:''}`;
+  }
+
+  function ensureInput(type,c){
+    let input=document.getElementById(c.input);if(input)return input;
+    input=document.createElement('input');input.type='file';input.id=c.input;input.hidden=true;input.multiple=!!c.multiple;
+    input.accept=c.accept||'.xlsx,.xls,.xlsm,.csv,.json';input.dataset.bidashSource=type;document.body.appendChild(input);return input;
   }
 
   window.DVM_SOURCE_UPLOADS=SOURCE_CONFIG;
   window.openDatasetUpload=function(type){
     const c=config(type);if(!c)return false;
-    if(bronGeblokkeerd(type)){
-      alert('Laad eerst Assetregister / All Assets. Daarna kan deze bron rechtstreeks worden verwerkt.');
-      return false;
-    }
-    const input=document.getElementById(c.input);
-    if(!input){console.error('DVM-broninput ontbreekt:',c.input);return false;}
-    input.click();return true;
+    if(bronGeblokkeerd(type)){alert('Laad eerst Assetregister / All Assets. Daarna kan deze bron rechtstreeks worden verwerkt.');return false;}
+    const input=ensureInput(type,c);input.click();return true;
+  };
+  window.clearSpecialDripSource=function(type){
+    const k=specialKind(type);if(!k||typeof window.clearDripSpecialList!=='function')return false;
+    if(!confirm(`Classificatiebron ${k==='wind'?'Windwaarschuwing':'RIA4'} wissen?`))return false;
+    window.clearDripSpecialList(k);meldWijzigingAanSchil(type,[]);if(typeof renderDatasetBeheer==='function')renderDatasetBeheer();return true;
   };
 
   if(typeof datasetItems==='function'){
     const originalDatasetItems=datasetItems;
     datasetItems=function(){
-      const current=originalDatasetItems();
-      const out=[];
+      const current=originalDatasetItems(),out=[];
       SOURCE_ORDER.forEach(type=>{
         const matches=current.filter(item=>item.type===type);
-        if(matches.length)out.push(...matches);
-        else out.push({type,key:'',titel:PLACEHOLDERS[type].titel,aanwezig:false,meta:PLACEHOLDERS[type].meta});
+        if(matches.length){out.push(...matches);return;}
+        const s=isSpecial(type)?specialState(type):null;
+        out.push({type,key:'',titel:PLACEHOLDERS[type].titel,aanwezig:!!s?.bestand,meta:isSpecial(type)?specialMeta(type):PLACEHOLDERS[type].meta});
       });
-      current.filter(item=>!SOURCE_ORDER.includes(item.type)).forEach(item=>out.push(item));
-      return out;
+      current.filter(item=>!SOURCE_ORDER.includes(item.type)).forEach(item=>out.push(item));return out;
     };
   }
 
   if(typeof datasetItemCard==='function'){
     const originalDatasetItemCard=datasetItemCard;
     datasetItemCard=function(item){
-      let html=originalDatasetItemCard(item);
-      const c=config(item.type);if(!c)return html;
-      const disabled=bronGeblokkeerd(item.type);
-      const title=disabled?'Laad eerst Assetregister / All Assets.':'Deze knop gebruikt rechtstreeks de bron-specifieke DVM-parser.';
-      const upload=`<button class="tb-btn primary dataset-upload" onclick="openDatasetUpload('${item.type}')" ${disabled?'disabled':''} title="${title}">⭱ ${knopTekst(item)}</button>`;
-      html=html.replace('<div class="dataset-actions">','<div class="dataset-actions">'+upload);
-      return html;
+      let html=originalDatasetItemCard(item);const c=config(item.type);if(!c)return html;
+      const disabled=bronGeblokkeerd(item.type),title=disabled?'Laad eerst Assetregister / All Assets.':'Deze knop gebruikt rechtstreeks de bron-specifieke DVM-parser.';
+      let upload=`<button class="tb-btn primary dataset-upload" onclick="openDatasetUpload('${item.type}')" ${disabled?'disabled':''} title="${title}">⭱ ${knopTekst(item)}</button>`;
+      if(isSpecial(item.type)&&item.aanwezig)upload+=`<button class="tb-btn" onclick="clearSpecialDripSource('${item.type}')">Wissen</button>`;
+      html=html.replace('<div class="dataset-actions">','<div class="dataset-actions">'+upload);return html;
     };
   }
 
   if(typeof renderDatasetBeheer==='function'){
     const originalRenderDatasetBeheer=renderDatasetBeheer;
     renderDatasetBeheer=function(){
-      const result=originalRenderDatasetBeheer.apply(this,arguments);
-      const host=document.getElementById('tab-datasets');
-      if(!host)return result;
+      const result=originalRenderDatasetBeheer.apply(this,arguments),host=document.getElementById('tab-datasets');if(!host)return result;
       const actions=host.querySelector('.card .load-actions');
       if(actions){
-        [...actions.querySelectorAll('button')].forEach(button=>{
-          if((button.getAttribute('onclick')||'').includes('totaalImportInput'))button.remove();
-        });
+        [...actions.querySelectorAll('button')].forEach(button=>{if((button.getAttribute('onclick')||'').includes('totaalImportInput'))button.remove();});
         if(!host.querySelector('.bron-specifiek-uitleg')){
-          const uitleg=document.createElement('p');
-          uitleg.className='dataset-note bron-specifiek-uitleg';
-          uitleg.innerHTML='<b>Bron-specifiek laden:</b> gebruik hieronder per onderdeel de eigen uploadknop. Deze route slaat de generieke importherkenning over en stuurt het bestand rechtstreeks naar de parser voor Assetregister, EOL, DVM-historie, DRIP-historie, U-routes, werkzaamheden of open storingen.';
+          const uitleg=document.createElement('p');uitleg.className='dataset-note bron-specifiek-uitleg';
+          uitleg.innerHTML='<b>Bron-specifiek laden:</b> gebruik hieronder per onderdeel de eigen uploadknop. Windwaarschuwing en RIA4 zijn aparte DRIP-referentielijsten: ze classificeren bestaande DRIP-assets en worden niet als storingshistorie ingelezen.';
           actions.insertAdjacentElement('afterend',uitleg);
         }
       }
-      werkVersieBij();
-      return result;
+      werkVersieBij();return result;
     };
   }
 
   if(typeof tabToegestaan==='function'){
-    const originalTabToegestaan=tabToegestaan;
-    tabToegestaan=function(tab){return tab==='datasets'?true:originalTabToegestaan.apply(this,arguments);};
+    const originalTabToegestaan=tabToegestaan;tabToegestaan=function(tab){return tab==='datasets'?true:originalTabToegestaan.apply(this,arguments);};
   }
   if(typeof renderDataGereedheid==='function'){
     const originalRenderDataGereedheid=renderDataGereedheid;
-    renderDataGereedheid=function(){
-      const result=originalRenderDataGereedheid.apply(this,arguments);
-      const beheer=document.getElementById('btnDatasetBeheer');if(beheer)beheer.disabled=false;
-      werkVersieBij();
-      return result;
-    };
+    renderDataGereedheid=function(){const result=originalRenderDataGereedheid.apply(this,arguments);const beheer=document.getElementById('btnDatasetBeheer');if(beheer)beheer.disabled=false;werkVersieBij();return result;};
   }
 
-  function directeHandler(c,files){
+  async function directeHandler(type,c,files){
     if(!files.length)return null;
+    let result;
     switch(c.handler){
-      case 'leesDripBestand': return leesDripBestand(files[0]);
-      case 'leesEolReferentie': return leesEolReferentie(files[0]);
-      case 'leesStoringsBestanden': return leesStoringsBestanden(files);
-      case 'leesDripHistorieBestanden': return leesDripHistorieBestanden(files);
-      case 'leesURouteBestand': return leesURouteBestand(files[0]);
-      case 'leesWerkBestand': return leesWerkBestand(files[0]);
-      case 'leesLiveStoringsBestanden': return leesLiveStoringsBestanden(files);
+      case 'leesDripBestand': result=await leesDripBestand(files[0]);break;
+      case 'leesEolReferentie': result=await leesEolReferentie(files[0]);break;
+      case 'leesStoringsBestanden': result=await leesStoringsBestanden(files);break;
+      case 'leesDripHistorieBestanden': result=await leesDripHistorieBestanden(files);break;
+      case 'leesURouteBestand': result=await leesURouteBestand(files[0]);break;
+      case 'leesWerkBestand': result=await leesWerkBestand(files[0]);break;
+      case 'leesLiveStoringsBestanden': result=await leesLiveStoringsBestanden(files);break;
+      case 'special:wind': result=await window.loadDripSpecialList('wind',files[0]);break;
+      case 'special:ria4': result=await window.loadDripSpecialList('ria4',files[0]);break;
       default: throw new Error('Onbekende DVM-bronparser: '+c.handler);
     }
+    // Een nieuw assetregister of een herbouwd DRIP-areaal krijgt de bestaande
+    // speciale classificatielijsten opnieuw aangebracht zonder de XLS opnieuw te lezen.
+    if(['assetregister','dripHistorie'].includes(type)&&typeof window.applyDripSpecialLists==='function')window.applyDripSpecialLists();
+    return result;
   }
 
   function vervangInputDoorDirecteParser(type,c){
-    const current=document.getElementById(c.input);if(!current)return;
-    const fresh=current.cloneNode(true);
-    current.replaceWith(fresh);
+    const current=ensureInput(type,c),fresh=current.cloneNode(true);current.replaceWith(fresh);
     fresh.addEventListener('change',async event=>{
-      const input=event.currentTarget,files=[...(input.files||[])];if(!files.length)return;
-      input.disabled=true;
-      try{
-        await directeHandler(c,files);
-        meldWijzigingAanSchil(type,files);
-      }
+      const input=event.currentTarget,files=[...(input.files||[])];if(!files.length)return;input.disabled=true;
+      try{await directeHandler(type,c,files);meldWijzigingAanSchil(type,files);}
       catch(error){console.error(error);if(typeof importMislukt==='function')importMislukt(files[0]?.name||'DVM-bron',error.message||String(error));}
       finally{input.value='';input.disabled=false;if(typeof renderDatasetBeheer==='function'&&document.getElementById('tab-datasets')&&!document.getElementById('tab-datasets').classList.contains('hidden'))renderDatasetBeheer();}
     });
@@ -170,12 +166,10 @@
   function installeerDirecteBronInputs(){
     Object.entries(SOURCE_CONFIG).forEach(([type,c])=>vervangInputDoorDirecteParser(type,c));
     const beheer=document.getElementById('btnDatasetBeheer');if(beheer)beheer.disabled=false;
-    if(typeof updateTabSloten==='function')updateTabSloten();
-    werkVersieBij();
+    if(typeof updateTabSloten==='function')updateTabSloten();werkVersieBij();
     if(typeof renderDatasetBeheer==='function'&&document.getElementById('tab-datasets')&&!document.getElementById('tab-datasets').classList.contains('hidden'))renderDatasetBeheer();
     window.__BIDASH_DVM_SOURCE_MANAGER_ACTIVE__=true;
   }
 
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installeerDirecteBronInputs,{once:true});
-  else installeerDirecteBronInputs();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installeerDirecteBronInputs,{once:true});else installeerDirecteBronInputs();
 })();
