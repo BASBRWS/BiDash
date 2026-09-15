@@ -60,7 +60,7 @@
   function knopTekst(item){const c=config(item.type);if(!c)return '';if(!item.aanwezig)return c.label;return c.multiple?'Nog een bron toevoegen':'Bron vervangen';}
   function specialMeta(type){
     const s=specialState(type);if(!s||!s.bestand)return PLACEHOLDERS[type].meta;
-    const ids=s.identifiers?.length||0,un=s.unmatched?.length||0;
+    const ids=s.identifiers?.length||0,un=Number.isFinite(Number(s.unmatchedCount))?Number(s.unmatchedCount):(s.unmatched?.length||0);
     return `${s.bestand} · ${ids} referenties · ${s.matchedAssets||0} assets gekoppeld${un?` · ${un} niet gekoppeld`:''}`;
   }
 
@@ -147,8 +147,6 @@
       case 'special:ria4': result=await window.loadDripSpecialList('ria4',files[0]);break;
       default: throw new Error('Onbekende DVM-bronparser: '+c.handler);
     }
-    // Een nieuw assetregister of een herbouwd DRIP-areaal krijgt de bestaande
-    // speciale classificatielijsten opnieuw aangebracht zonder de XLS opnieuw te lezen.
     if(['assetregister','dripHistorie'].includes(type)&&typeof window.applyDripSpecialLists==='function')window.applyDripSpecialLists();
     return result;
   }
