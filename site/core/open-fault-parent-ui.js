@@ -89,6 +89,7 @@ export function installOpenFaultParentUi(scope=globalThis){
   const start=()=>{
     ensure();render();
     const table=doc.getElementById('faultTable');if(table)new MutationObserver(()=>schedule()).observe(table,{childList:true,subtree:true});
+    scope.addEventListener('bidash:faults-extension-ready',schedule);
     scope.parent.addEventListener('hashchange',schedule);
     scope.parent.addEventListener('popstate',schedule);
   };
