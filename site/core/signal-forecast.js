@@ -2,6 +2,7 @@ import {installDvmLiveSnapshotPatch} from './live-snapshot.js';
 import {installDvmImportProgressBridge} from './import-progress-bridge.js';
 import {installDvmAnalysisRebuildPerformance} from './dvm-analysis-rebuild-performance.js';
 import {installDvmCombiPerformance} from './dvm-combi-performance.js';
+import {installTrafficScenarioDefaults} from './traffic-scenario-defaults.js';
 export * from './signal-forecast-original.js';
 export * from './live-filter.js';
 
@@ -14,3 +15,4 @@ installDvmCombiPerformance(globalThis);
 installDvmLiveSnapshotPatch(globalThis);
 installDvmImportProgressBridge(globalThis);
 installDvmAnalysisRebuildPerformance(globalThis);
+installTrafficScenarioDefaults(globalThis);
