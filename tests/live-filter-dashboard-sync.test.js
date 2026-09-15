@@ -35,11 +35,11 @@ test('syncmodule is inert buiten de browser',()=>{
   assert.equal(installLiveOverviewFilterSync(globalThis),false);
 });
 
-test('runtime gebruikt debounce en bestaande DVM filter-API om wijzigingen direct door te rekenen',()=>{
+test('syncmodule blijft beschikbaar maar wordt tijdens importstabilisatie niet automatisch geactiveerd',()=>{
   const source=read('site/core/live-overview-filter-sync.js');
   const forecast=read('site/core/signal-forecast.js');
   assert.match(source,/setTimeout\(\(\)=>applyFromCard\(card\),350\)/);
   assert.match(source,/api\.set\(filterConfigFromCard\(card,api\.get\(\)\)\)/);
   assert.match(source,/doorgerekende meldingen/);
-  assert.match(forecast,/installLiveOverviewFilterSync\(globalThis\)/);
+  assert.doesNotMatch(forecast,/installLiveOverviewFilterSync\(globalThis\)/);
 });
