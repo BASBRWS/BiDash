@@ -6,6 +6,7 @@ import {installTrafficScenarioDefaults} from './traffic-scenario-defaults.js';
 import {installNdwLoader} from './ndw-loader.js';
 import {installDripOpenFromHistory} from './drip-open-from-history.js';
 import {installFaultHubExtensionLoader} from './fault-hub-extension-loader.js';
+import {installOpenFaultParentUi} from './open-fault-parent-ui.js';
 export * from './signal-forecast-original.js';
 export * from './live-filter.js';
 
@@ -22,3 +23,4 @@ installTrafficScenarioDefaults(globalThis);
 installNdwLoader(globalThis);
 installDripOpenFromHistory(globalThis);
 installFaultHubExtensionLoader(globalThis);
+installOpenFaultParentUi(globalThis);
