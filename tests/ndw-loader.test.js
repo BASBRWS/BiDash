@@ -13,6 +13,16 @@ test('NDW loader leest eerst bestaande of lokaal opgeslagen snapshot',()=>{
   assert.match(source,/state\?\.dvm\?\.parameters\?\.kosten\?\.ndw69Snapshot/);
 });
 
+test('als lokale NDW data ontbreekt kan een oude BiDash of DVM export gericht worden gelezen',()=>{
+  const source=read('site/core/ndw-loader.js');
+  assert.match(source,/accept="\.json,\.html,\.htm"/);
+  assert.match(source,/"ndw69Snapshot"/);
+  assert.match(source,/const NDW69_DATA/);
+  assert.match(source,/file\.slice\(offset,end\)\.text\(\)/);
+  assert.match(source,/parseJsonWorker/);
+  assert.match(source,/JSON\.parse\(e\.data\)/);
+});
+
 test('NDW loader vult spitsuren en 30 procent alleen waar waarden ontbreken',()=>{
   const source=read('site/core/ndw-loader.js');
   assert.match(source,/local\.uren=6/);
@@ -26,7 +36,7 @@ test('NDW loader koppelt meetpunten per wegdeel en toont voortgang',()=>{
   const source=read('site/core/ndw-loader.js');
   assert.match(source,/ndw69Link\(w\)/);
   assert.match(source,/siteId:link\.s\.id/);
-  assert.match(source,/id=\\"bidashNdwProgressBar\\"/);
+  assert.match(source,/bidashNdwProgressBar/);
   assert.match(source,/Wegdelen koppelen/);
   assert.match(source,/hub:changed/);
 });
