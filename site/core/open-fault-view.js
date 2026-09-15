@@ -7,6 +7,13 @@ export const OPEN_FAULT_TYPES=Object.freeze([
   ['WISSELBORD','Wisselbord']
 ]);
 
+export const OPEN_OPERATIONAL_STATUSES=Object.freeze([
+  ['', 'Alle statussen'],
+  ['Operationeel','Operationeel'],
+  ['Niet operationeel door storing','Niet operationeel door storing'],
+  ['Niet operationeel','Niet operationeel']
+]);
+
 function norm(v){return String(v==null?'':v).trim();}
 function low(v){return norm(v).toLowerCase();}
 
@@ -18,14 +25,15 @@ export function faultCategory(f){
 }
 
 export function filterOpenFaults(rows,filters={}){
-  const q=low(filters.query),vc=norm(filters.vc),type=norm(filters.type).toUpperCase();
+  const q=low(filters.query),vc=norm(filters.vc),type=norm(filters.type).toUpperCase(),status=norm(filters.status);
   const specials=[];if(filters.wind)specials.push('wind');if(filters.ria4)specials.push('ria4');
   return (Array.isArray(rows)?rows:[]).filter(f=>{
     if(vc&&norm(f.vc)!==vc)return false;
     if(type&&norm(f.typeId).toUpperCase()!==type)return false;
+    if(status&&norm(f.operationeleStatus)!==status)return false;
     if(specials.length&&!specials.some(x=>faultCategory(f).includes(x)))return false;
     if(!q)return true;
-    return [f.naam,f.assetKey,f.weg,f.richting,f.hm,f.code,f.omschrijving,f.vc,f.rd,f.typeId,f.bron].some(v=>low(v).includes(q));
+    return [f.naam,f.assetKey,f.weg,f.richting,f.hm,f.code,f.omschrijving,f.vc,f.rd,f.typeId,f.bron,f.operationeleStatus].some(v=>low(v).includes(q));
   });
 }
 
@@ -51,6 +59,7 @@ export function buildOpenFaultMemo(rows,context={}){
     peildatum:context.peildatum||null,
     total:list.length,
     byType:countBy(list,'typeId'),
+    byStatus:countBy(list,'operationeleStatus'),
     byVc:countBy(list,'vc'),
     byRd:countBy(list,'rd'),
     wind:list.filter(x=>x.wind===true||x.windwaarschuwing===true).length,

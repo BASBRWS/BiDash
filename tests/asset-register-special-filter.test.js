@@ -12,6 +12,13 @@ test('assetregister krijgt aparte vinkboxen voor Windwaarschuwing en RIA4',()=>{
   assert.match(src,/RIA4/);
 });
 
+test('assetregister krijgt filter met drie operationele toestanden',()=>{
+  assert.match(src,/assetOperationalStatus/);
+  assert.match(src,/Niet operationeel door storing/);
+  assert.match(src,/OPERATIONAL_STATUS/);
+  assert.match(src,/operationalStatusForAsset/);
+});
+
 test('beide speciale filters combineren als OF en gebruiken DVM-classificatie',()=>{
   assert.match(src,/sel\.wind&&wind/);
   assert.match(src,/sel\.ria4&&ria4/);
@@ -21,10 +28,10 @@ test('beide speciale filters combineren als OF en gebruiken DVM-classificatie',(
 
 test('BI-assets vallen buiten een actieve speciale DRIP-selectie',()=>{
   assert.match(src,/name==='dvm'/);
-  assert.match(src,/return active\(\)\?\[\]:rows/);
+  assert.match(src,/if\(sel\.wind\|\|sel\.ria4\)return \[\]/);
 });
 
-test('wijziging van vinkbox hergebruikt bestaande assetregister-renderroute',()=>{
+test('wijziging van filter hergebruikt bestaande assetregister-renderroute',()=>{
   assert.match(src,/assetSource/);
   assert.match(src,/dispatchEvent\(new Event\('change'/);
   assert.match(read('site/core/model.js'),/import '\.\/asset-register-special-filter\.js'/);
