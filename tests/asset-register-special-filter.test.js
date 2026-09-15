@@ -29,3 +29,8 @@ test('wijziging van vinkbox hergebruikt bestaande assetregister-renderroute',()=
   assert.match(src,/dispatchEvent\(new Event\('change'/);
   assert.match(read('site/core/model.js'),/import '\.\/asset-register-special-filter\.js'/);
 });
+
+test('browserfilter is inert wanneer modeltests zonder DOM draaien',async()=>{
+  assert.match(src,/typeof window==='undefined'\|\|typeof document==='undefined'/);
+  await import('../site/core/asset-register-special-filter.js?node-guard='+Date.now());
+});
