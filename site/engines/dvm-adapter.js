@@ -28,9 +28,6 @@
     try{
       const kosten=bundle?.parameters?.kosten;
       if(!kosten||typeof kosten!=='object'||typeof RULES==='undefined'||!RULES)return null;
-      // Alleen de lichte parameter-/verkeerscontext herstellen. Geen assets,
-      // historie of totaalimport uitvoeren. Hierdoor blijven eerder aangeleverde
-      // NDW-meetlocaties beschikbaar terwijl zware operationele data uitgesteld blijft.
       RULES.kosten={...(RULES.kosten||{}),...kosten};
       const snapshot=kosten.ndw69Snapshot;
       const info={
@@ -46,6 +43,19 @@
       return null;
     }
   }
+  function herstelSpecialeDrips(bundle){
+    try{
+      const data=bundle?.parameters?.dripSpecialLists;
+      if(!data||typeof window.restoreDripSpecialLists!=='function')return null;
+      window.restoreDripSpecialLists(data);
+      return {
+        wind:Array.isArray(data.wind?.identifiers)?data.wind.identifiers.length:0,
+        ria4:Array.isArray(data.ria4?.identifiers)?data.ria4.identifiers.length:0
+      };
+    }catch(error){
+      console.warn('BiDash: speciale DRIP-referentielijsten konden niet worden hersteld.',error);return null;
+    }
+  }
 
   function installeerImportGuard(){
     const hub=window.HUB;
@@ -56,21 +66,15 @@
       const gestart=performance.now();
       const policy=await restorePolicy;
       const zwaar=policy.shouldDeferDvmRestore(bundle);
+      const specialeDrips=herstelSpecialeDrips(bundle);
 
-      // Belangrijk: een grote eerder opgeslagen DVM-werkruimte werd bij iedere
-      // pagina-start opnieuw door totaalImportJson gehaald. Daardoor verscheen
-      // dvm-lokaal.json / "Koppelingen en analysebeeld herbouwen" nog vóór de
-      // bron-specifieke upload. Voor een zware werkruimte slaan we die automatische
-      // totaalherbouw nu over. De gebruiker kan DVM-bronnen daarna één voor één laden.
-      // De verkeers-/kostenparameters herstellen we wél selectief, zodat de eerder
-      // aangeleverde NDW-meetdata niet verloren gaat door deze performanceguard.
       if(zwaar&&(ouderStartNog()||bronbeheerActief())){
         const profiel=policy.dvmRestoreProfile(bundle);
         const verkeer=herstelVerkeerscontext(bundle);
-        window.__BIDASH_DVM_RESTORE_DEFERRED__={...profiel,reden:bronbeheerActief()?'bronbeheer':'opstart',tijd:new Date().toISOString(),verkeer};
+        window.__BIDASH_DVM_RESTORE_DEFERRED__={...profiel,reden:bronbeheerActief()?'bronbeheer':'opstart',tijd:new Date().toISOString(),verkeer,specialeDrips};
         console.info('BiDash: zware DVM-werkruimte niet automatisch herbouwd.',window.__BIDASH_DVM_RESTORE_DEFERRED__);
         try{
-          if(parent!==window)parent.postMessage({type:'hub:dvm-restore-deferred',engine:'dvm',profile:profiel,verkeer},location.origin);
+          if(parent!==window)parent.postMessage({type:'hub:dvm-restore-deferred',engine:'dvm',profile:profiel,verkeer,specialeDrips},location.origin);
         }catch(error){}
         return legeSamenvatting();
       }
@@ -83,9 +87,6 @@
       const nativeClone=window.structuredClone;
       if(typeof nativeClone!=='function')return oorspronkelijkeImport.call(this,bundle,...args);
 
-      // De adapter gebruikte structuredClone(bundle) direct voor JSON.stringify.
-      // totaalImportJson leest daarna toch een nieuw JSON-object in. Voor exact dit
-      // bronobject is die extra kopie dus overbodig en zeer duur bij grote DVM-data.
       window.structuredClone=function(value,options){
         if(value===bundle)return value;
         return nativeClone.call(window,value,options);
@@ -93,6 +94,7 @@
 
       try{
         const resultaat=await oorspronkelijkeImport.call(this,bundle,...args);
+        try{if(typeof window.applyDripSpecialLists==='function')window.applyDripSpecialLists();}catch(error){}
         window.__BIDASH_LAST_HUB_IMPORT_PERF__={
           duurMs:Math.round(performance.now()-gestart),
           combiPatch:window.__BIDASH_DVM_COMBI_PERF_ACTIVE__===true,
@@ -109,16 +111,10 @@
     return true;
   }
 
-  // Deze listener wordt vóór de listener van de oorspronkelijke adapter
-  // geregistreerd. Daardoor is HUB.import al bewaakt voordat het iframe-load
-  // event in de bovenliggende BiDash-app wordt afgehandeld.
   window.addEventListener('load',installeerImportGuard,{once:true});
 
-  // Hergebruik exact de bestaande adaptercode als afzonderlijke bron.
-  // document.write is hier bewust parser-synchroon, zodat HUB vóór window.load bestaat.
   document.write('<script src="dvm-adapter-original.js"></script>');
-  // DVM-bronbeheer krijgt daarnaast een eigen bron-specifieke uploadlaag.
-  // Deze wordt na dvm-1/2/3 geladen en kan daardoor de bestaande bronparsers
-  // rechtstreeks gebruiken zonder de generieke totaal-/autodetectieroute.
+  // Classificatielijsten zijn aparte lichte bronnen en worden vóór bronbeheer geladen.
+  document.write('<script src="dvm-special-drip-lists.js"></script>');
   document.write('<script src="dvm-source-manager.js"></script>');
 })();
