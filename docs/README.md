@@ -9,6 +9,7 @@ Achtergrond bij BiDash integraal. De applicatie zelf staat in [`site/`](../site)
 | [Systeemwerking](SYSTEEMWERKING.md) | Technische architectuur, kwaliteitscontract, importregels, rekenketens en verplichte wijzigingscontroles |
 | [Logische architectuur](architectuur.md) | Dienstverlening als doellaag, de drie invloeddomeinen, rule engine en trigger engine, plus de relatie met de technische vierlagenarchitectuur |
 | [Rekenvoorbeeld signaalgevers](rekenvoorbeeld-signaalgevers.md) | Tien jaar geen signaalgevers vervangen, doorgerekend tot beschikbaarheid, dienstverlening en kosten |
+| [Release notes DRIP-bronclassificatie](release-notes-2026-09-15-drip-bronclassificatie.md) | Filtert actuele DRIP-incidenten op het bronvenster, splitst RIA4 en Windwaarschuwing per regel en toont de herkomst in de brondekking |
 | [Release notes operationele status uit storing](release-notes-2026-09-15-operationele-status-storing.md) | Voegt `Niet operationeel door storing` toe, koppelt fout 1003 en matcht open Windwaarschuwing-/RIA4-DRIP-storingen aan het assetregister |
 | [Release notes RIA4- en Windwaarschuwingfilter assetregister](release-notes-2026-09-15-assetregister-ria4-windfilter.md) | Voegt dezelfde speciale DRIP-selectie als bij Open storingen toe aan het gezamenlijke assetregister |
 | [Release notes speciale DRIP-referentielijsten](release-notes-2026-09-15-drip-speciale-referentielijsten.md) | Voegt aparte uploads voor Windwaarschuwing- en RIA4-DRIP’s toe en koppelt die classificatie aan het actuele Open storingen-beeld |

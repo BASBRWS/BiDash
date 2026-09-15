@@ -12,12 +12,6 @@
   const iso=v=>{const n=num(v),d=new Date(n!=null?n:v);return Number.isFinite(d.getTime())?d.toISOString():'';};
   const norm=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,'');
   const upper=v=>String(v??'').trim().toUpperCase();
-  const openDrip=x=>{
-    if(!x||typeof x!=='object')return false;
-    if(x.censored===true)return true;
-    if(/\b(open|openstaand|actief|onopgelost|niet\s*hersteld)\b/i.test(String(x.technischeToestand||'')))return true;
-    return x.einde==null&&(x.duurUren==null||!Number.isFinite(Number(x.duurUren)));
-  };
   const assets=()=>{try{return ASSET_REGISTER_STATE?.assets||[];}catch(e){return [];}};
   const drips=()=>{try{return ((STATE&&STATE.drips)||DRIP_STATE)?.drips||[];}catch(e){return [];}};
   const assetByKey=key=>key?assets().find(a=>String(a.key)===String(key)):null;
@@ -90,7 +84,8 @@
     let hist=null;try{hist=DRIP_HIST_STATE;}catch(e){}
     if(!hist||!Array.isArray(hist.incidenten))return [];
     const peil=num(hist.tot)??Date.now();
-    return hist.incidenten.filter(openDrip).map((x,i)=>{
+    const openKeys=new Set((window.__BIDASH_DRIP_OPEN_FROM_HISTORY_HELPERS__?.deriveOpenDripRows(hist.incidenten)||[]).map(r=>[upper(r.drip_code),Date.parse(r.van)||0].join('|')));
+    return hist.incidenten.filter(x=>openKeys.has([upper(x.code||x.asset),num(x.start)||0].join('|'))).map((x,i)=>{
       const resolved=resolveDrip(x),d=resolved?.drip||null,key=x.matchAssetKey||resolved?.assetKey||d?._assetKey||d?.assetKey||'',asset=resolved?.asset||assetByKey(key),sp=special(asset,d,x);
       const naam=asset?.naam||d?.asset||d?.idCdms||x.asset||x.code||`DRIP ${i+1}`;
       const detail=x.alarmmeldingen||x.classificatie||x.technischeToestand||'Openstaande DRIP-storing';

@@ -14,7 +14,9 @@ De standaardweergave is de processflow. Via de documentnavigatie zijn onder ande
 6. Stel desgewenst in Datasetbeheer het filter in voor de open storingen die in het actuele overzicht mogen meetellen.
 7. Laad BI-gegevens en planning voor formatie, contracten en uitvoerbaarheid.
 
-Historische storingen en actuele open storingen zijn twee verschillende gegevensstromen. Historische meldingen mogen het live dashboard niet beïnvloeden.
+Historische storingen en actuele open storingen zijn twee verschillende gegevensstromen. Historische meldingen mogen het live dashboard niet beïnvloeden. Bij DRIP-historie leidt BiDash alleen incidenten af die aantoonbaar aan het actuele einde van hun eigen bron nog open staan. Oude gecensureerde incidenten worden niet als huidige storing meegenomen.
+
+RIA4 en Windwaarschuwing blijven twee losse kenmerken. Heeft één DRIP-bestand beide kolommen, dan splitst BiDash de regels automatisch op de markeringen in die kolommen. Bij dubbele DRIP-codes controleert de koppeling ook VC, weg, richting en hectometer. In de tabel Brondekking bekijken en bevestigen staat bij DRIP welke historische bron voor de actuele selectie is gebruikt. Bevestig die bron alleen als het bestand voor het bedoelde areaal volledig is.
 
 ## Voortgang tijdens data laden
 

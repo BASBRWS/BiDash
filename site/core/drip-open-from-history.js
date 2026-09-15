@@ -1,13 +1,33 @@
 export const DRIP_OPEN_VIRTUAL_KEY='__drip_open_from_history__';
 
-export function isOpenDripIncident(x){
+const OPEN_AT_SOURCE_END_TOLERANCE_MS=36*60*60*1000;
+
+function explicitOpenState(x){
+  const toestand=String(x?.technischeToestand||x?.status||'').trim().toLowerCase();
+  return /\b(open|openstaand|actief|onopgelost|niet\s*hersteld)\b/.test(toestand);
+}
+
+function sourceEnds(incidenten){
+  const ends=new Map();
+  for(const x of Array.isArray(incidenten)?incidenten:[]){
+    const key=String(x?.sourceKey||x?.sourceName||'');
+    const end=Number(x?.einde);
+    if(key&&Number.isFinite(end)&&end>(ends.get(key)||0))ends.set(key,end);
+  }
+  return ends;
+}
+
+export function isOpenDripIncident(x,sourceEnd=null){
   if(!x||typeof x!=='object')return false;
-  if(x.censored===true)return true;
-  const toestand=String(x.technischeToestand||'').trim().toLowerCase();
-  if(/\b(open|openstaand|actief|onopgelost|niet\s*hersteld)\b/.test(toestand))return true;
+  if(explicitOpenState(x))return true;
   // In de DRIP-historie wordt een ontbrekende eindtijd alleen als open
   // geïnterpreteerd wanneer ook geen afgeronde duur is vastgelegd.
-  return x.einde==null&&(x.duurUren==null||!Number.isFinite(Number(x.duurUren)));
+  if(x.einde==null&&(x.duurUren==null||!Number.isFinite(Number(x.duurUren))))return true;
+  // `censored` betekent dat een episode aan het einde van het bronvenster nog
+  // liep. Oude gecensureerde episodes zijn niet automatisch nu nog open. Alleen
+  // een episode die het actuele einde van dezelfde bron raakt, telt als open.
+  const end=Number(x.einde),bronEinde=sourceEnd==null?NaN:Number(sourceEnd),afstand=bronEinde-end;
+  return x.censored===true&&Number.isFinite(end)&&Number.isFinite(bronEinde)&&afstand>=0&&afstand<=OPEN_AT_SOURCE_END_TOLERANCE_MS;
 }
 
 function iso(v){
@@ -51,9 +71,9 @@ export function dripOpenRow(x,index=0){
 }
 
 export function deriveOpenDripRows(incidenten){
-  const out=[],seen=new Set();
+  const out=[],seen=new Set(),ends=sourceEnds(incidenten);
   (Array.isArray(incidenten)?incidenten:[]).forEach((x,i)=>{
-    if(!isOpenDripIncident(x))return;
+    if(!isOpenDripIncident(x,ends.get(String(x?.sourceKey||x?.sourceName||''))))return;
     const key=incidentKey(x,i);if(seen.has(key))return;seen.add(key);
     out.push(dripOpenRow(x,i));
   });
@@ -61,9 +81,9 @@ export function deriveOpenDripRows(incidenten){
 }
 
 export function deriveOpenDripFaults(incidenten){
-  const out=[],seen=new Set();
+  const out=[],seen=new Set(),ends=sourceEnds(incidenten);
   (Array.isArray(incidenten)?incidenten:[]).forEach((x,i)=>{
-    if(!isOpenDripIncident(x))return;
+    if(!isOpenDripIncident(x,ends.get(String(x?.sourceKey||x?.sourceName||''))))return;
     const key=incidentKey(x,i);if(seen.has(key))return;seen.add(key);
     const detail=String(x?.alarmmeldingen||x?.classificatie||'openstaande DRIP-storing').trim();
     out.push({
@@ -135,6 +155,9 @@ const PATCH_SOURCE=String.raw`
       bijgewerkt:new Date().toISOString(),
       bronnen:[...new Set(rows.map(r=>r.source_name).filter(Boolean))]
     };
+    try{
+      LIVE_STORINGS_INSPECTIE=LIVE_STORINGSBRONNEN.length?inspecteerStoringsRijen(gecombineerdeLiveStoringsRijen()):null;
+    }catch(error){console.warn('DRIP-livebron kon niet opnieuw worden geinspecteerd.',error);}
     return rows.length;
   }
 
@@ -202,7 +225,7 @@ const PATCH_SOURCE=String.raw`
   globalThis.__BIDASH_SYNC_DRIP_OPEN_FROM_HISTORY__=function(){
     const n=syncDripOpenLive();
     ANALYSE_SIGNATURE='';
-    probeerAnalyseActiveren('drips');
+    probeerAnalyseActiveren('overzicht');
     if(typeof renderDataGereedheid==='function')renderDataGereedheid();
     return n;
   };
