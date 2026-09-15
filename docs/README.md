@@ -9,6 +9,7 @@ Achtergrond bij BiDash integraal. De applicatie zelf staat in [`site/`](../site)
 | [Systeemwerking](SYSTEEMWERKING.md) | Technische architectuur, kwaliteitscontract, importregels, rekenketens en verplichte wijzigingscontroles |
 | [Logische architectuur](architectuur.md) | Dienstverlening als doellaag, de drie invloeddomeinen, rule engine en trigger engine, plus de relatie met de technische vierlagenarchitectuur |
 | [Rekenvoorbeeld signaalgevers](rekenvoorbeeld-signaalgevers.md) | Tien jaar geen signaalgevers vervangen, doorgerekend tot beschikbaarheid, dienstverlening en kosten |
+| [Release notes open storingen worker-first](release-notes-2026-09-15-open-storingen-worker-filter-off.md) | Verwerkt actuele XLSX eerst in een Web Worker en schakelt live-overzichtsfilters tijdelijk uit tijdens importstabilisatie |
 | [Release notes bron-specifiek DVM laden](release-notes-2026-09-15-dvm-bronbeheer-upload.md) | Geeft ieder DVM-brondeel een eigen uploadknop en stuurt bestanden rechtstreeks naar de bijbehorende parser |
 | [Release notes actuele storingslijst](release-notes-2026-09-14-live-storingen.md) | Vervangen van live momentopnamen en automatisch historiseren van verdwenen MSI-storingen |
 | [Release notes storingsfilter](release-notes-2026-09-14-storingsfilter.md) | Zelf instellen welke actuele open storingen meetellen zonder de bron- en historielogica te wijzigen |
