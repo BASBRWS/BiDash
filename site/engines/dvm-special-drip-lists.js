@@ -3,7 +3,7 @@
    uitsluitend kenmerken aan bestaande DRIP-assets zodat actuele open storingen
    gericht op Windwaarschuwing en RIA4 gefilterd kunnen worden. */
 (() => {
-  const EMPTY=()=>({bestand:'',geladenOp:'',rijen:0,identifiers:[],matchedAssets:0,matchedDrips:0,unmatched:[]});
+  const EMPTY=()=>({bestand:'',geladenOp:'',rijen:0,identifiers:[],matchedAssets:0,matchedDrips:0,unmatched:[],unmatchedCount:0});
   const SPECIAL=window.DVM_SPECIAL_DRIP_LISTS||{wind:EMPTY(),ria4:EMPTY()};
   window.DVM_SPECIAL_DRIP_LISTS=SPECIAL;
 
@@ -55,8 +55,9 @@
     data.matchedAssets=ma;data.matchedDrips=md;
     const matchedTokens=new Set();
     for(const x of [...assets,...drips])if(x[prop])for(const t of objectTokens(x))if(set.has(t))matchedTokens.add(t);
-    data.unmatched=(data.identifiers||[]).filter(x=>!matchedTokens.has(norm(x.token||x.raw||x))).slice(0,250).map(x=>x.raw||x.token||String(x));
-    return {matchedAssets:ma,matchedDrips:md,unmatched:data.unmatched.length};
+    const unmatched=(data.identifiers||[]).filter(x=>!matchedTokens.has(norm(x.token||x.raw||x)));
+    data.unmatchedCount=unmatched.length;data.unmatched=unmatched.slice(0,250).map(x=>x.raw||x.token||String(x));
+    return {matchedAssets:ma,matchedDrips:md,unmatched:unmatched.length};
   }
   function applyAll(){const wind=applyOne('wind'),ria4=applyOne('ria4');window.__BIDASH_SPECIAL_DRIP_LINK__={wind,ria4,bijgewerkt:new Date().toISOString()};return window.__BIDASH_SPECIAL_DRIP_LINK__;}
   window.applyDripSpecialLists=applyAll;
@@ -72,8 +73,15 @@
     }
     const rows=[],names=wb.SheetNames||[];
     for(let i=0;i<names.length;i++){
-      const name=names[i],part=XLSX.utils.sheet_to_json(wb.Sheets[name],{defval:'',raw:false});
+      const name=names[i],sheet=wb.Sheets[name],part=XLSX.utils.sheet_to_json(sheet,{defval:'',raw:false});
       part.forEach(r=>rows.push({...r,__sheet:name}));
+      // Veel referentielijsten zijn bewust heel simpel: één kolom met DRIP-codes.
+      // In dat geval lezen we ook zonder vaste kolomnaam, inclusief de eerste cel.
+      const matrix=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:false,blankrows:false});
+      const breedte=Math.max(0,...matrix.map(r=>Array.isArray(r)?r.filter(v=>String(v??'').trim()!=='').length:0));
+      if(breedte===1){
+        for(const r of matrix){const v=(r||[]).find(x=>String(x??'').trim()!=='');if(v==null)continue;const h=normHeader(v);if(HEADER_ALIASES.has(h))continue;rows.push({DRIP:v,__sheet:name,__singleColumn:true});}
+      }
       progress(file,30+Math.round(((i+1)/Math.max(1,names.length))*35),`Werkblad ${i+1} van ${names.length} lezen`);
       await new Promise(r=>setTimeout(r,0));
     }
@@ -88,7 +96,7 @@
       const rows=await workbookRows(file);progress(file,72,`${label}-DRIP’s herkennen`);
       const ids=uniqIds(rows);
       if(!ids.length)throw new Error('Geen herkenbare DRIP-code, asset-id, Dynac- of CDMS-kolom gevonden.');
-      SPECIAL[kind]={bestand:file.name,geladenOp:new Date().toISOString(),rijen:rows.length,identifiers:ids,matchedAssets:0,matchedDrips:0,unmatched:[]};
+      SPECIAL[kind]={bestand:file.name,geladenOp:new Date().toISOString(),rijen:rows.length,identifiers:ids,matchedAssets:0,matchedDrips:0,unmatched:[],unmatchedCount:0};
       progress(file,84,`${label}-DRIP’s koppelen aan All Assets`);
       const result=applyOne(kind);
       try{ANALYSE_SIGNATURE='';}catch(e){}
