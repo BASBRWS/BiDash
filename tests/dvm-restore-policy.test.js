@@ -33,6 +33,6 @@ test('bron-specifieke upload meldt wijziging terug aan de centrale werkruimte',(
   const sourceManager=read('site/engines/dvm-source-manager.js');
   assert.match(sourceManager,/hub:changed/);
   assert.match(sourceManager,/sourceSpecific:true/);
-  assert.match(sourceManager,/BIDASH_VERSION='2\.8'/);
-  assert.match(sourceManager,/DVM_VERSION='77'/);
+  assert.match(sourceManager,/BIDASH_VERSION='2\.9'/);
+  assert.match(sourceManager,/DVM_VERSION='78'/);
 });
