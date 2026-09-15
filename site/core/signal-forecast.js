@@ -4,6 +4,7 @@ import {installDvmAnalysisRebuildPerformance} from './dvm-analysis-rebuild-perfo
 import {installDvmCombiPerformance} from './dvm-combi-performance.js';
 import {installTrafficScenarioDefaults} from './traffic-scenario-defaults.js';
 import {installNdwLoader} from './ndw-loader.js';
+import {installDripOpenFromHistory} from './drip-open-from-history.js';
 export * from './signal-forecast-original.js';
 export * from './live-filter.js';
 
@@ -18,3 +19,4 @@ installDvmImportProgressBridge(globalThis);
 installDvmAnalysisRebuildPerformance(globalThis);
 installTrafficScenarioDefaults(globalThis);
 installNdwLoader(globalThis);
+installDripOpenFromHistory(globalThis);

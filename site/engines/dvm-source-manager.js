@@ -2,8 +2,8 @@
    Doel: losse DVM-bronnen rechtstreeks naar hun eigen parser sturen en daarmee
    de generieke BiDash-/DVM-herkenningsroute omzeilen. */
 (() => {
-  const BIDASH_VERSION='2.7';
-  const DVM_VERSION='76';
+  const BIDASH_VERSION='2.8';
+  const DVM_VERSION='77';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
     eol:{input:'eolInputTop',label:'EOL-referentie laden',multiple:false,requiresAsset:true,handler:'leesEolReferentie'},
@@ -18,10 +18,10 @@
     assetregister:{titel:'Assetregister / All Assets',meta:'Nog niet geladen. Laad dit stamregister als eerste.'},
     eol:{titel:'EOL-referentie',meta:'Niet geladen; generieke levensduur blijft mogelijk.'},
     storingshistorie:{titel:'Storingshistorie',meta:'Nog geen historische DVM-storingsbron geladen. Deze bron voedt alleen prognoses.'},
-    dripHistorie:{titel:'DRIP-storingshistorie',meta:'Nog geen DRIP-storingshistorie geladen. Deze bron voedt alleen DRIP Monte Carlo.'},
+    dripHistorie:{titel:'DRIP-storingshistorie',meta:'Nog geen DRIP-storingshistorie geladen. Historie voedt DRIP Monte Carlo; expliciet openstaande incidenten worden ook aan het actuele storingsbeeld toegevoegd.'},
     uRoutes:{titel:'U-routes',meta:'Niet geladen. U-routes zijn operationele routecontext.'},
     werkzaamheden:{titel:'Werkzaamheden',meta:'Niet geladen. Werkzaamheden zijn operationele context.'},
-    liveStoringen:{titel:'Open storingen',meta:'Nog geen actuele momentopname geladen. Deze bron voedt alleen het actuele dashboard.'}
+    liveStoringen:{titel:'Open storingen',meta:'Nog geen actuele signaalgever-momentopname geladen. Open DRIP-incidenten kunnen daarnaast uit de DRIP-historie worden afgeleid.'}
   };
 
   function werkVersieBij(){
