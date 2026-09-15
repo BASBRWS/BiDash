@@ -5,6 +5,7 @@ import {installDvmCombiPerformance} from './dvm-combi-performance.js';
 import {installTrafficScenarioDefaults} from './traffic-scenario-defaults.js';
 import {installNdwLoader} from './ndw-loader.js';
 import {installDripOpenFromHistory} from './drip-open-from-history.js';
+import {installFaultHubExtensionLoader} from './fault-hub-extension-loader.js';
 export * from './signal-forecast-original.js';
 export * from './live-filter.js';
 
@@ -20,3 +21,4 @@ installDvmAnalysisRebuildPerformance(globalThis);
 installTrafficScenarioDefaults(globalThis);
 installNdwLoader(globalThis);
 installDripOpenFromHistory(globalThis);
+installFaultHubExtensionLoader(globalThis);
