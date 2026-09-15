@@ -10,6 +10,10 @@ export function liveIncidentKey(parts={}){
   ].join('|');
 }
 
+export function useTargetedLiveXlsx(name){
+  return /\.xlsx$|\.xlsm$/i.test(String(name||''));
+}
+
 export function diffSnapshot(oldRows,newRows,keyFn){
   const remaining=new Map();
   for(const row of newRows||[]){
@@ -70,6 +74,32 @@ const PATCH_SOURCE=String.raw`
     });
   }
 
+  async function leesOpenStoringenBron(file,voortgang){
+    const vg=(f,fase)=>{if(voortgang)voortgang(f,fase);};
+    if(!H.useTargetedLiveXlsx(file&&file.name))return storingsBronUitBestand(file,voortgang);
+    if(typeof xlsxEersteBladLicht!=='function'||typeof STORINGS_KOLOMMEN_LICHT==='undefined')return storingsBronUitBestand(file,voortgang);
+
+    vg(.02,'Open-storingenwerkmap gericht uitlezen');
+    let rijen;
+    try{
+      // Voor actuele XLSX-momentopnamen lezen we alleen ZIP-index, gedeelde
+      // teksten en het eerste werkblad. Zo vermijden we de volledige
+      // file.arrayBuffer()+SheetJS-route die op sommige werkplekken blijft
+      // hangen bij "Bestand lezen".
+      rijen=await xlsxEersteBladLicht(file,STORINGS_KOLOMMEN_LICHT,null,vg);
+    }catch(lichtErr){
+      if(typeof sheetJsWorkerRijen!=='function')throw lichtErr;
+      vg(.04,'Gerichte lezer niet mogelijk; Excel-worker proberen');
+      const worker=sheetJsWorkerRijen(file,STORINGS_KOLOMMEN_LICHT,null,vg);
+      const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error('Excel-worker reageert niet binnen 30 seconden')),30000));
+      try{rijen=await Promise.race([worker,timeout]);}
+      catch(workerErr){throw new Error('open-storingenlezer: '+lichtErr.message+'; fallback: '+workerErr.message);}
+    }
+    if(!rijen||!rijen.length)throw new Error('geen rijen gevonden in het eerste tabblad');
+    vg(.98,rijen.length.toLocaleString('nl-NL')+' open-storingsregels gereed voor controle');
+    return {key:String(file.name||'').toLowerCase(),naam:file.name,rijen,size:file.size||0};
+  }
+
   function archiveerVerdwenen(oudeRijen,nieuweRijen,peildatum,bronNaam){
     const verdwenen=H.diffSnapshot(oudeRijen,nieuweRijen,sleutel);
     if(!verdwenen.length)return 0;
@@ -119,7 +149,7 @@ const PATCH_SOURCE=String.raw`
     for(const file of files){
       zetImportVoortgang(file.name,0,'Open-storingenbestand voorbereiden',{direct:true});await uiPauze();
       try{
-        const bron=await storingsBronUitBestand(file,(f,fa)=>zetImportVoortgang(file.name,f==null?null:f*82,fa));
+        const bron=await leesOpenStoringenBron(file,(f,fa)=>zetImportVoortgang(file.name,f==null?null:f*82,fa));
         if(!inspecteerStoringsRijen(bron.rijen).herkenbaar)throw new Error('geen herkenbare DVM-storingen gevonden in dit bestand');
         bron._fileLastModified=Number(file.lastModified)||0;
         nieuw.push(bron);
@@ -144,7 +174,7 @@ const PATCH_SOURCE=String.raw`
 export function installDvmLiveSnapshotPatch(scope=globalThis){
   if(!scope||!scope.document||typeof scope.eval!=='function')return false;
   if(scope.__BIDASH_DVM_LIVE_PATCH_ACTIVE__)return true;
-  scope.__BIDASH_LIVE_SNAPSHOT_HELPERS__={liveIncidentKey,diffSnapshot,closeHistoryRow};
+  scope.__BIDASH_LIVE_SNAPSHOT_HELPERS__={liveIncidentKey,diffSnapshot,closeHistoryRow,useTargetedLiveXlsx};
   try{
     scope.eval(PATCH_SOURCE);
     return !!scope.__BIDASH_DVM_LIVE_PATCH_ACTIVE__;
