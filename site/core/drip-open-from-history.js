@@ -18,6 +18,10 @@ function iso(v){
   const d=new Date(v);return Number.isFinite(d.getTime())?d.toISOString():'';
 }
 
+function incidentKey(x,index=0){
+  return [String(x?.code||x?.asset||'').toUpperCase(),Number(x?.start)||index,String(x?.weg||'').toUpperCase(),x?.hm??''].join('|');
+}
+
 export function dripOpenRow(x,index=0){
   const code=String(x?.code||x?.asset||'').trim();
   const locatie=String(x?.locatie||'').trim();
@@ -50,9 +54,36 @@ export function deriveOpenDripRows(incidenten){
   const out=[],seen=new Set();
   (Array.isArray(incidenten)?incidenten:[]).forEach((x,i)=>{
     if(!isOpenDripIncident(x))return;
-    const row=dripOpenRow(x,i);
-    const key=[String(x.code||x.asset||'').toUpperCase(),Number(x.start)||'',String(x.weg||'').toUpperCase(),x.hm??''].join('|');
-    if(seen.has(key))return;seen.add(key);out.push(row);
+    const key=incidentKey(x,i);if(seen.has(key))return;seen.add(key);
+    out.push(dripOpenRow(x,i));
+  });
+  return out;
+}
+
+export function deriveOpenDripFaults(incidenten){
+  const out=[],seen=new Set();
+  (Array.isArray(incidenten)?incidenten:[]).forEach((x,i)=>{
+    if(!isOpenDripIncident(x))return;
+    const key=incidentKey(x,i);if(seen.has(key))return;seen.add(key);
+    const detail=String(x?.alarmmeldingen||x?.classificatie||'openstaande DRIP-storing').trim();
+    out.push({
+      id:'drip-history-open-'+key,
+      assetKey:x?.matchAssetKey||'',
+      naam:String(x?.asset||x?.code||'DRIP').trim()||'DRIP',
+      weg:x?.weg||'',
+      richting:x?.richting||'',
+      vc:x?.vc||'',
+      hm:x?.hm??null,
+      code:String(x?.code||'DRIP-OPEN'),
+      impact:null,
+      prestatie:null,
+      impactLabel:'Nog niet gekwantificeerd',
+      omschrijving:`Open DRIP-storing uit ${x?.sourceName||'DRIP-historie'} · ${detail}`,
+      wegKey:[x?.weg||'',x?.richting||''].filter(Boolean).join(' '),
+      bron:'DRIP-historie',
+      typeId:'DRIP',
+      afgeleid:true
+    });
   });
   return out;
 }
@@ -107,6 +138,26 @@ const PATCH_SOURCE=String.raw`
     return rows.length;
   }
 
+  function patchHubFaults(poging){
+    const hub=globalThis.HUB;
+    if(!hub||typeof hub.faults!=='function'){
+      if((poging||0)<80)setTimeout(()=>patchHubFaults((poging||0)+1),25);
+      return;
+    }
+    if(hub.__bidashDripOpenFaults)return;
+    const originalFaults=hub.faults.bind(hub);
+    hub.faults=function(){
+      const basis=originalFaults();
+      const extra=H.deriveOpenDripFaults(huidigeIncidenten()).map(f=>{
+        let asset=null;
+        try{asset=f.assetKey&&ASSET_INDEX&&ASSET_INDEX.byKey?ASSET_INDEX.byKey.get(f.assetKey):null;}catch(error){}
+        return asset?{...f,naam:asset.naam||f.naam,weg:asset.weg||f.weg,richting:asset.richting||f.richting,vc:asset.vc||f.vc,hm:asset.hm!=null?asset.hm:f.hm}:f;
+      });
+      return [...basis,...extra];
+    };
+    hub.__bidashDripOpenFaults=true;
+  }
+
   const originalHerbouw=herbouwDripHistorie;
   herbouwDripHistorie=function(){
     const result=originalHerbouw.apply(this,arguments);
@@ -157,6 +208,7 @@ const PATCH_SOURCE=String.raw`
   };
 
   syncDripOpenLive();
+  patchHubFaults(0);
   globalThis.__BIDASH_DRIP_OPEN_FROM_HISTORY_ACTIVE__=true;
 })();`;
 
@@ -165,7 +217,8 @@ export function installDripOpenFromHistory(scope=globalThis){
   if(scope.__BIDASH_DRIP_OPEN_FROM_HISTORY_ACTIVE__)return true;
   scope.__BIDASH_DRIP_OPEN_FROM_HISTORY_HELPERS__={
     virtualKey:DRIP_OPEN_VIRTUAL_KEY,
-    deriveOpenDripRows
+    deriveOpenDripRows,
+    deriveOpenDripFaults
   };
   try{
     scope.eval(PATCH_SOURCE);
