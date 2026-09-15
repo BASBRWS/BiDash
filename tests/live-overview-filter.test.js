@@ -67,7 +67,7 @@ test('filterconfig is beperkt tot bekende facetten en heeft stabiele signatuur',
   assert.equal(liveFilterSignature(a),liveFilterSignature(b));
 });
 
-test('browserpatch filtert alleen de actuele doorrekening en laat snapshotbron intact',()=>{
+test('filterpatch blijft beschikbaar maar wordt tijdens importstabilisatie niet automatisch geactiveerd',()=>{
   const source=read('site/core/live-overview-filter.js');
   const forecast=read('site/core/signal-forecast.js');
   assert.match(source,/if\(!opties\|\|!opties\.actueel\)return originalDoorrekenen/);
@@ -75,7 +75,8 @@ test('browserpatch filtert alleen de actuele doorrekening en laat snapshotbron i
   assert.match(source,/RULES\.cfg\.liveOverviewFilter/);
   assert.doesNotMatch(source,/gecombineerdeLiveStoringsRijen\s*=\s*function/);
   assert.match(source,/A↔B-vergelijking en automatische historisering/);
-  assert.match(forecast,/installDvmLiveSnapshotPatch\(globalThis\);\s*installDvmLiveOverviewFilterPatch\(globalThis\);/s);
+  assert.match(forecast,/installDvmLiveSnapshotPatch\(globalThis\)/);
+  assert.doesNotMatch(forecast,/installDvmLiveOverviewFilterPatch\(globalThis\)/);
 });
 
 test('filter reist mee met bestaande DVM parameterexport en -import',()=>{
