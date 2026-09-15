@@ -2,6 +2,8 @@
    Doel: losse DVM-bronnen rechtstreeks naar hun eigen parser sturen en daarmee
    de generieke BiDash-/DVM-herkenningsroute omzeilen. */
 (() => {
+  const BIDASH_VERSION='2.4';
+  const DVM_VERSION='73';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
     eol:{input:'eolInputTop',label:'EOL-referentie laden',multiple:false,requiresAsset:true,handler:'leesEolReferentie'},
@@ -21,6 +23,32 @@
     werkzaamheden:{titel:'Werkzaamheden',meta:'Niet geladen. Werkzaamheden zijn operationele context.'},
     liveStoringen:{titel:'Open storingen',meta:'Nog geen actuele momentopname geladen. Deze bron voedt alleen het actuele dashboard.'}
   };
+
+  function werkVersieBij(){
+    document.title=document.title.replace(/versie\s+\d+/i,'versie '+DVM_VERSION);
+    document.querySelectorAll('#dataStatusPanel h3').forEach(el=>{el.textContent=el.textContent.replace(/versie\s+\d+/i,'versie '+DVM_VERSION);});
+    const topbar=document.querySelector('.topbar');
+    if(topbar&&!document.getElementById('dvmVersionBadge')){
+      const badge=document.createElement('span');badge.id='dvmVersionBadge';badge.textContent='DVM v'+DVM_VERSION;
+      badge.style.cssText='font-size:11px;font-weight:800;white-space:nowrap;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);padding:5px 8px;border-radius:4px';
+      topbar.appendChild(badge);
+    }
+    try{
+      if(parent===window)return;
+      const actions=parent.document.querySelector('.head-actions');
+      if(actions&&!parent.document.getElementById('bidashVersionBadge')){
+        const badge=parent.document.createElement('span');badge.id='bidashVersionBadge';badge.className='source-badge';badge.textContent='v'+BIDASH_VERSION;badge.title='BiDash integratie '+BIDASH_VERSION;
+        actions.prepend(badge);
+      }
+      const sidebar=parent.document.querySelector('.sidebar-foot .version');if(sidebar)sidebar.textContent='Integratie '+BIDASH_VERSION;
+    }catch(error){}
+  }
+
+  function meldWijzigingAanSchil(type,files){
+    try{
+      if(parent!==window)parent.postMessage({type:'hub:changed',engine:'dvm',sourceSpecific:true,bron:type,bestand:files?.[0]?.name||''},location.origin);
+    }catch(error){}
+  }
 
   function assetAanwezig(){
     try{return !!ASSET_REGISTER_STATE;}catch(error){return false;}
@@ -84,11 +112,14 @@
         [...actions.querySelectorAll('button')].forEach(button=>{
           if((button.getAttribute('onclick')||'').includes('totaalImportInput'))button.remove();
         });
-        const uitleg=document.createElement('p');
-        uitleg.className='dataset-note';
-        uitleg.innerHTML='<b>Bron-specifiek laden:</b> gebruik hieronder per onderdeel de eigen uploadknop. Deze route slaat de generieke importherkenning over en stuurt het bestand rechtstreeks naar de parser voor Assetregister, EOL, DVM-historie, DRIP-historie, U-routes, werkzaamheden of open storingen.';
-        actions.insertAdjacentElement('afterend',uitleg);
+        if(!host.querySelector('.bron-specifiek-uitleg')){
+          const uitleg=document.createElement('p');
+          uitleg.className='dataset-note bron-specifiek-uitleg';
+          uitleg.innerHTML='<b>Bron-specifiek laden:</b> gebruik hieronder per onderdeel de eigen uploadknop. Deze route slaat de generieke importherkenning over en stuurt het bestand rechtstreeks naar de parser voor Assetregister, EOL, DVM-historie, DRIP-historie, U-routes, werkzaamheden of open storingen.';
+          actions.insertAdjacentElement('afterend',uitleg);
+        }
       }
+      werkVersieBij();
       return result;
     };
   }
@@ -102,6 +133,7 @@
     renderDataGereedheid=function(){
       const result=originalRenderDataGereedheid.apply(this,arguments);
       const beheer=document.getElementById('btnDatasetBeheer');if(beheer)beheer.disabled=false;
+      werkVersieBij();
       return result;
     };
   }
@@ -120,23 +152,27 @@
     }
   }
 
-  function vervangInputDoorDirecteParser(c){
+  function vervangInputDoorDirecteParser(type,c){
     const current=document.getElementById(c.input);if(!current)return;
     const fresh=current.cloneNode(true);
     current.replaceWith(fresh);
     fresh.addEventListener('change',async event=>{
       const input=event.currentTarget,files=[...(input.files||[])];if(!files.length)return;
       input.disabled=true;
-      try{await directeHandler(c,files);}
+      try{
+        await directeHandler(c,files);
+        meldWijzigingAanSchil(type,files);
+      }
       catch(error){console.error(error);if(typeof importMislukt==='function')importMislukt(files[0]?.name||'DVM-bron',error.message||String(error));}
       finally{input.value='';input.disabled=false;if(typeof renderDatasetBeheer==='function'&&document.getElementById('tab-datasets')&&!document.getElementById('tab-datasets').classList.contains('hidden'))renderDatasetBeheer();}
     });
   }
 
   function installeerDirecteBronInputs(){
-    Object.values(SOURCE_CONFIG).forEach(vervangInputDoorDirecteParser);
+    Object.entries(SOURCE_CONFIG).forEach(([type,c])=>vervangInputDoorDirecteParser(type,c));
     const beheer=document.getElementById('btnDatasetBeheer');if(beheer)beheer.disabled=false;
     if(typeof updateTabSloten==='function')updateTabSloten();
+    werkVersieBij();
     if(typeof renderDatasetBeheer==='function'&&document.getElementById('tab-datasets')&&!document.getElementById('tab-datasets').classList.contains('hidden'))renderDatasetBeheer();
     window.__BIDASH_DVM_SOURCE_MANAGER_ACTIVE__=true;
   }
