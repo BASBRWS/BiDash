@@ -167,6 +167,9 @@ Actueel en prognose zijn gescheiden:
 - De A↔B-vergelijking, automatische historisering, historische storingsanalyse en prognosekalibratie gebruiken altijd de volledige relevante bronstroom en worden nooit door het live-overzichtsfilter beïnvloed.
 - Het actuele overzicht toont bronregels, meegetelde en uitgesloten regels zodat een actieve analysekeuze zichtbaar blijft.
 - Storingshistorie dient voor prognose/kalibratie en wordt niet bij live meldingen opgeteld.
+- DRIP is de expliciete uitzondering op die algemene scheiding wanneer één incident aantoonbaar aan het einde van het bronvenster nog open staat. Een oude gecensureerde episode telt niet automatisch als actueel. Alleen een expliciete open toestand, een regel zonder eindtijd en afgeronde duur, of een gecensureerde episode die het einde van dezelfde bron raakt, wordt als actuele DRIP-melding afgeleid.
+- De afgeleide actuele DRIP-selectie wordt opnieuw door de gewone live broninspectie en DVM-doorrekening geleid. In de landelijke brondekking blijft zichtbaar dat de actuele selectie uit DRIP-historie komt en moet de gebruiker de volledigheid voor het bedoelde areaal bevestigen.
+- RIA4 en Windwaarschuwing zijn onafhankelijke DRIP-classificaties. Een gecombineerd bronbestand wordt per gemarkeerde regel gesplitst. De koppeling gebruikt een identifier met locatiecontrole en anders VC, weg, richting en hectometer. Een hergebruikte DRIP-code in een ander gebied mag daardoor geen classificatie overnemen.
 - De brondag is niet automatisch vandaag. NDW-meetmoment, exportdatum en prognoseperiode zijn afzonderlijke datums en moeten herkenbaar blijven.
 - Assetregister en EOL bepalen populatie, kenmerken en levensduurgegevens.
 - U-routes en werkzaamheden zijn context voor bestaande analyses, geen automatische vermenigvuldigers voor alle kosten.
@@ -357,6 +360,7 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 | Live overzichtsfilter | `tests/live-overview-filter.test.js`: defaults, uitsluitingen, lege waarden, nieuwe waarden, bronbehoud en DVM-parameteropslag |
 | Help/documentatie | Controleer `site/help.html`, Help-link in `site/index.html` en overeenstemming met `docs/GEBRUIKERSHULP.md` en `docs/processflow.md` |
 | DVM-regels/kosten/prognose | Aanvullende gerichte numerieke tests en scopes; bestaande tests dekken niet alle formules |
+| DRIP actueel/classificatie | `tests/drip-open-from-history.test.js`, `tests/drip-special-lists.test.js` en een lokale controle met een volledige DRIP-export zonder die brondata in Git op te nemen |
 | Memo/print | Controleer selectie, bron/run, optionele kosten en grafieken in printweergave |
 | Privacy | Geen externe gegevensverzoeken in browserroutes; geen operationele data in diff/artifact |
 | Alleen documentatie | Controleer beweringen, bestands-/functienamen, links en diff; geen volledige simulatie nodig |

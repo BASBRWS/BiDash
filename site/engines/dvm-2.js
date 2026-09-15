@@ -368,10 +368,13 @@ function analyseerAssetRegister(rijen,bestand){
     const code=tp==='DRIP'?normDripCode(naam):'';
     const strook=assetStrookUitNaam(naam);
     const key=assetKeyVoor(tp,entityid,naam);
+    const bronWind=tp==='DRIP'&&histBool(registerWaarde(row,['windwaarschuwing','wind','wind drip']));
+    const bronRia4=tp==='DRIP'&&histBool(registerWaarde(row,['ria4','ria-4','ria 4']));
     assets.push({key,_assetKey:key,assetType:tp,tp,entityid,naam,asset:naam,code,strook,status,prognoseActief,
       rd:bestuur.rd,district:bestuur.district,districtBron:bestuur.districtBron,vc,weg:loc.weg,richting:loc.richting,hm:loc.hm,rdX,rdY,
       ingebruikname:installatieBron.waarde,bouwjaar,bouwjaarBron:bouwjaar?installatieBron.kolom:'',eol,
-      fabrikant,model,type:model,aannemer:contractCtx.aannemer,contract:contractCtx.contract,leverancier:contractCtx.leverancier});
+      fabrikant,model,type:model,aannemer:contractCtx.aannemer,contract:contractCtx.contract,leverancier:contractCtx.leverancier,
+      wind:bronWind,ria4:bronRia4,sourceWind:bronWind,sourceRia4:bronRia4,specialWind:bronWind,specialRia4:bronRia4});
     if(!prognoseActief)return;
     if(!areaal[vc])areaal[vc]={};
     const areaalKey=loc.weg+(loc.richting?' '+loc.richting:'');
@@ -2700,15 +2703,26 @@ const V68_TYPES=['MSI','CAM','LUS','DRIP','WISSELBORD','COMM'];
 const V68_LABEL={MSI:'Signalering',CAM:'Camera',LUS:'Detectie',DRIP:'DRIP',WISSELBORD:'Wisselbord',COMM:'Communicatie'};
 function v68DekkingCfg(){RULES.cfg.liveDekking=RULES.cfg.liveDekking||{};return RULES.cfg.liveDekking;}
 function v68Assets(){return (ASSET_REGISTER_STATE?.assets||[]).filter(a=>a.prognoseActief!==false);}
+function v68LiveBronnenVoorType(tp){
+  const out=[];
+  for(const bron of LIVE_STORINGSBRONNEN||[]){
+    const heeft=(bron.rijen||[]).some(raw=>{try{return classificeer(normRij(raw))===tp;}catch(error){return false;}});
+    if(!heeft)continue;
+    const basisNamen=Array.isArray(bron.bronNamen)?bron.bronNamen.filter(Boolean):[];
+    out.push({naam:basisNamen.length?basisNamen.join(' + '):(bron.naam||bron.name||bron.key||'Open-storingenbron'),afgeleidVan:bron.afgeleidVan||'',peildatum:bron.peildatum||null});
+  }
+  return out;
+}
 function v68TypeStatus(){
   const cfg=v68DekkingCfg(),assets=v68Assets(),meldingen=STATE?.meldingen||[],uit={};
   V68_TYPES.forEach(tp=>{
-    const virtueel=tp==='COMM',n=virtueel?1:assets.filter(a=>a.tp===tp).length,events=meldingen.filter(m=>m.typeId===tp),aangeleverd=events.length>0;
+    const virtueel=tp==='COMM',n=virtueel?1:assets.filter(a=>a.tp===tp).length,events=meldingen.filter(m=>m.typeId===tp),bronnen=v68LiveBronnenVoorType(tp),aangeleverd=events.length>0;
     const compleet=cfg[tp]===true;
     const availLoss=events.reduce((s,m)=>s+(Number(m.trace?.bijdrageAvail)||0),0),perfLoss=events.reduce((s,m)=>s+(Number(m.trace?.bijdragePerf)||0),0),uren=STATE?.stats?.periodeUren||24;
     const basis=n*uren;
-    uit[tp]={tp,n,events:events.length,aangeleverd,compleet,
-      status:compleet?(aangeleverd?'actueel gemeten':'volledige bron, geen open storing'):(aangeleverd?'actueel aangeleverd, volledigheid niet bevestigd':'niet aangeleverd'),
+    const afgeleid=bronnen.some(b=>b.afgeleidVan==='dripHistorie');
+    uit[tp]={tp,n,events:events.length,aangeleverd,compleet,bronnen,afgeleid,
+      status:compleet?(aangeleverd?(afgeleid?'actueel uit DRIP-historie':'actueel gemeten'):'volledige bron, geen open storing'):(aangeleverd?(afgeleid?'uit DRIP-historie, nog te bevestigen':'actueel aangeleverd, volledigheid niet bevestigd'):'niet aangeleverd'),
       besch:compleet&&basis?Math.max(0,Math.min(100,100-availLoss/basis*100)):null,
       prestatie:compleet&&basis?Math.max(0,Math.min(100,100-perfLoss/basis*100)):null,
       availLoss,perfLoss};
@@ -2730,7 +2744,7 @@ function v68LandelijkModel(){const typen=v68TypeStatus();return {typen,diensten:
 function v68Pct(v){return v==null?'Onbekend':fmt(v,2)+'%';}
 function v68Bereik(r){return r.exact?v68Pct(r.besch):`${fmt(r.loB,2)} tot ${fmt(r.hiB,2)}%`;}
 function v68DekkingBewaar(el){const cfg=v68DekkingCfg();cfg[el.dataset.v68Type]=el.checked;ANALYSE_SIGNATURE='';probeerAnalyseActiveren('overzicht');}
-function v68BronnenHtml(model){return `<div class="tbl-scroll" style="max-height:none"><table class="tbl"><thead><tr><th>Assetbron</th><th class="num">Actief areaal</th><th class="num">Open meldingen</th><th>Status</th><th>Bevestiging</th></tr></thead><tbody>${V68_TYPES.map(tp=>{const b=model.typen[tp];return `<tr><td><b>${V68_LABEL[tp]}</b></td><td class="num">${b.n.toLocaleString('nl-NL')}</td><td class="num">${b.events.toLocaleString('nl-NL')}</td><td>${esc(b.status)}</td><td><label><input type="checkbox" data-v68-type="${tp}" ${b.compleet?'checked':''} onchange="v68DekkingBewaar(this)"> Volledige actuele storingsbron voor dit areaal</label></td></tr>`;}).join('')}</tbody></table></div>`;}
+function v68BronnenHtml(model){return `<div class="tbl-scroll" style="max-height:none"><table class="tbl"><thead><tr><th>Assetbron</th><th class="num">Actief areaal</th><th class="num">Open meldingen</th><th>Status en herkomst</th><th>Bevestiging</th></tr></thead><tbody>${V68_TYPES.map(tp=>{const b=model.typen[tp],bronTekst=(b.bronnen||[]).map(x=>x.naam+(x.afgeleidVan==='dripHistorie'?' · actuele selectie afgeleid uit DRIP-historie':'')).join(' + ');return `<tr><td><b>${V68_LABEL[tp]}</b></td><td class="num">${b.n.toLocaleString('nl-NL')}</td><td class="num">${b.events.toLocaleString('nl-NL')}</td><td>${esc(b.status)}${bronTekst?`<br><small>${esc(bronTekst)}</small>`:''}</td><td><label><input type="checkbox" data-v68-type="${tp}" ${b.compleet?'checked':''} onchange="v68DekkingBewaar(this)"> Volledige actuele storingsbron voor dit areaal</label></td></tr>`;}).join('')}</tbody></table></div>`;}
 function v68LandelijkHtml(){
  const m=v68LandelijkModel(),gekoppeld=STATE?.stats?.assetGekoppeld||0,toegepast=STATE?.stats?.toegepast||0;
  return `<div class="card" style="border-left:5px solid var(--rws-blauw)"><h3>Landelijke beschikbaarheid over het volledige assetregister</h3><p>Dit blok gebruikt alle ${m.assets.toLocaleString('nl-NL')} actieve DVM-assets in het geladen register als areaalbasis. De tabellen verderop tonen de geraakte wegdelen. Een exact landelijk dienstpercentage verschijnt alleen als alle benodigde actuele storingsbronnen als volledig zijn bevestigd.</p><div class="grid4">${m.diensten.map(r=>`<div class="kpi"><div class="k-val" style="font-size:${r.exact?'25px':'17px'}">${v68Bereik(r)}</div><div class="k-lab">${r.d.naam.replace(/&amp;/g,'&')}<br>brondekking ${fmt(r.dekking*100,1)}%</div></div>`).join('')}</div><p>${gekoppeld} van ${toegepast} doorgerekende meldingen zijn gekoppeld aan een specifiek asset. Een brede band betekent dat één of meer benodigde bronnen onbekend zijn. De ondergrens veronderstelt 0% voor onbekende bronnen, de bovengrens 100%. Deze band is een databand, geen statistische onzekerheidsmarge.</p><details><summary>Brondekking bekijken en bevestigen</summary>${v68BronnenHtml(m)}<p>Vink alleen volledig aan wanneer de bron voor het volledige bedoelde areaal en de getoonde peildatum alle open storingen bevat. De bevestigingen gaan mee in parameterexport en totaalexport.</p></details></div>`;

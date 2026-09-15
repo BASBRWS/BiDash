@@ -1398,6 +1398,8 @@ function verwerkDrips(rijen){
       const entityid=String(g(row,['entityid'])||'').trim();
       const uid = entityid || asset || (loc.weg+'_'+loc.richting+'_'+loc.hm);
       const assetKey=assetKeyVoor('DRIP',entityid,asset||uid);
+      const ria4=histBool(g(row,['ria4','ria-4','ria 4']));
+      const wind=histBool(g(row,['windwaarschuwing','wind','wind drip']));
       drips.push({uid,entityid,_assetKey:assetKey,assetKey, rd:bestuur.rd,district:bestuur.district,districtBron:bestuur.districtBron,vc, idCdms, histCode:normDripCode(idCdms), asset, weg:loc.weg, richting:loc.richting, hm:loc.hm,
         fabrikant, type, model:hardware||type, hardware, status, bouwjaar, bouwjaarBron:bouwjaar?ingebruikBron.kolom:'', ingebruikDatum,
         _eolLife:eolInfo.levensduur, _eolLifeBron:eolInfo.levensduurBron?'assetregister (levensduur)':'',
@@ -1405,7 +1407,7 @@ function verwerkDrips(rijen){
         aannemer:contractCtx.aannemer,contract:contractCtx.contract,leverancier:contractCtx.leverancier,
         prognoseActief:statusActiefVoorPrognose(status), assetType:'DRIP', vervangJaar:null,
         functie, functieLabel:fRegel?fRegel.label:'onbekend', functieGewicht:fRegel?fRegel.gewicht:0.5,
-        ria4:false, wind:false, opmerking:'', gaatWeg:/uit|verv|afgekeurd/i.test(status)});
+        ria4,wind,sourceRia4:ria4,sourceWind:wind,specialRia4:ria4,specialWind:wind,opmerking:'', gaatWeg:/uit|verv|afgekeurd/i.test(status)});
     });
   } else {
     // ── OUDE RIA4/WIND-LIJST (xlsx met Dynac) ──

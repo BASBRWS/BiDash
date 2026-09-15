@@ -89,6 +89,8 @@ De oorspronkelijke applicaties draaien technisch nog elk in een eigen sandboxed 
 
 DVM blijft eigenaar van storingsimpact, de actuele storingsselectie, assetafhankelijkheden, subprocessen, dienstnormen, verkeersscenario's en tarieven. BI blijft eigenaar van formatie, contracten, budget, bedienketens en planningscapaciteit. De oude BI-storingsimport is bewust stilgezet, zodat dezelfde storing niet twee keer meetelt.
 
+Voor DRIP kan de complete historie ook de actuele bron voeden. BiDash selecteert alleen een expliciet open incident, een incident zonder eindtijd en afgeronde duur, of een gecensureerd incident dat het einde van dezelfde bron raakt. Daarna volgt dezelfde live broninspectie, assetkoppeling, bronbevestiging en dienstberekening als bij andere actuele storingen. RIA4 en Windwaarschuwing worden per gemarkeerde bronregel apart gehouden. De match gebruikt een identifier met locatiecontrole en valt terug op VC, weg, richting en hectometer.
+
 ## 8. Samenhang ontstaat alleen waar jij die legt
 
 ![De koppelregel: een dienst onder norm geeft altijd een eigen signaal en BI-signalen gaan ongewijzigd door, maar het samengestelde signaal ontstaat alleen wanneer een vastgelegde dienstkoppeling bestaat en beide voorwaarden waar zijn](afbeeldingen/koppelregel.svg)
