@@ -14,9 +14,9 @@ test('assetregister krijgt aparte vinkboxen voor Windwaarschuwing en RIA4',()=>{
 
 test('assetregister krijgt filter met drie operationele toestanden',()=>{
   assert.match(src,/assetOperationalStatus/);
-  assert.match(src,/Niet operationeel door storing/);
   assert.match(src,/OPERATIONAL_STATUS/);
   assert.match(src,/operationalStatusForAsset/);
+  assert.match(read('site/core/asset-operational-status.js'),/Niet operationeel door storing/);
 });
 
 test('beide speciale filters combineren als OF en gebruiken DVM-classificatie',()=>{
