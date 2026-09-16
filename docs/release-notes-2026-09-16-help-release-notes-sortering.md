@@ -1,6 +1,6 @@
 # Release notes Help toont de laatste release notes bovenaan
 
-Datum: 17 september 2026
+Datum: 16 september 2026
 
 Versie: BiDash 2.14
 
@@ -8,8 +8,8 @@ Versie: BiDash 2.14
 
 - In de Help stonden de release notes alfabetisch op titel. Daardoor kwam bovenaan
   toevallig een note van 15 september te staan en leek dat de laatste, terwijl de
-  nieuwste notes (16 en 17 september) verderop in de lijst stonden. De release notes
-  staan nu op datum, nieuwste eerst.
+  nieuwste notes (16 september) verderop in de lijst stonden. De release notes staan
+  nu op datum, nieuwste eerst.
 
 ## Waarom dit telde
 

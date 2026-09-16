@@ -1,6 +1,6 @@
 # Release notes brondekking laat de doorrekening weer toe
 
-Datum: 17 september 2026
+Datum: 16 september 2026
 
 Versie: BiDash 2.12, DVM 81
 

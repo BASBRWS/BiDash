@@ -1,6 +1,6 @@
 # Release notes open meldingen in de brondekking
 
-Datum: 17 september 2026
+Datum: 16 september 2026
 
 Versie: BiDash 2.11, DVM 80
 
