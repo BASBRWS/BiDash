@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van Integratie 2.12, bijgewerkt op 14 september 2026 voor de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina en zichtbare voortgang bij gegevensimport.
+Status: beschrijving van Integratie 2.13, bijgewerkt op 14 september 2026 voor de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina en zichtbare voortgang bij gegevensimport.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -407,7 +407,7 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 | Beheerder in de storingslijst | `tests/storingslijst-beheerder.test.js`: nooit een getal als beheerder, afleiding uit de verkeerscentrale, herkende bronwaarde blijft staan |
 | Planning zonder projectdata | `tests/planning-geen-projectdata.test.js`: geen objectnamen in de code, lege P6-, portfolio- en modelstructuren, tellers op nul, werkende triggerlaadroute met overgeslagen onvolledige regels |
 | Versiebalk | `tests/versiebalk.test.js`: schilversie zichtbaar zonder geladen module, gemelde engineversies erachter, lege melding blijft weg, versienummer op precies één plek |
-| Kwaliteitsaudit | `tests/quality-audit.test.js`: lege werkruimte, gezonde keten, bron-dashboardbreuk, onbekende impact naast exact dienstpercentage en zichtbare bediening/export |
+| Kwaliteitsaudit | `tests/quality-audit.test.js`: lege werkruimte, gezonde keten, bron-dashboardbreuk, onbekende impact naast exact dienstpercentage, veilig geblokkeerd conflict als waarschuwing, gelekt conflict als blokker, lege BI-werkruimte, asset- en bronregelverschil, duplicaat op event-ID en bronbestand, en zichtbare bediening/export |
 | Live overzichtsfilter | `tests/live-overview-filter.test.js`: defaults, uitsluitingen, lege waarden, nieuwe waarden, bronbehoud en DVM-parameteropslag |
 | Help/documentatie | Controleer `site/help.html`, Help-link in `site/index.html` en overeenstemming met `docs/GEBRUIKERSHULP.md` en `docs/processflow.md` |
 | DVM-regels/kosten/prognose | Aanvullende gerichte numerieke tests en scopes; bestaande tests dekken niet alle formules |
@@ -432,6 +432,20 @@ Koppelingen en Doorrekening ieder 20% en Beheerbaarheid 10%. Een blokkerende
 bevinding kost 35 punten binnen haar categorie, een waarschuwing 12 punten. Bij een
 blokkerende bevinding wordt de totaalscore begrensd en is het oordeel Niet op koers.
 De methode en haar inhoudelijke grens staan in ieder geëxporteerd rapport.
+
+De severity volgt of een beveiliging heeft gewerkt of gefaald, niet of ze is
+aangesproken. Een veilig geblokkeerd locatieconflict — identiteit en locatie wijzen
+naar verschillende assets, dus BiDash weigert de koppeling en rekent geen impact — is
+een waarschuwing, geen blokker; de beveiliging doet juist haar werk. Blokkerend is
+pas een conflict dat tóch een koppeling of impact kreeg, of een dienst die een exact
+percentage toont terwijl meldingen niet zijn doorgerekend. Een bevestigde bron met
+open storingen die stil als nul verlies zou tellen, is eveneens blokkerend. Een
+geladen maar lege BI-werkruimte (nul assets, nul functies) is een waarschuwing, niet
+een geslaagde beoordeling. Duplicaten worden pas geteld bij gelijk event-ID en
+bronbestand naast dezelfde asset, tijd, foutcode en locatie, zodat dezelfde plek uit
+twee bronbestanden geen vals duplicaat oplevert. Het verschil tussen bronregels en
+verwerkte assets, en tussen bronregels en getoonde meldingen, wordt uitgesplitst
+zodra de engine die telling meelevert.
 
 De laatste volledige audit staat in `qualityAudit`. `qualityHistory` bewaart maximaal
 twaalf kleine trendsnapshots met tijd, score, oordeel en aantallen. Beide velden
