@@ -62,6 +62,12 @@ dan laad je het opnieuw.
 
 Historische storingen en actuele open storingen zijn twee verschillende gegevensstromen. Historische meldingen mogen het live dashboard niet beïnvloeden. Bij DRIP-historie leidt BiDash alleen incidenten af die aantoonbaar aan het actuele einde van hun eigen bron nog open staan. Oude gecensureerde incidenten worden niet als huidige storing meegenomen.
 
+### Signaalgevers totaal (JSON)
+
+Wil je open storingen én historie in één keer laden, gebruik dan de knop **Signaalgevers totaal (JSON)** in Datasetbeheer. Dat is één gecombineerd exportbestand waarin de open alarmen en de historische storingen al bij elkaar staan. BiDash haalt de open storingen en de historie er zelf uit en koppelt ze aan All Assets, net als bij de losse bestanden.
+
+Deze bron is een óf/óf-keuze en bestaat naast de losse uploads: laad je de JSON, dan vervangt die de eerder geladen Open storingen en Storingshistorie, zodat een oud losbestand nooit met de JSON vermengt. Wil je terug naar de oude werkwijze, laad dan gewoon weer de losse bestanden. Zo kun je de nieuwe bron uitproberen en de oude later uitfaseren zonder dat de cijfers door elkaar lopen. Een gemelde storing waarvoor geen passende foutregel bestaat, blijft — zoals altijd — wel zichtbaar maar telt niet mee in de doorrekening; er wordt geen impact verzonnen.
+
 Verdwijnt een MSI-storing uit de nieuwe momentopname, dan sluit BiDash die af op de peildatum van die lijst. De hersteltijd die daaruit volgt is een bovengrens: het herstel lag ergens tussen de vorige en de nieuwe lijst. Zo'n duur telt daarom niet mee in de herstelduurstatistiek en in de prognose, en wordt in memo's gemarkeerd als afgeleid. Laad je vaker een actuele lijst, dan worden die bovengrenzen scherper.
 
 In de tabel **Brondekking bekijken en bevestigen** staat per assettype hoeveel open meldingen er in de actuele bron zitten. Staat er achter dat aantal een lager aantal *doorgerekend*, dan konden niet alle meldingen worden meegerekend: meestal omdat de melding geen locatie draagt of omdat er geen passende foutregel is. Die meldingen zie je wel op Open storingen.

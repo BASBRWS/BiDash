@@ -4,7 +4,7 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='83';
+  const DVM_VERSION='84';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
@@ -15,9 +15,10 @@
     dripHistorie:{input:'dripHistInput',label:'DRIP-historie toevoegen',multiple:true,requiresAsset:true,handler:'leesDripHistorieBestanden'},
     uRoutes:{input:'uRouteInput',label:'U-routes laden',multiple:false,requiresAsset:true,handler:'leesURouteBestand'},
     werkzaamheden:{input:'werkInput',label:'Werkzaamheden laden',multiple:false,requiresAsset:true,handler:'leesWerkBestand'},
-    liveStoringen:{input:'liveLogInput',label:'Open storingen laden',multiple:true,requiresAsset:true,handler:'leesLiveStoringsBestanden'}
+    liveStoringen:{input:'liveLogInput',label:'Open storingen laden',multiple:true,requiresAsset:true,handler:'leesLiveStoringsBestanden'},
+    signaalgeverTotaal:{input:'signaalgeverTotaalInput',label:'Signaalgevers totaal (JSON) laden',multiple:false,requiresAsset:true,handler:'leesSignaalgeverTotaal',accept:'.json'}
   });
-  const SOURCE_ORDER=['assetregister','windDrips','ria4Drips','eol','storingshistorie','dripHistorie','uRoutes','werkzaamheden','liveStoringen'];
+  const SOURCE_ORDER=['assetregister','windDrips','ria4Drips','eol','storingshistorie','dripHistorie','uRoutes','werkzaamheden','liveStoringen','signaalgeverTotaal'];
   const PLACEHOLDERS={
     assetregister:{titel:'Assetregister / All Assets',meta:'Nog niet geladen. Laad dit stamregister als eerste.'},
     windDrips:{titel:'Windwaarschuwing DRIP’s',meta:'Nog geen referentielijst geladen. Deze bron markeert welke DRIP-assets bij windwaarschuwing horen.'},
@@ -27,7 +28,8 @@
     dripHistorie:{titel:'DRIP-storingshistorie',meta:'Nog geen DRIP-storingshistorie geladen. Historie voedt DRIP Monte Carlo; expliciet openstaande incidenten worden ook aan het actuele storingsbeeld toegevoegd.'},
     uRoutes:{titel:'U-routes',meta:'Niet geladen. U-routes zijn operationele routecontext.'},
     werkzaamheden:{titel:'Werkzaamheden',meta:'Niet geladen. Werkzaamheden zijn operationele context.'},
-    liveStoringen:{titel:'Open storingen',meta:'Nog geen actuele signaalgever-momentopname geladen. Open DRIP-incidenten kunnen daarnaast uit de DRIP-historie worden afgeleid.'}
+    liveStoringen:{titel:'Open storingen',meta:'Nog geen actuele signaalgever-momentopname geladen. Open DRIP-incidenten kunnen daarnaast uit de DRIP-historie worden afgeleid.'},
+    signaalgeverTotaal:{titel:'Signaalgevers totaal (JSON)',meta:'Nog niet geladen. Eén gecombineerd JSON-bestand (datasets.mtm) met open alarmen én historische storingen. Alternatief voor de losse Open storingen- en Storingshistorie-uploads; bij het laden vervangt het die twee bronnen zodat oud en nieuw niet mengen.'}
   };
 
   function werkVersieBij(){
@@ -156,6 +158,7 @@
       case 'leesURouteBestand': result=await leesURouteBestand(files[0]);break;
       case 'leesWerkBestand': result=await leesWerkBestand(files[0]);break;
       case 'leesLiveStoringsBestanden': result=await leesLiveStoringsBestanden(files);break;
+      case 'leesSignaalgeverTotaal': result=await leesSignaalgeverTotaalBestand(files[0]);break;
       case 'special:wind': result=await window.loadDripSpecialList('wind',files[0]);break;
       case 'special:ria4': result=await window.loadDripSpecialList('ria4',files[0]);break;
       default: throw new Error('Onbekende DVM-bronparser: '+c.handler);
