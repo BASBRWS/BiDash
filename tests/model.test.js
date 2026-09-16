@@ -6,3 +6,9 @@ test('gedeeltelijke export lekt geen niet gekozen brondata',()=>{const s=DEFAULT
 test('samenhang volgt alleen expliciete koppeling en beide eigen normen',()=>{const d={diensten:[{id:'im',naam:'IM',norm:99,besch:98}]},b={functies:[{id:'f',naam:'Verkeersleiding',benodigd:10,actueel:8}],triggers:[]};assert.equal(combine(d,b,[]).length,1);const t=combine(d,b,[{dienst:'im',functie:'f'},{dienst:'im',functie:'f'}]);assert.equal(t.length,2);b.functies[0].actueel=12;assert.equal(combine(d,b,[{dienst:'im',functie:'f'}]).length,1);});
 test('onbekende beschikbaarheid geeft geen bewezen normoverschrijding',()=>assert.equal(combine({diensten:[{id:'im',norm:99,besch:null}]},null,[]).length,0));
 test('onveilige JSON-objecten worden afgewezen',()=>assert.throws(()=>validate(JSON.parse('{"__proto__":{"admin":true}}'))));
+test('kwaliteitsaudit en scorehistorie gaan alleen mee als kwaliteit is geselecteerd',()=>{
+ const s=DEFAULT_STATE();s.qualityAudit={score:88};s.qualityHistory=[{score:80},{score:88}];
+ const zonder=makeExport(s,new Set(['links']));assert.equal(zonder.delen.qualityAudit,undefined);
+ const met=makeExport(s,new Set(['quality']));assert.equal(met.delen.qualityAudit.score,88);assert.equal(met.delen.qualityHistory.length,2);
+ const hersteld=mergeImport(DEFAULT_STATE(),met);assert.equal(hersteld.qualityAudit.score,88);assert.equal(hersteld.qualityHistory.length,2);
+});

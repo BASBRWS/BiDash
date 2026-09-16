@@ -2,6 +2,7 @@ import {GROUPS,ROUTES,resolveRoute} from './ui/routes.js';
 import {DEFAULT_STATE,DVM_PARTS,BI_RULE_KEYS,LABELS,validate,makeExport,mergeImport,combine} from './core/model.js';
 import {read,write} from './core/storage.js';
 import {toonVersies} from './core/versie.js';
+import {runQualityAudit,QUALITY_CATEGORIES} from './core/quality-audit.js';
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=1)=>Number.isFinite(n)?n.toLocaleString('nl-NL',{maximumFractionDigits:d}):'Onbekend';
 const money=n=>Number.isFinite(n)?n.toLocaleString('nl-NL',{style:'currency',currency:'EUR'}):'Onbekend';
@@ -60,9 +61,40 @@ function render(){
  $('#linkFunction').innerHTML='<option value="">Kies bedrijfsfunctie</option>'+fte.map(f=>`<option value="${esc(f.id)}">${esc(f.naam)}</option>`).join('');
  $('#links').innerHTML=state.links.map((l,i)=>`<p>${esc(d?.diensten.find(x=>x.id===l.dienst)?.naam||l.dienst)} ↔ ${esc(fte.find(f=>f.id===l.functie)?.naam||l.functie)} · ${esc(l.eigenaar)} <button data-remove="${i}">Verwijderen</button></p>`).join('')||'<p class="muted">Nog geen koppelingen. Laad beide domeinen om te kunnen koppelen.</p>';
  renderNative();
+ renderQualityDashboard();
  $('#inventory').textContent=`Lokaal: DVM ${state.dvm?'geladen':'leeg'} · BI ${state.bi?'geladen':'leeg'} · planning ${state.planning?'geladen':'leeg'} · ${state.links.length} koppelingen.`;
 }
 function download(obj,name,type='application/json'){const blob=new Blob([typeof obj==='string'?obj:JSON.stringify(obj)],{type}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);}
+function qualityDate(value){const d=new Date(value);return Number.isFinite(d.getTime())?d.toLocaleString('nl-NL'):'Onbekend';}
+function qualityTone(severity){return {critical:'red',warning:'amber',info:'blue',good:'green'}[severity]||'blue';}
+function qualitySeverity(severity){return {critical:'Blokkerend',warning:'Waarschuwing',info:'Informatie',good:'Goed'}[severity]||severity;}
+function renderQualityDashboard(){
+ const host=$('#qualityDashboard');if(!host)return;const report=state.qualityAudit;
+ if(!report){host.innerHTML='<div class="empty"><b>Nog geen kwaliteitsaudit uitgevoerd.</b>Klik op Audit uitvoeren om de huidige werkruimte te controleren.</div>';return;}
+ const categories=(report.categories||[]).map(c=>`<article class="quality-category"><div class="quality-score-ring tone-${Number(c.score)<70?'red':Number(c.score)<85?'amber':'green'}"><strong>${num(Number(c.score),0)}</strong><span>/ 100</span></div><div><h3>${esc(c.label||QUALITY_CATEGORIES[c.id]?.label||c.id)}</h3><p>${esc(c.description||'')}</p><small>${num(Number(c.critical),0)} blokkerend · ${num(Number(c.warnings),0)} waarschuwingen</small></div></article>`).join('');
+ const priorities=(report.findings||[]).filter(f=>f.severity==='critical'||f.severity==='warning');
+ const priorityHtml=priorities.length?priorities.map(f=>`<article class="quality-finding tone-${qualityTone(f.severity)}"><div><span class="quality-tag">${esc(qualitySeverity(f.severity))}</span><strong>${esc(f.title)}</strong><p>${esc(f.detail)}</p>${f.action?`<small><b>Actie.</b> ${esc(f.action)}</small>`:''}</div><span class="quality-category-name">${esc(QUALITY_CATEGORIES[f.category]?.label||f.category)}</span></article>`).join(''):'<div class="quality-ok"><b>Geen blokkerende fouten of waarschuwingen.</b><span>De vaste controles geven geen directe herstelactie.</span></div>';
+ const allRows=(report.findings||[]).map(f=>`<tr><td><span class="quality-dot tone-${qualityTone(f.severity)}"></span>${esc(qualitySeverity(f.severity))}</td><td>${esc(QUALITY_CATEGORIES[f.category]?.label||f.category)}</td><td><b>${esc(f.title)}</b><br><small>${esc(f.detail)}</small></td><td>${esc(f.action||'Geen actie nodig.')}</td></tr>`).join('');
+ const history=Array.isArray(state.qualityHistory)?state.qualityHistory:[],max=Math.max(100,...history.map(x=>Number(x.score)||0));
+ const trend=history.length>1?`<section><div class="section-heading"><h2>Ontwikkeling</h2><span class="muted">Laatste ${history.length} audits</span></div><div class="quality-trend">${history.map(x=>`<div class="quality-trend-item" title="${esc(qualityDate(x.generatedAt))}: ${num(x.score,0)}"><span style="height:${Math.max(4,(Number(x.score)||0)/max*100)}%" class="tone-${x.blockers?'red':x.score<85?'amber':'green'}"></span><small>${num(x.score,0)}</small></div>`).join('')}</div></section>`:'';
+ const blockerCount=Number(report.blockers)||0,warningCount=Number(report.warnings)||0;
+ host.innerHTML=`<section class="quality-overall tone-${esc(report.verdict?.tone||'blue')}"><div><span class="quality-tag">Laatste audit · ${esc(qualityDate(report.generatedAt))}</span><h2>${esc(report.verdict?.label||'Audit voltooid')}</h2><p>${blockerCount?`${num(blockerCount,0)} blokkerende bevindingen moeten eerst worden opgelost.`:warningCount?`${num(warningCount,0)} waarschuwingen vragen beoordeling.`:'De vaste controles geven geen directe blokkade.'}</p></div><div class="quality-total"><strong>${num(Number(report.score),0)}</strong><span>/ 100</span></div></section><div class="quality-category-grid">${categories}</div><section><div class="section-heading"><h2>Wat vraagt aandacht?</h2><div><button id="exportQualityAudit">Auditrapport exporteren</button><button data-route="data">Back-up samenstellen</button></div></div>${priorityHtml}</section>${trend}<details><summary>Alle controles bekijken</summary><div class="table-scroll"><table><thead><tr><th>Oordeel</th><th>Onderdeel</th><th>Controle</th><th>Actie</th></tr></thead><tbody>${allRows}</tbody></table></div></details><section class="quality-scope"><h2>Reikwijdte van deze audit</h2><p>${esc(report.method||'')}</p><p><b>Meegenomen.</b> ${num(Number(report.scope?.rawAssets),0)} assetregels, ${num(Number(report.scope?.processedAssets),0)} verwerkte assets, ${num(Number(report.scope?.openSourceRows),0)} actuele bronregels en ${num(Number(report.scope?.openFaults),0)} open meldingen.</p></section>`;
+}
+async function executeQualityAudit(){
+ if(busy)throw Error('Wacht tot de lopende bewerking gereed is.');
+ busy=true;const button=$('#runQualityAudit'),runStatus=$('#qualityRunStatus');if(button)button.disabled=true;
+ try{
+  if(runStatus)runStatus.innerHTML='<b>Audit wordt uitgevoerd.</b><span>Werkruimte vastleggen en rekenketen controleren.</span>';
+  status('Kwaliteitsaudit voorbereiden…');await new Promise(requestAnimationFrame);
+  if(state.dvm){const d=await engine('dvm');const current=d.summary();if(current?.restoreDeferred){status('DVM-bronnen verwerken voor de kwaliteitsaudit…');summaries.dvm=await d.import(state.dvm);}}
+  await capture();
+  const report=runQualityAudit({state,summaries,dvmAssets:sourceApi('dvm')?.assets?.()||[],biAssets:sourceApi('bi')?.assets?.()||[],faults:allFaults(),now:Date.now()});
+  state.qualityAudit=report;const history=Array.isArray(state.qualityHistory)?state.qualityHistory:[];
+  state.qualityHistory=[...history,{generatedAt:report.generatedAt,score:report.score,verdict:report.verdict,blockers:report.blockers,warnings:report.warnings}].slice(-12);
+  await write(state);render();if(runStatus)runStatus.innerHTML=`<b>Audit voltooid.</b><span>${esc(report.verdict.label)} · score ${num(report.score,0)} van 100.</span>`;status('Kwaliteitsaudit voltooid en lokaal opgeslagen.');
+ }catch(error){if(runStatus)runStatus.innerHTML=`<b>Audit afgebroken.</b><span>${esc(error.message||String(error))}</span>`;throw error;
+ }finally{busy=false;if(button)button.disabled=false;}
+}
 function selection(){return new Set([...document.querySelectorAll('[data-part]:checked')].map(e=>e.dataset.part));}
 async function preview(files){
  if(busy)throw Error('Wacht tot de lopende bewerking klaar is.');
@@ -79,7 +111,7 @@ async function preview(files){
  $('#applyImport').onclick=async()=>{if(busy)return;busy=true;clearTimeout(timer);$('#applyImport').disabled=true;status('Bronnen lokaal verwerken; een groot DVM-register kan even duren…');const previous=state;try{await restore(proposed);state=proposed;await capture();await write(state);render();host.replaceChildren();status('Import voltooid en lokaal opgeslagen.');}catch(e){state=previous;failedImport=true;fail(Error('Import niet opgeslagen: '+e.message+' Herlaad de pagina om de vorige opgeslagen werkruimte terug te zetten.'));}finally{busy=false;}};
 }
 $('#files').onchange=e=>{preview([...e.target.files]).catch(fail);e.target.value='';};
-$('#exportOptions').innerHTML=[...DVM_PARTS,'biData','biRules','planning','links'].map(k=>`<label><input type="checkbox" data-part="${k}" checked>${LABELS[k]}</label>`).join('');
+$('#exportOptions').innerHTML=[...DVM_PARTS,'biData','biRules','planning','links','quality'].map(k=>`<label><input type="checkbox" data-part="${k}" checked>${LABELS[k]}</label>`).join('');
 $('#exportOptions').onchange=()=>{$('#dependencies').textContent=makeExport(state,selection()).afhankelijkheden.join(' ');};
 $('#all').onclick=()=>document.querySelectorAll('[data-part]').forEach(x=>x.checked=true);$('#none').onclick=()=>document.querySelectorAll('[data-part]').forEach(x=>x.checked=false);
 $('#export').onclick=async()=>{try{if(busy)throw Error('Wacht tot import of opslag gereed is.');await capture();const sel=selection();if(!sel.size)throw Error('Kies minstens één onderdeel.');download(makeExport(state,sel),'bidash-integraal_'+new Date().toISOString().slice(0,10)+'.json');}catch(e){fail(e);}};
@@ -87,7 +119,7 @@ for(const [id,key,name] of [['exportDvm','dvm','dvm-dienstimpact-totaal.json'],[
 $('#save').onclick=sync;$('#refresh').onclick=sync;$('#signalFilter').onchange=render;
 $('#linkForm').onsubmit=e=>{e.preventDefault();const l={dienst:$('#linkService').value,functie:$('#linkFunction').value,eigenaar:$('#linkOwner').value.trim()};state.links=state.links.filter(x=>x.dienst!==l.dienst||x.functie!==l.functie);state.links.push(l);sync();};
 $('#links').onclick=e=>{if(e.target.dataset.remove!==undefined){state.links.splice(Number(e.target.dataset.remove),1);sync();}};
-document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.route)show(b.dataset.route);if(b.dataset.open){const [name,tab]=b.dataset.open.split(':');const r=Object.values(ROUTES).find(r=>r.engine===name&&r.target===tab);show(r?.id||'overview');}if(b.dataset.scenario){await show('services');const d=await engine('dvm');d.scenario(b.dataset.scenario);}});
+document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;if(b.id==='runQualityAudit')executeQualityAudit().catch(fail);if(b.id==='exportQualityAudit'&&state.qualityAudit)download(state.qualityAudit,'bidash-kwaliteitsaudit_'+new Date().toISOString().slice(0,10)+'.json');if(b.dataset.route)show(b.dataset.route);if(b.dataset.open){const [name,tab]=b.dataset.open.split(':');const r=Object.values(ROUTES).find(r=>r.engine===name&&r.target===tab);show(r?.id||'overview');}if(b.dataset.scenario){await show('services');const d=await engine('dvm');d.scenario(b.dataset.scenario);}});
 $('#primaryNav').innerHTML=GROUPS.map(g=>`<button data-route="${g.items[0][0]}" data-group="${g.id}"><span class="nav-icon" aria-hidden="true">${g.icon}</span>${g.label}</button>`).join('');
 // De schil toont haar eigen versie meteen; engineversies komen erbij zodra een
 // module zich meldt. Zo staat er nooit een leeg of verouderd nummer in de balk.

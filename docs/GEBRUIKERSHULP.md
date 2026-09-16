@@ -150,6 +150,34 @@ De publicatiestap voert `scripts/stage-docs.mjs` uit. Die maakt voor de browser 
 Afbeeldingen in Markdown blijven relatieve bronverwijzingen gebruiken, bijvoorbeeld `afbeeldingen/bidash-processflow.svg`. In Help worden die paden vanuit het bijbehorende Markdown-bestand opgelost, zodat dezelfde SVG zowel op GitHub als in de applicatie zichtbaar is.
 
 
+## Kwaliteitsaudit uitvoeren
+
+Ga onder **Data & export** naar **Kwaliteit** en klik op **Audit uitvoeren**. BiDash
+controleert de werkruimte die op dat moment in deze browser staat. Een uitgestelde
+DVM-werkruimte wordt voor deze bewuste controle eerst verwerkt.
+
+Het dashboard toont:
+
+- een totaalscore en het oordeel **Op koers**, **Aandacht nodig** of **Niet op koers**;
+- deelscores voor Bronnen, Datakwaliteit, Koppelingen, Doorrekening en Beheerbaarheid;
+- blokkerende fouten en waarschuwingen met een concrete herstelactie;
+- maximaal twaalf eerdere scores als ontwikkeling;
+- alle geslaagde, informatieve en afwijkende controles in een uitklapbare tabel.
+
+Een blokkerende fout begrenst de totaalscore. Voorbeelden zijn een ontbrekend
+assetregister, een actuele bron die geen melding in het dashboard oplevert, een
+locatieconflict of een exact beschikbaarheidspercentage terwijl meldingen niet zijn
+doorgerekend. Waarschuwingen benoemen onder andere een oude peildatum, lage
+koppeldekking, dubbele sleutels en ontbrekende duur.
+
+De audit verandert geen brondata, filters of rekenregels. De controle blijft lokaal.
+Via **Auditrapport exporteren** download je alleen de samenvatting. Bij **Export
+samenstellen** kun je de laatste audit en scorehistorie ook in de integrale back-up
+opnemen.
+
+De score is een technische kwaliteitsindicator. Zij controleert geen externe
+waarheid van verkeerskundige, statistische of beleidsmatige aannames.
+
 ## DRIP meldingen en ontbrekende doorrekening
 
 Sinds BiDash 2.11 gebruikt Open storingen dezelfde verwerkte bronselectie als de
