@@ -69,7 +69,7 @@ De logische indeling is:
 
 1. Bedrijfsvoering / BI: formatie, capaciteit, contracten, budget, leveranciers en interne bedienketens.
 2. Technische middelen / DVM-assets: areaal, EOL, storingen, technische beschikbaarheid, prestatie, prognoses en assetgerelateerde verkeerskosten.
-3. Planning en externe invloeden: activiteiten, afhankelijkheden, werkzaamheden, tijdvensters, U-routes en afsluitingen.
+3. Planning en externe invloeden: activiteiten, afhankelijkheden, werkzaamheden, tijdvensters, U-routes en afsluitingen. De planningmodule begint leeg: de tijdlijn komt uit een geladen Primavera-export en de triggers uit een apart te laden JSON-bestand. Er staat geen planning meer in de code.
 
 Deze drie domeinen staan logisch naast elkaar als bron van invloed. Geen van de drie is eigenaar van de andere. De bovenliggende laag is de dienstverlening zelf.
 

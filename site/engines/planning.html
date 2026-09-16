@@ -1255,38 +1255,16 @@
   <main id="main">
 
     <!-- KPI BAR (persistent) -->
+    <!-- De tellers stonden hier als vast getal, zonder bron. Ze volgen nu uit het
+         geladen triggerbestand; zonder bestand staan ze op nul. -->
     <div id="kpi-bar">
       <div class="kpi-tile kpi-rood" onclick="showTriggerSidebar('all')">
-        <div class="kpi-val" id="kpi-rood-n">7</div>
+        <div class="kpi-val" id="kpi-rood-n">0</div>
         <div class="kpi-lbl">Rode triggers</div>
       </div>
-      <div class="kpi-tile kpi-oranje">
-        <div class="kpi-val" id="kpi-oranje-n">12</div>
+      <div class="kpi-tile kpi-oranje" onclick="showTriggerSidebar('all')">
+        <div class="kpi-val" id="kpi-oranje-n">0</div>
         <div class="kpi-lbl">Oranje triggers</div>
-      </div>
-      <div class="kpi-tile kpi-rood">
-        <div class="kpi-val">3</div>
-        <div class="kpi-lbl">Openstellings-risico</div>
-      </div>
-      <div class="kpi-tile kpi-oranje">
-        <div class="kpi-val">5</div>
-        <div class="kpi-lbl">LCM-conflicten</div>
-      </div>
-      <div class="kpi-tile kpi-rood">
-        <div class="kpi-val">4</div>
-        <div class="kpi-lbl">Testvenster-conflicten</div>
-      </div>
-      <div class="kpi-tile kpi-oranje">
-        <div class="kpi-val">2</div>
-        <div class="kpi-lbl">VC-capaciteits-conflict</div>
-      </div>
-      <div class="kpi-tile kpi-blauw">
-        <div class="kpi-val">18</div>
-        <div class="kpi-lbl">Afhankelijkheden</div>
-      </div>
-      <div class="kpi-tile kpi-groen">
-        <div class="kpi-val">83%</div>
-        <div class="kpi-lbl">Datakwaliteit</div>
       </div>
     </div>
 
@@ -1295,11 +1273,7 @@
       <label>Filter:</label>
       <select id="filter-project" onchange="applyFilters()">
         <option value="">Alle projecten</option>
-        <option value="a27">Tunnel A27 Noord</option>
-        <option value="heinenoord">Renovatie Heinenoordtunnel</option>
-        <option value="a15">Corridor A15 West</option>
-        <option value="maasdelta">Tunnel Maasdelta</option>
-        <option value="sijtwendetunnel">Renovatie Sijtwendetunnel</option>
+        <!-- De projectnamen stonden hier vast; ze horen uit een geladen planning te komen. -->
       </select>
       <select id="filter-vc" onchange="applyFilters()">
         <option value="">Alle verkeerscentrales</option>
@@ -1469,6 +1443,21 @@
           <input type="file" accept=".xml,text/xml,application/xml" onchange="ipl_handleFile(this)" style="display:none;">
         </label>
         <div id="ipl-status" style="margin-top:14px;font-size:12px;color:var(--text-sub);">Nog geen bestand geladen.</div>
+      </div>
+
+      <!-- Triggers zijn een aparte bron: ze stonden eerder vast in de code. -->
+      <div style="background:var(--wit);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin-top:14px;">
+        <div style="font-size:14px;font-weight:700;color:#003082;margin-bottom:4px;">Triggerbestand laden (optioneel)</div>
+        <div style="font-size:12px;color:var(--text-sub);line-height:1.6;margin-bottom:12px;">
+          Een JSON-bestand met de actieve triggers: per trigger een naam, klasse (<code>rood</code> of <code>oranje</code>), oorzaak,
+          impact per dienst, besluitopties en besluitdeadline. Het formaat staat in de Help onder Gebruikershulp.
+          Zonder dit bestand blijven de triggertellers op nul en toont het triggerpaneel een lege staat.
+        </div>
+        <label style="display:inline-block;padding:9px 18px;background:#003082;color:#fff;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;">
+          Kies triggerbestand
+          <input type="file" accept=".json,application/json" onchange="ipl_handleTriggerFile(this)" style="display:none;">
+        </label>
+        <div id="ipl-trigger-status" style="margin-top:12px;font-size:12px;color:var(--text-sub);">Nog geen triggerbestand geladen.</div>
       </div>
 
       <!-- WORKSPACE (na laden) -->
@@ -1651,144 +1640,80 @@
 // ══════════════════════════════════════════
 // DATA
 // ══════════════════════════════════════════
-const TRIGGERS = {
-  a27: {
-    naam: 'Openstellingsrisico Tunnel A27 Noord',
-    klasse: 'rood',
-    oorzaak: 'GPO-openstelling schuift 9 maanden (Q2 2029 → Q1 2030). CIV-bouwblok LTS Bediening v1.3.1 is bij openstelling buiten geldige doelversie. VWM-opdracht VC Midden-NL raakt LCM-planning.',
-    oorzaakcat: 'GPO-project schuift',
-    impact: {
-      GPO: 'Openstellingsrisico en contractimpact',
-      CIV: 'Releaseplanning LTS Bediening herzien',
-      VWM: 'Opdrachtmoment CIV herzien',
-      PPO: 'Onderhoudsvenster controleren',
-      Regio: 'Hindercommunicatie aanpassen'
-    },
-    besluitopties: [
-      'Bouwblokrelease LTS Bediening versnellen naar v1.3.2',
-      'Projectscope aanpassen (deelfuncties uitstellen)',
-      'Tijdelijk maatwerk accepteren (vrijstelling LTS)',
-      'LCM VC Midden-NL naar voren halen',
-      'Testvenster herplannen (prioriteit A27 boven Heinenoord)',
-      'Openstelling herfaseren (gedeeltelijke openstelling)'
-    ],
-    deadline: '1 oktober 2027',
-    urgentie: 'ROOD',
-    diensten: ['GPO','CIV','VWM','PPO','Regio']
-  },
-  lcm: {
-    naam: 'LCM-conflict VC Midden-Nederland',
-    klasse: 'rood',
-    oorzaak: 'LCM-vervanging VC Midden-NL (Q3 2029–Q2 2030) overlapt de nieuwe openstellingsdatum Q1 2030. VC tijdelijk niet beschikbaar voor SIT en proefbedrijf.',
-    oorzaakcat: 'LCM-afhankelijkheid wijzigt',
-    impact: {
-      VWM: 'LCM-planning herzien of faseren',
-      CIV: 'Testcapaciteit VC Midden-NL in risico',
-      GPO: 'Proefbedrijf en openstelling in risico'
-    },
-    besluitopties: [
-      'LCM-planning VCMN faseren (deel later)',
-      'Tijdelijke testomgeving inrichten',
-      'Openstellingsdatum A27 verder schuiven (na LCM)',
-      'Parallelle testinfrastructuur realiseren'
-    ],
-    deadline: '15 augustus 2027',
-    urgentie: 'ROOD',
-    diensten: ['VWM','CIV','GPO']
-  },
-  test: {
-    naam: 'Testvensterconflict SAT/SIT',
-    klasse: 'rood',
-    oorzaak: 'SAT/SIT Tunnel A27 Noord botst na verschuiving met gepland testvenster Renovatie Heinenoordtunnel (Q3–Q4 2029). CIV-testcapaciteit onvoldoende voor twee projecten tegelijk.',
-    oorzaakcat: 'Testcapaciteit ontbreekt',
-    impact: {
-      GPO: 'Testvenster A27 Noord in conflict',
-      CIV: 'Capaciteitsplanning testomgeving onvoldoende',
-    },
-    besluitopties: [
-      'Prioritering: A27 Noord voor Heinenoordtunnel',
-      'Extra testcapaciteit inkopen bij CIV',
-      'Testvensters parallel inrichten (aparte omgeving)',
-      'Heinenoord-testvenster uitstellen'
-    ],
-    deadline: '1 november 2027',
-    urgentie: 'ROOD',
-    diensten: ['GPO','CIV']
-  },
-  vwm: {
-    naam: 'VWM-opdracht te vroeg gepland',
-    klasse: 'oranje',
-    oorzaak: 'VWM-opdracht richting CIV voor VC Midden-NL staat op Q4 2027, maar aansluitdatum GPO schuift naar Q1 2030. Opdrachtmoment herzien vereist om verspilling CIV-capaciteit te voorkomen.',
-    oorzaakcat: 'VWM-opdracht te laat / te vroeg',
-    impact: {
-      VWM: 'Opdrachtmoment bijstellen richting CIV',
-      CIV: 'Capaciteitsruimte vrijhouden voor nieuw moment',
-    },
-    besluitopties: [
-      'VWM-opdracht uitstellen naar Q2 2028',
-      'Opdracht splitsen: voorbereiding nu, realisatie later',
-      'Capaciteitsreservering CIV handhaven met opt-out'
-    ],
-    deadline: '1 december 2027',
-    urgentie: 'ORANJE',
-    diensten: ['VWM','CIV']
-  },
-  ppo: {
-    naam: 'PPO Onderhoudsvenster conflicteert',
-    klasse: 'oranje',
-    oorzaak: 'PPO-onderhoudsvenster A27 (Q3 2029) raakt nieuwe FAT-periode Tunnel A27 Noord. Areaalbeschikbaarheid A27 niet gegarandeerd tijdens testperiode.',
-    oorzaakcat: 'Onderhoudsvenster conflicteert',
-    impact: {
-      PPO: 'Onderhoudsvenster herplannen',
-      GPO: 'FAT-periode in risico door beperkte areaalruimte'
-    },
-    besluitopties: [
-      'PPO-onderhoudsvenster verplaatsen naar Q2 2029',
-      'FAT uitvoeren met beperkte beschikbaarheid (risicoacceptatie)',
-      'Gefaseerd onderhoud plannen rondom testvenster'
-    ],
-    deadline: '1 februari 2028',
-    urgentie: 'ORANJE',
-    diensten: ['PPO','GPO']
-  },
-  regio: {
-    naam: 'Regio-hindercommunicatie verouderd',
-    klasse: 'oranje',
-    oorzaak: 'Regio West-Nederland Noord heeft communicatie naar bestuurlijke partners gepland op Q2 2029. Openstelling schuift naar Q1 2030 — externe partners worden onjuist geïnformeerd.',
-    oorzaakcat: 'GPO-project schuift',
-    impact: {
-      Regio: 'Hindercommunicatie actualiseren',
-      GPO: 'Externe stakeholders verwachten Q2 2029'
-    },
-    besluitopties: [
-      'Regio informeert bestuurlijke partners over verschuiving',
-      'Gecombineerde communicatiestrategie GPO + Regio',
-      'Communicatiemoment koppelen aan nieuwe mijlpaal'
-    ],
-    deadline: '15 januari 2028',
-    urgentie: 'ORANJE',
-    diensten: ['Regio','GPO']
-  },
-  civ: {
-    naam: 'CIV-bouwblokversie buiten supportperiode',
-    klasse: 'oranje',
-    oorzaak: 'LTS Bediening v1.3.1 heeft supporteinde Q4 2029. Bij openstelling Q1 2030 is dit buiten de geldige supportperiode. Upgrade naar v1.3.2 vereist of vrijstelling LTS noodzakelijk.',
-    oorzaakcat: 'LCM-afhankelijkheid wijzigt',
-    impact: {
-      CIV: 'Releaseplanning v1.3.2 versnellen of vrijstelling aanvragen',
-      VWM: 'Bouwblokbeheer en supportcontract aanpassen',
-      GPO: 'Contractscope bouwblokversie herzien'
-    },
-    besluitopties: [
-      'LTS Bediening v1.3.2 release versnellen',
-      'Vrijstelling aanvragen bij VWM/LTS-beheer',
-      'Contractscope aanpassen naar v1.3.2'
-    ],
-    deadline: '1 maart 2028',
-    urgentie: 'ORANJE',
-    diensten: ['CIV','VWM','GPO']
+/* De triggers stonden hier als vaste lijst met werkelijke projectinformatie:
+   projectnamen, openstellingskwartalen, LTS-versies, verkeerscentrales,
+   besluitdeadlines en urgentieklassen. Dat is operationele stuurinformatie en
+   hoort niet in de broncode van een publiek gepubliceerde applicatie.
+
+   Ze zijn nu een te laden bron. Laad een triggerbestand op het scherm Planning
+   importeren; het formaat staat in docs/GEBRUIKERSHULP.md. Zonder geladen bestand
+   toont het triggerpaneel een lege staat en staan de tellers op nul. */
+let TRIGGERS = {};
+let TRIGGERS_BRON = '';
+
+/* Eén trigger is pas bruikbaar als de velden aanwezig zijn die het paneel toont.
+   Een onvolledige regel wordt overgeslagen in plaats van half weergegeven. */
+function ipl_triggerGeldig(t){
+  return !!t && typeof t==='object'
+    && typeof t.naam==='string' && t.naam.trim()!==''
+    && typeof t.oorzaak==='string'
+    && (t.klasse==='rood'||t.klasse==='oranje');
+}
+function ipl_normaliseerTrigger(t){
+  return {
+    naam:String(t.naam),
+    klasse:t.klasse==='rood'?'rood':'oranje',
+    urgentie:String(t.urgentie||(t.klasse==='rood'?'ROOD':'ORANJE')),
+    oorzaak:String(t.oorzaak||''),
+    oorzaakcat:String(t.oorzaakcat||''),
+    impact:(t.impact&&typeof t.impact==='object')?t.impact:{},
+    besluitopties:Array.isArray(t.besluitopties)?t.besluitopties.map(String):[],
+    deadline:String(t.deadline||''),
+    diensten:Array.isArray(t.diensten)?t.diensten.map(String):[]
+  };
+}
+function ipl_zetTriggers(data,bron){
+  var bron_=String(bron||'');
+  var ruw=(data&&typeof data==='object'&&data.triggers&&typeof data.triggers==='object')?data.triggers:data;
+  if(!ruw||typeof ruw!=='object')throw new Error('Geen triggers gevonden in dit bestand.');
+  var uit={},n=0,over=0;
+  for(var k of Object.keys(ruw)){
+    if(ipl_triggerGeldig(ruw[k])){uit[k]=ipl_normaliseerTrigger(ruw[k]);n++;}
+    else over++;
   }
-};
+  if(!n)throw new Error('Geen bruikbare triggers in dit bestand.');
+  TRIGGERS=uit;TRIGGERS_BRON=bron_;
+  ipl_werkTriggerTellersBij();
+  return {geladen:n,overgeslagen:over};
+}
+function ipl_wisTriggers(){TRIGGERS={};TRIGGERS_BRON='';ipl_werkTriggerTellersBij();}
+
+/* De tellers in de KPI-balk stonden als vast getal in de opmaak. Ze horen te
+   volgen uit wat er geladen is, zodat er geen aantal staat zonder bron. */
+function ipl_werkTriggerTellersBij(){
+  var lijst=Object.keys(TRIGGERS).map(function(k){return TRIGGERS[k];});
+  var rood=lijst.filter(function(t){return t.klasse==='rood';}).length;
+  var oranje=lijst.length-rood;
+  var r=document.getElementById('kpi-rood-n');if(r)r.textContent=String(rood);
+  var o=document.getElementById('kpi-oranje-n');if(o)o.textContent=String(oranje);
+}
+
+function ipl_handleTriggerFile(input){
+  var f=input.files&&input.files[0];if(!f)return;
+  var status=document.getElementById('ipl-trigger-status');
+  var rd=new FileReader();
+  rd.onload=function(ev){
+    try{
+      var uitkomst=ipl_zetTriggers(JSON.parse(ev.target.result),f.name);
+      if(status){status.textContent='Geladen: '+f.name+' · '+uitkomst.geladen+' triggers'
+        +(uitkomst.overgeslagen?' · '+uitkomst.overgeslagen+' overgeslagen (onvolledig)':'');
+        status.style.color='#1a8a4a';}
+    }catch(e){
+      if(status){status.textContent='Fout: '+e.message;status.style.color='#c0121f';}
+    }
+  };
+  rd.readAsText(f);input.value='';
+}
 
 const KETEN_INFO = {
   gpo: { titel: 'GPO-project', icon: '🏗️', tekst: 'Het GPO-project is het startpunt. Alle afhankelijkheden vloeien voort uit de projectmijlpalen: VO, DO, UO, FAT, SAT, SIT, proefbedrijf en openstelling. Als het project schuift, volgt de hele keten.' },
@@ -1865,7 +1790,14 @@ function showTriggerSidebar(triggerId) {
         + '<div><span class="badge badge-' + (t.klasse === 'rood' ? 'rood' : 'oranje') + '">' + t.urgentie + '</span></div>'
         + '</div>';
     }).join('');
-    body.innerHTML = '<div class="tsb-section"><h4>Alle actieve triggers (' + Object.keys(TRIGGERS).length + ')</h4>' + trigItems + '</div>';
+    body.innerHTML = Object.keys(TRIGGERS).length
+      ? '<div class="tsb-section"><h4>Alle actieve triggers (' + Object.keys(TRIGGERS).length + ')</h4>'
+        + trigItems
+        + '<div style="margin-top:10px;font-size:11px;color:var(--text-sub);">Bron: ' + TRIGGERS_BRON + '</div></div>'
+      : '<div class="tsb-section"><h4>Geen triggers geladen</h4>'
+        + '<p style="font-size:12px;color:var(--text-sub);line-height:1.6;">Er is geen triggerbestand geladen, dus er zijn geen actieve triggers om te tonen. '
+        + 'Laad een triggerbestand op het scherm <strong>Planning importeren</strong>.</p>'
+        + '<button class="btn btn-primary mt-12" style="width:100%;" onclick="closeTriggerSidebar();showScreen(\'s16\')">Naar Planning importeren</button></div>';
     sb.classList.add('open');
     return;
   }
@@ -1961,75 +1893,10 @@ const FTE_CAP = {
 // FTE-definitie per rij per fase:
 // { rowId, dienst, phases: [ {t0, t1, fte, label} ] }
 // FTE's zijn het aantal mensen actief in die periode
-const FTE_DEFS = [
-  // ── A27 GPO specificatie-arm ──────────────────────────
-  { rowId:'g0', dienst:'GPO', phases:[
-    { label:'Behoeftestelling', t0Ref:function(){return 2024.5+gShift/12;}, t1Ref:function(){return 2025.0+gShift/12;}, fte:2 },
-    { label:'VO-fase',          t0Ref:function(){return 2025.0+gShift/12;}, t1Ref:function(){return 2025.75+gShift/12;}, fte:3 },
-    { label:'DO-fase',          t0Ref:function(){return 2025.75+gShift/12;},t1Ref:function(){return 2026.5+gShift/12;},  fte:4 },
-    { label:'UO/Bestek',        t0Ref:function(){return 2026.5+gShift/12;}, t1Ref:function(){return 2027.5+gShift/12;},  fte:5 },
-  ]},
-  // ── A27 GPO realisatie + test ──────────────────────────
-  { rowId:'g1', dienst:'GPO', phases:[
-    { label:'Realisatie/bouw',  t0Ref:function(){return 2027.5+gShift/12;}, t1Ref:function(){return 2028.75+gShift/12;}, fte:6 },
-    { label:'IV&V',             t0Ref:function(){return 2028.75+gShift/12;},t1Ref:function(){return 2029.0+gShift/12;},  fte:5 },
-    { label:'FAT',              t0Ref:function(){return 2029.0+gShift/12;}, t1Ref:function(){return 2029.17+gShift/12;}, fte:4 },
-    { label:'SAT',              t0Ref:function(){return 2029.17+gShift/12;},t1Ref:function(){return 2029.33+gShift/12;}, fte:4 },
-    { label:'SIT',              t0Ref:function(){return 2029.33+gShift/12;},t1Ref:function(){return 2029.5+gShift/12;},  fte:3 },
-    { label:'Proefbedrijf',     t0Ref:function(){return 2029.5+gShift/12;}, t1Ref:function(){return 2029.75+gShift/12;}, fte:3 },
-  ]},
-  // ── VWM opdrachtfase ──────────────────────────────────
-  { rowId:'g3', dienst:'VWM', phases:[
-    { label:'Opdracht Audio',   t0Ref:function(){return 2026.25;}, t1Ref:function(){return 2026.75;}, fte:2 },
-    { label:'Opdracht Bediening',t0Ref:function(){return 2026.5;}, t1Ref:function(){return 2027.0;},  fte:2 },
-    { label:'LCM-vervanging',   t0Ref:function(){return 2029.5;},  t1Ref:function(){return 2030.5;},  fte:3 },
-  ]},
-  // ── CIV LTS Bediening ─────────────────────────────────
-  { rowId:'g2', dienst:'CIV', phases:[
-    { label:'Architectuur',     t0Ref:function(){return 2026.75;}, t1Ref:function(){return 2027.25;}, fte:2 },
-    { label:'Ontwikkeling',     t0Ref:function(){return 2027.25;}, t1Ref:function(){return 2028.25;}, fte:4 },
-    { label:'CIV-test',         t0Ref:function(){return 2028.25;}, t1Ref:function(){return 2028.75;}, fte:3 },
-    { label:'Integratie VC',    t0Ref:function(){return 2028.75;}, t1Ref:function(){return 2029.0+gShift/12*0.4;}, fte:3 },
-  ]},
-  // ── CIV Audio bouwblok ────────────────────────────────
-  { rowId:'g_audio', dienst:'CIV', phases:[
-    { label:'Arch+ontwerp Audio',t0Ref:function(){return 2026.5+gShift/12*0.1;},  t1Ref:function(){return 2027.0+gShift/12*0.15;}, fte:2 },
-    { label:'Ontwikkeling Audio',t0Ref:function(){return 2027.0+gShift/12*0.15;}, t1Ref:function(){return 2028.25+gShift/12*0.2;}, fte:3 },
-    { label:'Test+validatie',    t0Ref:function(){return 2028.25+gShift/12*0.2;}, t1Ref:function(){return 2028.75+gShift/12*0.3;}, fte:2 },
-    { label:'Uitrol Audio',      t0Ref:function(){return 2028.75+gShift/12*0.3;}, t1Ref:function(){return 2029.0+gShift/12;},      fte:2 },
-  ]},
-  // ── PPO onderhoud ─────────────────────────────────────
-  { rowId:'g4', dienst:'PPO', phases:[
-    { label:'Onderhoud A27 1',  t0Ref:function(){return 2027.5;},           t1Ref:function(){return 2027.83;},          fte:2 },
-    { label:'Onderhoud A27 2',  t0Ref:function(){return 2029.0+gShift/12;}, t1Ref:function(){return 2029.33+gShift/12;},fte:2 },
-  ]},
-  // ── Regio ─────────────────────────────────────────────
-  { rowId:'g5', dienst:'Regio', phases:[
-    { label:'Hindercommunicatie',t0Ref:function(){return 2029.25+gShift/12;},t1Ref:function(){return 2029.67+gShift/12;},fte:2 },
-  ]},
-  // ── Heinenoordtunnel ──────────────────────────────────
-  { rowId:'h1', dienst:'GPO', phases:[
-    { label:'VO Heinenoord',    t0Ref:function(){return 2025.5;},  t1Ref:function(){return 2026.0;},  fte:2 },
-    { label:'DO+UO Heinenoord', t0Ref:function(){return 2026.0;},  t1Ref:function(){return 2027.25;}, fte:3 },
-    { label:'Realisatie Hein.', t0Ref:function(){return 2027.25;}, t1Ref:function(){return 2029.0;},  fte:5 },
-    { label:'FAT·SIT Hein.',    t0Ref:function(){return 2029.0;},  t1Ref:function(){return 2029.5;},  fte:4 },
-    { label:'Proefbedr. Hein.', t0Ref:function(){return 2029.5;},  t1Ref:function(){return 2029.75;}, fte:2 },
-  ]},
-  { rowId:'h2', dienst:'CIV', phases:[
-    // CIV testcapaciteit — pool voor FAT trajecten
-    { label:'CIV testpool actief',t0Ref:function(){return 2028.75;}, t1Ref:function(){return 2029.75;}, fte:4 },
-  ]},
-  // ── Corridor A15 ──────────────────────────────────────
-  { rowId:'a1', dienst:'GPO', phases:[
-    { label:'VO+DO+UO A15',     t0Ref:function(){return 2025.25;}, t1Ref:function(){return 2027.75;}, fte:3 },
-    { label:'Realisatie A15',   t0Ref:function(){return 2027.75;}, t1Ref:function(){return 2030.0;},  fte:5 },
-    { label:'FAT·SIT A15',      t0Ref:function(){return 2030.0;},  t1Ref:function(){return 2030.75;}, fte:4 },
-    { label:'Proefbedr. A15',   t0Ref:function(){return 2030.75;}, t1Ref:function(){return 2031.0;},  fte:2 },
-  ]},
-  { rowId:'a2', dienst:'VWM', phases:[
-    { label:'LCM VCNWN',        t0Ref:function(){return 2030.0;},  t1Ref:function(){return 2031.0;},  fte:3 },
-  ]},
-];
+/* De fasedefinities met FTE-bezetting beschreven werkelijke projecten per dienst,
+   met begin- en einddatum per fase. Verwijderd; de FTE-panelen tonen niets zonder
+   geladen planning. */
+const FTE_DEFS = [];
 
 // ── Bereken FTE-bezetting per dienst per kwartaal ──────────
 function calcFteByQuarter() {
@@ -2102,430 +1969,16 @@ function detectFormationConflicts() {
   return conflicts;
 }
 
-function buildRows() {
-  const sh = gShift/12;
+/* De balkdefinities bevatten werkelijke projecten, openstellingsmomenten en
+   toelichtingen per balk. Verwijderd. De gantt-weergave die deze rijen gebruikte
+   is in de applicatie niet bereikbaar; hij tekent nu een lege set. */
+function buildRows() { return []; }
 
-  // V-model kleurenspectrum GPO-fases (donkerblauw → lichtblauw → testfasen)
-  const vCol = {
-    bst:  '#001f57',  // Behoeftestelling
-    vo:   '#003082',  // VO
-    do_:  '#0050a0',  // DO
-    uo:   '#0070c0',  // UO
-    real: '#1a50b0',  // Realisatie
-    ivv:  '#2060c0',  // IV&V / verificatie
-    fat:  '#0066cc',  // FAT
-    sat:  '#0055aa',  // SAT
-    sit:  '#004488',  // SIT
-    proef:'#0090c0',  // Proefbedrijf
-  };
+/* De conflictdefinities beschreven werkelijke botsingen tussen projecten, met
+   deadlines en besluitwinst in maanden. Verwijderd; conflicten horen uit een
+   geladen planning te komen, niet uit de code. */
+function detectConflicts3() { return []; }
 
-  // Audio bouwblok tijdlijn (VWM opdracht → CIV ontwikkeling → uitrol)
-  // Loopt parallel aan A27 testfase — koppelt op FAT
-  const audOpd  = 2026.25 + sh*0.1;  // VWM verstrekt opdracht Audio
-  const audArch = 2026.5  + sh*0.1;  // CIV architectuur/ontwerp
-  const audDev  = 2027.0  + sh*0.15; // CIV ontwikkeling
-  const audTest = 2028.25 + sh*0.2;  // CIV interne test
-  const audRel  = 2028.75 + sh*0.3;  // Release / beschikbaar
-  const audFAT  = 2029.0  + sh;      // Koppeling op FAT A27 (volgt A27 shift volledig)
-
-  return [
-    // ════════════════════════════════════════════
-    // SECTIE 1 — GPO Tunnel A27 Noord (V-model)
-    // ════════════════════════════════════════════
-
-    // Rij 1a: GPO V-model — LINKERKANT V (specificatie-arm)
-    { grp:'A27', id:'g0', label:'A27 Noord · GPO', sub:'V-model specificatiefasen', color:C.gpo, shifted:true,
-      bars:[
-        {t0:2024.5+sh, t1:2025.0+sh,  label:'Beh.stelling', color:vCol.bst,
-          tooltip:'Behoeftestelling — functionele en operationele eisen vastgesteld door VWM en GPO'},
-        {t0:2025.0+sh, t1:2025.75+sh, label:'VO',           color:vCol.vo,
-          tooltip:'Verkenning/Voorkeursalternatief — systeemeisen en architectuurkeuzes'},
-        {t0:2025.75+sh,t1:2026.5+sh,  label:'DO',           color:vCol.do_,
-          tooltip:'Definitief Ontwerp — gedetailleerde systeemspecificaties, bouwblokken geselecteerd'},
-        {t0:2026.5+sh, t1:2027.5+sh,  label:'UO/Bestek',   color:vCol.uo,
-          tooltip:'Uitvoeringsontwerp / Bestek — contractgereed, LTS-eisen bevroren, bouwblokkeuze definitief'},
-      ], ms:[
-        {t:2025.0+sh,  lbl:'BST✓', type:'gono',
-          tooltip:'Go/No-Go Behoeftestelling — operationele eisen akkoord VWM + GPO'},
-        {t:2025.75+sh, lbl:'VO✓',  type:'gono',
-          tooltip:'Go/No-Go VO — systeemarchitectuur akkoord, LTS-versie gekozen'},
-        {t:2026.5+sh,  lbl:'DO✓',  type:'gono',
-          tooltip:'Go/No-Go DO — bouwblokken bevestigd, VWM-opdracht Audio verstrekt'},
-        {t:2027.5+sh,  lbl:'Gun.', type:'gono',
-          tooltip:'Gunning hoofdcontract Tunnel A27 Noord — UO bevroren, bouwblokversies vastgelegd'},
-      ]},
-
-    // Rij 1b: GPO V-model — BODEM V (realisatie) + RECHTERKANT V (verificatie)
-    { grp:'A27', id:'g1', label:'A27 Noord · Realisatie + Test', sub:'V-model realisatie & verificatiefasen', color:C.gpo2, shifted:true,
-      bars:[
-        {t0:2027.5+sh, t1:2028.75+sh, label:'Realisatie / bouw', color:vCol.real,
-          tooltip:'Fysieke bouw tunnel, installatie technische systemen, integratie bouwblokken'},
-        {t0:2028.75+sh,t1:2029.0+sh,  label:'IV&V',             color:vCol.ivv,
-          tooltip:'Integrale Verificatie & Validatie — onafhankelijke toetsing systeem t.o.v. eisen DO/UO'},
-        {t0:2029.0+sh, t1:2029.17+sh, label:'FAT',              color:vCol.fat, conflict:true,
-          tooltip:'Factory Acceptance Test — bouwblokken getest in fabrieksomgeving CIV'},
-        {t0:2029.17+sh,t1:2029.33+sh, label:'SAT',              color:vCol.sat, conflict:true,
-          tooltip:'Site Acceptance Test — systemen getest op locatie tunnel, koppeling VC'},
-        {t0:2029.33+sh,t1:2029.5+sh,  label:'SIT',              color:vCol.sit, conflict:true,
-          tooltip:'System Integration Test — integrale ketentest tunnel + VC + bediening'},
-        {t0:2029.5+sh, t1:2029.75+sh, label:'Proefbedrijf',     color:vCol.proef, conflict:true,
-          tooltip:'Proefbedrijf — operationele test onder VWM-verantwoordelijkheid, voor openstelling'},
-      ], ms:[
-        {t:2028.75+sh, lbl:'IV&V',  type:'ms',
-          tooltip:'Start IV&V — onafhankelijke verificatie systeem klaar voor testen'},
-        {t:2029.0+sh,  lbl:'FAT▶',  type:'ms',
-          tooltip:'FAT start — vereist: Audio bouwblok gereed, CIV testcapaciteit beschikbaar'},
-        {t:2029.17+sh, lbl:'SAT▶',  type:'ms',
-          tooltip:'SAT start — vereist: VC Midden-NL beschikbaar, geen LCM-overlap'},
-        {t:2029.33+sh, lbl:'SIT▶',  type:'ms',
-          tooltip:'SIT start — integrale ketentest, alle bouwblokken en VC operationeel'},
-        {t:2029.75+sh, lbl:'OPEN',  type:'open', conflict:true,
-          tooltip:'⚠ Openstelling A27 Noord — baseline Q3 2029. Na verschuiving: conflict LCM VCMN + FAT Heinenoord!'},
-      ]},
-
-    // Rij 2: VWM opdrachtverstrekking (VOOR CIV ontwikkeling)
-    { grp:'A27', id:'g3', label:'VWM · Opdracht + LCM', sub:'VWM-opdracht → CIV, Lifecycle VC', color:C.vwm, shifted:false,
-      bars:[
-        {t0:2026.25,   t1:2026.75,    label:'VWM opdracht Audio', color:'#006030',
-          tooltip:'VWM verstrekt opdracht Audio bouwblok aan CIV — na Go DO Tunnel A27'},
-        {t0:2026.5,    t1:2027.0,     label:'VWM opdracht Bediening', color:C.vwm,
-          tooltip:'VWM verstrekt opdracht LTS Bediening v1.3.1 aan CIV'},
-        {t0:2029.5,    t1:2030.5,     label:'LCM-vervanging VCMN', color:C.ppo, conflict:true,
-          tooltip:'LCM VCMN — VC Midden-NL deels niet beschikbaar voor SAT/proefbedrijf A27 na shift!'},
-      ], ms:[
-        {t:2026.25,    lbl:'OPD Audio',type:'gono',
-          tooltip:'Go/No-Go VWM: opdrachtverstrekking Audio bouwblok — budget akkoord, spec bevroren'},
-        {t:2026.75,    lbl:'OPD Bed.', type:'gono',
-          tooltip:'Go/No-Go VWM: opdrachtverstrekking Bediening — na definitief DO'},
-        {t:2029.5,     lbl:'LCM▶',    type:'ms', conflict:true,
-          tooltip:'LCM VCMN start — VC deels niet beschikbaar voor FAT/proefbedrijf A27 na shift!'},
-      ]},
-
-    // Rij 3: LTS Bediening v1.3.1 (CIV bouwblok)
-    { grp:'A27', id:'g2', label:'LTS Bediening v1.3.1', sub:'CIV-bouwblok → A27 (na VWM-opdracht)', color:C.civ,
-      supporteinde:2029.92,
-      bars:[
-        {t0:2026.75,   t1:2027.25,    label:'Architectuur',  color:'#4a1d72',
-          tooltip:'CIV architectuurontwerp LTS Bediening v1.3.1 — na opdrachtverstrekking VWM'},
-        {t0:2027.25,   t1:2028.25,    label:'Ontwikkeling',  color:C.civ,
-          tooltip:'CIV softwareontwikkeling en bouwen bouwblok'},
-        {t0:2028.25,   t1:2028.75,    label:'CIV-test',      color:'#6a3da0',
-          tooltip:'Interne CIV-test en kwaliteitsborging vóór FAT-start'},
-        {t0:2028.75,   t1:2029.0+sh*0.4, label:'Integratie VC', color:'#7a4da0',
-          tooltip:'Integratie bouwblok in VC-omgeving — vereist voor FAT start A27'},
-      ], ms:[
-        {t:2026.75,    lbl:'Start',   type:'ms',
-          tooltip:'CIV start ontwikkeling LTS Bediening v1.3.1 — na VWM-opdracht'},
-        {t:2027.5,     lbl:'Rel.v1.3.1',type:'ms',
-          tooltip:'Tussentijdse release v1.3.1 — supporteinde Q4 2029, na shift A27 buiten periode!'},
-        {t:2029.0+sh*0.4,lbl:'Gereed', type:'ms',
-          tooltip:'CIV bouwblok Bediening gereed voor FAT A27 Noord'},
-      ]},
-
-    // Rij 4: LTS Audio bouwblok — volledig ontwikkelpad + uitrol
-    { grp:'A27', id:'g_audio', label:'LTS Audio · Ontwikkelpad', sub:'CIV · Audio bouwblok (na VWM-opdracht)', color:'#8040a0',
-      bars:[
-        {t0:audArch,   t1:audDev,     label:'Arch. + ontwerp', color:'#5a2060',
-          tooltip:'CIV architectuur Audio bouwblok — na VWM-opdrachtverstrekking Audio (DO-fase A27)'},
-        {t0:audDev,    t1:audTest,    label:'Ontwikkeling',    color:'#7030a0',
-          tooltip:'CIV softwareontwikkeling Audio — parallel aan UO-fase GPO'},
-        {t0:audTest,   t1:audRel,     label:'Test + validatie', color:'#8040b0',
-          tooltip:'CIV interne test Audio bouwblok — validatie tegen LTS-eisen'},
-        {t0:audRel,    t1:audFAT,     label:'Uitrol + config', color:'#9050c0',
-          tooltip:'Uitrol Audio bouwblok naar VC-omgeving en project-configuratie'},
-      ], ms:[
-        {t:audOpd,     lbl:'OPD▶',   type:'gono',
-          tooltip:'VWM verstrekt Audio-opdracht — trigger voor CIV ontwikkelstart'},
-        {t:audRel,     lbl:'Rel.Aud.',type:'ms',
-          tooltip:'Release Audio bouwblok — gereed voor uitrol naar A27 FAT-omgeving'},
-        {t:audFAT,     lbl:'→FAT',   type:'ms', conflict:sh>0,
-          tooltip:'Audio bouwblok beschikbaar op FAT-moment A27 Noord — volgt shift project!'},
-      ]},
-
-    // Rij 5: PPO + Regio
-    { grp:'A27', id:'g4', label:'PPO Onderhoud A27-ring', sub:'PPO · Areaalvenster', color:C.ppo,
-      bars:[
-        {t0:2027.5,    t1:2027.83,    label:'Onderhoud',         color:C.ppo},
-        {t0:2029.0+sh, t1:2029.33+sh, label:'Onderh. A27 (FAT)', color:C.ppo, conflict:true,
-          tooltip:'PPO-onderhoudsvenster overlapt FAT-periode A27 na verschuiving — areaal beperkt!'},
-      ], ms:[]},
-    { grp:'A27', id:'g5', label:'Regio WNL-Noord', sub:'Hindercommunicatie', color:C.regio,
-      bars:[
-        {t0:2029.25+sh,t1:2029.67+sh, label:'Hindercommunicatie', color:C.regio, conflict:true},
-      ], ms:[
-        {t:2029.5+sh,  lbl:'COMM',   type:'ms', conflict:true,
-          tooltip:'Communicatie bestuurlijke partners — moet synchroon lopen met openstelling'},
-      ]},
-
-    {id:'sp1',spacer:true},
-
-    // ════════════════════════════════════════════
-    // SECTIE 2 — Heinenoordtunnel (vast)
-    // ════════════════════════════════════════════
-    { grp:'HEIN', id:'h1', label:'Heinenoordtunnel', sub:'GPO-renovatie (vast)', color:C.gpo,
-      bars:[
-        {t0:2025.5,  t1:2026.0,  label:'VO',       color:C.gpo},
-        {t0:2026.0,  t1:2027.25, label:'DO+UO',    color:C.gpo},
-        {t0:2027.25, t1:2029.0,  label:'Realisatie',color:C.gpo2},
-        {t0:2029.0,  t1:2029.5,  label:'FAT·SIT',  color:vCol.fat, conflict:true},
-        {t0:2029.5,  t1:2029.75, label:'Proefbedr.',color:vCol.proef},
-      ], ms:[
-        {t:2027.25,lbl:'Gun.',type:'gono'},
-        {t:2029.0, lbl:'FAT', type:'ms', conflict:true,
-          tooltip:'FAT Heinenoord — deelt testcapaciteit CIV met A27 Noord na verschuiving!'},
-        {t:2029.75,lbl:'OPEN',type:'open'},
-      ]},
-    { grp:'HEIN', id:'h2', label:'CIV Testcapaciteit', sub:'CIV · Max 2 FAT tegelijk', color:C.civ,
-      capaciteitsgrens:true,
-      bars:[
-        {t0:2025.0,t1:2031.5,label:'Beschikbaar (max 2 FAT parallel)',color:'#d0e8f8',textColor:'#003082'},
-      ], ms:[
-        {t:2027.5,lbl:'Cap.max',type:'gono',tooltip:'CIV cap.planning: max 2 FAT-trajecten gelijktijdig'},
-      ]},
-
-    {id:'sp2',spacer:true},
-
-    // ════════════════════════════════════════════
-    // SECTIE 3 — Corridor A15 West (vast)
-    // ════════════════════════════════════════════
-    { grp:'A15', id:'a1', label:'Corridor A15 West', sub:'GPO-aanleg (vast)', color:C.gpo,
-      bars:[
-        {t0:2025.25,t1:2027.75,label:'VO+DO+UO',   color:C.gpo},
-        {t0:2027.75,t1:2030.0, label:'Realisatie',  color:C.gpo2},
-        {t0:2030.0, t1:2030.75,label:'FAT·SIT',    color:vCol.fat},
-        {t0:2030.75,t1:2031.0, label:'Proefbedr.',  color:vCol.proef},
-      ], ms:[
-        {t:2027.0, lbl:'DO',  type:'gono'},
-        {t:2030.0, lbl:'FAT', type:'ms'},
-        {t:2031.0, lbl:'OPEN',type:'open'},
-      ]},
-    { grp:'A15', id:'a2', label:'LCM · VC Noordwest-NL', sub:'VWM · LCM 2030-2031', color:C.vwm,
-      bars:[
-        {t0:2030.0,t1:2031.0,label:'LCM VCNWN',color:C.ppo,conflict:true},
-      ], ms:[
-        {t:2030.0,lbl:'LCM▶',type:'ms',conflict:true,
-          tooltip:'LCM VCNWN start gelijktijdig met FAT A15 West — VC beschikbaarheid in gevaar'},
-      ]},
-
-    {id:'sp3',spacer:true},
-
-    // Sectiekop Noordtunnel
-    {id:'nt_hdr', section:true, title:'NOORDTUNNEL (VCZWN) — Integrale 4-lijnen casus', subtitle:'Openstelling T=0 op 31-12-2028 · GPO + CIV Audio BB + VWM Financieel + VWM Opleiding moeten convergeren'},
-
-    // ════════════════════════════════════════════
-    // SECTIE 4 — NOORDTUNNEL (VCZWN) — integrale 4-lijnen casus
-    // Convergeert op openstelling 31-12-2028 (= 2028.99). Vier lijnen die
-    // allemaal tijdig moeten samenkomen:
-    //   1. GPO  — Noordtunnel V-model t/m ISTSI → openstelling
-    //   2. CIV  — Audio Bouwblok 1.2 ontwikkeltraject (gereed vóór ISTSI)
-    //   3. VWM  — Financieel: opdrachtverstrekking aan CIV (startschot lijn 2)
-    //   4. VWM  — Opleiding: terugrekenend vanaf T=0 (VCZWN-tempo)
-    // Alles volgt gShift (sh): verschuif de tijdbalk en zie de keten cascaden.
-    // ════════════════════════════════════════════
-
-    // ── Sectiekop via groepslabel (eerste rij draagt grp 'NT') ──
-
-    // LIJN 1: GPO Noordtunnel V-model → ISTSI → openstelling
-    { grp:'NT', id:'nt_gpo', label:'Noordtunnel · GPO', sub:'V-model t/m ISTSI → openstelling (T=0)', color:C.gpo, shifted:true,
-      bars:[
-        {t0:2026.0+sh, t1:2026.75+sh, label:'Engineering', color:'#001f57',
-          tooltip:'GPO Noordtunnel — Start engineering: Inkoop, Verkenning/Regioanalyse, Planuitwerking'},
-        {t0:2026.75+sh,t1:2027.5+sh,  label:'VO/DO',       color:'#003082',
-          tooltip:'Voorontwerp + Definitief Ontwerp — systeemeisen, bouwblokkeuze (incl. Audio BB 1.2)'},
-        {t0:2027.5+sh, t1:2028.0+sh,  label:'UO + Bouw',   color:'#0050a0',
-          tooltip:'Uitvoeringsontwerp, bouw en fabriekstesten — voorbereiding op integratie'},
-        {t0:2028.0+sh, t1:2028.75+sh, label:'ISTSI-fase',  color:'#0070c0', conflict:true,
-          tooltip:'ISTSI — Uitrol Audio BB 1.2 voorbereiding: integratie & systeemtest. VEREIST: Audio Bouwblok gereed (CIV) én opgeleid personeel (VWM)'},
-      ], ms:[
-        {t:2027.5+sh,  lbl:'DO✓',  type:'gono',
-          tooltip:'Go/No-Go DO — bouwblokkeuze definitief, trigger voor VWM-opdracht Audio BB aan CIV'},
-        {t:2028.0+sh,  lbl:'ISTSI▶',type:'ms', conflict:true,
-          tooltip:'Start ISTSI — vereist Audio Bouwblok 1.2 compliant beschikbaar. Convergentiepunt CIV-lijn'},
-        {t:2028.99+sh, lbl:'OPEN', type:'open', conflict:true,
-          tooltip:'⚠ Openstelling Noordtunnel — T=0 = 31-12-2028. Alle vier lijnen moeten hier samenkomen'},
-      ]},
-
-    // LIJN 2: CIV Audio Bouwblok 1.2 ontwikkeltraject (gereed vóór ISTSI)
-    { grp:'NT', id:'nt_audio', label:'Audio BB 1.2 · CIV', sub:'Ontwikkeltraject → goedkeuring → LCM-uitrol', color:'#8040a0', shifted:true,
-      bars:[
-        {t0:2026.5+sh, t1:2027.0+sh,  label:'Ontwerp',      color:'#5a2060',
-          tooltip:'CIV — Audio Bouwblok 1.2 ontwerp. Start ná opdrachtverstrekking VWM'},
-        {t0:2027.0+sh, t1:2027.75+sh, label:'Realisatie',   color:'#7030a0',
-          tooltip:'CIV — softwareontwikkeling/bouw Audio Bouwblok 1.2'},
-        {t0:2027.75+sh,t1:2028.0+sh,  label:'FAT',          color:'#8040b0',
-          tooltip:'CIV — Factory Acceptance Test Audio Bouwblok in fabrieksomgeving'},
-        {t0:2028.0+sh, t1:2028.5+sh,  label:'LCM-uitrol',   color:'#9050c0',
-          tooltip:'Audio Bouwblok opgenomen in LCM-werk en uitgerold — gereed voor ISTSI Noordtunnel'},
-      ], ms:[
-        {t:2026.5+sh,  lbl:'Start',  type:'ms',
-          tooltip:'CIV start ontwerp Audio Bouwblok 1.2 — getriggerd door VWM-opdrachtverstrekking'},
-        {t:2028.0+sh,  lbl:'BB✓',    type:'gono', conflict:true,
-          tooltip:'Audio BB 1.2 compliant & goedgekeurd — MOET vóór ISTSI Noordtunnel gereed zijn (rode-balk-moment uit Primavera)'},
-      ]},
-
-    // LIJN 3: VWM Financieel — opdrachtverstrekking aan CIV
-    { grp:'NT', id:'nt_fin', label:'Opdracht Audio BB · VWM', sub:'Financieel: opdrachtverstrekking aan CIV', color:C.vwm, shifted:true,
-      bars:[
-        {t0:2026.0+sh, t1:2026.25+sh, label:'Behoeftestelling', color:'#006030',
-          tooltip:'VWM — behoeftestelling Audio Bouwblok: functionele eisen, kostenklasse'},
-        {t0:2026.25+sh,t1:2026.5+sh,  label:'Opdracht→CIV',     color:C.vwm,
-          tooltip:'VWM verstrekt opdracht aan CIV voor bouw Audio Bouwblok 1.2 — financieel/contractueel startschot'},
-      ], ms:[
-        {t:2026.25+sh, lbl:'€ OPD▶', type:'gono', conflict:true,
-          tooltip:'Go/No-Go VWM — opdrachtverstrekking Audio BB: budget vastgelegd, spec bevroren. Te laat = hele keten schuift'},
-      ]},
-
-    // LIJN 4: VWM Opleiding — terugrekenend vanaf T=0 (VCZWN-tempo uit Excel)
-    // T-weken vóór openstelling (2028.99): elke mijlpaal = openstelling - n/52 jaar
-    { grp:'NT', id:'nt_opl', label:'Opleiding VWM · VCZWN', sub:'Opleidingsgedreven — terugrekenend vanaf T=0', color:'#00823c', shifted:true,
-      bars:[
-        {t0:2028.99+sh-60/52, t1:2028.99+sh-43/52, label:'Werkgroep OTO + voorbereiding', color:'#1a8a4a',
-          tooltip:'T-60 tot T-43 — RWS PL OTO aangesteld, werkgroep OTO, CBP/VKM-plan gereed, start opleiding regulier'},
-        {t0:2028.99+sh-43/52, t1:2028.99+sh-20/52, label:'Opleiding + materiaal', color:'#00823c',
-          tooltip:'T-43 tot T-20 — opleiden generiek, opleidingsmateriaal maken, systemen gereed'},
-        {t0:2028.99+sh-20/52, t1:2028.99+sh-4/52,  label:'Trainers + SIT-tunnel', color:'#00a050',
-          tooltip:'T-20 tot T-4 — trainers VWM opgeleid, SIT-Tunnelsysteem, objectbezoeken VWM (Module I-III)'},
-        {t0:2028.99+sh-4/52,  t1:2028.99+sh,        label:'O-SIT + opgeleid', color:'#00c060',
-          tooltip:'T-4 tot T-0 — VWM opgeleid, O-SIT operationeel (Module IV), klaar voor openstelling'},
-      ], ms:[
-        {t:2028.99+sh-60/52, lbl:'T-60', type:'ms',
-          tooltip:'T-60 weken — RWS PL OTO aangesteld + werkgroep OTO + extra capaciteit VWM (WVL) beschikbaar'},
-        {t:2028.99+sh-52/52, lbl:'T-52', type:'ms',
-          tooltip:'T-52 weken — Start werkgroep OTO + ondersteuning vanuit PO + CBP/VKM-plan gereed'},
-        {t:2028.99+sh-43/52, lbl:'T-43', type:'ms',
-          tooltip:'T-43 weken — Start Opleiding regulier'},
-        {t:2028.99+sh-20/52, lbl:'T-20', type:'ms',
-          tooltip:'T-20 weken — Opleidingssystemen en -materiaal gereed'},
-        {t:2028.99+sh-19/52, lbl:'T-19', type:'ms',
-          tooltip:'T-19 weken — Trainers VWM opgeleid, start VWM-opleiding'},
-        {t:2028.99+sh-4/52,  lbl:'T-4',  type:'gono', conflict:true,
-          tooltip:'⚠ T-4 weken — VWM opgeleid + O-SIT. KRITIEK: genoeg personeel opgeleid vóór openstelling. Schuift openstelling, dan moet dit mee terugrekenen'},
-        {t:2028.99+sh,       lbl:'T=0',  type:'open',
-          tooltip:'T=0 — Openstelling Noordtunnel. Opleiding moet hier volledig afgerond zijn'},
-      ]},
-  ];
-}
-
-function detectConflicts3() {
-  const sh=gShift/12;
-  const conflicts=[];
-  const audFAT = 2029.0 + sh; // Audio koppelt op FAT-moment A27
-
-  // 1. LCM VCMN vs proefbedrijf A27
-  const a27p0=2029.5+sh, lcm0=2029.5, lcm1=2030.5;
-  if(a27p0<lcm1 && (a27p0+0.25)>lcm0){
-    const ct=Math.max(a27p0,lcm0);
-    const d=conflictDetectMoment(ct);
-    conflicts.push({id:'lcm',kleur:'rood',
-      naam:'LCM-conflict VCMN ↔ proefbedrijf A27 Noord',
-      wat:'LCM-vervanging VC Midden-NL overlapt proefbedrijf Tunnel A27 Noord. VC tijdelijk niet beschikbaar voor SIT en aansluiting.',
-      impact:'Proefbedrijf kan niet starten · openstelling dreigt verder te schuiven',
-      diensten:['GPO','VWM','CIV'],conflictT:ct,
-      zonderMoment:d.zonder,metMoment:d.met,
-      deadline:dlLabel(d.met,-3),winst_mnd:Math.round((d.zonder-d.met)*12)});
-  }
-
-  // 2. FAT A27 vs FAT Heinenoord (CIV cap)
-  const a27f0=2029.0+sh,a27f1=2029.5+sh,hf0=2029.0,hf1=2029.5;
-  if(a27f0<hf1 && a27f1>hf0){
-    const ct=Math.max(a27f0,hf0);
-    const d=conflictDetectMoment(ct);
-    conflicts.push({id:'test',kleur:'rood',
-      naam:'CIV testcapaciteit: A27 Noord ↔ Heinenoordtunnel FAT',
-      wat:'FAT-vensters A27 Noord en Heinenoordtunnel overlappen na verschuiving. CIV heeft max. 2 FAT-trajecten tegelijk — nu zijn er 3 nodig (incl. Audio uitrol A27).',
-      impact:'Één project moet wachten · kritisch pad loopt vast · prioritering vereist',
-      diensten:['CIV','GPO'],conflictT:ct,
-      zonderMoment:d.zonder,metMoment:d.met,
-      deadline:dlLabel(d.met,-3),winst_mnd:Math.round((d.zonder-d.met)*12)});
-  }
-
-  // 3. LCM VCNWN vs FAT A15
-  const lnwn0=2030.0,lnwn1=2031.0,af0=2030.0,af1=2030.75;
-  if(af0<lnwn1 && af1>lnwn0){
-    const ct=Math.max(af0,lnwn0);
-    const d=conflictDetectMoment(ct);
-    conflicts.push({id:'a15lcm',kleur:sh>3/12?'rood':'oranje',
-      naam:'LCM VCNWN ↔ FAT Corridor A15 West',
-      wat:'LCM-vervanging VC Noordwest-NL overlapt FAT Corridor A15 West. VC beschikbaarheid in risico.',
-      impact:'FAT A15 kan niet starten · VWM-gereedheid VC in gevaar',
-      diensten:['VWM','CIV','GPO'],conflictT:ct,
-      zonderMoment:d.zonder,metMoment:d.met,
-      deadline:dlLabel(d.met,-3),winst_mnd:Math.round((d.zonder-d.met)*12)});
-  }
-
-  // 4. Supporteinde LTS Bediening v1.3.1 na shift
-  if(sh>0 && (2029.75+sh)>2029.92){
-    const ct=2029.92;
-    const d=conflictDetectMoment(ct);
-    conflicts.push({id:'support',kleur:'rood',
-      naam:'LTS Bediening v1.3.1 buiten supportperiode na verschuiving',
-      wat:'Supporteinde v1.3.1: Q4 2029. Openstelling A27 valt na verschuiving buiten geldige supportperiode. Contractueel niet toegestaan zonder vrijstelling.',
-      impact:'Upgrade naar v1.3.2 vereist · meerwerk · contractwijziging · kostenklasse B',
-      diensten:['CIV','VWM','GPO'],conflictT:ct,
-      zonderMoment:d.zonder,metMoment:d.met,
-      deadline:dlLabel(d.met,-4),winst_mnd:Math.round((d.zonder-d.met)*12)});
-  }
-
-  // 5. PPO onderhoud vs FAT A27
-  const pt0=2029.0+sh,pt1=2029.33+sh;
-  if(sh>0 && pt0<(2029.5+sh) && pt1>(2029.0+sh)){
-    const ct=pt0;
-    const d=conflictDetectMoment(ct);
-    conflicts.push({id:'ppo',kleur:'oranje',
-      naam:'PPO onderhoudsvenster A27 ↔ FAT Tunnel A27 Noord',
-      wat:'PPO-onderhoudsvenster A27-ring overlapt FAT-periode Tunnel A27 Noord. Areaalbeschikbaarheid beperkt tijdens V-model testfasen.',
-      impact:'FAT risico · areaal beperkt · herplannen onderhoudsvenster nodig',
-      diensten:['PPO','GPO'],conflictT:ct,
-      zonderMoment:d.zonder,metMoment:d.met,
-      deadline:dlLabel(d.met,-3),winst_mnd:Math.round((d.zonder-d.met)*12)});
-  }
-
-  // 6. Audio bouwblok uitrol botst met capaciteitsdruk bij shift
-  if(sh>3/12){
-    const ct=audFAT;
-    const d=conflictDetectMoment(ct);
-    conflicts.push({id:'audio',kleur:'oranje',
-      naam:'LTS Audio uitrol ↔ FAT A27 Noord — CIV capaciteitsdruk',
-      wat:`Audio bouwblok koppelt op FAT-moment A27 Noord (${formatT(audFAT)}). Na verschuiving valt dit samen met FAT Heinenoord én LCM VCMN. CIV moet Audio, Bediening én Heinenoord-integratie gelijktijdig ondersteunen.`,
-      impact:'Integratierisico Audio bij FAT · CIV-capaciteit over grens · testvenster Audio dreigt te schuiven',
-      diensten:['CIV','GPO','VWM'],conflictT:ct,
-      zonderMoment:d.zonder,metMoment:d.met,
-      deadline:dlLabel(d.met,-4),winst_mnd:Math.round((d.zonder-d.met)*12)});
-  }
-
-  // 7. NOORDTUNNEL — Audio BB niet tijdig gereed voor ISTSI na verschuiving
-  if(sh>2/12){
-    const istsiStart=2028.0+sh;
-    const audioReady=2028.0+sh; // Audio BB goedkeuring valt samen met ISTSI-start
-    const ct=istsiStart;
-    const d=conflictDetectMoment(ct);
-    conflicts.push({id:'nt_audio',kleur:sh>4/12?'rood':'oranje',
-      naam:'Audio Bouwblok 1.2 ↔ ISTSI-fase Noordtunnel',
-      wat:'Het Audio Bouwblok 1.2 (CIV) moet compliant en uitgerold zijn vóór de ISTSI-fase van de Noordtunnel. Na verschuiving wordt de marge tussen goedkeuring Audio BB en start ISTSI te krap — risico dat ISTSI start zonder werkend bouwblok.',
-      impact:'ISTSI-fase vertraagt · openstelling Noordtunnel in gevaar · CIV-LCM-uitrol onder druk',
-      diensten:['VWM','CIV','GPO'],conflictT:ct,
-      zonderMoment:d.zonder,metMoment:d.met,
-      deadline:dlLabel(d.met,-4),winst_mnd:Math.round((d.zonder-d.met)*12)});
-  }
-
-  // 8. NOORDTUNNEL — Opleiding niet tijdig afgerond vóór openstelling na verschuiving
-  if(sh>0){
-    // De opleidingslijn rekent terug vanaf T=0. T-4 (VWM opgeleid) is het kritieke punt.
-    const t0=2028.99+sh;
-    const tMin4=t0-4/52;
-    const ct=tMin4;
-    const d=conflictDetectMoment(ct);
-    conflicts.push({id:'nt_opl',kleur:sh>6/12?'rood':'oranje',
-      naam:'Opleiding VWM (VCZWN) ↔ Openstelling Noordtunnel',
-      wat:'De opleidingslijn rekent terug vanaf openstelling (T=0): T-60 werkgroep OTO tot T-4 VWM opgeleid. Schuift de openstelling, dan moet de volledige opleidingsketen mee terugrekenen — anders staat er bij openstelling onvoldoende opgeleid personeel in de verkeerscentrale.',
-      impact:'Onvoldoende opgeleid VWM-personeel bij openstelling · O-SIT niet afgerond · openstellingsvergunning in gevaar',
-      diensten:['VWM','GPO'],conflictT:ct,
-      zonderMoment:d.zonder,metMoment:d.met,
-      deadline:dlLabel(d.met,-4),winst_mnd:Math.round((d.zonder-d.met)*12)});
-  }
-
-  return conflicts;
-}
 function ganttRender() {
   const rows=buildRows();
   const conflicts=detectConflicts3();
@@ -2856,7 +2309,7 @@ function renderVerschilPanel(conflicts){
   el.innerHTML=`<div style="background:#fff;border:1px solid #d0d6de;border-radius:6px;overflow:hidden;">
     <div style="background:#003082;color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;">
       <div style="font-size:13px;font-weight:700;">📊 Vergelijking: wanneer zichtbaar?</div>
-      <div style="font-size:11px;opacity:.8;">Verschuiving A27 Noord: +${gShift} maanden</div>
+      <div style="font-size:11px;opacity:.8;">Verschuiving: +${gShift} maanden</div>
     </div>
     <table style="width:100%;border-collapse:collapse;">
       <thead><tr style="background:#f4f6fb;">
@@ -2935,7 +2388,7 @@ function renderImpactSummary(conflicts){
       +itemsHtml+'</div>';
   }).join('');
   el.innerHTML='<div style="background:#fff;border:1px solid #d0d6de;border-radius:6px;padding:12px 16px;margin-top:12px;">'
-    +'<div style="font-size:12px;font-weight:700;color:#003082;margin-bottom:10px;">Impact per dienst — verschuiving A27 Noord +'+gShift+' maanden</div>'
+    +'<div style="font-size:12px;font-weight:700;color:#003082;margin-bottom:10px;">Impact per dienst — verschuivingrd +'+gShift+' maanden</div>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;">'+cards+'</div>'
     +'</div>';
 }
@@ -3032,7 +2485,7 @@ function renderFtePanel(fteConflicts) {
   el.innerHTML = '<div style="background:#fff;border:1px solid #d0d6de;border-radius:6px;overflow:hidden;">'
     + '<div style="background:#1a2236;color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">'
     + '<div style="font-size:13px;font-weight:700;">' + headerTxt + '</div>'
-    + '<div style="font-size:11px;opacity:.7;">Fictieve FTE-bezetting · Verschuiving A27: +' + gShift + ' mnd</div>'
+    + '<div style="font-size:11px;opacity:.7;">FTE-bezetting · Verschuiving: +' + gShift + ' mnd</div>'
     + '</div>'
     + '<div style="padding:12px;">'
     + '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:' + mbVal + 'px;">' + dienstCards + '</div>'
@@ -3058,7 +2511,7 @@ function onSliderChange(val){
 
 // backward compat
 function setMode(m){ gMode=m; ganttRender(); }
-function getProjectName(i){return['Tunnel A27 Noord','Heinenoordtunnel','Corridor A15 West'][i]||'—';}
+function getProjectName(){return '—';} // projectnamen stonden hier vast in de code
 
 function setupTooltips(){
   ['Zonder','Met'].forEach(mode=>{
@@ -3272,37 +2725,15 @@ function drawGauge(canvas) {
 }
 
 // ── Shared data ─────────────────────────────────────────
-const PROJECTS = [
-  { naam:'Tunnel A27 Noord',          vc:'VCMN',  fase:'Realisatie', open:'Q3 2029', risico:'rood',   lts:'v1.3.1', bouwblok:'LTS Bediening', gono:'UO behaald', contract:'Vast-prijs', score:62 },
-  { naam:'Renovatie Heinenoordtunnel',vc:'VCZWN', fase:'Realisatie', open:'Q4 2029', risico:'oranje', lts:'v1.3.1', bouwblok:'LTS Bediening', gono:'DO behaald', contract:'UAV-gc',    score:74 },
-  { naam:'Corridor A15 West',         vc:'VCNWN', fase:'UO-fase',    open:'Q4 2031', risico:'groen',  lts:'v3.1', bouwblok:'LTS Bewaking',  gono:'DO behaald', contract:'Alliantie', score:88 },
-  { naam:'Tunnel Maasdelta',          vc:'VCMN',  fase:'DO-fase',    open:'Q1 2032', risico:'groen',  lts:'v1.3.2', bouwblok:'LTS Intercom',  gono:'VO behaald', contract:'UAV-gc',    score:91 },
-  { naam:'Renovatie Sijtwendetunnel', vc:'VCZWN', fase:'Realisatie', open:'Q1 2029', risico:'oranje', lts:'v4.1', bouwblok:'LTS Audio',     gono:'UO behaald', contract:'Vast-prijs', score:70 },
-];
-const BOUWBLOKKEN = [
-  { naam:'LTS Bediening v1.3.1',  status:'rood',  lcm:'Q4 2029',supporteinde:'Q4 2029',projN:2,gereed:78,vc:'VCMN/VCZWN' },
-  { naam:'LTS Bewaking v3.1',   status:'groen', lcm:'Q1 2031',supporteinde:'Q2 2031',projN:1,gereed:92,vc:'VCNWN' },
-  { naam:'LTS Intercom v2.4',   status:'oranje',lcm:'Q2 2030',supporteinde:'Q3 2030',projN:1,gereed:55,vc:'VCMN' },
-  { naam:'LTS Audio v2.1',      status:'oranje',lcm:'Q3 2029',supporteinde:'Q4 2029',projN:1,gereed:61,vc:'VCZWN' },
-  { naam:'LTS CCTV v5.0',       status:'groen', lcm:'Q2 2032',supporteinde:'Q1 2033',projN:1,gereed:95,vc:'VCMN' },
-  { naam:'LTS Logging v3.0',    status:'groen', lcm:'Q1 2031',supporteinde:'Q3 2031',projN:3,gereed:88,vc:'Alle' },
-];
-const VCS = [
-  { naam:'VC Midden-NL (VCMN)',      lcm:'Q3 2029',lcmEinde:'Q2 2030',status:'rood',  projN:2, bezetting:87, vc:'VCMN'  },
-  { naam:'VC Zuidwest-NL (VCZWN)',   lcm:'Q3 2028',lcmEinde:'Q1 2029',status:'oranje',projN:2, bezetting:72, vc:'VCZWN' },
-  { naam:'VC Noordwest-NL (VCNWN)',  lcm:'Q4 2030',lcmEinde:'Q3 2031',status:'groen', projN:1, bezetting:58, vc:'VCNWN' },
-];
-const TRIGGERS_LIVE = [
-  { naam:'LCM-conflict VC Midden-NL ↔ A27 proefbedrijf',    klasse:'rood',  dienst:'VWM/GPO', deadline:'aug 2027' },
-  { naam:'Testcapaciteit CIV: A27 ↔ Heinenoord FAT/SAT',    klasse:'rood',  dienst:'CIV/GPO', deadline:'okt 2027' },
-  { naam:'CIV bouwblokversie v1.3.1 buiten support na shift',  klasse:'rood',  dienst:'CIV/VWM', deadline:'sep 2027' },
-  { naam:'Testcapaciteit: A27 ↔ A15 West FAT',               klasse:'rood',  dienst:'CIV/GPO', deadline:'nov 2027' },
-  { naam:'PPO Onderhoudsvenster A27 ↔ FAT Tunnel A27',       klasse:'oranje',dienst:'PPO/GPO', deadline:'feb 2028' },
-  { naam:'VWM-opdracht A27 niet meer synchroon na shift',     klasse:'oranje',dienst:'VWM/CIV', deadline:'dec 2027' },
-  { naam:'LCM VC ZW-NL ↔ FAT Heinenoordtunnel',             klasse:'oranje',dienst:'VWM/GPO', deadline:'mrt 2028' },
-  { naam:'LCM VC NW-NL ↔ FAT Corridor A15 West',            klasse:'rood',  dienst:'VWM/GPO', deadline:'jan 2028' },
-  { naam:'Regio-hindercommunicatie A27 verouderd na shift',  klasse:'oranje',dienst:'Regio',   deadline:'jan 2028' },
-];
+/* Portfolio-, bouwblok-, VC- en triggeroverzichten stonden hier als vaste lijst
+   met werkelijke projectinformatie: openstellingskwartalen, LTS-versies, go/no-go-
+   status, contractvorm en bezettingspercentages. Die hoort niet in de broncode.
+   De schermen die deze lijsten gebruikten zijn niet bereikbaar in de applicatie;
+   ze tonen nu niets in plaats van andermans projectgegevens. */
+const PROJECTS = [];
+const BOUWBLOKKEN = [];
+const VCS = [];
+const TRIGGERS_LIVE = [];
 
 function statusBadge(s) {
   const map = { rood:'var(--rood)', oranje:'var(--oranje)', groen:'var(--groen)' };
@@ -3317,40 +2748,12 @@ function spark(vals, col='#003082', w=80) {
 // ══════════════════════════════════════════
 // DASHBOARD BUILDERS
 // ══════════════════════════════════════════
-const DASH_BUILDERS = {
-  gpo: {
-    operationeel: function(){ return dashKPIs([['#c0121f','3','Projecten met openstellingsrisico'],['#e06b00','4','Rode triggers actief'],['#003082','5','Actieve GPO-projecten'],['#1a8a4a','74%','Mijlpalen on-track']]) + dashCard('Projectstatus — openstellingsmijlpalen', '<table class="dw-table"><thead><tr><th>Project</th><th>Fase</th><th>Openstelling</th><th>Risico</th><th>Score</th></tr></thead><tbody>' + PROJECTS.map(function(p){ return '<tr><td style="font-weight:600">'+p.naam+'</td><td>'+p.fase+'</td><td>'+p.open+'</td><td>'+statusBadge(p.risico)+'</td><td>'+spark([p.score-12,p.score-8,p.score-4,p.score], p.risico==='rood'?'#c0121f':p.risico==='oranje'?'#e06b00':'#1a8a4a', 60)+'</td></tr>'; }).join('') + '</tbody></table>') + dashBowWave('GPO'); },
-    tactisch: function(){ return dashKPIs([['#c0121f','EUR B','Kostenklasse risico actief'],['#e06b00','6','Openstaande besluitpunten'],['#003082','18','Ketenafhankelijkheden'],['#1a8a4a','2','Opstellingen op schema']]) + dashCard('Besluitpunten per project', '<table class="dw-table"><thead><tr><th>Project</th><th>CIV</th><th>VWM</th><th>PPO</th></tr></thead><tbody>' + PROJECTS.map(function(p){ return '<tr><td style="font-weight:600">'+p.naam+'</td><td>'+statusBadge(p.risico)+'</td><td>'+statusBadge('oranje')+'</td><td>'+statusBadge('groen')+'</td></tr>'; }).join('') + '</tbody></table>'); },
-    strategisch: function(){ return dashKPIs([['#c0121f','3','Openstellingen met risico'],['#e06b00','EUR 12M','Kostenklasse B risico'],['#003082','2027-31','Planningshorizon'],['#1a8a4a','78%','Datakwaliteit integrale set']]) + dashCard('Strategische beleidsopties', '<div class="dw-alert info"><div class="dw-alert-icon">A</div><div><strong>Optie A: Versnelling LTS v1.3.2</strong>Budget +EUR 3M CIV, risico A27 opgelost</div></div><div class="dw-alert info"><div class="dw-alert-icon">B</div><div><strong>Optie B: Fasering openstelling A27</strong>Gedeeltelijke openstelling Q3 2029</div></div>'); },
-  },
-  civ: {
-    operationeel: function(){ return dashKPIs([['#5a2d82','6','Actieve bouwblokken'],['#c0121f','2','Releases met supportrisico'],['#e06b00','87%','CIV testcapaciteit bezet'],['#1a8a4a','4','Bouwblokken op schema']]) + dashCard('Bouwblokstatus per release en LCM', '<table class="dw-table"><thead><tr><th>Bouwblok</th><th>Gereedheid</th><th>LCM</th><th>Supporteinde</th><th>Status</th></tr></thead><tbody>' + BOUWBLOKKEN.map(function(b){ return '<tr><td style="font-weight:600">'+b.naam+'</td><td>'+b.gereed+'%</td><td>'+b.lcm+'</td><td>'+b.supporteinde+'</td><td>'+statusBadge(b.status)+'</td></tr>'; }).join('') + '</tbody></table>') + dashBowWave('CIV'); },
-    tactisch: function(){ return dashKPIs([['#5a2d82','6','Bouwblokken in beheer'],['#c0121f','2','Supportrisico releases'],['#e06b00','EUR 8M','CIV-budget in risico'],['#1a8a4a','88%','Gem. gereedheid']]) + dashCard('Capaciteitsplanning testtrajecten', '<div class="dw-alert rood"><div class="dw-alert-icon">!</div><div><strong>Capaciteitsconflict Q1-Q2 2029</strong>A27 Noord, Heinenoord en Sijtwende vragen gelijktijdig FAT-capaciteit.</div></div>'); },
-    strategisch: function(){ return dashKPIs([['#5a2d82','EUR 8M','CIV-budget in risico'],['#c0121f','2','Bouwblokken buiten LTS-kader'],['#003082','3','VCs in LCM-transitie'],['#1a8a4a','6','Meerjarig ingepland']]) + dashCard('Strategische roadmap CIV 2027-2032', '<div class="dw-bar-chart"><div class="dw-bar-row"><div class="dw-bar-label">LTS Bediening</div><div class="dw-bar-track"><div class="dw-bar-fill" style="width:72%;background:#5a2d82">v1.3.1 → v1.3.2</div></div></div><div class="dw-bar-row"><div class="dw-bar-label">LTS Audio</div><div class="dw-bar-track"><div class="dw-bar-fill" style="width:61%;background:#e06b00">v2.1 — on track</div></div></div></div>'); },
-  },
-  vwm: {
-    operationeel: function(){ return dashKPIs([['#00823c','5','Verkeerscentrales in beheer'],['#c0121f','1','LCM-conflict actief'],['#e06b00','3','Opdrachten aan CIV open'],['#1a8a4a','92%','VC-beschikbaarheid']]) + dashDienstProjecten('VWM') + dashCard('Verkeerscentrale lifecycle status', '<table class="dw-table"><thead><tr><th>VC</th><th>LCM</th><th>Status</th></tr></thead><tbody>' + VCS.map(function(v){ return '<tr><td style="font-weight:600">'+v.naam+'</td><td>'+v.lcm+'</td><td>'+statusBadge(v.status)+'</td></tr>'; }).join('') + '</tbody></table>') + dashBowWave('VWM'); },
-    tactisch: function(){ return dashKPIs([['#00823c','5','VCs operationeel'],['#c0121f','1','LCM-planningsconflict'],['#e06b00','2','Opdrachttiming kritiek'],['#1a8a4a','92%','Beschikbaarheid']]) + dashCard('LCM-planning versus projecttijdlijnen', '<div class="dw-alert rood"><div class="dw-alert-icon">!</div><div><strong>LCM VCMN conflict</strong>LCM-vervanging VC Midden-NL overlapt proefbedrijf A27 Noord.</div></div>'); },
-    strategisch: function(){ return dashKPIs([['#00823c','5','VCs in portfolio'],['#c0121f','EUR 6M','LCM-investering meerjarig'],['#003082','2027-32','LCM-horizon'],['#1a8a4a','3','VCs vernieuwd']]) + dashCard('VWM strategische VC-roadmap', '<div class="dw-alert info"><div class="dw-alert-icon">i</div><div><strong>LCM-investeringsplan 2027-2032</strong>Gefaseerde vernieuwing 5 verkeerscentrales.</div></div>'); },
-  },
-  ppo: {
-    operationeel: function(){ return dashKPIs([['#00698a','4','Onderhoudsvensters gepland'],['#c0121f','1','Conflict met FAT-fase'],['#e06b00','2','Areaalvensters krap'],['#1a8a4a','95%','Areaalbeschikbaarheid']]) + dashCard('Onderhoudsvensters areaal', '<div class="dw-alert oranje"><div class="dw-alert-icon">!</div><div><strong>PPO-venster overlapt FAT A27</strong>Onderhoudsvenster A27-ring botst met testfase na verschuiving.</div></div>'); },
-    tactisch: function(){ return dashKPIs([['#00698a','4','Vensters in planning'],['#c0121f','1','FAT-conflict'],['#e06b00','2','Krappe vensters'],['#1a8a4a','95%','Beschikbaarheid']]) + dashCard('Areaalplanning versus projecten', '<div class="dw-alert oranje"><div class="dw-alert-icon">!</div><div><strong>Herplannen onderhoudsvenster nodig</strong>Areaalbeschikbaarheid beperkt tijdens FAT-periode A27 Noord.</div></div>'); },
-    strategisch: function(){ return dashKPIs([['#00698a','4','Areaalvensters meerjarig'],['#003082','2027-31','Onderhoudshorizon'],['#e06b00','EUR 2M','Herplanningskosten'],['#1a8a4a','95%','Beschikbaarheid']]) + dashCard('PPO meerjarig areaalbeheer', '<div class="dw-alert info"><div class="dw-alert-icon">i</div><div><strong>Integrale areaalplanning</strong>Afstemming onderhoudsvensters met projecttijdlijnen GPO.</div></div>'); },
-  },
-  regio: {
-    operationeel: function(){ return dashKPIs([['#c05000','3','Hindercommunicaties gepland'],['#c0121f','1','Communicatie niet synchroon'],['#e06b00','2','Bestuurlijke afstemming open'],['#1a8a4a','90%','Communicatie op schema']]) + dashCard('Hindercommunicatie planning', '<div class="dw-alert oranje"><div class="dw-alert-icon">!</div><div><strong>Communicatie A27 niet synchroon</strong>Hindercommunicatie moet aansluiten op openstelling na verschuiving.</div></div>'); },
-    tactisch: function(){ return dashKPIs([['#c05000','3','Communicaties in planning'],['#c0121f','1','Synchronisatieprobleem'],['#e06b00','2','Afstemming open'],['#1a8a4a','90%','Op schema']]) + dashCard('Bestuurlijke afstemming regio', '<div class="dw-alert oranje"><div class="dw-alert-icon">!</div><div><strong>Afstemming openstellingsdatum</strong>Communicatie naar bestuurlijke partners vereist actuele planning.</div></div>'); },
-    strategisch: function(){ return dashKPIs([['#c05000','3','Regio-communicaties'],['#003082','2027-31','Communicatiehorizon'],['#e06b00','5','Bestuurlijke partners'],['#1a8a4a','90%','Op schema']]) + dashCard('Regionale communicatiestrategie', '<div class="dw-alert info"><div class="dw-alert-icon">i</div><div><strong>Integrale hindercommunicatie</strong>Afstemming met alle openstellingen in de regio.</div></div>'); },
-  },
-  mt: {
-    operationeel: function(){ return dashKPIs([['#1a2236','5','Projecten in portfolio'],['#c0121f','3','Openstellingen met risico'],['#e06b00','9','Actieve triggers'],['#1a8a4a','78%','Integrale datakwaliteit']]) + dashCard('Portfolio-overzicht alle projecten', '<table class="dw-table"><thead><tr><th>Project</th><th>Openstelling</th><th>Risico</th></tr></thead><tbody>' + PROJECTS.map(function(p){ return '<tr><td style="font-weight:600">'+p.naam+'</td><td>'+p.open+'</td><td>'+statusBadge(p.risico)+'</td></tr>'; }).join('') + '</tbody></table>'); },
-    tactisch: function(){ return dashKPIs([['#1a2236','5','Projecten actief'],['#c0121f','EUR 12M','Kostenrisico portfolio'],['#e06b00','9','Triggers'],['#1a8a4a','78%','Datakwaliteit']]) + dashCard('Portfoliosturing per tijdshorizon', '<div class="dw-bar-chart"><div class="dw-bar-row"><div class="dw-bar-label">&lt; 6 maanden</div><div class="dw-bar-track"><div class="dw-bar-fill" style="width:90%;background:#c0121f">4 rood, 2 oranje</div></div></div><div class="dw-bar-row"><div class="dw-bar-label">6-12 maanden</div><div class="dw-bar-track"><div class="dw-bar-fill" style="width:55%;background:#e06b00">2 rood, 3 oranje</div></div></div></div>'); },
-    strategisch: function(){ return dashKPIs([['#1a2236','5','Portfolio-projecten'],['#c0121f','EUR 12M','Totaal kostenrisico'],['#003082','2027-32','Strategische horizon'],['#1a8a4a','78%','Integrale datakwaliteit']]) + dashCard('MT-besluiten en escalaties', '<div class="dw-alert rood"><div class="dw-alert-icon">!</div><div><strong>Escalatie vereist</strong>LCM-conflict VCMN en testcapaciteitsconflict A27/Heinenoord overstijgen operationeel mandaat. Besluit vóór 1 aug 2027.</div></div><div class="dw-alert info"><div class="dw-alert-icon">i</div><div><strong>Investeer EUR 4M, vermijd EUR 12M risico</strong>Opties A+B lossen 6 van 9 actieve triggers op.</div></div>') + '<div class="dash-card" style="border-top:3px solid var(--rws-geel);margin-top:12px;"><div style="font-size:14px;font-style:italic;color:var(--rws-blauw);font-weight:600;text-align:center;padding:8px 0;">De integrale planning maakt zichtbaar waar verantwoordelijkheden elkaar raken, zodat MT kan sturen op dezelfde feiten als de operatie.</div></div>'; },
-  },
-};
+/* De dashboardopbouwers bevatten vaste KPI-cijfers over werkelijke projecten:
+   aantallen risicovolle openstellingen, kostenklassen in euro's en besluitdata.
+   Die cijfers kwamen niet uit een bron en hoorden niet in de code. Een dashboard
+   zonder geladen planning toont nu een lege staat. */
+const DASH_BUILDERS = {};
 
-// Helper functies voor dashboards (vervangen template literals)
 function dashKPIs(items){
   var html = '<div class="dw-kpi-grid">';
   for(var i=0;i<items.length;i++){
@@ -3363,7 +2766,7 @@ function dashCard(titel, inhoud){
   return '<div class="dash-card"><h4>'+titel+'</h4>'+inhoud+'</div>';
 }
 
-// ── Live boeggolf-kaart voor dashboards (gevoed door Noordtunnel-casus s4) ──
+// ── Live boeggolf-kaart voor dashboards ──
 function dashBowWave(dienst){
   if(typeof nt_bowWaveStats!=='function'){ return ''; }
   var bw=nt_bowWaveStats();
@@ -3382,7 +2785,7 @@ function dashBowWave(dienst){
     +'<line x1="0" y1="'+capY+'" x2="'+W+'" y2="'+capY+'" stroke="#c0121f" stroke-width="1" stroke-dasharray="4,3"/>'
     +'<polyline points="'+pts+'" fill="none" stroke="'+NT_DIENST_CAP[dienst].kleur+'" stroke-width="2"/>'
     +'</svg>';
-  return '<div class="dash-card"><h4>Formatie-boeggolf '+dienst+' (live uit Noordtunnel-casus)</h4>'
+  return '<div class="dash-card"><h4>Formatie-boeggolf '+dienst+'</h4>'
     +'<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:8px;">'
     +'<div style="font-size:24px;font-weight:800;color:'+col+';">'+s.peak.toFixed(1)+' <span style="font-size:12px;color:#6a7898;">/ '+s.cap+' FTE piek</span></div>'
     +'<div style="font-size:12px;font-weight:700;color:'+col+';">'+s.util+'%</div>'
@@ -3429,7 +2832,7 @@ function dashDienstProjecten(dienst){
   var extra='';
   if(dienst==='VWM'){
     extra='<div style="font-size:11px;color:#4a5568;margin-top:10px;padding:8px 12px;background:#e6f5ed;border-radius:5px;border-left:3px solid #00823c;">'
-      +'<strong>Opdrachtgevende rol:</strong> VWM verstrekt namens de tunnelprojecten (Noordtunnel, Zuidasdok) de opdracht aan CIV voor het Audio Bouwblok en draagt de regie over de opleiding vóór elke openstelling.</div>';
+      +'<strong>Opdrachtgevende rol:</strong> VWM verstrekt namens de tunnelprojecten de opdracht aan CIV voor het Audio Bouwblok en draagt de regie over de opleiding vóór elke openstelling.</div>';
   }
 
   return '<div class="dash-card"><h4>Projecten onder verantwoordelijkheid van '+dienst+'</h4>'
@@ -3442,7 +2845,11 @@ function dashDienstProjecten(dienst){
 // ══════════════════════════════════════════
 // SCHERM 12 — Echte VWM Meerjarenplanning (Primavera P6)
 // ══════════════════════════════════════════
-const P6_DATA = {"lanes":["Sturing","Mijlpalen","LCM","Financieel","Besluitvormings Overleggen","LTS Releases","Charm-uitrol","MKC","VCMN","Openstelling VCMN","VCNON","Openstelling VCNON","VCNWN","Openstelling VCNWN","VCZN","Openstelling VCZN","VCZWN","Openstelling VCZWN","Nieuwbouwtunnels","VC overig","Project Mijlpalen"],"acts":[{"id":"a0","lane":"Project Mijlpalen","naam":"Project (Planning) Start","start":"2026-04-08","finish":"2026-04-08","mijlpaal":true,"vc":"","tunnel":""},{"id":"a1","lane":"Project Mijlpalen","naam":"Project Einde","start":"2038-12-31","finish":"2038-12-31","mijlpaal":true,"vc":"","tunnel":""},{"id":"a2","lane":"VC overig","naam":"Vast & Variabel Onderhoud · WNN/MN — Onderhoud (Vast)","start":"2026-04-08","finish":"2026-08-31","mijlpaal":false,"vc":"Vast & Variabel Onderhoud","tunnel":""},{"id":"a3","lane":"VC overig","naam":"Vast & Variabel Onderhoud · WNN/MN — Contractvoorbereiding","start":"2026-04-08","finish":"2026-12-31","mijlpaal":false,"vc":"Vast & Variabel Onderhoud","tunnel":""},{"id":"a4","lane":"VC overig","naam":"Vast & Variabel Onderhoud · WNN/MN — Onderhoud (Vast)","start":"2026-04-08","finish":"2026-08-31","mijlpaal":false,"vc":"Vast & Variabel Onderhoud","tunnel":""},{"id":"a5","lane":"VC overig","naam":"Vast & Variabel Onderhoud · WNN/MN — Aanbesteding","start":"2026-04-08","finish":"2026-09-30","mijlpaal":false,"vc":"Vast & Variabel Onderhoud","tunnel":""},{"id":"a6","lane":"VC overig","naam":"Vast & Variabel Onderhoud · WNN/MN — Onderhoud (Vast)","start":"2026-04-08","finish":"2037-12-31","mijlpaal":false,"vc":"Vast & Variabel Onderhoud","tunnel":""},{"id":"a7","lane":"Nieuwbouwtunnels","naam":"Nieuw(bouw)tunnels · Zuidasdok — Periode tot aan Uitvoering (tem","start":"2026-04-08","finish":"2029-03-31","mijlpaal":false,"vc":"Nieuw(bouw)tunnels","tunnel":""},{"id":"a8","lane":"Nieuwbouwtunnels","naam":"Nieuw(bouw)tunnels · Zuidasdok — Uitvoering","start":"2029-04-01","finish":"2033-12-31","mijlpaal":false,"vc":"Nieuw(bouw)tunnels","tunnel":""},{"id":"a9","lane":"VCMN","naam":"VCMN - BB Audio","start":"2026-01-01","finish":"2027-06-30","mijlpaal":false,"vc":"VCMN","tunnel":""},{"id":"a10","lane":"VCMN","naam":"Leidsche Rijntunnel (VCMN) — Planfase","start":"2026-04-08","finish":"2029-12-31","mijlpaal":false,"vc":"VCMN","tunnel":"Leidsche Rijntunnel"},{"id":"a11","lane":"VCMN","naam":"VCMN - Procesmanager (2026)","start":"2026-07-01","finish":"2026-12-31","mijlpaal":false,"vc":"VCMN","tunnel":""},{"id":"a12","lane":"VCMN","naam":"VCMN - Videowand","start":"2027-07-01","finish":"2028-06-30","mijlpaal":false,"vc":"VCMN","tunnel":""},{"id":"a13","lane":"VCMN","naam":"VCMN - Procesmanager (2027)","start":"2027-07-01","finish":"2027-12-31","mijlpaal":false,"vc":"VCMN","tunnel":""},{"id":"a14","lane":"VCMN","naam":"VCMN - Visualisatieplatform","start":"2028-01-01","finish":"2029-12-31","mijlpaal":false,"vc":"VCMN","tunnel":""},{"id":"a15","lane":"VCMN","naam":"VCMN - Desktopmonitoren","start":"2028-01-01","finish":"2028-12-31","mijlpaal":false,"vc":"VCMN","tunnel":""},{"id":"a16","lane":"VCMN","naam":"VCMN - Procesmanager (2028)","start":"2028-07-01","finish":"2028-12-31","mijlpaal":false,"vc":"VCMN","tunnel":""},{"id":"a17","lane":"VCMN","naam":"VCMN - Procesmanager (2029)","start":"2029-07-01","finish":"2029-12-31","mijlpaal":false,"vc":"VCMN","tunnel":""},{"id":"a18","lane":"VCMN","naam":"VCMN - Lessenaars","start":"2030-01-01","finish":"2030-12-31","mijlpaal":false,"vc":"VCMN","tunnel":""},{"id":"a19","lane":"VCZN","naam":"Tunnels A73, Fase 2 Realisatiefase (VCZN) — Planfase","start":"2026-04-08","finish":"2026-12-31","mijlpaal":false,"vc":"VCZN","tunnel":"Tunnels A73, Fase 2 Realisatiefase"},{"id":"a20","lane":"VCZN","naam":"Koning Willem-Alexandertunnel (VCZN) — Regio Analyse","start":"2026-04-08","finish":"2026-12-31","mijlpaal":false,"vc":"VCZN","tunnel":"Koning Willem-Alexandertunnel"},{"id":"a21","lane":"VCZN","naam":"Vlaketunnel en Dampoortaquaduct Realisatiefase (VCZN) — Planfase","start":"2026-04-08","finish":"2026-12-31","mijlpaal":false,"vc":"VCZN","tunnel":"Vlaketunnel en Dampoortaquaduct Realisatiefase"},{"id":"a22","lane":"VCZN","naam":"Westerscheldetunnel (VCZN) — Periode tot aan Planfase (temp)","start":"2026-04-08","finish":"2028-12-31","mijlpaal":false,"vc":"VCZN","tunnel":"Westerscheldetunnel"},{"id":"a23","lane":"VCZN","naam":"Sluiskiltunnel (VCZN) — Periode tot aan Planfase (temp)","start":"2026-04-08","finish":"2028-12-31","mijlpaal":false,"vc":"VCZN","tunnel":"Sluiskiltunnel"},{"id":"a24","lane":"VCZN","naam":"VCZN - BB Audio","start":"2026-06-01","finish":"2027-12-31","mijlpaal":false,"vc":"VCZN","tunnel":""},{"id":"a25","lane":"VCZN","naam":"VCZN - Procesmanager (2026)","start":"2026-07-01","finish":"2026-12-31","mijlpaal":false,"vc":"VCZN","tunnel":""},{"id":"a26","lane":"VCZN","naam":"Tunnels A73, Fase 2 Realisatiefase (VCZN) — Contractvoorbereidin","start":"2027-01-01","finish":"2028-06-30","mijlpaal":false,"vc":"VCZN","tunnel":"Tunnels A73, Fase 2 Realisatiefase"},{"id":"a27","lane":"VCZN","naam":"Koning Willem-Alexandertunnel (VCZN) — Planfase","start":"2027-01-01","finish":"2028-12-31","mijlpaal":false,"vc":"VCZN","tunnel":"Koning Willem-Alexandertunnel"},{"id":"a28","lane":"VCZN","naam":"Vlaketunnel en Dampoortaquaduct Realisatiefase (VCZN) — Contract","start":"2027-01-01","finish":"2028-06-30","mijlpaal":false,"vc":"VCZN","tunnel":"Vlaketunnel en Dampoortaquaduct Realisatiefase"},{"id":"a29","lane":"VCNON","naam":"VCNON - BB Audio","start":"2026-01-01","finish":"2026-12-31","mijlpaal":false,"vc":"VCNON","tunnel":""},{"id":"a30","lane":"VCNON","naam":"Salland Twentetunnel (VCNON) — Regio Analyse","start":"2026-04-08","finish":"2026-12-31","mijlpaal":false,"vc":"VCNON","tunnel":"Salland Twentetunnel"},{"id":"a31","lane":"VCNON","naam":"VCNON - Procesmanager (2026)","start":"2026-07-01","finish":"2026-12-31","mijlpaal":false,"vc":"VCNON","tunnel":""},{"id":"a32","lane":"VCNON","naam":"Salland Twentetunnel (VCNON) — Planfase","start":"2027-01-01","finish":"2028-12-31","mijlpaal":false,"vc":"VCNON","tunnel":"Salland Twentetunnel"},{"id":"a33","lane":"VCNON","naam":"VCNON - Videowand","start":"2027-07-01","finish":"2028-06-30","mijlpaal":false,"vc":"VCNON","tunnel":""},{"id":"a34","lane":"VCNON","naam":"VCNON - Procesmanager (2027)","start":"2027-07-01","finish":"2027-12-31","mijlpaal":false,"vc":"VCNON","tunnel":""},{"id":"a35","lane":"VCNON","naam":"VCNON - Visualisatieplatform","start":"2028-01-01","finish":"2029-12-31","mijlpaal":false,"vc":"VCNON","tunnel":""},{"id":"a36","lane":"VCNON","naam":"VCNON - Desktopmonitoren","start":"2028-01-01","finish":"2028-12-31","mijlpaal":false,"vc":"VCNON","tunnel":""},{"id":"a37","lane":"VCNON","naam":"VCNON - Procesmanager (2028)","start":"2028-07-01","finish":"2028-12-31","mijlpaal":false,"vc":"VCNON","tunnel":""},{"id":"a38","lane":"VCNON","naam":"Salland Twentetunnel (VCNON) — (Gat tussen Planfase en Contracte","start":"2029-01-01","finish":"2031-12-31","mijlpaal":false,"vc":"VCNON","tunnel":"Salland Twentetunnel"},{"id":"a39","lane":"VCNWN","naam":"Wijkertunnel (VCNWN) — Planfase","start":"2026-04-08","finish":"2029-12-31","mijlpaal":false,"vc":"VCNWN","tunnel":"Wijkertunnel"},{"id":"a40","lane":"VCNWN","naam":"Schipholtunnel (VCNWN) — Planfase","start":"2026-04-08","finish":"2027-12-31","mijlpaal":false,"vc":"VCNWN","tunnel":"Schipholtunnel"},{"id":"a41","lane":"VCNWN","naam":"Zeeburgertunnel (VCNWN) — Planfase","start":"2026-04-08","finish":"2027-12-31","mijlpaal":false,"vc":"VCNWN","tunnel":"Zeeburgertunnel"},{"id":"a42","lane":"VCNWN","naam":"Velsertunnel (VCNWN) — Periode tot aan Regioanalyse(temp)","start":"2026-04-08","finish":"2030-12-31","mijlpaal":false,"vc":"VCNWN","tunnel":"Velsertunnel"},{"id":"a43","lane":"VCNWN","naam":"Coentunnel (VCNWN) — Periode tot aan Regioanalyse(temp)","start":"2026-04-08","finish":"2030-12-31","mijlpaal":false,"vc":"VCNWN","tunnel":"Coentunnel"},{"id":"a44","lane":"VCNWN","naam":"Gaasperdammertunnel (VCNWN) — Periode tot aan Regioanalyse(temp)","start":"2026-04-08","finish":"2031-03-31","mijlpaal":false,"vc":"VCNWN","tunnel":"Gaasperdammertunnel"},{"id":"a45","lane":"VCNWN","naam":"VCNWN - Procesmanager (2026)","start":"2026-07-01","finish":"2026-12-31","mijlpaal":false,"vc":"VCNWN","tunnel":""},{"id":"a46","lane":"VCNWN","naam":"VCNWN - BB Audio","start":"2027-01-01","finish":"2028-12-31","mijlpaal":false,"vc":"VCNWN","tunnel":""},{"id":"a47","lane":"VCNWN","naam":"VCNWN - Videowand","start":"2027-07-01","finish":"2028-06-30","mijlpaal":false,"vc":"VCNWN","tunnel":""},{"id":"a48","lane":"VCNWN","naam":"VCNWN - Procesmanager (2027)","start":"2027-07-01","finish":"2027-12-31","mijlpaal":false,"vc":"VCNWN","tunnel":""},{"id":"a49","lane":"VCZWN","naam":"Heinenoordtunnel (VCZWN) — Onderhoud (Vast)","start":"2026-04-08","finish":"2026-12-31","mijlpaal":false,"vc":"VCZWN","tunnel":"Heinenoordtunnel"},{"id":"a50","lane":"VCZWN","naam":"Noordtunnel (VCZWN) — Engineering","start":"2026-04-08","finish":"2027-03-31","mijlpaal":false,"vc":"VCZWN","tunnel":"Noordtunnel"},{"id":"a51","lane":"VCZWN","naam":"Beneluxtunnel (VCZWN) — Engineering","start":"2026-04-08","finish":"2028-12-31","mijlpaal":false,"vc":"VCZWN","tunnel":"Beneluxtunnel"},{"id":"a52","lane":"VCZWN","naam":"Tweede Heinenoord (VCZWN) — (Gat tussen Planfase en Contracterin","start":"2026-04-08","finish":"2026-12-31","mijlpaal":false,"vc":"VCZWN","tunnel":"Tweede Heinenoord"},{"id":"a53","lane":"VCZWN","naam":"Drechttunnel (VCZWN) — Engineering","start":"2026-04-08","finish":"2028-03-31","mijlpaal":false,"vc":"VCZWN","tunnel":"Drechttunnel"},{"id":"a54","lane":"VCZWN","naam":"Sijtwendetunnels (VCZWN) — (Gat tussen Planfase en Contractering","start":"2026-04-08","finish":"2026-06-30","mijlpaal":false,"vc":"VCZWN","tunnel":"Sijtwendetunnels"},{"id":"a55","lane":"VCZWN","naam":"Botlektunnel (VCZWN) — Periode tot aan Planfase (temp)","start":"2026-04-08","finish":"2029-12-31","mijlpaal":false,"vc":"VCZWN","tunnel":"Botlektunnel"},{"id":"a56","lane":"VCZWN","naam":"Thomassentunnel (VCZWN) — Periode tot aan Planfase (temp)","start":"2026-04-08","finish":"2029-12-31","mijlpaal":false,"vc":"VCZWN","tunnel":"Thomassentunnel"},{"id":"a57","lane":"VCZWN","naam":"Ketheltunnel (VCZWN) — Periode tot aan Planfase (temp)","start":"2026-04-08","finish":"2029-12-31","mijlpaal":false,"vc":"VCZWN","tunnel":"Ketheltunnel"},{"id":"a58","lane":"VCZWN","naam":"VCZWN - Procesmanager (2026)","start":"2026-07-01","finish":"2026-12-31","mijlpaal":false,"vc":"VCZWN","tunnel":""},{"id":"a59","lane":"LTS Releases","naam":"LTS 1.2 SP2 B4 (N.T.B)","start":"2024-05-24","finish":"2026-11-17","mijlpaal":false,"vc":"","tunnel":""},{"id":"a60","lane":"LTS Releases","naam":"LTS 1.3 B1 - Ontwikkeling (N.T.B)","start":"2026-11-18","finish":"2028-04-11","mijlpaal":false,"vc":"","tunnel":""},{"id":"a61","lane":"LTS Releases","naam":"LTS 1.3 B1 - Bouwblokken beschikbaar voor uitrol (N.T.B)","start":"2028-04-11","finish":"2028-04-11","mijlpaal":true,"vc":"","tunnel":""},{"id":"a62","lane":"LTS Releases","naam":"LTS 1.3 B2 - Ontwikkeling (N.T.B)","start":"2028-04-12","finish":"2029-09-04","mijlpaal":false,"vc":"","tunnel":""},{"id":"a63","lane":"LTS Releases","naam":"LTS 1.3 B2 Bouwblokken beschikbaar voor uitrol (N.T.B)","start":"2029-09-04","finish":"2029-09-04","mijlpaal":true,"vc":"","tunnel":""},{"id":"a64","lane":"LTS Releases","naam":"LTS 1.3 B3 - Ontwikkeling (N.T.B)","start":"2029-09-05","finish":"2031-01-28","mijlpaal":false,"vc":"","tunnel":""},{"id":"a65","lane":"LTS Releases","naam":"LTS 1.3 B3 Bouwblokken beschikbaar voor uitrol (N.T.B)","start":"2031-01-28","finish":"2031-01-28","mijlpaal":true,"vc":"","tunnel":""},{"id":"a66","lane":"Charm-uitrol","naam":"Charm RollA2 VC 2 - Wolfheze","start":"2027-01-01","finish":"2027-04-30","mijlpaal":false,"vc":"","tunnel":""},{"id":"a67","lane":"Charm-uitrol","naam":"Charm RollA2 VC 4 - Velsen","start":"2027-05-03","finish":"2027-08-30","mijlpaal":false,"vc":"","tunnel":""},{"id":"a68","lane":"Charm-uitrol","naam":"Charm RollA2 VC 3 - Rhoon","start":"2027-08-30","finish":"2027-12-28","mijlpaal":false,"vc":"","tunnel":""},{"id":"a69","lane":"Charm-uitrol","naam":"Charm RollA2 VC 3 - Utrecht","start":"2027-12-28","finish":"2028-04-25","mijlpaal":false,"vc":"","tunnel":""},{"id":"a70","lane":"MKC","naam":"MKC Uitrol Fase II (Primair In AUDIOBB)","start":"2025-04-01","finish":"2027-01-01","mijlpaal":false,"vc":"","tunnel":""},{"id":"a71","lane":"MKC","naam":"MKC gereed","start":"2027-01-01","finish":"2027-01-01","mijlpaal":true,"vc":"","tunnel":""},{"id":"a72","lane":"Sturing","naam":"T2 - 2026","start":"2026-07-01","finish":"2026-07-01","mijlpaal":true,"vc":"","tunnel":""},{"id":"a73","lane":"Sturing","naam":"Start Nieuwe Management Contract (N.T.B.) (4-Jaarlijks)","start":"2026-10-01","finish":"2026-10-01","mijlpaal":true,"vc":"","tunnel":""},{"id":"a74","lane":"Sturing","naam":"T3 - 2026","start":"2026-11-01","finish":"2026-11-01","mijlpaal":true,"vc":"","tunnel":""},{"id":"a75","lane":"Sturing","naam":"T1 - 2027","start":"2027-03-05","finish":"2027-03-05","mijlpaal":true,"vc":"","tunnel":""},{"id":"a76","lane":"Mijlpalen","naam":"Besluit Bedienfilosofie (N.T.B.)","start":"2026-10-01","finish":"2026-10-01","mijlpaal":true,"vc":"","tunnel":""},{"id":"a77","lane":"Mijlpalen","naam":"Besluit Pand Rhoon","start":"2028-01-01","finish":"2028-01-01","mijlpaal":true,"vc":"","tunnel":""},{"id":"a78","lane":"Mijlpalen","naam":"Verhuizing Helmond (N.T.B.)","start":"2030-07-01","finish":"2030-07-01","mijlpaal":true,"vc":"","tunnel":""},{"id":"a79","lane":"LCM","naam":"Proof of Concept B&PS Gereed","start":"2026-07-01","finish":"2026-07-01","mijlpaal":true,"vc":"","tunnel":""},{"id":"a80","lane":"LCM","naam":"OBR Gereed (N.T.B.) (Jaarlijks)","start":"2026-10-01","finish":"2026-10-01","mijlpaal":true,"vc":"","tunnel":""},{"id":"a81","lane":"Financieel","naam":"Indienen Actualisatie Komende Jaren (Jaarlijks)","start":"2026-04-08","finish":"2026-04-08","mijlpaal":true,"vc":"","tunnel":""},{"id":"a82","lane":"Financieel","naam":"Indienen Update Actualisatie Programmering Lopend Jaar (Jaarlijk","start":"2026-11-16","finish":"2026-11-16","mijlpaal":true,"vc":"","tunnel":""},{"id":"a83","lane":"Besluitvormings Overleggen","naam":"VC Hoofden Overleg (2-wekelijks)","start":"2026-05-11","finish":"2026-05-11","mijlpaal":true,"vc":"","tunnel":""},{"id":"a84","lane":"Besluitvormings Overleggen","naam":"VWM MT (2-wekelijks)","start":"2026-05-11","finish":"2026-05-11","mijlpaal":true,"vc":"","tunnel":""},{"id":"a85","lane":"Besluitvormings Overleggen","naam":"VWM DT (2-wekelijks)","start":"2026-05-11","finish":"2026-05-11","mijlpaal":true,"vc":"","tunnel":""},{"id":"a86","lane":"Openstelling VCMN","naam":"Leidsche Rijntunnel — Openstelling (VCMN)","start":"2035-12-31","finish":"2035-12-31","mijlpaal":true,"vc":"VCMN","tunnel":""},{"id":"a87","lane":"Openstelling VCNWN","naam":"Schipholtunnel — Openstelling (VCNWN)","start":"2033-12-31","finish":"2033-12-31","mijlpaal":true,"vc":"VCNWN","tunnel":""},{"id":"a88","lane":"Openstelling VCNWN","naam":"Zeeburgertunnel — Openstelling (VCNWN)","start":"2035-12-31","finish":"2035-12-31","mijlpaal":true,"vc":"VCNWN","tunnel":""},{"id":"a89","lane":"Openstelling VCNWN","naam":"Wijkertunnel — Openstelling (VCNWN)","start":"2037-12-31","finish":"2037-12-31","mijlpaal":true,"vc":"VCNWN","tunnel":""},{"id":"a90","lane":"Openstelling VCNWN","naam":"Velsertunnel — Openstelling (VCNWN)","start":"2038-12-31","finish":"2038-12-31","mijlpaal":true,"vc":"VCNWN","tunnel":""},{"id":"a91","lane":"Openstelling VCNWN","naam":"Coentunnel — Openstelling (VCNWN)","start":"2039-12-31","finish":"2039-12-31","mijlpaal":true,"vc":"VCNWN","tunnel":""},{"id":"a92","lane":"Openstelling VCNWN","naam":"Gaasperdammertunnel — Openstelling (VCNWN)","start":"2040-03-31","finish":"2040-03-31","mijlpaal":true,"vc":"VCNWN","tunnel":""},{"id":"a93","lane":"Openstelling VCNON","naam":"Salland Twentetunnel — Openstelling (VCNON)","start":"2036-06-30","finish":"2036-06-30","mijlpaal":true,"vc":"VCNON","tunnel":""},{"id":"a94","lane":"Openstelling VCZN","naam":"A73 — Openstelling (VCZN)","start":"2033-06-30","finish":"2033-06-30","mijlpaal":true,"vc":"VCZN","tunnel":""},{"id":"a95","lane":"Openstelling VCZN","naam":"Koning Willem-Alexandertunnel — Openstelling (VCZN)","start":"2034-12-31","finish":"2034-12-31","mijlpaal":true,"vc":"VCZN","tunnel":""},{"id":"a96","lane":"Openstelling VCZN","naam":"Vlaketunnel en Dampoortaqueduct — Openstelling (VCZN)","start":"2034-12-31","finish":"2034-12-31","mijlpaal":true,"vc":"VCZN","tunnel":""},{"id":"a97","lane":"Openstelling VCZWN","naam":"Noordtunnel — Openstelling (VCZWN)","start":"2028-12-31","finish":"2028-12-31","mijlpaal":true,"vc":"VCZWN","tunnel":""},{"id":"a98","lane":"Openstelling VCZWN","naam":"Drechttunnel — Openstelling (VCZWN)","start":"2031-03-31","finish":"2031-03-31","mijlpaal":true,"vc":"VCZWN","tunnel":""},{"id":"a99","lane":"Openstelling VCZWN","naam":"Beneluxtunnel — Openstelling (VCZWN)","start":"2031-12-31","finish":"2031-12-31","mijlpaal":true,"vc":"VCZWN","tunnel":""},{"id":"a100","lane":"Openstelling VCZWN","naam":"Sijtwendetunnel — Openstelling (VCZWN)","start":"2032-03-31","finish":"2032-03-31","mijlpaal":true,"vc":"VCZWN","tunnel":""},{"id":"a101","lane":"Openstelling VCZWN","naam":"Tweede Heinenoordtunnel — Openstelling (VCZWN)","start":"2034-02-24","finish":"2034-02-24","mijlpaal":true,"vc":"VCZWN","tunnel":""},{"id":"a102","lane":"Openstelling VCZWN","naam":"Botlektunnel — Openstelling (VCZWN)","start":"2036-09-30","finish":"2036-09-30","mijlpaal":true,"vc":"VCZWN","tunnel":""}],"rels":[{"p":"a70","s":"a71","t":"FS","x":0},{"p":"a69","s":"a1","t":"FF","x":1},{"p":"a0","s":"a67","t":"SS","x":1},{"p":"a0","s":"a68","t":"SS","x":1},{"p":"a0","s":"a69","t":"SS","x":1},{"p":"a0","s":"a66","t":"SS","x":1},{"p":"a59","s":"a60","t":"FS","x":0},{"p":"a64","s":"a65","t":"FS","x":0},{"p":"a63","s":"a64","t":"FS","x":0},{"p":"a62","s":"a63","t":"FS","x":0},{"p":"a61","s":"a62","t":"FS","x":0},{"p":"a60","s":"a61","t":"FS","x":0},{"p":"a47","s":"a1","t":"FF","x":1},{"p":"a46","s":"a1","t":"FF","x":1},{"p":"a33","s":"a1","t":"FF","x":1},{"p":"a36","s":"a1","t":"FF","x":1},{"p":"a35","s":"a1","t":"FF","x":1},{"p":"a29","s":"a1","t":"FF","x":1},{"p":"a24","s":"a1","t":"FF","x":1},{"p":"a0","s":"a47","t":"SS","x":1},{"p":"a0","s":"a46","t":"SS","x":1},{"p":"a0","s":"a33","t":"SS","x":1},{"p":"a0","s":"a36","t":"SS","x":1},{"p":"a0","s":"a35","t":"SS","x":1},{"p":"a0","s":"a29","t":"SS","x":1},{"p":"a0","s":"a24","t":"SS","x":1},{"p":"a0","s":"a45","t":"SS","x":1},{"p":"a0","s":"a31","t":"SS","x":1},{"p":"a0","s":"a25","t":"SS","x":1},{"p":"a0","s":"a58","t":"SS","x":1},{"p":"a45","s":"a48","t":"FS","x":0},{"p":"a34","s":"a37","t":"FS","x":0},{"p":"a31","s":"a34","t":"FS","x":0},{"p":"a16","s":"a17","t":"FS","x":0},{"p":"a13","s":"a16","t":"FS","x":0},{"p":"a11","s":"a13","t":"FS","x":0},{"p":"a12","s":"a1","t":"FF","x":1},{"p":"a18","s":"a1","t":"FF","x":1},{"p":"a11","s":"a1","t":"FF","x":1},{"p":"a15","s":"a1","t":"FF","x":1},{"p":"a14","s":"a1","t":"FF","x":1},{"p":"a9","s":"a1","t":"FF","x":1},{"p":"a0","s":"a12","t":"SS","x":1},{"p":"a0","s":"a18","t":"SS","x":1},{"p":"a0","s":"a11","t":"SS","x":1},{"p":"a0","s":"a15","t":"SS","x":1},{"p":"a0","s":"a14","t":"SS","x":1},{"p":"a0","s":"a9","t":"SS","x":1},{"p":"a8","s":"a1","t":"FF","x":1},{"p":"a7","s":"a8","t":"FS","x":0},{"p":"a0","s":"a7","t":"SS","x":1},{"p":"a6","s":"a1","t":"FF","x":1},{"p":"a0","s":"a6","t":"SS","x":1},{"p":"a0","s":"a5","t":"SS","x":1},{"p":"a4","s":"a1","t":"FF","x":1},{"p":"a0","s":"a4","t":"SS","x":1},{"p":"a0","s":"a3","t":"SS","x":1},{"p":"a0","s":"a2","t":"SS","x":1},{"p":"a32","s":"a38","t":"FS","x":0},{"p":"a30","s":"a32","t":"FS","x":0},{"p":"a21","s":"a28","t":"FS","x":0},{"p":"a20","s":"a27","t":"FS","x":0},{"p":"a19","s":"a26","t":"FS","x":0},{"p":"a0","s":"a72","t":"SF","x":0},{"p":"a72","s":"a74","t":"FF","x":0},{"p":"a74","s":"a75","t":"FF","x":0},{"p":"a75","s":"a1","t":"FF","x":0},{"p":"a0","s":"a78","t":"SS","x":0},{"p":"a78","s":"a1","t":"SF","x":0},{"p":"a0","s":"a77","t":"SS","x":0},{"p":"a77","s":"a1","t":"SF","x":0},{"p":"a0","s":"a73","t":"SS","x":0},{"p":"a0","s":"a76","t":"SF","x":0},{"p":"a0","s":"a82","t":"SF","x":0},{"p":"a0","s":"a81","t":"SF","x":0},{"p":"a0","s":"a79","t":"SF","x":0},{"p":"a0","s":"a80","t":"SF","x":0},{"p":"a0","s":"a83","t":"SS","x":0},{"p":"a0","s":"a84","t":"SS","x":0},{"p":"a0","s":"a85","t":"SS","x":0},{"p":"a73","s":"a1","t":"SF","x":0},{"p":"a76","s":"a1","t":"FF","x":0},{"p":"a82","s":"a1","t":"FF","x":0},{"p":"a81","s":"a1","t":"FF","x":0},{"p":"a79","s":"a1","t":"FF","x":0},{"p":"a80","s":"a1","t":"FF","x":0},{"p":"a83","s":"a1","t":"SF","x":0},{"p":"a84","s":"a1","t":"SF","x":0},{"p":"a85","s":"a1","t":"SF","x":0},{"p":"a66","s":"a67","t":"FS","x":0},{"p":"a67","s":"a68","t":"FS","x":0},{"p":"a68","s":"a69","t":"FS","x":0},{"p":"a0","s":"a49","t":"SS","x":1},{"p":"a18","s":"a86","t":"FS","x":1,"auto":1},{"p":"a44","s":"a87","t":"FS","x":1,"auto":1},{"p":"a44","s":"a88","t":"FS","x":1,"auto":1},{"p":"a44","s":"a89","t":"FS","x":1,"auto":1},{"p":"a44","s":"a90","t":"FS","x":1,"auto":1},{"p":"a44","s":"a91","t":"FS","x":1,"auto":1},{"p":"a44","s":"a92","t":"FS","x":1,"auto":1},{"p":"a38","s":"a93","t":"FS","x":1,"auto":1},{"p":"a22","s":"a94","t":"FS","x":1,"auto":1},{"p":"a22","s":"a95","t":"FS","x":1,"auto":1},{"p":"a22","s":"a96","t":"FS","x":1,"auto":1},{"p":"a55","s":"a97","t":"FS","x":1,"auto":1},{"p":"a55","s":"a98","t":"FS","x":1,"auto":1},{"p":"a55","s":"a99","t":"FS","x":1,"auto":1},{"p":"a55","s":"a100","t":"FS","x":1,"auto":1},{"p":"a55","s":"a101","t":"FS","x":1,"auto":1},{"p":"a55","s":"a102","t":"FS","x":1,"auto":1}]};
+/* De ingesloten Primavera-export is verwijderd: dat was werkelijke
+   projectinformatie (tunnels, openstellingen tot 2040, besluitmijlpalen) en
+   hoort niet in de broncode van een publiek gepubliceerde applicatie.
+   Laad een eigen export via het scherm Planning importeren. */
+const P6_DATA = {lanes:[],acts:[],rels:[]};
 
 // Verschuivingen per activiteit (maanden), live bewerkt via drag
 var P6_SHIFTS = {};      // act.id -> shift in maanden (handmatig gesleept)
@@ -4028,8 +3435,8 @@ function p6_deleteRel(ln){
 // Alle tijden in fractioneel jaar. NT_SHIFT verschuift de hele keten.
 // ══════════════════════════════════════════════════════════
 
-var NT_T0  = 2028.99;          // openstelling Noordtunnel
-var NT_T0B = 2030.50;          // openstelling Zuidasdok (~1,5 jaar later)
+var NT_T0  = 0;   // openstellingsmoment; stond hier als werkelijke datum
+var NT_T0B = 0;   // tweede openstellingsmoment; idem
 var NT_SHIFT = 0;             // globale verschuiving (maanden)
 var NT_PROJSHIFT = { GPO:0, GPO2:0 }; // per GPO-project verschuiving (maanden)
 var NT_DRAG = null;
@@ -4040,50 +3447,12 @@ var NT_SHOWREL = true;
 
 // Gedeelde formatie: CIV en VWM doen BEIDE tunnels met dezelfde teams.
 // Resources met capaciteit. GPO heeft per project eigen capaciteit (geen conflict).
-var NT_RESOURCES = {
-  CIV_uitrol: { naam:'CIV uitrol-team', kleur:'#5a2d82', cap:1,
-    tip:'CIV-uitrolcapaciteit gedeeld over alle tunnels — 1 team' },
-  VWM_opl:    { naam:'VWM opleidingsteam', kleur:'#00a050', cap:1,
-    tip:'VWM-opleidingscapaciteit (trainers/OTO) gedeeld over alle tunnels — 1 team' },
-};
-
-// FTE-capaciteit per dienst (beschikbare formatie). GPO schaalt per project mee
-// (eigen capaciteit), CIV en VWM hebben een vaste pool (boeggolf-gevoelig).
-var NT_DIENST_CAP = {
-  GPO: { naam:'GPO', kleur:'#003082', cap:8,  tip:'Projectcapaciteit GPO — schaalt mee per project (geen onderling conflict)' },
-  CIV: { naam:'CIV', kleur:'#5a2d82', cap:5,  tip:'CIV-pool — gedeeld over alle tunnels; één tunnel past, twee tegelijk = boeggolf boven 5 FTE' },
-  VWM: { naam:'VWM', kleur:'#00a050', cap:5,  tip:'VWM-pool (opleiding + opdracht) — gedeeld over tunnels; twee tunnels tegelijk = boeggolf boven 5 FTE' },
-};
-
-// FTE-belasting per regel-fase (fictief maar consistent). Wordt per dienst
-// gesommeerd over de tijd om de boeggolf (resource-histogram) te bouwen.
-// Default-FTE per blok als een regel geen eigen fte heeft.
-var NT_DEFAULT_FTE = { GPO:1.5, GPO2:1.5, CIV:2, VWMF:1, VWMO:2.5 };
-
-// ── Uniforme rollen-bibliotheek per dienst (over alle projecten heen gelijk) ──
-var NT_ROLLEN = {
-  GPO: ['Projectmanager','Technisch manager','Manager projectbeheersing','Testmanager','Omgevingsmanager','Portfoliomanager'],
-  CIV: ['Service delivery manager','Keten service delivery manager','Servicemanager','Portfoliomanager','Projectmanager','Tester','DevOps specialist'],
-  VWM: ['Productowner productieplatform','Netwerkdienst trekker OO','IBP coördinator tunnels','IBP coördinator productieplatform','Adviseur tunnels','OTO trainer','OTO coördinator','Teamleider VC','Afdelingshoofd VC','Transitiemanager','Wegverkeersleider','Verkeerskundige','Key user'],
-};
-// blok → dienst (voor rol-selectie)
-function nt_blokDienst(blok){ var m={GPO:'GPO',GPO2:'GPO',CIV:'CIV',VWMF:'VWM',VWMO:'VWM'}; return m[blok]||'GPO'; }
-
-// ── Configureerbare projecten: groeperen regels tot een te-budgetteren project ──
-// Elk project verzamelt regel-ids; budget wordt via verdeelsleutel over die
-// regels (fases) en hun looptijd over de jaren verdeeld.
-var NT_PROJECTEN = {
-  noordtunnel: { naam:'Noordtunnel (GPO)', dienst:'GPO', kleur:'#003082',
-    regels:['g_lc','g_lcm','g_start','g_eng_i','g_eng_v','g_eng_p','g_uvo','g_udo','g_uuo','g_ubf','g_istsi','g_naz'] },
-  zuidasdok:   { naam:'Zuidasdok (GPO)', dienst:'GPO', kleur:'#0a4ea0',
-    regels:['z_lc','z_lcm','z_start','z_eng_i','z_eng_v','z_eng_p','z_uvo','z_udo','z_uuo','z_ubf','z_istsi','z_naz'] },
-  audiobb:     { naam:'Audio Bouwblok 1.2 — ontwikkeling & uitrol (CIV)', dienst:'CIV', kleur:'#5a2d82',
-    regels:['c_ontw','c_real','c_fat','c_comp','c_lcm','c_roll','c_lcm2','c_roll2'] },
-  opleiding:   { naam:'Opleidingen VWM (alle tunnels)', dienst:'VWM', kleur:'#00a050',
-    regels:['o_oto','o_reg','o_trn','o_sit','o_oto2','o_reg2','o_trn2','o_sit2'] },
-  opdracht:    { naam:'VWM Opdracht & financiën', dienst:'VWM', kleur:'#00823c',
-    regels:['f_beh','f_bud','f_opd','f_opd2'] },
-};
+/* De casus stond hier volledig uitgeschreven: projecten, rollen,
+   dienstcapaciteit en openstellingsdata van werkelijke tunnels. Verwijderd. */
+var NT_RESOURCES = {};
+var NT_DIENST_CAP = {};
+var NT_ROLLEN = {};
+var NT_PROJECTEN = {};
 
 // ── Config-state (instelbaar via configuratie-tab) ──
 // Per project: totaalbudget (k€) + verdeelsleutel (gewicht per regel).
@@ -4116,144 +3485,10 @@ function nt_initConfig(){
   }
 }
 
-var NT_MODEL = {
-  blokken: [
-    { id:'GPO',  naam:'GPO — Noordtunnel (project)', kleur:'#003082', dienst:'GPO',
-      sub:'Eigen projectcapaciteit · V-model t/m ISTSI → openstelling' },
-    { id:'GPO2', naam:'GPO — Zuidasdok (project)', kleur:'#0a4ea0', dienst:'GPO',
-      sub:'Eigen projectcapaciteit · zelfde fasen, eigen tijdlijn (~1,5 jr later)' },
-    { id:'CIV',  naam:'CIV — Audio Bouwblok 1.2 (gedeelde formatie)', kleur:'#5a2d82', dienst:'CIV',
-      sub:'Eénmalige ontwikkeling · uitrol per tunnel met hetzelfde team' },
-    { id:'VWMF', naam:'VWM — Opdracht & financiën', kleur:'#00823c', dienst:'VWM',
-      sub:'Opdrachtverstrekking aan CIV per tunnel' },
-    { id:'VWMO', naam:'VWM — Opleiding (gedeelde formatie)', kleur:'#00a050', dienst:'VWM',
-      sub:'Opleidingsteam gedeeld over tunnels · terugrekenend vanaf elke openstelling' },
-  ],
-  regels: [
-    // ════ GPO NOORDTUNNEL ════
-    { id:'g_lc',   blok:'GPO', label:'NoordTunnel LevensCyclus (NT)',      t0:2026.00, t1:2027.30, kind:'bar' },
-    { id:'g_lcm',  blok:'GPO', label:'Noordtunnel LCM',                    t0:2026.55, t1:2026.80, kind:'bar' },
-    { id:'g_start',blok:'GPO', label:'Start engineering (NT)',             t0:2026.30, t1:2027.05, kind:'bar',
-      ms:[{t:2026.30,lbl:'13-11',tip:'VWM op tijd irt Opdracht verstrekking (NT)'},
-          {t:2026.38,lbl:'14-11',tip:'Intake renovatie Noordtunnel afgerond'}] },
-    { id:'g_eng_i',blok:'GPO', label:'  Engineering — Inkoop',            t0:2026.45, t1:2026.95, kind:'bar' },
-    { id:'g_eng_v',blok:'GPO', label:'  Engineering — Verkenning/Regio',  t0:2026.62, t1:2027.10, kind:'bar' },
-    { id:'g_eng_p',blok:'GPO', label:'  Engineering — Planuitwerking',    t0:2026.80, t1:2027.25, kind:'bar',
-      ms:[{t:2027.25,lbl:'31-3',tip:'Intake renovatie NoordTunnel afgerond'}] },
-    { id:'g_uvo',  blok:'GPO', label:'Uitvoering (NT) — Voorontwerp',     t0:2027.05, t1:2027.45, kind:'bar' },
-    { id:'g_udo',  blok:'GPO', label:'Uitvoering (NT) — Definitief ontw.', t0:2027.40, t1:2027.85, kind:'bar' },
-    { id:'g_uuo',  blok:'GPO', label:'Uitvoering (NT) — Uitvoeringsontw.', t0:2027.80, t1:2028.10, kind:'bar' },
-    { id:'g_ubf',  blok:'GPO', label:'Uitvoering (NT) — Bouw/Fabriekstest',t0:2028.00, t1:2028.35, kind:'bar' },
-    { id:'g_istsi',blok:'GPO', label:'Uitvoering (NT) — ISTSI',           t0:2028.30, t1:2028.85, kind:'bar', crit:true,
-      ms:[{t:2028.46,lbl:'30-6',tip:'2028-Juni PTZ-gerenoveerde NT in bedienzaal beschikbaar'}] },
-    { id:'g_open', blok:'GPO', label:'Openstelling NT',                    t0:NT_T0,   t1:NT_T0,   kind:'mile', crit:true,
-      ms:[{t:NT_T0,lbl:'T=0 NT',tip:'Openstelling Noordtunnel'}] },
-    { id:'g_naz',  blok:'GPO', label:'Uitvoering (NT) — Nazorg',          t0:NT_T0,   t1:2029.30, kind:'bar' },
-
-    // ════ GPO ZUIDASDOK (zelfde fasen, eigen tijdlijn) ════
-    { id:'z_lc',   blok:'GPO2', label:'Zuidasdok LevensCyclus (ZD)',       t0:2027.50, t1:2028.80, kind:'bar' },
-    { id:'z_lcm',  blok:'GPO2', label:'Zuidasdok LCM',                     t0:2028.05, t1:2028.30, kind:'bar' },
-    { id:'z_start',blok:'GPO2', label:'Start engineering (ZD)',            t0:2027.80, t1:2028.55, kind:'bar' },
-    { id:'z_eng_i',blok:'GPO2', label:'  Engineering — Inkoop',           t0:2027.95, t1:2028.45, kind:'bar' },
-    { id:'z_eng_v',blok:'GPO2', label:'  Engineering — Verkenning/Regio', t0:2028.12, t1:2028.60, kind:'bar' },
-    { id:'z_eng_p',blok:'GPO2', label:'  Engineering — Planuitwerking',   t0:2028.30, t1:2028.75, kind:'bar' },
-    { id:'z_uvo',  blok:'GPO2', label:'Uitvoering (ZD) — Voorontwerp',    t0:2028.55, t1:2028.95, kind:'bar' },
-    { id:'z_udo',  blok:'GPO2', label:'Uitvoering (ZD) — Definitief ontw.',t0:2028.90, t1:2029.35, kind:'bar' },
-    { id:'z_uuo',  blok:'GPO2', label:'Uitvoering (ZD) — Uitvoeringsontw.',t0:2029.30, t1:2029.60, kind:'bar' },
-    { id:'z_ubf',  blok:'GPO2', label:'Uitvoering (ZD) — Bouw/Fabriekstest',t0:2029.50,t1:2029.85, kind:'bar' },
-    { id:'z_istsi',blok:'GPO2', label:'Uitvoering (ZD) — ISTSI',          t0:2029.80, t1:2030.35, kind:'bar', crit:true },
-    { id:'z_open', blok:'GPO2', label:'Openstelling ZD',                  t0:NT_T0B,  t1:NT_T0B,  kind:'mile', crit:true,
-      ms:[{t:NT_T0B,lbl:'T=0 ZD',tip:'Openstelling Zuidasdok'}] },
-    { id:'z_naz',  blok:'GPO2', label:'Uitvoering (ZD) — Nazorg',         t0:NT_T0B,  t1:2030.80, kind:'bar' },
-
-    // ════ CIV Audio Bouwblok (éénmalige ontwikkeling + uitrol per tunnel) ════
-    { id:'c_ontw', blok:'CIV', label:'Audio BB 1.2 — Ontwerp 2',          t0:2026.55, t1:2027.05, kind:'bar' },
-    { id:'c_real', blok:'CIV', label:'Audio BB 1.2 — Realisatie/bouw',    t0:2027.00, t1:2027.75, kind:'bar' },
-    { id:'c_fat',  blok:'CIV', label:'Audio BB 1.2 — FAT (fabriekstest)', t0:2027.70, t1:2028.00, kind:'bar' },
-    { id:'c_comp', blok:'CIV', label:'Audio BB 1.2 — Compliant/goedgek.', t0:2027.95, t1:2028.15, kind:'bar', crit:true,
-      ms:[{t:2028.05,lbl:'BB✓',tip:'Audio BB 1.2 compliant — éénmalig ontwikkeld, daarna per tunnel uitgerold'}] },
-    // Uitrol NT — gedeelde formatie CIV_uitrol
-    { id:'c_lcm',  blok:'CIV', label:'Audio BB — LCM-opname (NT)',        t0:2028.05, t1:2028.45, kind:'bar', fte:3, res:'CIV_uitrol', tunnel:'NT' },
-    { id:'c_roll', blok:'CIV', label:'Audio BB — uitrol VCZWN (NT)',      t0:2028.25, t1:2028.55, kind:'bar', fte:3, res:'CIV_uitrol', tunnel:'NT',
-      ms:[{t:2028.30,lbl:'→ISTSI',tip:'Audio BB uitgerold, gereed voor ISTSI Noordtunnel'}] },
-    // Uitrol ZD — zelfde stappen EXCL ontwikkeling — zelfde team CIV_uitrol
-    { id:'c_lcm2', blok:'CIV', label:'Audio BB — LCM-opname (ZD)',        t0:2029.55, t1:2029.95, kind:'bar', fte:3, res:'CIV_uitrol', tunnel:'ZD' },
-    { id:'c_roll2',blok:'CIV', label:'Audio BB — uitrol Zuidasdok (ZD)',  t0:2029.75, t1:2030.05, kind:'bar', fte:3, res:'CIV_uitrol', tunnel:'ZD',
-      ms:[{t:2029.80,lbl:'→ISTSI',tip:'Audio BB uitgerold voor Zuidasdok — zelfde uitrolteam als NT'}] },
-
-    // ════ VWM Financieel ════
-    { id:'f_beh',  blok:'VWMF', label:'Behoeftestelling Audio BB (NT)',    t0:2026.00, t1:2026.25, kind:'bar' },
-    { id:'f_bud',  blok:'VWMF', label:'Budget/financiering (NT)',          t0:2026.10, t1:2026.30, kind:'bar' },
-    { id:'f_opd',  blok:'VWMF', label:'Opdrachtverstrekking → CIV (NT)',   t0:2026.25, t1:2026.55, kind:'bar', crit:true,
-      ms:[{t:2026.30,lbl:'€ OPD',tip:'VWM verstrekt opdracht aan CIV — Noordtunnel'}] },
-    { id:'f_opd2', blok:'VWMF', label:'Opdrachtverstrekking → CIV (ZD)',   t0:2028.40, t1:2028.70, kind:'bar',
-      ms:[{t:2028.45,lbl:'€ OPD',tip:'VWM verstrekt opdracht aan CIV — Zuidasdok (alleen uitrol, geen ontwikkeling)'}] },
-
-    // ════ VWM Opleiding — gedeelde formatie VWM_opl ════
-    // Noordtunnel opleidingslijn
-    { id:'o_oto',  blok:'VWMO', label:'Werkgroep OTO + voorber. (NT)',     t0:NT_T0-60/52, t1:NT_T0-43/52, kind:'bar', fte:3, res:'VWM_opl', tunnel:'NT',
-      ms:[{t:NT_T0-60/52,lbl:'T-60',tip:'RWS PL OTO + werkgroep OTO (NT)'},
-          {t:NT_T0-52/52,lbl:'T-52',tip:'Start werkgroep OTO + CBP/VKM-plan (NT)'}] },
-    { id:'o_reg',  blok:'VWMO', label:'Opleiding + materiaal (NT)',        t0:NT_T0-43/52, t1:NT_T0-20/52, kind:'bar', fte:3, res:'VWM_opl', tunnel:'NT',
-      ms:[{t:NT_T0-43/52,lbl:'T-43',tip:'Start Opleiding regulier (NT)'}] },
-    { id:'o_trn',  blok:'VWMO', label:'Trainers + SIT-tunnel (NT)',        t0:NT_T0-20/52, t1:NT_T0-4/52, kind:'bar', fte:3, res:'VWM_opl', tunnel:'NT',
-      ms:[{t:NT_T0-20/52,lbl:'T-20',tip:'Opleidingssystemen gereed (NT)'},
-          {t:NT_T0-19/52,lbl:'T-19',tip:'Trainers VWM opgeleid (NT)'}] },
-    { id:'o_sit',  blok:'VWMO', label:'O-SIT + VWM opgeleid (NT)',         t0:NT_T0-4/52, t1:NT_T0, kind:'bar', fte:3, res:'VWM_opl', tunnel:'NT', crit:true,
-      ms:[{t:NT_T0-4/52,lbl:'T-4',tip:'VWM opgeleid + O-SIT (NT) — genoeg personeel vóór openstelling'},
-          {t:NT_T0,lbl:'T=0',tip:'Openstelling NT — opleiding afgerond'}] },
-    // Zuidasdok opleidingslijn — zelfde team VWM_opl
-    { id:'o_oto2', blok:'VWMO', label:'Werkgroep OTO + voorber. (ZD)',     t0:NT_T0B-60/52, t1:NT_T0B-43/52, kind:'bar', fte:3, res:'VWM_opl', tunnel:'ZD',
-      ms:[{t:NT_T0B-60/52,lbl:'T-60',tip:'Werkgroep OTO (ZD)'}] },
-    { id:'o_reg2', blok:'VWMO', label:'Opleiding + materiaal (ZD)',        t0:NT_T0B-43/52, t1:NT_T0B-20/52, kind:'bar', fte:3, res:'VWM_opl', tunnel:'ZD' },
-    { id:'o_trn2', blok:'VWMO', label:'Trainers + SIT-tunnel (ZD)',        t0:NT_T0B-20/52, t1:NT_T0B-4/52, kind:'bar', fte:3, res:'VWM_opl', tunnel:'ZD',
-      ms:[{t:NT_T0B-19/52,lbl:'T-19',tip:'Trainers VWM opgeleid (ZD)'}] },
-    { id:'o_sit2', blok:'VWMO', label:'O-SIT + VWM opgeleid (ZD)',         t0:NT_T0B-4/52, t1:NT_T0B, kind:'bar', fte:3, res:'VWM_opl', tunnel:'ZD', crit:true,
-      ms:[{t:NT_T0B-4/52,lbl:'T-4',tip:'VWM opgeleid + O-SIT (ZD)'},
-          {t:NT_T0B,lbl:'T=0',tip:'Openstelling ZD — opleiding afgerond'}] },
-  ],
-  relaties: [
-    // GPO NT interne keten
-    {from:'g_start',to:'g_eng_i',type:'FS'},{from:'g_eng_i',to:'g_eng_v',type:'SS'},
-    {from:'g_eng_v',to:'g_eng_p',type:'SS'},{from:'g_eng_p',to:'g_uvo',type:'FS'},
-    {from:'g_uvo',to:'g_udo',type:'FS'},{from:'g_udo',to:'g_uuo',type:'FS'},
-    {from:'g_uuo',to:'g_ubf',type:'FS'},{from:'g_ubf',to:'g_istsi',type:'FS'},
-    {from:'g_istsi',to:'g_open',type:'FS'},{from:'g_open',to:'g_naz',type:'FS'},
-    {from:'g_lc',to:'g_lcm',type:'FF'},
-    // GPO ZD interne keten
-    {from:'z_start',to:'z_eng_i',type:'FS'},{from:'z_eng_i',to:'z_eng_v',type:'SS'},
-    {from:'z_eng_v',to:'z_eng_p',type:'SS'},{from:'z_eng_p',to:'z_uvo',type:'FS'},
-    {from:'z_uvo',to:'z_udo',type:'FS'},{from:'z_udo',to:'z_uuo',type:'FS'},
-    {from:'z_uuo',to:'z_ubf',type:'FS'},{from:'z_ubf',to:'z_istsi',type:'FS'},
-    {from:'z_istsi',to:'z_open',type:'FS'},{from:'z_open',to:'z_naz',type:'FS'},
-    {from:'z_lc',to:'z_lcm',type:'FF'},
-    // VWM fin NT → CIV
-    {from:'f_beh',to:'f_opd',type:'FS'},{from:'f_bud',to:'f_opd',type:'FF'},
-    {from:'f_opd',to:'c_ontw',type:'FS',cross:true},
-    // CIV ontwikkeling keten (éénmalig)
-    {from:'c_ontw',to:'c_real',type:'FS'},{from:'c_real',to:'c_fat',type:'FS'},
-    {from:'c_fat',to:'c_comp',type:'FS'},
-    // CIV uitrol NT (na compliant)
-    {from:'c_comp',to:'c_lcm',type:'FS'},{from:'c_lcm',to:'c_roll',type:'FS'},
-    {from:'c_roll',to:'g_istsi',type:'FS',cross:true},
-    {from:'c_comp',to:'g_istsi',type:'FS',cross:true},
-    // CIV uitrol ZD (na compliant, eigen opdracht) — zelfde bouwblok, geen 2e ontwikkeling
-    {from:'c_comp',to:'c_lcm2',type:'FS'},{from:'c_lcm2',to:'c_roll2',type:'FS'},
-    {from:'c_roll2',to:'z_istsi',type:'FS',cross:true},
-    {from:'f_opd2',to:'c_lcm2',type:'FS',cross:true},
-    // GPO NT DO → VWM opdracht
-    {from:'g_uvo',to:'f_opd',type:'SS',cross:true},
-    // GPO ZD DO → VWM opdracht ZD
-    {from:'z_uvo',to:'f_opd2',type:'SS',cross:true},
-    // Opleiding NT keten
-    {from:'o_oto',to:'o_reg',type:'FS'},{from:'o_reg',to:'o_trn',type:'FS'},{from:'o_trn',to:'o_sit',type:'FS'},
-    {from:'o_sit',to:'g_open',type:'FF',cross:true},{from:'g_istsi',to:'o_trn',type:'SS',cross:true},
-    // Opleiding ZD keten
-    {from:'o_oto2',to:'o_reg2',type:'FS'},{from:'o_reg2',to:'o_trn2',type:'FS'},{from:'o_trn2',to:'o_sit2',type:'FS'},
-    {from:'o_sit2',to:'z_open',type:'FF',cross:true},{from:'z_istsi',to:'o_trn2',type:'SS',cross:true},
-  ],
-};
-
+/* Het casusmodel beschreef twee werkelijke projecten met hun volledige V-model,
+   openstellingsmomenten, opdrachtmomenten en gedeelde uitrol- en opleidingsteams.
+   Verwijderd; dit hoort uit een geladen planning te komen. */
+var NT_MODEL = { blokken: [], regels: [] };
 
 // ── Tijdas helpers ──
 var NT_TSTART = 2025.5, NT_TEND = 2031.0;
@@ -4903,7 +4138,7 @@ function nt_setFteRol(rid,idx,v){ NT_CONFIG.fte[rid][idx].rol=v; }
 function nt_setFteVal(rid,idx,v){ NT_CONFIG.fte[rid][idx].fte=parseFloat(v)||0; renderConfig(); nt_refreshIfActive(); }
 function nt_addFte(rid,dienst){ NT_CONFIG.fte[rid].push({rol:NT_ROLLEN[dienst][0],dienst:dienst,fte:0.5}); renderConfig(); }
 function nt_delFte(rid,idx){ NT_CONFIG.fte[rid].splice(idx,1); renderConfig(); nt_refreshIfActive(); }
-function nt_refreshIfActive(){ // ververs de Noordtunnel-grafieken als dat scherm open is
+function nt_refreshIfActive(){ // ververs de casusgrafieken als dat scherm open is
   if(document.getElementById('s4') && document.getElementById('s4').classList.contains('active')) renderNT();
 }
 
@@ -5058,7 +4293,7 @@ function renderNTImpact(){
     }).join('');
     el.innerHTML='<div style="background:#e8f0fb;border:1px solid #c0d0ec;border-radius:6px;padding:12px 16px;margin-bottom:12px;font-size:12px;color:#003082;">'
       +'<strong>Integrale ketenanalyse:</strong> sleep een balk <em>vooruit én achteruit</em>, of gebruik de tijdbalk (−12 t/m +12 mnd). '
-      +'Twee projecten (Noordtunnel + Zuidasdok) delen bij <strong>CIV (uitrol)</strong> en <strong>VWM (opleiding)</strong> dezelfde formatie. '
+      +'Twee projecten delen bij <strong>CIV (uitrol)</strong> en <strong>VWM (opleiding)</strong> dezelfde formatie. '
       +'Verschuift een tunnel zó dat die gedeelde taken gaan overlappen, dan vraagt één team twee tunnels tegelijk → capaciteitsconflict. '
       +'GPO heeft per project eigen capaciteit, dus daar ontstaat dat conflict niet. Vervroegen kan bovendien volgorde-schendingen geven.</div>'
       +'<div style="background:#fff;border:1px solid #d0d6de;border-radius:6px;overflow:hidden;">'
@@ -5114,8 +4349,8 @@ function renderNTImpact(){
       +'<strong>⚠ Audio Bouwblok te laat voor ISTSI ('+naam+'):</strong> uitrol gereed '+nt_fmtD(ar)+', ISTSI start '+nt_fmtD(is)+'. Marge '+(m<=0?'verdwenen':'< 1 maand')+'.</div>'; }
     return '';
   }
-  warns+=margeCheck('c_roll','g_istsi','Noordtunnel');
-  warns+=margeCheck('c_roll2','z_istsi','Zuidasdok');
+  warns+=margeCheck('c_roll','g_istsi','project 1');
+  warns+=margeCheck('c_roll2','z_istsi','project 2');
 
   // Opleiding terugrekenen
   if((NT_CASCADE['o_sit']||0)!==0){
@@ -5176,93 +4411,15 @@ function nt_blokKleurBg(id){ var m={GPO:'#e8f0fb',CIV:'#f0e8f8',VWMF:'#e6f5ed',V
 // ══════════════════════════════════════════════════════════
 
 // Regio ↔ VC ↔ tunnels (regio is waar een tunnel in ligt)
-var MJP_REGIOS = {
-  MN:  { naam:'Midden-Nederland',     vc:'VCMN',  tunnels:['Leidsche Rijntunnel'] },
-  NON: { naam:'Noord-Oost-Nederland', vc:'VCNON', tunnels:['Salland-Twentetunnels'] },
-  NWN: { naam:'Noord-West-Nederland', vc:'VCNWN', tunnels:['Coentunnel','Zeeburgertunnel','Schipholtunnel','Velsertunnel','Wijkertunnel','Gaasperdammertunnel'] },
-  ZN:  { naam:'Zuid-Nederland',       vc:'VCZN',  tunnels:['Swalmentunnel','Roertunnel','KoningWillemAlexandertunnel'] },
-  ZWN: { naam:'Zuid-West-Nederland',  vc:'VCZWN', tunnels:['Noordtunnel','Heinenoordtunnel','Benelux','Drechttunnel','Zuidasdok'] },
-};
-var MJP_VCS = ['VCMN','VCNON','VCNWN','VCZN','VCZWN'];
+/* De meerjarenplanning stond hier als vast model: regio's met hun tunnels per
+   verkeerscentrale, en per regel een project met begin- en einddatum en
+   openstellingsmijlpalen. Dat is werkelijke projectinformatie en is verwijderd. */
+var MJP_REGIOS = {};
+var MJP_VCS = [];
 function mjp_vcRegio(vc){ for(var r in MJP_REGIOS){ if(MJP_REGIOS[r].vc===vc) return r; } return ''; }
 function mjp_vcRegioNaam(vc){ var r=mjp_vcRegio(vc); return r?MJP_REGIOS[r].naam:''; }
+var MJP_MODEL = { blokken: [], regels: [] };
 
-// Dienststromen (blokken). filter op VC werkt via regel.vc tag.
-var MJP_MODEL = {
-  blokken: [
-    { id:'GPO', naam:'GPO — Projecten & openstellingen', kleur:'#003082', dienst:'GPO',
-      sub:'Nieuwbouw/renovatie tunnels en aanleg, per verkeerscentrale-regio' },
-    { id:'CIV', naam:'CIV — Applicaties & bouwblokken', kleur:'#5a2d82', dienst:'CIV',
-      sub:'LTS-releases, Charm-uitrol, MKC — landelijke bouwblokken per VC uitgerold' },
-    { id:'VWM', naam:'VWM — Verkeerscentrales & onderhoud', kleur:'#00823c', dienst:'VWM',
-      sub:'LCM-vervangingen, onderhoud en opleidingen per verkeerscentrale' },
-  ],
-  // Regels: t0/t1 fractioneel jaar. vc = koppeling aan verkeerscentrale (voor filter).
-  regels: [
-    // ─────────── GPO: openstellingen per regio ───────────
-    { id:'g_mn_lr',   blok:'GPO', vc:'VCMN',  label:'Leidsche Rijntunnel — renovatie',     t0:2026.0, t1:2028.3, kind:'bar' },
-    { id:'g_mn_open', blok:'GPO', vc:'VCMN',  label:'Leidsche Rijntunnel — openstelling',  t0:2028.3, t1:2028.3, kind:'mile', crit:true,
-      ms:[{t:2028.3,lbl:'OPEN',tip:'Openstelling Leidsche Rijntunnel (VCMN, regio Midden-NL)'}] },
-    { id:'g_nwn_gd',  blok:'GPO', vc:'VCNWN', label:'Gaasperdammertunnel — afronding',     t0:2026.0, t1:2027.5, kind:'bar' },
-    { id:'g_nwn_open',blok:'GPO', vc:'VCNWN', label:'Gaasperdammertunnel — openstelling',  t0:2027.5, t1:2027.5, kind:'mile', crit:true,
-      ms:[{t:2027.5,lbl:'OPEN',tip:'Openstelling Gaasperdammertunnel (VCNWN, regio Noord-West-NL)'}] },
-    { id:'g_zwn_nt',  blok:'GPO', vc:'VCZWN', label:'Noordtunnel — renovatie',             t0:2026.0, t1:2028.99, kind:'bar' },
-    { id:'g_zwn_open',blok:'GPO', vc:'VCZWN', label:'Noordtunnel — openstelling',          t0:2028.99,t1:2028.99, kind:'mile', crit:true,
-      ms:[{t:2028.99,lbl:'OPEN',tip:'Openstelling Noordtunnel (VCZWN, regio Zuid-West-NL) — zie ook Demo-casus'}] },
-    { id:'g_zwn_za',  blok:'GPO', vc:'VCZWN', label:'Zuidasdok — realisatie',              t0:2027.0, t1:2030.5, kind:'bar' },
-    { id:'g_zwn_zaop',blok:'GPO', vc:'VCZWN', label:'Zuidasdok — openstelling',            t0:2030.5, t1:2030.5, kind:'mile', crit:true,
-      ms:[{t:2030.5,lbl:'OPEN',tip:'Openstelling Zuidasdok (VCZWN, regio Zuid-West-NL)'}] },
-    { id:'g_zn_kwa',  blok:'GPO', vc:'VCZN',  label:'Koning Willem-Alexandertunnel — LCM', t0:2027.0, t1:2029.0, kind:'bar' },
-
-    // ─────────── CIV: landelijke bouwblokken + uitrol per VC ───────────
-    { id:'c_lts12',   blok:'CIV', vc:'',      label:'LTS 1.2 — bouwblokken beschikbaar',   t0:2025.5, t1:2026.5, kind:'bar' },
-    { id:'c_lts13',   blok:'CIV', vc:'',      label:'LTS 1.3 — ontwikkeling (B1/B2/B3)',   t0:2026.5, t1:2028.5, kind:'bar',
-      ms:[{t:2027.5,lbl:'B2',tip:'LTS 1.3 B2 bouwblokken gereed'}] },
-    { id:'c_charm_mn',blok:'CIV', vc:'VCMN',  label:'Charm-uitrol VCMN',                   t0:2026.5, t1:2027.5, kind:'bar' },
-    { id:'c_charm_nwn',blok:'CIV',vc:'VCNWN', label:'Charm-uitrol VCNWN',                  t0:2026.0, t1:2027.0, kind:'bar' },
-    { id:'c_charm_zwn',blok:'CIV',vc:'VCZWN', label:'Charm-uitrol VCZWN',                  t0:2027.5, t1:2028.5, kind:'bar' },
-    { id:'c_audio',   blok:'CIV', vc:'VCZWN', label:'Audio Bouwblok 1.2 — ontwikkeling',   t0:2026.5, t1:2028.1, kind:'bar', crit:true,
-      ms:[{t:2028.05,lbl:'BB✓',tip:'Audio Bouwblok 1.2 compliant — nodig voor Noordtunnel ISTSI'}] },
-    { id:'c_mkc',     blok:'CIV', vc:'',      label:'MKC — migratie meldkamer',            t0:2027.0, t1:2029.0, kind:'bar' },
-
-    // ─────────── VWM: LCM + onderhoud + opleidingen per VC ───────────
-    { id:'v_lcm_mn',  blok:'VWM', vc:'VCMN',  label:'LCM-vervanging VCMN',                 t0:2027.0, t1:2029.0, kind:'bar' },
-    { id:'v_lcm_nwn', blok:'VWM', vc:'VCNWN', label:'LCM-vervanging VCNWN',                t0:2026.5, t1:2028.0, kind:'bar' },
-    { id:'v_lcm_zwn', blok:'VWM', vc:'VCZWN', label:'LCM-vervanging VCZWN',                t0:2028.0, t1:2030.0, kind:'bar', crit:true },
-    { id:'v_onh_nwn', blok:'VWM', vc:'VCNWN', label:'Onderhoudscontract VCNWN (vast)',     t0:2025.5, t1:2029.0, kind:'bar' },
-    { id:'v_onh_zwn', blok:'VWM', vc:'VCZWN', label:'Onderhoudscontract VCZWN (vast)',     t0:2025.5, t1:2029.5, kind:'bar' },
-    { id:'v_opl_nwn', blok:'VWM', vc:'VCNWN', label:'Opleiding VWM — Gaasperdammer',       t0:2026.5, t1:2027.5, kind:'bar' },
-    { id:'v_opl_zwn', blok:'VWM', vc:'VCZWN', label:'Opleiding VWM — Noordtunnel',         t0:2027.9, t1:2028.99,kind:'bar', crit:true,
-      ms:[{t:2028.9,lbl:'T-4',tip:'VWM opgeleid vóór openstelling Noordtunnel (VCZWN)'}] },
-    { id:'v_opl_za',  blok:'VWM', vc:'VCZWN', label:'Opleiding VWM — Zuidasdok',           t0:2029.4, t1:2030.5, kind:'bar' },
-  ],
-  // Relaties (afhankelijkheden). cross = over dienstgrens.
-  relaties: [
-    // CIV bouwblokken → GPO openstellingen (cross)
-    {from:'c_lts13',  to:'c_audio', type:'FS'},
-    {from:'c_audio',  to:'g_zwn_nt',type:'FS', cross:true},
-    {from:'c_charm_nwn',to:'g_nwn_open',type:'FS',cross:true},
-    {from:'c_charm_zwn',to:'g_zwn_open',type:'FS',cross:true},
-    // GPO renovatie → openstelling
-    {from:'g_mn_lr',  to:'g_mn_open', type:'FS'},
-    {from:'g_nwn_gd', to:'g_nwn_open',type:'FS'},
-    {from:'g_zwn_nt', to:'g_zwn_open',type:'FS'},
-    {from:'g_zwn_za', to:'g_zwn_zaop',type:'FS'},
-    // VWM opleiding → openstelling (cross): opgeleid vóór open
-    {from:'v_opl_nwn',to:'g_nwn_open',type:'FF',cross:true},
-    {from:'v_opl_zwn',to:'g_zwn_open',type:'FF',cross:true},
-    {from:'v_opl_za', to:'g_zwn_zaop',type:'FF',cross:true},
-    // VWM LCM → openstelling regio (cross)
-    {from:'v_lcm_nwn',to:'g_nwn_open',type:'FS',cross:true},
-    {from:'v_lcm_zwn',to:'g_zwn_open',type:'SS',cross:true},
-    // CIV Charm → VWM LCM (cross): bouwblok nodig voor LCM
-    {from:'c_charm_mn',to:'v_lcm_mn', type:'FS',cross:true},
-    // LTS keten
-    {from:'c_lts12',  to:'c_lts13',  type:'FS'},
-  ],
-};
-
-// ── VWM Meerjarenplanning render-state ──
 var MJP_SHIFT = 0;          // globale verschuiving (maanden)
 var MJP_MSHIFT = {};        // per-regel shift
 var MJP_CASCADE = {};
@@ -5503,16 +4660,8 @@ function renderMJPImpact(){
 // ══════════════════════════════════════════════════════════
 
 // Projecten in de meerjarenplanning (groeperen regels per dienststroom/regio)
-var MJP_PROJECTEN = {
-  gpo_open:  { naam:'GPO — Openstellingen tunnels', dienst:'GPO', kleur:'#003082',
-    regels:['g_mn_lr','g_mn_open','g_nwn_gd','g_nwn_open','g_zwn_nt','g_zwn_open','g_zwn_za','g_zwn_zaop','g_zn_kwa'] },
-  civ_bb:    { naam:'CIV — Bouwblokken & uitrol', dienst:'CIV', kleur:'#5a2d82',
-    regels:['c_lts12','c_lts13','c_charm_mn','c_charm_nwn','c_charm_zwn','c_audio','c_mkc'] },
-  vwm_lcm:   { naam:'VWM — LCM & onderhoud', dienst:'VWM', kleur:'#00823c',
-    regels:['v_lcm_mn','v_lcm_nwn','v_lcm_zwn','v_onh_nwn','v_onh_zwn'] },
-  vwm_opl:   { naam:'VWM — Opleidingen', dienst:'VWM', kleur:'#00a050',
-    regels:['v_opl_nwn','v_opl_zwn','v_opl_za'] },
-};
+/* Projectgroepering over werkelijke planningregels; verwijderd. */
+var MJP_PROJECTEN = {};
 
 var MJP_DEFAULT_FTE = { GPO:2, CIV:2, VWM:1.5 };
 
@@ -8891,7 +8040,7 @@ function ipl_kpiNarratief(db,k,r){
 // CONFLICT-DETECTIE & RIJKE GEVOLGEN-PANELEN — zelfde stijl als de
 // vroege "Zonder integraal"-demo (kaarten met icoon/kleur/wat/impact/
 // dienst-badges/timing), nu gevoed door de echte geïmporteerde planning
-// in plaats van het fictieve A27-scenario.
+// in plaats van een in de code vastgelegd scenario.
 // ══════════════════════════════════════════════════════════
 
 var IPL_CONFLICT_TEKST = {
