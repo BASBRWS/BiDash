@@ -2,7 +2,8 @@
    Doel: losse DVM-bronnen rechtstreeks naar hun eigen parser sturen en daarmee
    de generieke BiDash-/DVM-herkenningsroute omzeilen. */
 (() => {
-  const BIDASH_VERSION='2.10';
+  /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
+     Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
   const DVM_VERSION='79';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
@@ -38,13 +39,12 @@
       badge.style.cssText='font-size:11px;font-weight:800;white-space:nowrap;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);padding:5px 8px;border-radius:4px';
       topbar.appendChild(badge);
     }else if(document.getElementById('dvmVersionBadge'))document.getElementById('dvmVersionBadge').textContent='DVM v'+DVM_VERSION;
+    /* De schil zet zelf wat er in de balk komt te staan; wij melden alleen onze
+       eigen engineversie. Zo staat er ook een versie in de balk voordat deze
+       module is geladen, en blijft er één plek waar de schilversie vandaan komt. */
     try{
       if(parent===window)return;
-      const actions=parent.document.querySelector('.head-actions');
-      let badge=parent.document.getElementById('bidashVersionBadge');
-      if(actions&&!badge){badge=parent.document.createElement('span');badge.id='bidashVersionBadge';badge.className='source-badge';actions.prepend(badge);}
-      if(badge){badge.textContent='v'+BIDASH_VERSION;badge.title='BiDash integratie '+BIDASH_VERSION;}
-      const sidebar=parent.document.querySelector('.sidebar-foot .version');if(sidebar)sidebar.textContent='Integratie '+BIDASH_VERSION;
+      parent.postMessage({type:'hub:version',engine:'dvm',versie:DVM_VERSION},location.origin);
     }catch(error){}
   }
 
@@ -58,10 +58,23 @@
   function specialKind(type){return type==='windDrips'?'wind':type==='ria4Drips'?'ria4':'';}
   function specialState(type){const k=specialKind(type);return k?(window.DVM_SPECIAL_DRIP_LISTS?.[k]||null):null;}
   function knopTekst(item){const c=config(item.type);if(!c)return '';if(!item.aanwezig)return c.label;return c.multiple?'Nog een bron toevoegen':'Bron vervangen';}
+  /* Een referentielijst zonder herkende markerkolom krijgt de soort die met de knop
+     is gekozen. Dat is een aanname over de hele lijst, dus die staat in de brondekking
+     naast de bestandsnaam en niet alleen in de melding tijdens het laden. */
+  function specialHerkomst(type,s){
+    const soort=type==='windDrips'?'Windwaarschuwing':'RIA4';
+    const kolommen=Array.isArray(s.markerKolommen)?s.markerKolommen.filter(Boolean):[];
+    if(s.herkomst==='markering'&&kolommen.length)return `soort uit kolom ${kolommen.join(', ')}`;
+    if(s.herkomst==='aanname'){
+      const n=Number(s.rijenBron)||Number(s.rijen)||0;
+      return `geen markerkolom herkend, ${n?`alle ${n} regels`:'de hele lijst'} als ${soort} aangenomen`;
+    }
+    return 'herkomst onbekend, geladen voor deze controle';
+  }
   function specialMeta(type){
     const s=specialState(type);if(!s||!s.bestand)return PLACEHOLDERS[type].meta;
     const ids=s.identifiers?.length||0,un=Number.isFinite(Number(s.unmatchedCount))?Number(s.unmatchedCount):(s.unmatched?.length||0);
-    return `${s.bestand} · ${ids} referenties · ${s.matchedAssets||0} assets gekoppeld${un?` · ${un} niet gekoppeld`:''}`;
+    return `${s.bestand} · ${ids} referenties · ${s.matchedAssets||0} assets gekoppeld${un?` · ${un} niet gekoppeld`:''} · ${specialHerkomst(type,s)}`;
   }
 
   function ensureInput(type,c){

@@ -4,6 +4,15 @@ Deze uitleg hoort bij de Help-knop rechtsboven in BiDash. Help bevat geen tweede
 
 De standaardweergave is de processflow. Via de documentnavigatie zijn onder andere deze gebruikershulp, de logische architectuur, het rekenvoorbeeld, de systeemwerking en release notes bereikbaar. Daardoor wordt een wijziging in de Markdown-documentatie bij de eerstvolgende publicatie ook de inhoud van Help.
 
+## Welke versie je voor je hebt
+
+Rechtsboven in de balk staat de versie, naast de Help-knop. Direct na het openen
+staat daar de versie van BiDash zelf, bijvoorbeeld `BiDash 2.10`. Zodra je een
+module opent die een eigen versie bijhoudt, komt die erachter: `BiDash 2.10 · DVM 79`.
+Onderin de navigatie staat hetzelfde nummer als `Integratie 2.10`. Noem dat nummer
+bij een melding over een verschil in uitkomsten; zonder versie is een uitkomst niet
+terug te vinden.
+
 ## Aanbevolen laadvolgorde
 
 1. Laad All Assets als technisch stamregister.
@@ -18,7 +27,9 @@ Historische storingen en actuele open storingen zijn twee verschillende gegevens
 
 Verdwijnt een MSI-storing uit de nieuwe momentopname, dan sluit BiDash die af op de peildatum van die lijst. De hersteltijd die daaruit volgt is een bovengrens: het herstel lag ergens tussen de vorige en de nieuwe lijst. Zo'n duur telt daarom niet mee in de herstelduurstatistiek en in de prognose, en wordt in memo's gemarkeerd als afgeleid. Laad je vaker een actuele lijst, dan worden die bovengrenzen scherper.
 
-RIA4 en Windwaarschuwing blijven twee losse kenmerken. Heeft één DRIP-bestand beide kolommen, dan splitst BiDash de regels automatisch op de markeringen in die kolommen. Bij dubbele DRIP-codes controleert de koppeling ook VC, weg, richting en hectometer. In de tabel Brondekking bekijken en bevestigen staat bij DRIP welke historische bron voor de actuele selectie is gebruikt. Bevestig die bron alleen als het bestand voor het bedoelde areaal volledig is.
+RIA4 en Windwaarschuwing blijven twee losse kenmerken. Heeft één DRIP-bestand beide kolommen, dan splitst BiDash de regels automatisch op de markeringen in die kolommen. Naast de vaste kopteksten herkent BiDash ook samenstellingen als `RIA-4 DRIP` of `Windwaarschuwing DRIP`. Windmetingen zoals `Windrichting` of `Windsnelheid` tellen niet mee: die zeggen iets over het weer en niets over de soort DRIP. Bij dubbele DRIP-codes controleert de koppeling ook VC, weg, richting en hectometer. In de tabel Brondekking bekijken en bevestigen staat bij DRIP welke historische bron voor de actuele selectie is gebruikt. Bevestig die bron alleen als het bestand voor het bedoelde areaal volledig is.
+
+Herkent BiDash in een referentielijst géén markerkolom, dan krijgt elke regel de soort die je met de knop koos. Dat is een aanname over het hele bestand. De melding na het laden en de bronkaart in Datasetbeheer benoemen die aanname met het aantal regels waarop hij is toegepast; is er wel gemarkeerd, dan staat er uit welke kolom de soort komt. Klopt de aanname niet, wis de bron dan en laad een bestand met een expliciete kolom.
 
 ## Voortgang tijdens data laden
 
