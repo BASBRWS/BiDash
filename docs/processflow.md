@@ -143,3 +143,25 @@ De standaardweergave is deze processflow. Alle Markdown-bestanden op het hoogste
 | [`site/engines/bi-*.js`](../site/engines) | De BI-engine, formatie, financiën, contracten en bedienketens |
 | [`site/engines/planning.html`](../site/engines/planning.html) | De planningstool die P6- en MS Project-XML leest |
 | [`site/engines/*-adapter.js`](../site/engines) | Het luik `window.HUB` tussen engine en schil |
+
+
+## DRIP meldingen en ontbrekende doorrekening
+
+Sinds BiDash 2.11 gebruikt Open storingen dezelfde verwerkte bronselectie als de
+landelijke telling. Een melding zonder passende foutregel of met een locatieconflict
+blijft bewaard in `STATE.nietDoorgerekend` en zichtbaar met reden. Zij telt mee als
+open melding, maar krijgt geen verzonnen impact. Het betrokken assettype heeft dan
+geen exact beschikbaarheidspercentage, ook niet bij bevestigde bronvolledigheid.
+Het rekenverslag toont de niet doorgerekende bronregels apart. Oudere detailgrafieken
+bevatten uitsluitend het doorgerekende deel; de waarschuwing benoemt die beperking.
+
+De oorspronkelijke starttijd, bronduur en onzekerheidsmarkering blijven behouden.
+Een onbekende duur verschijnt als Onbekend; nul uur blijft nul. Onzekere duren
+worden niet gebruikt voor het gemiddelde in de open-storingenmemo. Bronpeildatum
+betekent niet dat de storing vandaag nog openstaat.
+
+DRIP-koppelingen controleren weg, richting en hectometer, ook bij een opgeslagen
+alias. Een conflicterende alias blijft opgeslagen voor controle maar wordt niet
+gebruikt om de bronlocatie te vervangen. Bij classificatie wordt de oorspronkelijke
+Dynac-locatie uit oudere exports herkend, inclusief underscores en hectometer met
+koppelteken. RIA4 en windwaarschuwing blijven afzonderlijke kenmerken.

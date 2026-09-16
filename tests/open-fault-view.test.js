@@ -43,12 +43,12 @@ test('memo bevat beheerder, VC, type, status en duurstatistiek',()=>{
   assert.ok(m.byStatus.some(([k,n])=>k==='Niet operationeel door storing'&&n===3));
 });
 
-test('DVM HUB-verrijking voegt type, regionale dienst, operationele status en open DRIP-historie toe',()=>{
+test('DVM HUB verrijkt uitsluitend de gezamenlijke meldingen zonder historie opnieuw toe te voegen',()=>{
   const src=readFileSync(new URL('../site/engines/dvm-faults-extension.js',import.meta.url),'utf8');
-  assert.match(src,/typeId:/);
+  assert.match(src,/typeId/);
   assert.match(src,/rd:/);
-  assert.match(src,/DRIP_HIST_STATE/);
-  assert.match(src,/afgeleidUitHistorie:true/);
+  assert.doesNotMatch(src,/DRIP_HIST_STATE/);
+  assert.match(src,/baseFaults\(\)\.map\(enrichBase\)/);
   assert.match(src,/operationeleStatus/);
   assert.match(src,/resolveDrip/);
   assert.match(src,/ria4/);

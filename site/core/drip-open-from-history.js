@@ -31,6 +31,7 @@ export function isOpenDripIncident(x,sourceEnd=null){
 }
 
 function iso(v){
+  if(v==null||v==='')return '';
   const n=Number(v);
   if(Number.isFinite(n)){
     const d=new Date(n);if(Number.isFinite(d.getTime()))return d.toISOString();
@@ -77,6 +78,10 @@ export function dripOpenRow(x,index=0,plaats=null){
     bron:'DRIP-storingshistorie',
     source_name:x?.sourceName||'',
     drip_code:code,
+    storingsduur_uren:x?.duurUren??null,
+    duurBetrouwbaar:x?.duurBetrouwbaar!==false,
+    bronPeildatum:iso(x?.einde),
+    _liveOpen:true,
     _dripHistorieOpen:true
   };
 }
@@ -198,26 +203,6 @@ const PATCH_SOURCE=String.raw`
     return rows.length;
   }
 
-  function patchHubFaults(poging){
-    const hub=globalThis.HUB;
-    if(!hub||typeof hub.faults!=='function'){
-      if((poging||0)<80)setTimeout(()=>patchHubFaults((poging||0)+1),25);
-      return;
-    }
-    if(hub.__bidashDripOpenFaults)return;
-    const originalFaults=hub.faults.bind(hub);
-    hub.faults=function(){
-      const basis=originalFaults();
-      const extra=H.deriveOpenDripFaults(huidigeIncidenten()).map(f=>{
-        let asset=null;
-        try{asset=f.assetKey&&ASSET_INDEX&&ASSET_INDEX.byKey?ASSET_INDEX.byKey.get(f.assetKey):null;}catch(error){}
-        return asset?{...f,naam:asset.naam||f.naam,weg:asset.weg||f.weg,richting:asset.richting||f.richting,vc:asset.vc||f.vc,hm:asset.hm!=null?asset.hm:f.hm}:f;
-      });
-      return [...basis,...extra];
-    };
-    hub.__bidashDripOpenFaults=true;
-  }
-
   const originalHerbouw=herbouwDripHistorie;
   herbouwDripHistorie=function(){
     const result=originalHerbouw.apply(this,arguments);
@@ -268,7 +253,6 @@ const PATCH_SOURCE=String.raw`
   };
 
   syncDripOpenLive();
-  patchHubFaults(0);
   globalThis.__BIDASH_DRIP_OPEN_FROM_HISTORY_ACTIVE__=true;
 })();`;
 

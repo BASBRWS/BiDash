@@ -8,8 +8,8 @@
   const matcher=window.__BIDASH_DRIP_FAULT_MATCH__||null;
   const statusRules=window.__BIDASH_ASSET_OPERATIONAL_STATUS__||null;
   const yes=v=>v===true||v===1||/^(1|ja|yes|true|x)$/i.test(String(v??'').trim());
-  const num=v=>{const n=Number(v);return Number.isFinite(n)?n:null;};
-  const iso=v=>{const n=num(v),d=new Date(n!=null?n:v);return Number.isFinite(d.getTime())?d.toISOString():'';};
+  const num=v=>{if(v==null||v==='')return null;const n=Number(v);return Number.isFinite(n)?n:null;};
+  const iso=v=>{if(v==null||v==='')return '';const n=num(v),d=new Date(n!=null?n:v);return Number.isFinite(d.getTime())?d.toISOString():'';};
   const norm=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,'');
   const upper=v=>String(v??'').trim().toUpperCase();
   const assets=()=>{try{return ASSET_REGISTER_STATE?.assets||[];}catch(e){return [];}};
@@ -30,10 +30,14 @@
   }
 
   function specialListMatch(kind,...objects){
-    const refs=window.DVM_SPECIAL_DRIP_LISTS?.[kind]?.identifiers||[];
-    if(!refs.length)return false;
-    const set=new Set();for(const r of refs)for(const t of tokenVariants(r.token||r.raw||r))set.add(t);
-    return objects.filter(Boolean).some(x=>intersects(objectTokens(x),set));
+    const list=window.DVM_SPECIAL_DRIP_LISTS?.[kind];
+    const helper=window.__BIDASH_SPECIAL_DRIP_CLASSIFICATION__;
+    if(list?.records?.length&&helper?.matchesRecord){
+      return objects.filter(Boolean).some(x=>list.records.some(r=>helper.matchesRecord(x,r)));
+    }
+    // Older lists have no location records. Only retain a classification
+    // already validated on the asset; code-only references are ambiguous.
+    return false;
   }
   const special=(asset,drip,incident)=>{
     const vals=[asset,drip,incident].filter(Boolean);
@@ -75,10 +79,10 @@
   const dripLike=x=>upper(x?.typeId)==='DRIP'||yes(x?._dripHistorieOpen)||/\bDRIP\b/i.test([x?.naam,x?.asset,x?.bron,x?.melding,x?.omschrijving,x?.locatie].filter(Boolean).join(' '));
 
   function enrichBase(row,i){
-    let m=null;try{m=STATE?.meldingen?.[i]||null;}catch(e){}
+    const m=row;
     const probe={...(m||{}),...(row||{}),asset:row?.naam||m?.assetNaam||m?.asset||row?.asset||'',code:row?.code||m?.code||m?.foutcode||''};
     const existingKey=row.assetKey||m?.assetKey||'',existingAsset=assetByKey(existingKey);
-    const resolved=!existingAsset&&dripLike(probe)?resolveDrip(probe):null;
+    const resolved=!existingAsset&&row.assetMatchStatus!=='locatieconflict'&&dripLike(probe)?resolveDrip(probe):null;
     const asset=existingAsset||resolved?.asset||assetByKey(resolved?.assetKey),key=existingKey||resolved?.assetKey||asset?.key||'';
     const drip=resolved?.drip||(asset?.tp==='DRIP'?drips().find(d=>String(d._assetKey||d.assetKey||'')===String(asset.key)):null);
     const typeId=row.typeId||m?.typeId||asset?.tp||(dripLike(probe)?'DRIP':'');
@@ -91,41 +95,14 @@
       vc:row.vc||m?.vc||asset?.vc||'',
       weg:row.weg||m?.weg||asset?.weg||'',richting:row.richting||m?.richting||asset?.richting||'',hm:row.hm??m?.hm??asset?.hm??null,
       naam:row.naam||m?.assetNaam||asset?.naam||drip?.asset||'',
-      start:iso(start),einde:iso(end),duurUren:duur(start,end,m?.duur??row?.duurUren,peil),
+      start:iso(start),einde:iso(end),duurUren:row.afgeleidUitHistorie?(num(row.duurUren)):duur(start,end,row.duurUren,peil),
       bron:row.bron||'Open-storingenmomentopname',wind:sp.wind,ria4:sp.ria4,
       matchMethode:resolved?.method||'',matchScore:resolved?.score||null
     };
     out.operationeleStatus=operationeleStatus(asset,out);
     return out;
   }
-  function openDripFaults(){
-    let hist=null;try{hist=DRIP_HIST_STATE;}catch(e){}
-    if(!hist||!Array.isArray(hist.incidenten))return [];
-    const peil=num(hist.tot)??Date.now();
-    const openKeys=new Set((window.__BIDASH_DRIP_OPEN_FROM_HISTORY_HELPERS__?.deriveOpenDripRows(hist.incidenten)||[]).map(r=>[upper(r.drip_code),Date.parse(r.van)||0].join('|')));
-    return hist.incidenten.filter(x=>openKeys.has([upper(x.code||x.asset),num(x.start)||0].join('|'))).map((x,i)=>{
-      const resolved=resolveDrip(x),d=resolved?.drip||null,key=x.matchAssetKey||resolved?.assetKey||d?._assetKey||d?.assetKey||'',asset=resolved?.asset||assetByKey(key),sp=special(asset,d,x);
-      const naam=asset?.naam||d?.asset||d?.idCdms||x.asset||x.code||`DRIP ${i+1}`;
-      const detail=x.alarmmeldingen||x.classificatie||x.technischeToestand||'Openstaande DRIP-storing';
-      const out={id:`drip-open-${x.code||i}-${x.start||i}`,assetKey:key,naam,typeId:'DRIP',
-        weg:asset?.weg||d?.weg||x.weg||'',richting:asset?.richting||d?.richting||x.richting||'',
-        hm:asset?.hm??d?.hm??x.hm??null,vc:asset?.vc||d?.vc||x.vc||'',rd:regioDienst(asset,d,x,{rd:'',vc:asset?.vc||d?.vc||x.vc||''}),district:asset?.district||d?.district||'',
-        code:x.code||d?.histCode||d?.idCdms||'',impact:null,prestatie:null,omschrijving:detail,
-        start:iso(x.start),einde:'',duurUren:duur(x.start,null,x.duurUren,peil),
-        bron:x.sourceName||'DRIP-storingshistorie',wind:sp.wind,ria4:sp.ria4,afgeleidUitHistorie:true,
-        matchMethode:resolved?.method||'',matchScore:resolved?.score||null};
-      out.operationeleStatus=operationeleStatus(asset,out);
-      return out;
-    });
-  }
-  function allFaults(){
-    const rows=baseFaults().map(enrichBase),extra=openDripFaults(),out=[],seen=new Set();
-    for(const f of [...rows,...extra]){
-      const key=[f.typeId,f.assetKey||f.naam,f.code,f.start||'',f.omschrijving].join('|').toUpperCase();
-      if(seen.has(key))continue;seen.add(key);out.push(f);
-    }
-    return out;
-  }
+  function allFaults(){return baseFaults().map(enrichBase);}
   hub.faults=allFaults;
   if(baseDetail)hub.detail=function(key){const d=baseDetail(key)||{};return {...d,faults:allFaults().filter(f=>String(f.assetKey)===String(key))};};
   hub.__bidashFaultsExtended=true;

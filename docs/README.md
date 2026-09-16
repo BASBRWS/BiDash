@@ -63,3 +63,5 @@ node scripts/stage-docs.mjs
 ```
 
 De simulatie gebruikt een vaste seed, dus dezelfde invoer geeft altijd dezelfde uitkomst.
+
+[Release notes DRIP meldingen en dienstberekening](release-notes-2026-09-16-drip-live-consistentie.md)

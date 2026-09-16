@@ -36,7 +36,7 @@ const canonDirection=v=>{
   if(['RE','RECHTS','R'].includes(s))return 'R';
   return s;
 };
-const num=v=>{const n=Number(String(v??'').replace(',','.'));return Number.isFinite(n)?n:null;};
+const num=v=>{if(v==null||v==='')return null;const n=Number(String(v).replace(',','.'));return Number.isFinite(n)?n:null;};
 
 function intersectionCount(a,b){let n=0;for(const x of a)if(b.has(x))n++;return n;}
 function locationScore(source,candidate){
@@ -52,7 +52,16 @@ function locationScore(source,candidate){
   return score;
 }
 
+export function compatibleDripLocation(source,candidate){
+  const sr=canonRoad(source?.weg||source?.wegnummer),cr=canonRoad(candidate?.weg||candidate?.wegnummer);
+  if(sr&&cr&&sr!==cr)return false;
+  const sd=canonDirection(source?.richting),cd=canonDirection(candidate?.richting);
+  if(sd&&cd&&sd!==cd)return false;
+  const sh=num(source?.hm??source?.hectometer),ch=num(candidate?.hm??candidate?.hectometer);
+  return sh==null||ch==null||Math.abs(sh-ch)<=.35;
+}
 function scoreCandidate(source,candidate){
+  if(!compatibleDripLocation(source,candidate))return null;
   const overlap=intersectionCount(objectTokens(source),objectTokens(candidate));
   const loc=locationScore(source,candidate);
   if(!overlap&&loc<38)return null;
@@ -70,12 +79,14 @@ export function matchDripIncident(incident,assets=[],drips=[]){
   const assetList=(Array.isArray(assets)?assets:[]).filter(a=>String(a?.tp||a?.assetType||a?.type||'').toUpperCase()==='DRIP');
   const byKey=new Map(assetList.map(a=>[String(a.key||a.id||''),a]));
   const explicit=String(incident?.matchAssetKey||incident?.assetKey||'');
+  if(explicit&&byKey.has(explicit)&&!compatibleDripLocation(incident,byKey.get(explicit)))return null;
   if(explicit&&byKey.has(explicit))return {asset:byKey.get(explicit),drip:null,assetKey:explicit,method:'expliciete assetkoppeling',score:10000};
 
   let dripMatch=bestDripMatch(incident,drips),drip=dripMatch?.candidate||null;
   let asset=null,assetMatch=null;
   const linkedKey=String(drip?._assetKey||drip?.assetKey||'');
-  if(linkedKey&&byKey.has(linkedKey))asset=byKey.get(linkedKey);
+  if(linkedKey&&byKey.has(linkedKey)&&!compatibleDripLocation(incident,byKey.get(linkedKey)))return null;
+  if(linkedKey&&byKey.has(linkedKey)&&compatibleDripLocation(incident,byKey.get(linkedKey)))asset=byKey.get(linkedKey);
   if(!asset){
     assetMatch=bestDripMatch(drip||incident,assetList);
     asset=assetMatch?.candidate||null;
