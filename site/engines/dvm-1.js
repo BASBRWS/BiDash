@@ -69,7 +69,17 @@ const RULES = {
     {code:'1007',actief:true,patroon:'Een lus goed, een lus fout',assetType:'LUS',severity:'middel',availPct:10,perfPct:25,oms:'Gedeeltelijke detectie'},
     {code:'5004',actief:true,patroon:'uitgeschakeld voor OS',assetType:'LUS',severity:'hoog',availPct:15,perfPct:40,oms:'Bewust uitgeschakeld, wel impact'},
     {code:'6005',actief:true,patroon:'Wisselbord heeft verkeerde stand',assetType:'WISSELBORD',severity:'hoog',availPct:40,perfPct:80,oms:'Verkeerde stand raakt bediening/veiligheid'},
-    {code:'4021',actief:true,patroon:'Noodvoeding uitgevallen',assetType:'MSI',severity:'hoog',availPct:20,perfPct:35,oms:'Onderliggende storing, combineerbaar'}
+    {code:'4021',actief:true,patroon:'Noodvoeding uitgevallen',assetType:'MSI',severity:'hoog',availPct:20,perfPct:35,oms:'Onderliggende storing, combineerbaar'},
+    /* DRIP/BermDRIP-alarmen. De impact volgt de betekenis van het alarm; de
+       functionele toestand (GESTOPT/IN-BEDRIJF, LANGDURIG/INTERMITTEREND) is in
+       foutregel() leidend en kan deze waarden verhogen of begrenzen. Deze
+       percentages zijn een model, geen vastgesteld RWS-getal; ze zijn instelbaar. */
+    {code:'DBD-DISPLAY',actief:true,patroon:'contact met display verloren',assetType:'DRIP',severity:'kritiek',availPct:100,perfPct:100,oms:'Controller heeft displaycontact verloren — paneel toont niets'},
+    {code:'DBD-KRIT',actief:true,patroon:'kritische',assetType:'DRIP',severity:'hoog',availPct:80,perfPct:95,oms:'Kritieke storing (bijv. kritische LED-fout) — beeld onbetrouwbaar'},
+    {code:'DBD-TEMP',actief:true,patroon:'temperatuur boven het maximum',assetType:'DRIP',severity:'middel',availPct:25,perfPct:40,oms:'Oververhitting — risico op uitschakeling'},
+    {code:'DBD-LED',actief:true,patroon:'led status fout',assetType:'DRIP',severity:'laag',availPct:10,perfPct:30,oms:'LED-statusstoring — beeld licht gedegradeerd'},
+    {code:'DBD-RESET',actief:true,patroon:'gereset',assetType:'DRIP',severity:'laag',availPct:5,perfPct:10,oms:'DRIP is gereset — doorgaans transiënt herstel'},
+    {code:'DBD-DEUR',actief:true,patroon:'deuren staan',assetType:'DRIP',severity:'geen',availPct:0,perfPct:0,oms:'Kastdeur open — geen displaystoring, geen dienstimpact'}
   ],
   locatieRegels:[
     ...MSI_ERNST_REGELS_DEFAULT.map(r=>({...r})),

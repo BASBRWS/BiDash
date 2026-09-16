@@ -81,6 +81,11 @@ export function dripOpenRow(x,index=0,plaats=null){
     storingsduur_uren:x?.duurUren??null,
     duurBetrouwbaar:x?.duurBetrouwbaar!==false,
     bronPeildatum:iso(x?.einde),
+    /* De functionele toestand en duurclassificatie bepalen in foutregel() de
+       DRIP-impact (GESTOPT/IN-BEDRIJF, LANGDURIG/INTERMITTEREND). Zonder deze
+       velden kan de doorrekening alleen op de losse alarmtekst sturen. */
+    classificatie:String(x?.classificatie||'').trim(),
+    technischeToestand:String(x?.technischeToestand||x?.technische_toestand||'').trim(),
     _liveOpen:true,
     _dripHistorieOpen:true
   };

@@ -412,6 +412,7 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 | Help/documentatie | Controleer `site/help.html`, Help-link in `site/index.html` en overeenstemming met `docs/GEBRUIKERSHULP.md` en `docs/processflow.md` |
 | DVM-regels/kosten/prognose | Aanvullende gerichte numerieke tests en scopes; bestaande tests dekken niet alle formules |
 | DRIP actueel/classificatie | `tests/drip-open-from-history.test.js`, `tests/drip-special-lists.test.js` en een lokale controle met een volledige DRIP-export zonder die brondata in Git op te nemen |
+| DRIP-foutregels en toestand | `tests/drip-foutregel.test.js`: de verzonden DRIP-foutcodes met de afgesproken percentages, alarmtekst matcht (display verloren, kritische LED, deur, reset), de functionele toestand (GESTOPT/IN-BEDRIJF, LANGDURIG/INTERMITTEREND) is leidend, een ongedefinieerde fout blijft onbekend, MSI/CAM ongewijzigd |
 | Memo/print | Controleer selectie, bron/run, optionele kosten en grafieken in printweergave |
 | Privacy | Geen externe gegevensverzoeken in browserroutes; geen operationele data in diff/artifact |
 | Alleen documentatie | Controleer beweringen, bestands-/functienamen, links en diff; geen volledige simulatie nodig |
@@ -472,3 +473,34 @@ alias. Een conflicterende alias blijft opgeslagen voor controle maar wordt niet
 gebruikt om de bronlocatie te vervangen. Bij classificatie wordt de oorspronkelijke
 Dynac-locatie uit oudere exports herkend, inclusief underscores en hectometer met
 koppelteken. RIA4 en windwaarschuwing blijven afzonderlijke kenmerken.
+
+### DRIP-foutregels en de leidende toestand
+
+Sinds BiDash 2.13 / DVM 83 kennen DRIP-storingen wél een passende foutregel. Eerder
+had `RULES.foutcodes` geen enkele regel met assetType `DRIP`, dus gaf `foutregel()`
+altijd `null` en bleef elke DRIP-melding staan met "Passende foutregel ontbreekt".
+`doorrekenen()` liet die meldingen dan vallen, waardoor de dienstverlening te gunstig
+uitkwam. Er zijn nu twee lagen die samen de impact bepalen.
+
+De eerste laag matcht de alarmtekst op de bekende DRIP-alarmen, net als bij MSI. Een
+verloren displaycontact geldt als volledige uitval (100/100), een kritische
+LED-storing weegt zwaar (80/95), een temperatuuroverschrijding matig (25/40), een
+minor LED-status licht (10/30), een reset zeer licht (5/10) en een open kastdeur is
+een bekende storing zonder dienstimpact (0/0). De regels gebruiken max-wint, dus de
+zwaarste passende regel bepaalt de score binnen een samengestelde melding.
+
+De tweede laag is leidend: de functionele toestand uit de bron (`technische_toestand`
+GESTOPT/IN-BEDRIJF en `classificatie` LANGDURIG/INTERMITTEREND) gaat vóór de
+alarmtekst. Een volledig gestopt paneel telt als volledige uitval, ongeacht welk
+alarm gemeld is. Een paneel dat gestopt is geweest en weer in bedrijf is, legt een
+ondergrens: langdurig 60/70, intermitterend 25/40. Een paneel dat in bedrijf is met
+alleen een gemeld alarm houdt de alarmwaarde laag. Zonder toestand valt de melding
+terug op de classificatie, en zonder toestand én zonder classificatie én zonder
+passende alarmregel blijft de melding bewust onbekend: zij telt als open melding maar
+krijgt geen verzonnen impact.
+
+De percentages zijn een instelbaar model, geen vastgesteld RWS-getal. Zij maken de
+DRIP-dienstverlening bespreekbaar en toetsbaar; validatie met RWS kan de waarden
+bijstellen zonder de structuur te wijzigen. `tests/drip-foutregel.test.js` legt zowel
+de percentages als de leidende toestand vast en voert daarvoor de verzonden
+implementatie uit `dvm-1.js` en `dvm-2.js` uit.
