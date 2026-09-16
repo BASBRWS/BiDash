@@ -9,6 +9,7 @@ Achtergrond bij BiDash integraal. De applicatie zelf staat in [`site/`](../site)
 | [Systeemwerking](SYSTEEMWERKING.md) | Technische architectuur, kwaliteitscontract, importregels, rekenketens en verplichte wijzigingscontroles |
 | [Logische architectuur](architectuur.md) | Dienstverlening als doellaag, de drie invloeddomeinen, rule engine en trigger engine, plus de relatie met de technische vierlagenarchitectuur |
 | [Rekenvoorbeeld signaalgevers](rekenvoorbeeld-signaalgevers.md) | Tien jaar geen signaalgevers vervangen, doorgerekend tot beschikbaarheid, dienstverlening en kosten |
+| [Release notes herkomst DRIP-classificatie](release-notes-2026-09-16-drip-markerherkomst.md) | Maakt zichtbaar wanneer geen markerkolom is herkend en de gekozen soort een aanname is, en herkent samengestelde kopteksten |
 | [Release notes afgeleide hersteltijd](release-notes-2026-09-16-afgeleide-hersteltijd.md) | Behandelt een hersteltijd die uit de peildatum volgt als bovengrens en houdt die buiten de herstelduurstatistiek en de prognose |
 | [Release notes dienstaandelen normaliseren](release-notes-2026-09-16-dienstaandelen-normalisatie.md) | Normaliseert de subprocesaandelen bij het laden, zodat de dienstverlening niet langer een band 0,00–0,00% toont voordat het regelscherm is geopend |
 | [Release notes DRIP-bronclassificatie](release-notes-2026-09-15-drip-bronclassificatie.md) | Filtert actuele DRIP-incidenten op het bronvenster, splitst RIA4 en Windwaarschuwing per regel en toont de herkomst in de brondekking |

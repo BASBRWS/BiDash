@@ -58,10 +58,23 @@
   function specialKind(type){return type==='windDrips'?'wind':type==='ria4Drips'?'ria4':'';}
   function specialState(type){const k=specialKind(type);return k?(window.DVM_SPECIAL_DRIP_LISTS?.[k]||null):null;}
   function knopTekst(item){const c=config(item.type);if(!c)return '';if(!item.aanwezig)return c.label;return c.multiple?'Nog een bron toevoegen':'Bron vervangen';}
+  /* Een referentielijst zonder herkende markerkolom krijgt de soort die met de knop
+     is gekozen. Dat is een aanname over de hele lijst, dus die staat in de brondekking
+     naast de bestandsnaam en niet alleen in de melding tijdens het laden. */
+  function specialHerkomst(type,s){
+    const soort=type==='windDrips'?'Windwaarschuwing':'RIA4';
+    const kolommen=Array.isArray(s.markerKolommen)?s.markerKolommen.filter(Boolean):[];
+    if(s.herkomst==='markering'&&kolommen.length)return `soort uit kolom ${kolommen.join(', ')}`;
+    if(s.herkomst==='aanname'){
+      const n=Number(s.rijenBron)||Number(s.rijen)||0;
+      return `geen markerkolom herkend, ${n?`alle ${n} regels`:'de hele lijst'} als ${soort} aangenomen`;
+    }
+    return 'herkomst onbekend, geladen voor deze controle';
+  }
   function specialMeta(type){
     const s=specialState(type);if(!s||!s.bestand)return PLACEHOLDERS[type].meta;
     const ids=s.identifiers?.length||0,un=Number.isFinite(Number(s.unmatchedCount))?Number(s.unmatchedCount):(s.unmatched?.length||0);
-    return `${s.bestand} · ${ids} referenties · ${s.matchedAssets||0} assets gekoppeld${un?` · ${un} niet gekoppeld`:''}`;
+    return `${s.bestand} · ${ids} referenties · ${s.matchedAssets||0} assets gekoppeld${un?` · ${un} niet gekoppeld`:''} · ${specialHerkomst(type,s)}`;
   }
 
   function ensureInput(type,c){
