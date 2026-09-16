@@ -1,4 +1,4 @@
-export const QUALITY_AUDIT_VERSION=1;
+export const QUALITY_AUDIT_VERSION=2;
 
 export const QUALITY_CATEGORIES={
   sources:{label:'Bronnen',weight:25,description:'Aanwezigheid, actualiteit en scope van de geladen gegevens.'},
@@ -55,9 +55,17 @@ function duplicateCount(values){
   return duplicates;
 }
 
+/* Twee meldingen zijn pas een bronduplicaat als ze op meer dan alleen locatie en
+   foutcode overeenkomen. We nemen ook het event-ID en het bronbestand mee: dezelfde
+   foutcode op dezelfde plek uit twee verschillende bronbestanden, of met een eigen
+   event-ID, is een aparte melding en geen duplicaat. Ontbreekt het event-ID, dan
+   valt de vergelijking terug op assetcode, starttijd, foutcode en locatie. */
 function faultFingerprint(f){
-  const parts=[f.assetKey,f.typeId,f.code,f.start,f.weg,f.richting,f.hm,f.naam].map(text);
-  return parts.filter(Boolean).length>=3?parts.join('|'):'';
+  const eventId=text(f.eventId||f.event_id);
+  const bron=text(f.bron||f.bronBestand||f.source_name);
+  const kern=[f.assetKey||f.naam,f.typeId,f.code,f.start,f.weg,f.richting,f.hm].map(text);
+  if(kern.filter(Boolean).length<3)return '';
+  return [eventId,bron,...kern].join('|');
 }
 
 function statusFor(score,blockers){
@@ -101,6 +109,16 @@ export function runQualityAudit(input={}){
 
   if(rawAssetCount&&assets.length===0)add('integrity','critical','Assetregister niet verwerkt','De bron bevat assets, maar de publieke DVM-analyse levert geen verwerkt asset op.','Open DVM-bronbeheer en verwerk het assetregister opnieuw.');
   else if(assets.length)add('integrity','good','Assetregister verwerkt',`${assets.length.toLocaleString('nl-NL')} assets zijn beschikbaar in het analysemodel.`,'',assets.length);
+  /* Het verschil tussen bronregels en verwerkte assets moet verklaarbaar zijn.
+     Een klein verschil (kopregels, dubbele sleutels, niet-DVM-regels) is normaal;
+     een groot verschil verdient controle. */
+  if(rawAssetCount&&assets.length){
+    const nietVerwerkt=rawAssetCount-assets.length;
+    if(nietVerwerkt>0){
+      const dropPct=pct(nietVerwerkt,rawAssetCount);
+      add('integrity',dropPct>5?'warning':'info','Bronregels en verwerkte assets verschillen',`${rawAssetCount.toLocaleString('nl-NL')} bronregels leverden ${assets.length.toLocaleString('nl-NL')} verwerkte assets; ${nietVerwerkt.toLocaleString('nl-NL')} (${dropPct.toLocaleString('nl-NL')}%) vielen af.`,dropPct>5?'Controleer of het verschil verklaarbaar is: kopregels, dubbele sleutels of niet-DVM-assets.':'',nietVerwerkt);
+    }
+  }
 
   const missingKeys=assets.filter(a=>!text(a.key)).length,duplicateKeys=duplicateCount(assets.map(a=>a.key));
   if(missingKeys)add('integrity','critical','Assets zonder stabiele sleutel',`${missingKeys.toLocaleString('nl-NL')} assets missen een sleutel en zijn niet betrouwbaar herleidbaar.`,'Herstel de unieke asset-ID in de bron.',missingKeys);
@@ -129,11 +147,34 @@ export function runQualityAudit(input={}){
   if(liveRows&&faults.length===0)add('linkage','critical','Storingsbron bereikt het dashboard niet',`De bron bevat ${liveRows.toLocaleString('nl-NL')} regels, maar de gezamenlijke storingsweergave is leeg.`,'Verwerk de actuele bron opnieuw en controleer het ingestelde storingsfilter.');
   else if(faults.length)add('linkage','good','Storingsketen levert meldingen',`${faults.length.toLocaleString('nl-NL')} open meldingen zijn beschikbaar in de gezamenlijke weergave.`,'',faults.length);
 
+  /* Het verschil tussen bronregels en getoonde meldingen mag geen zwart gat zijn.
+     De engine houdt zelf bij waarom een regel afvalt; die uitsplitsing tonen we,
+     zodat een gebruiker ziet dat het verschil verklaard is en niet stil verdwijnt. */
+  const stats=dvmSummary.stats;
+  if(stats&&finite(stats.totaal)){
+    const delen=[];
+    const noem=(waarde,label)=>{if(finite(waarde)&&Number(waarde)>0)delen.push(`${Number(waarde).toLocaleString('nl-NL')} ${label}`);};
+    noem(stats.toegepast,'doorgerekend');
+    noem(stats.dubbel,'ontdubbeld');
+    noem(stats.nietGecl,'niet geclassificeerd');
+    noem(stats.zonderFoutregel,'zonder passende foutregel');
+    noem(stats.zonderLocatie,'zonder locatie');
+    noem(dvmSummary.nietDoorgerekend,'zichtbaar maar niet doorgerekend');
+    add('linkage','info','Verwerking van de actuele bronregels',`${Number(stats.totaal).toLocaleString('nl-NL')} bronregels: ${delen.length?delen.join(', '):'geen uitsplitsing beschikbaar'}.`,'',Number(stats.totaal));
+  }
+
   if(faults.length){
     const linked=faults.filter(f=>text(f.assetKey)).length,linkedPct=pct(linked,faults.length);
     add('linkage',linkedPct<50?'critical':linkedPct<90?'warning':'good','Assetkoppeling open storingen',`${linkedPct.toLocaleString('nl-NL')}% van de open storingen is aan een specifiek asset gekoppeld.`,linkedPct<90?'Controleer assetcode, VC, weg, richting en hectometer van de niet-gekoppelde meldingen.':'',linkedPct);
-    const conflicts=faults.filter(f=>f.assetMatchStatus==='locatieconflict').length;
-    if(conflicts)add('linkage','critical','Locatieconflicten geblokkeerd',`${conflicts.toLocaleString('nl-NL')} meldingen verwijzen qua identificatie en locatie naar verschillende assets.`,'Los de bronidentiteit of locatie op. Forceer deze koppelingen niet.',conflicts);
+    /* Een locatieconflict — identiteit wijst naar het ene asset, locatie naar het
+       andere — is de beveiliging die wérkt: BiDash weigert de verdachte koppeling.
+       Dat is geen systeemblokkade, dus het telt als aandachtspunt, niet als
+       blokker. Blokkerend is het pas wanneer zo'n conflict tóch een koppeling of
+       impact heeft gekregen; dan heeft de beveiliging gefaald. */
+    const conflictFaults=faults.filter(f=>f.assetMatchStatus==='locatieconflict');
+    const gelektConflict=conflictFaults.filter(f=>text(f.assetKey)||finite(f.impact)).length;
+    if(gelektConflict)add('linkage','critical','Locatieconflict toch doorgerekend',`${gelektConflict.toLocaleString('nl-NL')} meldingen met een tegenstrijdige locatie kregen tóch een koppeling of impact.`,'Onderzoek waarom de blokkade hier niet greep en herstel de bron voordat je hierop stuurt.',gelektConflict);
+    if(conflictFaults.length)add('linkage','warning','Locatieconflicten veilig geblokkeerd',`${conflictFaults.length.toLocaleString('nl-NL')} meldingen verwijzen qua identiteit en locatie naar verschillende assets. BiDash weigert de koppeling en rekent geen impact; ze staan als niet gekoppeld.`,'Los per geval de bronidentiteit of locatie op. Forceer de koppeling niet.',conflictFaults.length);
     else add('linkage','good','Geen locatieconflicten','De audit vond geen geblokkeerde koppeling met tegenstrijdige locatie.','',0);
     const dripFaults=faults.filter(f=>text(f.typeId).toUpperCase()==='DRIP'),wind=dripFaults.filter(f=>f.wind).length,ria4=dripFaults.filter(f=>f.ria4).length;
     if(dripFaults.length)add('linkage','info','Speciale DRIP-classificatie',`${wind.toLocaleString('nl-NL')} open DRIP-meldingen zijn als Windwaarschuwing gemarkeerd en ${ria4.toLocaleString('nl-NL')} als RIA4. Overige DRIP-meldingen blijven regulier.`,'Controleer de bronherkomst wanneer deze aantallen onverwacht zijn.',wind+ria4);
@@ -172,7 +213,9 @@ export function runQualityAudit(input={}){
 
   const backupReady=!!(dvm?.assetregister&&dvm?.parameters&&dvm?.liveStoringen);
   add('continuity',backupReady?'good':'warning','Herberekenbare DVM-back-up',backupReady?'Assetregister, actuele storingen en parameters zijn samen beschikbaar.':'Minstens één kernonderdeel voor herberekening ontbreekt.',backupReady?'':'Neem assetregister, actuele storingen en parameters samen op in je volgende export.',backupReady?1:0);
-  if(bi)add('continuity','good','BI-werkruimte aanwezig',`${biAssets.length.toLocaleString('nl-NL')} BI-assets en ${list(summaries.bi?.functies).length.toLocaleString('nl-NL')} functies zijn in de werkruimte zichtbaar.`,'',biAssets.length);
+  const biFuncties=list(summaries.bi?.functies).length;
+  if(bi&&!biAssets.length&&!biFuncties)add('continuity','warning','BI-werkruimte geladen maar leeg','Er is een BI-dataset, maar zonder assets en zonder bedrijfsfuncties. Formatie, capaciteit en gezamenlijke signalen zijn niet te beoordelen.','Laad een BI-dataset met assets en functies, of verwijder de lege BI-set.',0);
+  else if(bi)add('continuity','good','BI-werkruimte aanwezig',`${biAssets.length.toLocaleString('nl-NL')} BI-assets en ${biFuncties.toLocaleString('nl-NL')} functies zijn in de werkruimte zichtbaar.`,'',biAssets.length);
   else add('continuity','info','BI-werkruimte niet geladen','De DVM-audit blijft bruikbaar. Formatie, contracten en gezamenlijke signalen worden niet beoordeeld.','Laad BI-gegevens wanneer je de integrale werking wilt auditen.');
   if(state.planning)add('continuity','good','Oorspronkelijke planning bewaard','De planning-XML is beschikbaar voor export en herverwerking.','',1);
   else add('continuity','info','Planning niet geladen','Planning en capaciteit vallen buiten deze auditrun.','Laad de planning-XML wanneer je ook uitvoerbaarheid wilt beoordelen.');

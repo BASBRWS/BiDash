@@ -7,9 +7,9 @@ De standaardweergave is de processflow. Via de documentnavigatie zijn onder ande
 ## Welke versie je voor je hebt
 
 Rechtsboven in de balk staat de versie, naast de Help-knop. Direct na het openen
-staat daar de versie van BiDash zelf, bijvoorbeeld `BiDash 2.12`. Zodra je een
-module opent die een eigen versie bijhoudt, komt die erachter: `BiDash 2.12 · DVM 81`.
-Onderin de navigatie staat hetzelfde nummer als `Integratie 2.12`. Noem dat nummer
+staat daar de versie van BiDash zelf, bijvoorbeeld `BiDash 2.13`. Zodra je een
+module opent die een eigen versie bijhoudt, komt die erachter: `BiDash 2.13 · DVM 82`.
+Onderin de navigatie staat hetzelfde nummer als `Integratie 2.13`. Noem dat nummer
 bij een melding over een verschil in uitkomsten; zonder versie is een uitkomst niet
 terug te vinden.
 
