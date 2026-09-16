@@ -31,6 +31,7 @@ Een leeswijzer bij deze tekening staat in [architectuur.md](architectuur.md). De
 | Gebruikershulp | `site/help.html`, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md` | Bedieningsuitleg, laadvolgorde en procesflows |
 | Navigatie | `site/ui/routes.js` | Hoofdgroepen, subroutes en doelmodule |
 | Orchestratie | `site/app.js` | Importvoorstel, herstel, opslag, gezamenlijke weergave, adapters |
+| Versie | `site/core/versie.js` | Het versienummer van de schil, de tekst in de kopbalk en in de voet van de zijbalk |
 | Datalaadvoortgang | `site/core/load-progress.js`, `site/core/import-progress-bridge.js` | Eén zichtbare importstatus voor hubbestanden en specialistische DVM-bronnen; bytevoortgang waar de browser die kan meten en fasestatus tijdens parsing/doorrekening |
 | Gegevenscontract | `site/core/model.js` | Deelimport, selectie-export, validatie, gecombineerde signalen |
 | Live storingssync | `site/core/live-snapshot.js` | Vervangen actuele momentopname, vergelijken met vorige lijst en historiseren verdwenen MSI-storingen |
@@ -43,6 +44,32 @@ Een leeswijzer bij deze tekening staat in [architectuur.md](architectuur.md). De
 | Canvas | `site/engines/planning-canvas.js` | Begrensd tekenvlak en scrollcoördinaten |
 | Gedeelde modulestijl | `site/engines/component.css` | Vormgeving binnen de frames |
 | Lokale bibliotheek | `site/vendor/` | Spreadsheetverwerking zonder externe CDN |
+
+### Runtime-patches
+
+De drie rekenmodules draaien ongewijzigd in hun iframe. Verbeteringen hangen er als
+runtime-patch omheen: een module uit `site/core/` die bestaande functies in de scope
+van de engine omwikkelt en daarna een eigen vlag zet, zoals
+`__BIDASH_DVM_LIVE_PATCH_ACTIVE__`. `site/core/signal-forecast.js` is de enige plek
+waar die patches worden gekoppeld.
+
+Installeert een patch niet, dan valt de applicatie stil terug op het oude gedrag:
+geen foutmelding, geen zichtbaar verschil, wel andere uitkomsten. Daarom geldt:
+
+- Elke patch zet één eigen vlag in de scope waarin hij installeert.
+- Elke patch staat met die vlag in `tests/runtime-patches.test.js`. Een nieuwe
+  `export function install…` zonder regel in dat bestand laat de suite falen.
+- Een patch die bewust niet gekoppeld is, blijft daar ook staan, met de reden in
+  `signal-forecast.js`. Niet gekoppeld is een keuze die je vastlegt, geen regel die
+  je weglaat.
+
+### Versienummer
+
+Het versienummer van de schil staat in `site/core/versie.js` en nergens anders.
+`site/app.js` toont het bij het starten in de kopbalk en in de voet van de zijbalk,
+dus vóórdat er een module is geladen. Een module meldt haar eigen engineversie met
+`postMessage({type:'hub:version',engine,versie})`; de schil zet die erachter. Een
+module schrijft niet zelf in het document van de schil.
 
 Eén eigenaar per rekenregel:
 
@@ -369,6 +396,8 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 | Afgeleide hersteltijd | `tests/afgeleide-hersteltijd.test.js`: herkomst vastgelegd, markering in `normRij`, duurverdeling stabiel bij een verder weg liggende peildatum |
 | Dienstaandelen en dienstwaarde | `tests/dienst-aandelen.test.js`: gesloten aandelen na laden, ontbrekend aandeel als 1, expliciete aandelen, onvolledige dekking blijft een band |
 | Herkomst DRIP-classificatie | `tests/drip-markerherkomst.test.js`: samengestelde kopteksten als markering, windmeting niet, aanname vastgelegd met regelaantal, herkomst door export en herstel, zichtbaar in de bronkaart |
+| Runtime-patches installeren | `tests/runtime-patches.test.js`: elke patch zet zijn vlag in een eigen scope, de koppeling in `signal-forecast.js` klopt met de registratie, geparkeerde patches blijven een vastgelegde keuze, geen patch zonder registratie |
+| Versiebalk | `tests/versiebalk.test.js`: schilversie zichtbaar zonder geladen module, gemelde engineversies erachter, lege melding blijft weg, versienummer op precies één plek |
 | Live overzichtsfilter | `tests/live-overview-filter.test.js`: defaults, uitsluitingen, lege waarden, nieuwe waarden, bronbehoud en DVM-parameteropslag |
 | Help/documentatie | Controleer `site/help.html`, Help-link in `site/index.html` en overeenstemming met `docs/GEBRUIKERSHULP.md` en `docs/processflow.md` |
 | DVM-regels/kosten/prognose | Aanvullende gerichte numerieke tests en scopes; bestaande tests dekken niet alle formules |

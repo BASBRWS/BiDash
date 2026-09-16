@@ -4,6 +4,15 @@ Deze uitleg hoort bij de Help-knop rechtsboven in BiDash. Help bevat geen tweede
 
 De standaardweergave is de processflow. Via de documentnavigatie zijn onder andere deze gebruikershulp, de logische architectuur, het rekenvoorbeeld, de systeemwerking en release notes bereikbaar. Daardoor wordt een wijziging in de Markdown-documentatie bij de eerstvolgende publicatie ook de inhoud van Help.
 
+## Welke versie je voor je hebt
+
+Rechtsboven in de balk staat de versie, naast de Help-knop. Direct na het openen
+staat daar de versie van BiDash zelf, bijvoorbeeld `BiDash 2.10`. Zodra je een
+module opent die een eigen versie bijhoudt, komt die erachter: `BiDash 2.10 · DVM 79`.
+Onderin de navigatie staat hetzelfde nummer als `Integratie 2.10`. Noem dat nummer
+bij een melding over een verschil in uitkomsten; zonder versie is een uitkomst niet
+terug te vinden.
+
 ## Aanbevolen laadvolgorde
 
 1. Laad All Assets als technisch stamregister.
