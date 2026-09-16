@@ -15,7 +15,8 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {dripOpenRow,deriveOpenDripRows} from '../site/core/drip-open-from-history.js';
 
-const bron=readFileSync(new URL('../site/engines/dvm-2.js',import.meta.url),'utf8');
+const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
+const bron=read('site/engines/dvm-2.js');
 
 function haalFunctie(tekst,naam){
   const start=tekst.indexOf('function '+naam+'(');
@@ -53,11 +54,15 @@ function context({liveRijen,meldingen,dekking}){
   vm.runInContext('gecombineerdeLiveStoringsRijen=function(){return LIVE_STORINGSBRONNEN.flatMap(b=>b.rijen||[]);};',ctx);
   vm.runInContext(haalConst(bron,'V68_TYPES'),ctx);
   vm.runInContext(haalConst(bron,'V68_LABEL'),ctx);
-  for(const naam of ['v68DekkingCfg','v68Assets','v68LiveBronnenVoorType','v68BronRijenPerType','v68TypeStatus'])
+  // OBJ_BRON staat in dvm-1.js; v68Subproces vertaalt er de subprocesafhankelijkheden mee naar assettypen.
+  vm.runInContext(read('site/engines/dvm-1.js').match(/^const OBJ_BRON = \{.*$/m)[0],ctx);
+  for(const naam of ['v68DekkingCfg','v68Assets','v68LiveBronnenVoorType','v68BronRijenPerType','v68TypeStatus','v68ObjType','v68Subproces'])
     vm.runInContext(haalFunctie(bron,naam),ctx,{filename:naam});
   return ctx;
 }
 const status=ctx=>vm.runInContext('v68TypeStatus()',ctx);
+// Reken één subproces door met de typen die v68TypeStatus() oplevert, precies zoals de dienstverlening dat doet.
+const subproces=(ctx,afh)=>vm.runInContext(`v68Subproces(${JSON.stringify({naam:'proef',gewicht:1,afh})},v68TypeStatus())`,ctx);
 
 const msiMelding=i=>({typeId:'MSI',trace:{bijdrageAvail:2,bijdragePerf:1}});
 
@@ -75,10 +80,11 @@ test('open meldingen in de bron tellen mee, ook als ze niet doorgerekend zijn',(
   assert.equal(t.DRIP.aangeleverd,true,'er is wel degelijk iets aangeleverd');
   assert.doesNotMatch(t.DRIP.status,/geen open storing/);
   assert.match(t.DRIP.status,/14 open meldingen in de bron/);
-  assert.match(t.DRIP.status,/14 niet doorgerekend/);
+  // Alle 14 zijn blind (0 doorgerekend), dus de status meldt dat en niet "waarvan N".
+  assert.match(t.DRIP.status,/geen enkele doorgerekend/);
 });
 
-test('een type met niet-doorgerekende meldingen levert geen exact percentage',()=>{
+test('een blind type — open meldingen, geen enkele doorgerekend — is onbekend',()=>{
   const ctx=context({
     liveRijen:Array.from({length:14},()=>({typeId:'DRIP'})),
     meldingen:[],
@@ -89,6 +95,55 @@ test('een type met niet-doorgerekende meldingen levert geen exact percentage',()
      DRIP-verlies simpelweg niet is meegerekend. */
   assert.equal(t.DRIP.besch,null);
   assert.equal(t.DRIP.prestatie,null);
+  assert.equal(t.DRIP.blindeMeldingen,true);
+  assert.match(t.DRIP.status,/geen enkele doorgerekend/);
+  assert.match(t.DRIP.status,/beschikbaarheid onbekend/);
+});
+
+test('een type met een deel doorgerekend levert nog steeds een waarde',()=>{
+  /* Dit is de regressie: 8 open meldingen in de bron, 5 doorgerekend. Eerder werd
+     besch dan null gezet, waardoor de hele dienstverlening naar 0,00–100,00% met
+     0% brondekking terugviel. De 5 doorgerekende meldingen horen wel te tellen. */
+  const ctx=context({
+    liveRijen:Array.from({length:8},()=>({typeId:'MSI'})),
+    meldingen:Array.from({length:5},msiMelding),
+    dekking:{MSI:true}
+  });
+  const t=status(ctx);
+  assert.equal(t.MSI.inBron,8);
+  assert.equal(t.MSI.events,5);
+  assert.equal(t.MSI.nietDoorgerekend,3);
+  assert.equal(t.MSI.blindeMeldingen,false);
+  assert.notEqual(t.MSI.besch,null,'een deels doorgerekend type moet een waarde houden');
+  assert.ok(t.MSI.besch>99.5&&t.MSI.besch<99.6,'onverwacht percentage: '+t.MSI.besch);
+});
+
+test('een bevestigd type met een gat blijft de dienstverlening voeden',()=>{
+  /* Reproductie van de gemelde storing: MSI bevestigd met een gat (435 van 657),
+     DRIP bevestigd maar blind (0 doorgerekend). Een subproces dat op beide leunt,
+     hoort dekking uit MSI te halen en niet op nul te blijven staan. */
+  const ctx=context({
+    liveRijen:[...Array.from({length:8},()=>({typeId:'MSI'})),...Array.from({length:14},()=>({typeId:'DRIP'}))],
+    meldingen:Array.from({length:5},msiMelding),
+    dekking:{MSI:true,DRIP:true}
+  });
+  const r=subproces(ctx,{signalering:0.5,drip:0.5});
+  assert.ok(r.bekend>0.49&&r.bekend<0.51,'de MSI-helft moet als bekend meetellen: '+r.bekend);
+  assert.ok(r.loB>0,'de ondergrens mag niet nul zijn: '+r.loB);
+  assert.ok(r.hiB>r.loB,'DRIP is blind, dus de band moet open blijven aan de bovenkant');
+  assert.equal(r.exact,false,'met een blinde DRIP-helft is het subproces geen exacte waarde');
+});
+
+test('een subproces dat alleen op een blind type leunt blijft een volle band',()=>{
+  const ctx=context({
+    liveRijen:Array.from({length:14},()=>({typeId:'DRIP'})),
+    meldingen:[],
+    dekking:{DRIP:true}
+  });
+  const r=subproces(ctx,{drip:1});
+  assert.equal(r.bekend,0,'een blind type telt niet als bekende dekking');
+  assert.equal(r.loB,0);
+  assert.ok(r.hiB>99.9,'de bovengrens veronderstelt 100% voor het onbekende type');
 });
 
 test('een volledig doorgerekend type blijft een exact percentage geven',()=>{

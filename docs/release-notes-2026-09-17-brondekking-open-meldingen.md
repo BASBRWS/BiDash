@@ -45,8 +45,11 @@ assettype. `v68TypeStatus()` zet daar het doorgerekende aantal naast:
 - `inBron` is wat de tabel toont in de kolom Open meldingen.
 - `nietDoorgerekend` is het verschil. Is dat groter dan nul, dan staat het
   doorgerekende aantal eronder en noemt de status de reden.
-- `besch` en `prestatie` blijven leeg zolang er een verschil is. Het assettype telt
-  daardoor niet mee als bekende dekking en de dienstverlening toont een band.
+- `besch` en `prestatie` blijven leeg wanneer er open meldingen zijn maar géén
+  enkele is doorgerekend; zo'n type is onbekend en gaat als band de dienstverlening
+  in. Een type met een deel doorgerekend rekent gewoon door met die meldingen. De
+  precieze regel en de correctie daarop staan in de release notes
+  `brondekking-doorrekening-herstel`.
 
 `deriveOpenDripRows()` accepteert een optionele functie die per incident de plaats
 uit het register oplevert. De patch in de engine geeft die mee en gebruikt daarvoor
