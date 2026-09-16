@@ -160,6 +160,7 @@ Actueel en prognose zijn gescheiden:
 - Bij vervanging vergelijkt `site/core/live-snapshot.js` de oude en nieuwe momentopname. Event-id heeft voorrang als storingidentiteit. Zonder event-id wordt een stabiele combinatie gebruikt van asset, starttijd, weg, richting, hectometer, strook, foutcode, melding en gevolg.
 - Een MSI-storing die in de vorige actuele lijst stond en in de nieuwe lijst ontbreekt wordt afgesloten op de peildatum van de nieuwe lijst en toegevoegd aan `STORINGSBRONNEN` als automatische historische bron.
 - Automatisch afgesloten storingen worden ontdubbeld tegen de bestaande historie. Dezelfde verdwenen storing mag dus niet bij iedere volgende import opnieuw worden toegevoegd.
+- De duur die uit zo'n automatische afsluiting volgt is een bovengrens, geen meting: het herstel lag ergens tussen de vorige en de nieuwe momentopname. `closeHistoryRow()` legt dat vast in `_afgeslotenDoorNieuweMomentopname` en `_afsluitPeildatum`; `normRij()` zet dat om in `duurAfgeleid` en `duurBetrouwbaar`. Alleen een gemeten duur telt mee in de duurdekking en in de herstelduurverdeling. Een afgeleide duur valt in de simulatiepool terug op de ingestelde MTTR, net als een melding zonder duur, zodat de herstelduur niet meegroeit met de afstand tussen twee momentopnamen. De duur zelf blijft beschikbaar voor de assetverliesuren binnen de rapportageperiode en wordt in memo's gemarkeerd als afgeleid.
 - Alleen MSI-storingen worden door deze overgang automatisch naar de signaalgever-storingshistorie verplaatst. Andere assettypen blijven buiten deze specifieke automatische historisering totdat daarvoor een expliciete productregel bestaat.
 - `site/core/live-overview-filter.js` past daarna uitsluitend op de actuele `doorrekenen(...,{actueel:true})`-route een gebruikersfilter toe. De bronmomentopname zelf blijft ongewijzigd.
 - Het filter kan waarden uitsluiten op storingstype/foutregel, gevolg, noodmaatregel, assettype, oorzaak, prioriteit/ernst, VC, RD, district en weg. Lege waarden zijn expliciet filterbaar.
@@ -364,6 +365,7 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 | Canvas/tijdschaal/drag | `tests/planning-large.cjs`: grote synthetische planning, scrollen, slepen, resizen |
 | Formatie/BI-brug/fullscreen | `tests/planning-formation.cjs`: overlappende taken, regelwijziging, reload, grafieken |
 | Live storingsmomentopname | `tests/live-snapshot.test.js`: identiteit, dubbelen, verdwijnen en afsluiten |
+| Afgeleide hersteltijd | `tests/afgeleide-hersteltijd.test.js`: herkomst vastgelegd, markering in `normRij`, duurverdeling stabiel bij een verder weg liggende peildatum |
 | Dienstaandelen en dienstwaarde | `tests/dienst-aandelen.test.js`: gesloten aandelen na laden, ontbrekend aandeel als 1, expliciete aandelen, onvolledige dekking blijft een band |
 | Live overzichtsfilter | `tests/live-overview-filter.test.js`: defaults, uitsluitingen, lege waarden, nieuwe waarden, bronbehoud en DVM-parameteropslag |
 | Help/documentatie | Controleer `site/help.html`, Help-link in `site/index.html` en overeenstemming met `docs/GEBRUIKERSHULP.md` en `docs/processflow.md` |

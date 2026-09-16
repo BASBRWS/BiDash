@@ -30,7 +30,7 @@ BiDash vergelijkt de vorige actuele lijst A met de nieuwe lijst B. Een event-id 
 | --- | --- |
 | Storing staat in A en B | Blijft actueel open |
 | Storing staat alleen in B | Nieuwe actuele open storing |
-| MSI-storing staat in A maar ontbreekt in B | Afsluiten op de peildatum van B en toevoegen aan storingshistorie |
+| MSI-storing staat in A maar ontbreekt in B | Afsluiten op de peildatum van B en toevoegen aan storingshistorie. De duur die daaruit volgt is een bovengrens en telt niet mee in de herstelduurstatistiek |
 | Afgesloten storing bestaat al in historie | Niet opnieuw toevoegen |
 
 De volledige lijst B blijft de actuele bronmomentopname. Automatisch afgesloten MSI-storingen gaan alleen naar de historische stroom en kunnen daardoor wel bijdragen aan historische analyse en prognosekalibratie, maar niet aan het actuele prestatiebeeld.
