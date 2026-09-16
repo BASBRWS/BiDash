@@ -7,9 +7,9 @@ De standaardweergave is de processflow. Via de documentnavigatie zijn onder ande
 ## Welke versie je voor je hebt
 
 Rechtsboven in de balk staat de versie, naast de Help-knop. Direct na het openen
-staat daar de versie van BiDash zelf, bijvoorbeeld `BiDash 2.10`. Zodra je een
-module opent die een eigen versie bijhoudt, komt die erachter: `BiDash 2.10 · DVM 79`.
-Onderin de navigatie staat hetzelfde nummer als `Integratie 2.10`. Noem dat nummer
+staat daar de versie van BiDash zelf, bijvoorbeeld `BiDash 2.12`. Zodra je een
+module opent die een eigen versie bijhoudt, komt die erachter: `BiDash 2.12 · DVM 81`.
+Onderin de navigatie staat hetzelfde nummer als `Integratie 2.12`. Noem dat nummer
 bij een melding over een verschil in uitkomsten; zonder versie is een uitkomst niet
 terug te vinden.
 
@@ -64,7 +64,9 @@ Historische storingen en actuele open storingen zijn twee verschillende gegevens
 
 Verdwijnt een MSI-storing uit de nieuwe momentopname, dan sluit BiDash die af op de peildatum van die lijst. De hersteltijd die daaruit volgt is een bovengrens: het herstel lag ergens tussen de vorige en de nieuwe lijst. Zo'n duur telt daarom niet mee in de herstelduurstatistiek en in de prognose, en wordt in memo's gemarkeerd als afgeleid. Laad je vaker een actuele lijst, dan worden die bovengrenzen scherper.
 
-In de tabel **Brondekking bekijken en bevestigen** staat per assettype hoeveel open meldingen er in de actuele bron zitten. Staat er achter dat aantal een lager aantal *doorgerekend*, dan konden niet alle meldingen worden meegerekend: meestal omdat de melding geen locatie draagt of omdat er geen passende foutregel is. Die meldingen zie je wel op Open storingen. Voor zo'n assettype toont BiDash geen exact beschikbaarheidspercentage, ook niet als je de bron als volledig bevestigt — het verlies dat niet is meegerekend, mag niet als nul worden gepresenteerd. De dienstverlening laat dan een band zien.
+In de tabel **Brondekking bekijken en bevestigen** staat per assettype hoeveel open meldingen er in de actuele bron zitten. Staat er achter dat aantal een lager aantal *doorgerekend*, dan konden niet alle meldingen worden meegerekend: meestal omdat de melding geen locatie draagt of omdat er geen passende foutregel is. Die meldingen zie je wel op Open storingen.
+
+Zolang er nog een deel is doorgerekend, rekent BiDash met die meldingen door en voedt het type de dienstverlening; het beschikbaarheidspercentage is dan optimistisch (het verlies van de niet-doorgerekende meldingen zit er niet in), en het gat blijft zichtbaar in de tabel. Is er van een assettype géén enkele melding doorgerekend terwijl er wel open meldingen zijn, dan is de beschikbaarheid onbekend: BiDash laat dat type als band meetellen in plaats van het als volledig beschikbaar te presenteren. Zo telt een bevestigde bron met open storingen nooit stil als nul verlies mee.
 
 RIA4 en Windwaarschuwing blijven twee losse kenmerken. Heeft één DRIP-bestand beide kolommen, dan splitst BiDash de regels automatisch op de markeringen in die kolommen. Naast de vaste kopteksten herkent BiDash ook samenstellingen als `RIA-4 DRIP` of `Windwaarschuwing DRIP`. Windmetingen zoals `Windrichting` of `Windsnelheid` tellen niet mee: die zeggen iets over het weer en niets over de soort DRIP. Bij dubbele DRIP-codes controleert de koppeling ook VC, weg, richting en hectometer. In de tabel Brondekking bekijken en bevestigen staat bij DRIP welke historische bron voor de actuele selectie is gebruikt. Bevestig die bron alleen als het bestand voor het bedoelde areaal volledig is.
 

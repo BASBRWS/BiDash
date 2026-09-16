@@ -2,7 +2,7 @@
 
 Datum: 16 september 2026
 
-Versie: BiDash 2.10, DVM 79
+Versie: BiDash 2.11, DVM 80
 
 ## Opgelost
 
@@ -61,8 +61,7 @@ document van de schil.
 - De patches zelf. Er is geen patch gekoppeld, ontkoppeld of aangepast; de
   registratie legt de bestaande situatie vast, inclusief de drie filtermodules die
   bewust geparkeerd staan.
-- Het versienummer 2.10 en de DVM-engineversie 79.
-- Alle rekenketens.
+- De rekenketens; deze wijziging raakt geen enkele uitkomst.
 
 ## Controle
 
@@ -75,8 +74,9 @@ document van de schil.
 - Volledige Node-suite: 166 tests geslaagd. Browsersuite: `browser.cjs`,
   `planning-large.cjs` en `planning-formation.cjs` alle drie geslaagd.
 - JavaScript-syntaxcontrole zoals de workflow die draait: geslaagd.
-- De balk is in Chromium gemeten: bij het openen `BiDash 2.10` en na het openen van
-  Dienstverlening `BiDash 2.10 · DVM 79`, met `Integratie 2.10` in de voet.
+- De balk is in Chromium gemeten, toen nog op het oude nummer: bij het openen
+  `BiDash 2.10` en na het openen van Dienstverlening `BiDash 2.10 · DVM 79`, met
+  `Integratie 2.10` in de voet. Met deze release staan die op 2.11 en 80.
 
 ## Niet getest
 

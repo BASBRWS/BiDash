@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van Integratie 2.3, bijgewerkt op 14 september 2026 voor de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina en zichtbare voortgang bij gegevensimport.
+Status: beschrijving van Integratie 2.12, bijgewerkt op 14 september 2026 voor de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina en zichtbare voortgang bij gegevensimport.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -199,7 +199,7 @@ Actueel en prognose zijn gescheiden:
 - Storingshistorie dient voor prognose/kalibratie en wordt niet bij live meldingen opgeteld.
 - DRIP is de expliciete uitzondering op die algemene scheiding wanneer één incident aantoonbaar aan het einde van het bronvenster nog open staat. Een oude gecensureerde episode telt niet automatisch als actueel. Alleen een expliciete open toestand, een regel zonder eindtijd en afgeronde duur, of een gecensureerde episode die het einde van dezelfde bron raakt, wordt als actuele DRIP-melding afgeleid.
 - De afgeleide actuele DRIP-selectie wordt opnieuw door de gewone live broninspectie en DVM-doorrekening geleid. In de landelijke brondekking blijft zichtbaar dat de actuele selectie uit DRIP-historie komt en moet de gebruiker de volledigheid voor het bedoelde areaal bevestigen.
-- De brondekkingstabel telt open meldingen uit de actuele bronnen, niet uit de doorgerekende meldingen. `doorrekenen()` laat een melding vallen zonder locatie of zonder passende foutregel; zulke meldingen staan wel in Open storingen. Het verschil wordt benoemd en het assettype levert dan geen exact percentage, want het verlies dat niet is meegerekend, kan niet als nul worden gepresenteerd.
+- De brondekkingstabel telt open meldingen uit de actuele bronnen, niet uit de doorgerekende meldingen. `doorrekenen()` laat een melding vallen zonder locatie of zonder passende foutregel; zulke meldingen staan wel in Open storingen. Het verschil wordt benoemd in de tabel. Een assettype waarvan een deel is doorgerekend, voedt de dienstverlening met de (optimistische) waarde uit die meldingen. Alleen een assettype dat wel open meldingen heeft maar waarvan er géén enkele is doorgerekend (`blindeMeldingen`), geldt als onbekend en gaat als band mee — anders zou een bevestigde bron met open storingen stil als nul verlies tellen.
 - Een uit de DRIP-historie afgeleide actuele melding krijgt weg, richting, hectometer en verkeerscentrale uit het assetregister voordat ze de doorrekening in gaat. Zonder locatie viel ze eerder uit de berekening terwijl ze in de lijst stond.
 - De beherende regiodienst in de storingslijst volgt `rapportRdWaarde()`: alleen een herkende regiodienst telt, anders wordt hij uit de verkeerscentrale afgeleid. Een onbekende bronwaarde wordt niet als beheerder getoond.
 - RIA4 en Windwaarschuwing zijn onafhankelijke DRIP-classificaties. Een gecombineerd bronbestand wordt per gemarkeerde regel gesplitst. De koppeling gebruikt een identifier met locatiecontrole en anders VC, weg, richting en hectometer. Een hergebruikte DRIP-code in een ander gebied mag daardoor geen classificatie overnemen.
@@ -381,8 +381,9 @@ van alleen een gecombineerd signaal. Onbekende beschikbaarheid is geen bewezen n
 5. Controleer brondata, herkomst, scope, eenheden, null/0 en actualiteit van resultaten.
 6. Voer de relevante controles uit. Rapporteer wat niet is getest en waarom.
 7. Werk `GEBRUIKERSHULP.md`, `processflow.md`, relevante SVG’s en deze beschrijving bij wanneer de gebruikerswerking of gegevensstroom verandert. `site/help.html` is alleen de viewer; `docs/` is de inhoudelijke bron voor Help.
-8. Publiceer via een gerichte branch en reviewbare PR. Controleer vóór samenvoegen opnieuw de basisbranch. Behoud wijzigingen van andere auteurs; niet force-pushen.
-9. Voor functionele releases: controleer de Pages-run en claim pas daarna dat de nieuwe versie live is. Commit nooit lokale brondata om tests eenvoudiger te maken.
+8. Verhoog het versienummer bij elke functionele wijziging. De schilversie staat in `site/core/versie.js`; een engine houdt haar eigen nummer bij, zoals `DVM_VERSION` in `dvm-source-manager.js`. Raakt de wijziging alleen een engine, verhoog dan die engineversie; raakt zij de schil of het geheel, verhoog dan ook de schilversie. Zet hetzelfde nummer in de release notes en werk de tests bij die het nummer vastleggen. Een reeks wijzigingen die als één geheel wordt samengevoegd, mag één verhoging delen; dat wordt dan in de release notes benoemd.
+9. Publiceer via een gerichte branch en reviewbare PR. Controleer vóór samenvoegen opnieuw de basisbranch. Behoud wijzigingen van andere auteurs; niet force-pushen.
+10. Voor functionele releases: controleer de Pages-run en claim pas daarna dat de nieuwe versie live is. Commit nooit lokale brondata om tests eenvoudiger te maken.
 
 Een AI mag deze voorwaarden niet schrappen of afzwakken om zijn eigen wijziging
 als geslaagd te laten gelden. Een bewust gewijzigde producteis moet herkenbaar
@@ -402,7 +403,7 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 | Dienstaandelen en dienstwaarde | `tests/dienst-aandelen.test.js`: gesloten aandelen na laden, ontbrekend aandeel als 1, expliciete aandelen, onvolledige dekking blijft een band |
 | Herkomst DRIP-classificatie | `tests/drip-markerherkomst.test.js`: samengestelde kopteksten als markering, windmeting niet, aanname vastgelegd met regelaantal, herkomst door export en herstel, zichtbaar in de bronkaart |
 | Runtime-patches installeren | `tests/runtime-patches.test.js`: elke patch zet zijn vlag in een eigen scope, de koppeling in `signal-forecast.js` klopt met de registratie, geparkeerde patches blijven een vastgelegde keuze, geen patch zonder registratie |
-| Brondekking open meldingen | `tests/brondekking-open-meldingen.test.js`: bronaantal per type, niet-doorgerekende meldingen benoemd, geen exact percentage bij een gat, locatie uit het register voor afgeleide DRIP-regels |
+| Brondekking open meldingen | `tests/brondekking-open-meldingen.test.js`: bronaantal per type, niet-doorgerekende meldingen benoemd, blind type wordt onbekend, gedeeltelijk doorgerekend type houdt een waarde en voedt het subproces, locatie uit het register voor afgeleide DRIP-regels |
 | Beheerder in de storingslijst | `tests/storingslijst-beheerder.test.js`: nooit een getal als beheerder, afleiding uit de verkeerscentrale, herkende bronwaarde blijft staan |
 | Planning zonder projectdata | `tests/planning-geen-projectdata.test.js`: geen objectnamen in de code, lege P6-, portfolio- en modelstructuren, tellers op nul, werkende triggerlaadroute met overgeslagen onvolledige regels |
 | Versiebalk | `tests/versiebalk.test.js`: schilversie zichtbaar zonder geladen module, gemelde engineversies erachter, lege melding blijft weg, versienummer op precies één plek |

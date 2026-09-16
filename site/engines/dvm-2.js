@@ -2767,8 +2767,9 @@ function v68TypeStatus(){
     const bewaard=(STATE?.nietDoorgerekend||[]).filter(m=>m.typeId===tp).length;
     const inBron=Math.max(Number(bronRijen[tp])||0,events.length+bewaard);
     /* Een melding die wel in de bron staat maar niet is doorgerekend, telt niet mee
-       in het verlies. Het percentage voor dit type is dan geen meting maar een
-       ondergrens van het verlies, dus we presenteren het niet als exact. */
+       in het verlies. Het berekende percentage is daardoor optimistisch (te hoog);
+       het gat blijft zichtbaar in de tabel. Zie de blindeMeldingen-uitleg hieronder
+       voor het geval waarin er niets doorgerekend is. */
     const nietDoorgerekend=Math.max(0,inBron-events.length);
     const aangeleverd=inBron>0||events.length>0;
     const compleet=cfg[tp]===true;
@@ -2776,14 +2777,24 @@ function v68TypeStatus(){
     const basis=n*uren;
     const afgeleid=bronnen.some(b=>b.afgeleidVan==='dripHistorie');
     const doorgerekend=nietDoorgerekend===0;
-    const status=nietDoorgerekend>0
-      ? `${inBron.toLocaleString('nl-NL')} open ${inBron===1?'melding':'meldingen'} in de bron, waarvan ${nietDoorgerekend.toLocaleString('nl-NL')} niet doorgerekend (controleer locatie, koppeling en foutregel)`
-      : compleet
-        ? (aangeleverd?(afgeleid?'actueel uit DRIP-historie':'actueel gemeten'):'volledige bron, geen open storing')
-        : (aangeleverd?(afgeleid?'uit DRIP-historie, nog te bevestigen':'actueel aangeleverd, volledigheid niet bevestigd'):'niet aangeleverd');
-    uit[tp]={tp,n,events:events.length,inBron,nietDoorgerekend,doorgerekend,aangeleverd,compleet,bronnen,afgeleid,status,
-      besch:compleet&&doorgerekend&&basis?Math.max(0,Math.min(100,100-availLoss/basis*100)):null,
-      prestatie:compleet&&doorgerekend&&basis?Math.max(0,Math.min(100,100-perfLoss/basis*100)):null,
+    /* Staan er wel open meldingen in de bron maar is er niet één doorgerekend, dan
+       is het berekende verlies nul en zou de dienst 100% beschikbaar lijken terwijl
+       niemand weet wat die meldingen doen. Zo'n type is onbekend, niet volledig;
+       we geven het als band door. Zijn er wél doorgerekende meldingen (bijvoorbeeld
+       435 van 657), dan is het verlies daaruit een bruikbare, zij het optimistische,
+       waarde. Die gebruiken we, met het gat zichtbaar in de tabel. Alleen een gat
+       zonder enige doorgerekende melding mag de doorrekening laten vervallen. */
+    const blindeMeldingen=events.length===0&&inBron>0;
+    const status=blindeMeldingen
+      ? `${inBron.toLocaleString('nl-NL')} open ${inBron===1?'melding':'meldingen'} in de bron, niet doorgerekend (controleer locatie, koppeling en foutregel); beschikbaarheid onbekend`
+      : nietDoorgerekend>0
+        ? `${inBron.toLocaleString('nl-NL')} open meldingen in de bron, waarvan ${nietDoorgerekend.toLocaleString('nl-NL')} niet doorgerekend (controleer locatie, koppeling en foutregel)`
+        : compleet
+          ? (aangeleverd?(afgeleid?'actueel uit DRIP-historie':'actueel gemeten'):'volledige bron, geen open storing')
+          : (aangeleverd?(afgeleid?'uit DRIP-historie, nog te bevestigen':'actueel aangeleverd, volledigheid niet bevestigd'):'niet aangeleverd');
+    uit[tp]={tp,n,events:events.length,inBron,nietDoorgerekend,doorgerekend,blindeMeldingen,aangeleverd,compleet,bronnen,afgeleid,status,
+      besch:compleet&&basis&&!blindeMeldingen?Math.max(0,Math.min(100,100-availLoss/basis*100)):null,
+      prestatie:compleet&&basis&&!blindeMeldingen?Math.max(0,Math.min(100,100-perfLoss/basis*100)):null,
       availLoss,perfLoss};
   });return uit;
 }
