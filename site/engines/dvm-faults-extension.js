@@ -54,6 +54,24 @@
     if(upper(fault?.typeId)==='DRIP'&&(fault?.wind||fault?.ria4))return 'Niet operationeel door storing';
     return 'Operationeel';
   };
+  /* De kolom Beheerder toonde wat er toevallig in `rd` stond. Bij DRIP-bronnen is
+     dat soms een getal uit de bron in plaats van een regiodienst. Rapportages
+     gebruiken hiervoor al rapportRdWaarde(): alleen een herkende regiodienst telt,
+     anders wordt hij uit de verkeerscentrale afgeleid. De storingslijst hoort
+     dezelfde regel te volgen, zodat er nooit een getal als beheerder verschijnt. */
+  const regioDienst=(...bronnen)=>{
+    for(const b of bronnen){
+      if(!b)continue;
+      try{
+        const w=rapportRdWaarde(b);
+        if(w&&w!==ONBEKEND_RD)return w;
+      }catch(error){
+        const rd=String(b.rd||'').trim();
+        if(rd&&!/^[\d.,\s]+$/.test(rd))return rd;
+      }
+    }
+    return '';
+  };
   const dripLike=x=>upper(x?.typeId)==='DRIP'||yes(x?._dripHistorieOpen)||/\bDRIP\b/i.test([x?.naam,x?.asset,x?.bron,x?.melding,x?.omschrijving,x?.locatie].filter(Boolean).join(' '));
 
   function enrichBase(row,i){
@@ -69,7 +87,7 @@
     const start=m?.tVan??m?.t??m?.start??row?.start??null,end=m?.tTot??m?.einde??row?.einde??null;
     const out={...row,
       assetKey:key,typeId,
-      rd:row.rd||m?.rd||asset?.rd||'',district:row.district||m?.district||asset?.district||'',
+      rd:regioDienst(row,m,asset,{rd:'',vc:row.vc||m?.vc||asset?.vc||''}),district:row.district||m?.district||asset?.district||'',
       vc:row.vc||m?.vc||asset?.vc||'',
       weg:row.weg||m?.weg||asset?.weg||'',richting:row.richting||m?.richting||asset?.richting||'',hm:row.hm??m?.hm??asset?.hm??null,
       naam:row.naam||m?.assetNaam||asset?.naam||drip?.asset||'',
@@ -91,7 +109,7 @@
       const detail=x.alarmmeldingen||x.classificatie||x.technischeToestand||'Openstaande DRIP-storing';
       const out={id:`drip-open-${x.code||i}-${x.start||i}`,assetKey:key,naam,typeId:'DRIP',
         weg:asset?.weg||d?.weg||x.weg||'',richting:asset?.richting||d?.richting||x.richting||'',
-        hm:asset?.hm??d?.hm??x.hm??null,vc:asset?.vc||d?.vc||x.vc||'',rd:asset?.rd||d?.rd||'',district:asset?.district||d?.district||'',
+        hm:asset?.hm??d?.hm??x.hm??null,vc:asset?.vc||d?.vc||x.vc||'',rd:regioDienst(asset,d,x,{rd:'',vc:asset?.vc||d?.vc||x.vc||''}),district:asset?.district||d?.district||'',
         code:x.code||d?.histCode||d?.idCdms||'',impact:null,prestatie:null,omschrijving:detail,
         start:iso(x.start),einde:'',duurUren:duur(x.start,null,x.duurUren,peil),
         bron:x.sourceName||'DRIP-storingshistorie',wind:sp.wind,ria4:sp.ria4,afgeleidUitHistorie:true,

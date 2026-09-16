@@ -42,11 +42,22 @@ function incidentKey(x,index=0){
   return [String(x?.code||x?.asset||'').toUpperCase(),Number(x?.start)||index,String(x?.weg||'').toUpperCase(),x?.hm??''].join('|');
 }
 
-export function dripOpenRow(x,index=0){
+/* Een historie-incident draagt niet altijd weg, richting en hm. De storingslijst
+   vult die aan uit het assetregister, maar de regel die naar doorrekenen() gaat
+   deed dat niet. doorrekenen() laat een melding zonder `weg` vallen, dus zulke
+   DRIP-storingen waren wel zichtbaar en telden toch niet mee in de
+   beschikbaarheid. `plaats` geeft de aanroeper de kans die locatie aan te vullen
+   uit het register; zonder aanvulling blijft het gedrag zoals het was. */
+export function dripOpenRow(x,index=0,plaats=null){
   const code=String(x?.code||x?.asset||'').trim();
   const locatie=String(x?.locatie||'').trim();
   const identificatie=[code,locatie].filter(Boolean).join(' · ')||('DRIP '+(index+1));
   const detail=String(x?.alarmmeldingen||x?.classificatie||'openstaande storing').trim();
+  const p=plaats||{};
+  const weg=String(x?.weg||p.weg||'').trim();
+  const richting=String(x?.richting||p.richting||'').trim();
+  const hm=x?.hm??p.hm??'';
+  const vc=String(x?.vc||p.vc||'').trim();
   return {
     event_id:`DRIP-OPEN-${code||'ONBEKEND'}-${x?.start||index}`,
     os_id:`DRIP ${identificatie}`,
@@ -54,11 +65,11 @@ export function dripOpenRow(x,index=0){
     melding:`DRIP openstaand · ${detail}`,
     storingsomschrijving:detail,
     gevolg:'DRIP openstaand',
-    wegnummer:x?.weg||'',
-    weg:x?.weg||'',
-    richting:x?.richting||'',
-    hm:x?.hm??'',
-    vc:x?.vc||'',
+    wegnummer:weg,
+    weg:weg,
+    richting:richting,
+    hm:hm,
+    vc:vc,
     van:iso(x?.start),
     tot:'',
     status:'open',
@@ -70,12 +81,17 @@ export function dripOpenRow(x,index=0){
   };
 }
 
-export function deriveOpenDripRows(incidenten){
+/* `plaatsVan` is optioneel en levert per incident {weg,richting,hm,vc} uit het
+   assetregister. De engine geeft hem mee; tests en andere aanroepers mogen hem
+   weglaten. */
+export function deriveOpenDripRows(incidenten,plaatsVan=null){
   const out=[],seen=new Set(),ends=sourceEnds(incidenten);
   (Array.isArray(incidenten)?incidenten:[]).forEach((x,i)=>{
     if(!isOpenDripIncident(x,ends.get(String(x?.sourceKey||x?.sourceName||''))))return;
     const key=incidentKey(x,i);if(seen.has(key))return;seen.add(key);
-    out.push(dripOpenRow(x,i));
+    let plaats=null;
+    if(typeof plaatsVan==='function'){try{plaats=plaatsVan(x);}catch(error){plaats=null;}}
+    out.push(dripOpenRow(x,i,plaats));
   });
   return out;
 }
@@ -127,8 +143,29 @@ const PATCH_SOURCE=String.raw`
     }catch(error){}
     return t;
   }
+  /* Vul weg, richting, hm en VC aan uit het assetregister, op dezelfde manier als
+     de storingslijst dat doet. Zonder locatie laat doorrekenen() de melding vallen
+     en telt de DRIP-storing niet mee in de beschikbaarheid. */
+  function plaatsVanIncident(x){
+    const matcher=globalThis.__BIDASH_DRIP_FAULT_MATCH__;
+    let assets=[],drips=[];
+    try{assets=(ASSET_REGISTER_STATE&&ASSET_REGISTER_STATE.assets)||[];}catch(error){}
+    try{drips=(((typeof STATE!=='undefined'&&STATE&&STATE.drips)||DRIP_STATE)||{}).drips||[];}catch(error){}
+    let hit=null;
+    if(matcher&&typeof matcher.matchDripIncident==='function'){
+      try{hit=matcher.matchDripIncident(x,assets,drips);}catch(error){hit=null;}
+    }
+    const asset=hit&&hit.asset?hit.asset:null,drip=hit&&hit.drip?hit.drip:null;
+    if(!asset&&!drip)return null;
+    return {
+      weg:(asset&&asset.weg)||(drip&&drip.weg)||'',
+      richting:(asset&&asset.richting)||(drip&&drip.richting)||'',
+      hm:(asset&&asset.hm!=null)?asset.hm:((drip&&drip.hm!=null)?drip.hm:null),
+      vc:(asset&&asset.vc)||(drip&&drip.vc)||''
+    };
+  }
   function syncDripOpenLive(){
-    const rows=H.deriveOpenDripRows(huidigeIncidenten());
+    const rows=H.deriveOpenDripRows(huidigeIncidenten(),plaatsVanIncident);
     const lijst=Array.isArray(LIVE_STORINGSBRONNEN)?LIVE_STORINGSBRONNEN:[];
     const zonder=lijst.filter(b=>!b||b.key!==VIRTUAL_KEY);
     if(rows.length){
