@@ -2725,18 +2725,43 @@ function v68LiveBronnenVoorType(tp){
   }
   return out;
 }
+/* Hoeveel open meldingen staan er per assettype in de actuele bronnen, los van de
+   vraag of ze doorgerekend konden worden. doorrekenen() laat een melding vallen
+   zonder locatie of zonder passende foutregel; zulke meldingen zijn wel zichtbaar
+   in Open storingen. Zonder deze telling meldt de brondekking nul open meldingen
+   terwijl de storingslijst ze toont. */
+function v68BronRijenPerType(){
+  const uit={};V68_TYPES.forEach(tp=>{uit[tp]=0;});
+  let rijen=[];try{rijen=gecombineerdeLiveStoringsRijen();}catch(error){return uit;}
+  for(const raw of rijen){
+    let tp='';try{tp=classificeer(normRij(raw))||'';}catch(error){continue;}
+    if(uit[tp]!=null)uit[tp]++;
+  }
+  return uit;
+}
 function v68TypeStatus(){
-  const cfg=v68DekkingCfg(),assets=v68Assets(),meldingen=STATE?.meldingen||[],uit={};
+  const cfg=v68DekkingCfg(),assets=v68Assets(),meldingen=STATE?.meldingen||[],bronRijen=v68BronRijenPerType(),uit={};
   V68_TYPES.forEach(tp=>{
-    const virtueel=tp==='COMM',n=virtueel?1:assets.filter(a=>a.tp===tp).length,events=meldingen.filter(m=>m.typeId===tp),bronnen=v68LiveBronnenVoorType(tp),aangeleverd=events.length>0;
+    const virtueel=tp==='COMM',n=virtueel?1:assets.filter(a=>a.tp===tp).length,events=meldingen.filter(m=>m.typeId===tp),bronnen=v68LiveBronnenVoorType(tp);
+    const inBron=Number(bronRijen[tp])||0;
+    /* Een melding die wel in de bron staat maar niet is doorgerekend, telt niet mee
+       in het verlies. Het percentage voor dit type is dan geen meting maar een
+       ondergrens van het verlies, dus we presenteren het niet als exact. */
+    const nietDoorgerekend=Math.max(0,inBron-events.length);
+    const aangeleverd=inBron>0||events.length>0;
     const compleet=cfg[tp]===true;
     const availLoss=events.reduce((s,m)=>s+(Number(m.trace?.bijdrageAvail)||0),0),perfLoss=events.reduce((s,m)=>s+(Number(m.trace?.bijdragePerf)||0),0),uren=STATE?.stats?.periodeUren||24;
     const basis=n*uren;
     const afgeleid=bronnen.some(b=>b.afgeleidVan==='dripHistorie');
-    uit[tp]={tp,n,events:events.length,aangeleverd,compleet,bronnen,afgeleid,
-      status:compleet?(aangeleverd?(afgeleid?'actueel uit DRIP-historie':'actueel gemeten'):'volledige bron, geen open storing'):(aangeleverd?(afgeleid?'uit DRIP-historie, nog te bevestigen':'actueel aangeleverd, volledigheid niet bevestigd'):'niet aangeleverd'),
-      besch:compleet&&basis?Math.max(0,Math.min(100,100-availLoss/basis*100)):null,
-      prestatie:compleet&&basis?Math.max(0,Math.min(100,100-perfLoss/basis*100)):null,
+    const doorgerekend=nietDoorgerekend===0;
+    const status=nietDoorgerekend>0
+      ? `${inBron.toLocaleString('nl-NL')} open ${inBron===1?'melding':'meldingen'} in de bron, waarvan ${nietDoorgerekend.toLocaleString('nl-NL')} niet doorgerekend (geen locatie of geen passende foutregel)`
+      : compleet
+        ? (aangeleverd?(afgeleid?'actueel uit DRIP-historie':'actueel gemeten'):'volledige bron, geen open storing')
+        : (aangeleverd?(afgeleid?'uit DRIP-historie, nog te bevestigen':'actueel aangeleverd, volledigheid niet bevestigd'):'niet aangeleverd');
+    uit[tp]={tp,n,events:events.length,inBron,nietDoorgerekend,doorgerekend,aangeleverd,compleet,bronnen,afgeleid,status,
+      besch:compleet&&doorgerekend&&basis?Math.max(0,Math.min(100,100-availLoss/basis*100)):null,
+      prestatie:compleet&&doorgerekend&&basis?Math.max(0,Math.min(100,100-perfLoss/basis*100)):null,
       availLoss,perfLoss};
   });return uit;
 }
@@ -2761,15 +2786,15 @@ function v68LandelijkModel(){const typen=v68TypeStatus();return {typen,diensten:
 function v68Pct(v){return v==null?'Onbekend':fmt(v,2)+'%';}
 function v68Bereik(r){return r.exact?v68Pct(r.besch):`${fmt(r.loB,2)} tot ${fmt(r.hiB,2)}%`;}
 function v68DekkingBewaar(el){const cfg=v68DekkingCfg();cfg[el.dataset.v68Type]=el.checked;ANALYSE_SIGNATURE='';probeerAnalyseActiveren('overzicht');}
-function v68BronnenHtml(model){return `<div class="tbl-scroll" style="max-height:none"><table class="tbl"><thead><tr><th>Assetbron</th><th class="num">Actief areaal</th><th class="num">Open meldingen</th><th>Status en herkomst</th><th>Bevestiging</th></tr></thead><tbody>${V68_TYPES.map(tp=>{const b=model.typen[tp],bronTekst=(b.bronnen||[]).map(x=>x.naam+(x.afgeleidVan==='dripHistorie'?' · actuele selectie afgeleid uit DRIP-historie':'')).join(' + ');return `<tr><td><b>${V68_LABEL[tp]}</b></td><td class="num">${b.n.toLocaleString('nl-NL')}</td><td class="num">${b.events.toLocaleString('nl-NL')}</td><td>${esc(b.status)}${bronTekst?`<br><small>${esc(bronTekst)}</small>`:''}</td><td><label><input type="checkbox" data-v68-type="${tp}" ${b.compleet?'checked':''} onchange="v68DekkingBewaar(this)"> Volledige actuele storingsbron voor dit areaal</label></td></tr>`;}).join('')}</tbody></table></div>`;}
+function v68BronnenHtml(model){return `<div class="tbl-scroll" style="max-height:none"><table class="tbl"><thead><tr><th>Assetbron</th><th class="num">Actief areaal</th><th class="num">Open meldingen</th><th>Status en herkomst</th><th>Bevestiging</th></tr></thead><tbody>${V68_TYPES.map(tp=>{const b=model.typen[tp],bronTekst=(b.bronnen||[]).map(x=>x.naam+(x.afgeleidVan==='dripHistorie'?' · actuele selectie afgeleid uit DRIP-historie':'')).join(' + ');return `<tr><td><b>${V68_LABEL[tp]}</b></td><td class="num">${b.n.toLocaleString('nl-NL')}</td><td class="num">${b.inBron.toLocaleString('nl-NL')}${b.nietDoorgerekend?`<br><small>${b.events.toLocaleString('nl-NL')} doorgerekend</small>`:''}</td><td>${esc(b.status)}${bronTekst?`<br><small>${esc(bronTekst)}</small>`:''}</td><td><label><input type="checkbox" data-v68-type="${tp}" ${b.compleet?'checked':''} onchange="v68DekkingBewaar(this)"> Volledige actuele storingsbron voor dit areaal</label></td></tr>`;}).join('')}</tbody></table></div>`;}
 function v68LandelijkHtml(){
  const m=v68LandelijkModel(),gekoppeld=STATE?.stats?.assetGekoppeld||0,toegepast=STATE?.stats?.toegepast||0;
  return `<div class="card" style="border-left:5px solid var(--rws-blauw)"><h3>Landelijke beschikbaarheid over het volledige assetregister</h3><p>Dit blok gebruikt alle ${m.assets.toLocaleString('nl-NL')} actieve DVM-assets in het geladen register als areaalbasis. De tabellen verderop tonen de geraakte wegdelen. Een exact landelijk dienstpercentage verschijnt alleen als alle benodigde actuele storingsbronnen als volledig zijn bevestigd.</p><div class="grid4">${m.diensten.map(r=>`<div class="kpi"><div class="k-val" style="font-size:${r.exact?'25px':'17px'}">${v68Bereik(r)}</div><div class="k-lab">${r.d.naam.replace(/&amp;/g,'&')}<br>brondekking ${fmt(r.dekking*100,1)}%</div></div>`).join('')}</div><p>${gekoppeld} van ${toegepast} doorgerekende meldingen zijn gekoppeld aan een specifiek asset. Een brede band betekent dat één of meer benodigde bronnen onbekend zijn. De ondergrens veronderstelt 0% voor onbekende bronnen, de bovengrens 100%. Deze band is een databand, geen statistische onzekerheidsmarge.</p><details><summary>Brondekking bekijken en bevestigen</summary>${v68BronnenHtml(m)}<p>Vink alleen volledig aan wanneer de bron voor het volledige bedoelde areaal en de getoonde peildatum alle open storingen bevat. De bevestigingen gaan mee in parameterexport en totaalexport.</p></details></div>`;
 }
 function v68MemoKader(bron){
  if(!STATE||!bron||bron.type==='montecarlo'||bron.type==='drip-montecarlo')return '';
- const m=v68LandelijkModel(),onbekend=V68_TYPES.filter(tp=>!m.typen[tp].compleet);
- return `<h3>Datadekking en landelijke duiding</h3><p>De landelijke noemer bestaat uit ${m.assets.toLocaleString('nl-NL')} actieve DVM-assets in het geladen register. ${onbekend.length?`Voor ${onbekend.map(tp=>V68_LABEL[tp]).join(', ')} is de volledigheid van de actuele storingsbron niet bevestigd. Dienstpercentages zijn daarom als databand weergegeven en niet als exact landelijk percentage.`:'Alle benodigde actuele storingsbronnen zijn als volledig bevestigd; de landelijke dienstpercentages kunnen exact worden berekend.'}</p><table class="tbl"><thead><tr><th>Dienstverlening</th><th>Landelijke beschikbaarheid</th><th>Brondekking</th></tr></thead><tbody>${m.diensten.map(r=>`<tr><td>${esc(r.d.naam.replace(/&amp;/g,'&'))}</td><td>${v68Bereik(r)}</td><td>${fmt(r.dekking*100,1)}%</td></tr>`).join('')}</tbody></table><p>Een band is een databand: onbekende bronnen tellen in de ondergrens als 0% en in de bovengrens als 100%. Het is geen statistisch betrouwbaarheidsinterval.</p>`;
+ const m=v68LandelijkModel(),onbekend=V68_TYPES.filter(tp=>!m.typen[tp].compleet),open=V68_TYPES.filter(tp=>m.typen[tp].nietDoorgerekend>0);
+ return `<h3>Datadekking en landelijke duiding</h3><p>De landelijke noemer bestaat uit ${m.assets.toLocaleString('nl-NL')} actieve DVM-assets in het geladen register. ${open.length?`Voor ${open.map(tp=>`${V68_LABEL[tp]} (${m.typen[tp].nietDoorgerekend})`).join(', ')} staan open meldingen in de bron die niet konden worden doorgerekend; die tellen niet mee in het verlies. ` : ''}${onbekend.length?`Voor ${onbekend.map(tp=>V68_LABEL[tp]).join(', ')} is de volledigheid van de actuele storingsbron niet bevestigd. Dienstpercentages zijn daarom als databand weergegeven en niet als exact landelijk percentage.`:'Alle benodigde actuele storingsbronnen zijn als volledig bevestigd; de landelijke dienstpercentages kunnen exact worden berekend.'}</p><table class="tbl"><thead><tr><th>Dienstverlening</th><th>Landelijke beschikbaarheid</th><th>Brondekking</th></tr></thead><tbody>${m.diensten.map(r=>`<tr><td>${esc(r.d.naam.replace(/&amp;/g,'&'))}</td><td>${v68Bereik(r)}</td><td>${fmt(r.dekking*100,1)}%</td></tr>`).join('')}</tbody></table><p>Een band is een databand: onbekende bronnen tellen in de ondergrens als 0% en in de bovengrens als 100%. Het is geen statistisch betrouwbaarheidsinterval.</p>`;
 }
 function v68KostenStatus(c){if(!sc67Valid(c)||!String(c.bron||'').trim())return 'niet_berekenbaar';return c.ndwUsed?'scenario':c.status==='onderbouwd'?'onderbouwd':'scenario';}
 function v68MigreerKosten(c){
