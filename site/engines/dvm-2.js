@@ -827,6 +827,9 @@ function normRij(m){
     afsluitPeildatum:String(m._afsluitPeildatum||''),
     rd:String(g('RD')||'').trim(), district:String(g('District')||'').trim(), vc:String(g('vc')||g('regio')||'').trim(),
     liveOpen:!!m._liveOpen,bronBestand:String(m._bronBestand||''),
+    /* Voor DRIP bepaalt de functionele toestand de impact; foutregel() leest deze. */
+    classificatie:String(g('classificatie')||'').trim(),
+    technischeToestand:String(g('technische_toestand')||g('technischeToestand')||g('toestand')||'').trim(),
     googleLink:String(g('google_link')||g('link')||'').trim(),
     noodmaatregel:String(g('Noodmaatregel')||g('noodmaatregel')||'').trim(),
     msiContext,
@@ -857,6 +860,33 @@ function classificeer(m){
   return null;
 }
 /* stap 3: foutcode/patroon */
+/* DRIP-impact uit de functionele toestand. De alarmtekst zegt wát er mis is, maar
+   of de dienst eronder lijdt hangt af van of het paneel functioneel uit is
+   (GESTOPT) of gewoon werkt (IN-BEDRIJF), en of het incident langdurig of
+   intermitterend is. Deze toestand is leidend: bij GESTOPT zonder herstel telt de
+   volledige uitval, bij louter IN-BEDRIJF blijft een gemeld alarm laag, en een
+   gemengde/langdurige onderbreking legt een ondergrens. De drempels zijn een model
+   en instelbaar; ze staan bewust bij elkaar. */
+function dripToestandImpact(m){
+  const toestand=lc([m.technischeToestand,m.melding].filter(Boolean).join(' '));
+  const klasse=lc([m.classificatie,m.melding].filter(Boolean).join(' '));
+  const gestopt=/gestopt|buiten\s*bedrijf/.test(toestand)||/uitval/.test(klasse);
+  const inBedrijf=/in[-\s]?bedrijf/.test(toestand);
+  const langdurig=/langdurig/.test(klasse);
+  const intermitterend=/intermitterend/.test(klasse);
+  if(gestopt&&!inBedrijf)return {availPct:100,perfPct:100,leidend:true,oms:'DRIP volledig gestopt'};
+  if(gestopt&&inBedrijf)return langdurig
+    ?{availPct:60,perfPct:70,floor:true,oms:'DRIP langdurig onderbroken (gestopt en terug)'}
+    :{availPct:25,perfPct:40,floor:true,oms:'DRIP intermitterend onderbroken'};
+  if(inBedrijf)return {availPct:0,perfPct:5,werkend:true,oms:'DRIP in bedrijf; gemeld alarm zonder aantoonbare uitval'};
+  // Geen toestandssignaal: val terug op de duurclassificatie.
+  if(langdurig)return {availPct:60,perfPct:70,floor:true,oms:'DRIP langdurig open incident'};
+  if(intermitterend)return {availPct:25,perfPct:40,floor:true,oms:'DRIP intermitterend incident'};
+  return null;
+}
+function dripRegel(code,availPct,perfPct,oms,severity){
+  return {code,assetType:'DRIP',actief:true,availPct,perfPct,oms,severity,bron:'toestand'};
+}
 function foutregel(m,typeId){
   const oms = lc(m.melding+' '+m.gevolg);
   let best=null;
@@ -867,6 +897,20 @@ function foutregel(m,typeId){
       const bestScore=best?((Number(best.availPct)||0)+(Number(best.perfPct)||0)):-1;
       if(score>bestScore)best=f;
     }
+  }
+  // DRIP: de functionele toestand is leidend boven de losse alarmtekst.
+  if(typeId==='DRIP'){
+    const st=dripToestandImpact(m);
+    if(st){
+      if(st.leidend)return dripRegel('DBD-UIT',st.availPct,st.perfPct,st.oms,'kritiek');
+      if(st.floor){
+        const a=Math.max(best?Number(best.availPct)||0:0,st.availPct);
+        const p=Math.max(best?Number(best.perfPct)||0:0,st.perfPct);
+        return dripRegel('DBD-TOESTAND',a,p,best?`${best.oms} · ${st.oms}`:st.oms,a>=60?'hoog':'middel');
+      }
+      if(st.werkend)return best||dripRegel('DBD-INBEDRIJF',st.availPct,st.perfPct,st.oms,'laag');
+    }
+    return best;
   }
   // fallback: kruislampfout=ja zonder herkend patroon → behandel als lampcircuit-fout
   if(!best && typeId==='MSI'){ best = RULES.foutcodes.find(f=>f.code==='1001'); }

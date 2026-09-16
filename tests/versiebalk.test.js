@@ -36,18 +36,18 @@ test('de schil toont haar eigen versie ook zonder geladen module',()=>{
 });
 
 test('een gemelde engineversie komt erbij, een lege melding niet',()=>{
-  assert.equal(versieTekst({dvm:'82'}),'BiDash '+BIDASH_VERSIE+' · DVM 82');
-  assert.equal(versieTekst({dvm:'82',bi:'',planning:null}),'BiDash '+BIDASH_VERSIE+' · DVM 82');
-  assert.equal(versieTekst({dvm:'82',planning:'23'}),'BiDash '+BIDASH_VERSIE+' · DVM 82 · Planning 23');
-  assert.match(versieTitel({dvm:'82'}),/de geladen modules/);
+  assert.equal(versieTekst({dvm:'83'}),'BiDash '+BIDASH_VERSIE+' · DVM 83');
+  assert.equal(versieTekst({dvm:'83',bi:'',planning:null}),'BiDash '+BIDASH_VERSIE+' · DVM 83');
+  assert.equal(versieTekst({dvm:'83',planning:'23'}),'BiDash '+BIDASH_VERSIE+' · DVM 83 · Planning 23');
+  assert.match(versieTitel({dvm:'83'}),/de geladen modules/);
 });
 
 test('de badge wordt aangemaakt wanneer de opmaak hem niet meelevert',()=>{
   const doc=documentStub({metBadge:false});
-  toonVersies(doc,{dvm:'82'});
+  toonVersies(doc,{dvm:'83'});
   const badge=doc.acties.children[0];
   assert.equal(badge.id,'bidashVersionBadge');
-  assert.equal(badge.textContent,'BiDash '+BIDASH_VERSIE+' · DVM 82');
+  assert.equal(badge.textContent,'BiDash '+BIDASH_VERSIE+' · DVM 83');
 });
 
 test('de schil rendert de balk bij het starten en verwerkt versiemeldingen',()=>{

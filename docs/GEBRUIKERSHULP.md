@@ -200,3 +200,26 @@ alias. Een conflicterende alias blijft opgeslagen voor controle maar wordt niet
 gebruikt om de bronlocatie te vervangen. Bij classificatie wordt de oorspronkelijke
 Dynac-locatie uit oudere exports herkend, inclusief underscores en hectometer met
 koppelteken. RIA4 en windwaarschuwing blijven afzonderlijke kenmerken.
+
+### DRIP-storingen worden nu doorgerekend
+
+Vroeger bleven DRIP-storingen staan met de melding *Passende foutregel ontbreekt*,
+omdat er geen DRIP-foutregels bestonden. Sinds BiDash 2.13 (DVM-versie 83) hebben
+DRIP-storingen wel een impact, op twee manieren die samenwerken.
+
+BiDash leest eerst de alarmtekst: een verloren displaycontact geldt als volledige
+uitval, een kritische LED-storing weegt zwaar, een temperatuuroverschrijding matig,
+een minor LED-status licht, een reset zeer licht en een open kastdeur is een bekende
+storing zonder dienstimpact.
+
+Belangrijker is de functionele toestand van het paneel uit de bron. Staat een DRIP
+op **GESTOPT**, dan telt hij als volledig uit, ongeacht het gemelde alarm. Is hij
+gestopt geweest en weer **in bedrijf**, dan legt BiDash een ondergrens: een
+**langdurige** onderbreking weegt zwaarder dan een **intermitterende**. Een paneel
+dat gewoon in bedrijf is met alleen een gemeld alarm houdt de impact laag. Een
+storing zonder toestand, zonder classificatie en zonder bekende alarmregel blijft
+bewust onbekend en krijgt geen verzonnen impact.
+
+De gebruikte percentages zijn een instelbaar model, geen door RWS vastgesteld getal.
+Ze maken de DRIP-dienstverlening bespreekbaar; na toetsing met RWS kunnen de waarden
+worden bijgesteld zonder dat de werkwijze verandert.
