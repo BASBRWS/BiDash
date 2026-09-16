@@ -611,6 +611,97 @@ async function leesLiveStoringsBestanden(fileList){
   if(fouten.length)alert('Niet alle open-storingenbestanden konden worden geladen:\n'+fouten.join('\n'));
 }
 
+/* ── Signaalgevers totaal (JSON v2.0) ─────────────────────────────────────────
+   Eén gecombineerd exportbestand (datasets.mtm) met open alarmen en historische
+   storingen, als alternatief voor de losse Open storingen- en Storingshistorie-
+   uploads. We zetten elk record om naar een rij die normRij() al kent, zodat de
+   bestaande koppeling en doorrekening ongewijzigd blijven. De pure omzetters
+   hieronder hebben geen DOM- of statusafhankelijkheid, zodat een test ze los kan
+   uitvoeren op de verzonden implementatie. */
+function signaalgeverOpenActief(a){
+  if(a&&a.meenemen===false)return false;
+  return String(a&&a.eindstatus||'').trim().toLowerCase()==='open_aan_einde';
+}
+function signaalgeverOpenRij(a){
+  a=a||{};
+  return {
+    event_id:String(a.event_id||a.event_key||''),
+    foutcode:String(a.code||''),
+    melding:String(a.description||''),
+    Gevolg:String(a.impact||''),
+    locatie:String(a.locatie||''),
+    weg:String(a.weg||''),
+    richting:String(a.richting_kenmerk||''),
+    hm:a.km==null?'':a.km,
+    MSI:String(a.unit||''),
+    vc:String(a.verkeerscentrale||''),
+    van:String(a.start||''),
+    tot:String(a.laatste_snapshot||a.start||''),
+    status:'open',
+    source_name:(Array.isArray(a.bronbestanden)&&a.bronbestanden[0])||'signaalgevers totaal (JSON)'
+  };
+}
+function signaalgeverHistorieRij(s){
+  s=s||{};
+  const duur=s.incident_venster_uur||s.duur_min_uur||'';
+  return {
+    incident_id:String(s.incident_id||''),
+    foutcode:String(s.foutcodes||''),
+    /* storingen dragen geen omschrijving; met signaalgever + impactklasse herkent
+       classificeer() ze als MSI en blijft de tekst leesbaar. */
+    melding:[s.signaalgever,s.impactklassen].filter(Boolean).join(' '),
+    classificatie:String(s.classificatie||''),
+    locatie:String(s.locatie||''),
+    weg:String(s.weg||''),
+    richting:String(s.richting_kenmerk||''),
+    hm:s.km==null?'':s.km,
+    MSI:String(s.signaalgever||''),
+    vc:String(s.verkeerscentrale||''),
+    van:String(s.start||''),
+    tot:String(s.laatste_bewezen_aanwezig||s.einde_bovengrens||''),
+    duur_uur:duur===''?'':duur,
+    source_name:'signaalgevers totaal (JSON)'
+  };
+}
+function signaalgeverTotaalBronnen(json){
+  const mtm=(json&&json.datasets&&json.datasets.mtm)||{};
+  const alarmen=Array.isArray(mtm.alarm_episodes)?mtm.alarm_episodes:[];
+  const storingen=Array.isArray(mtm.storingen)?mtm.storingen:[];
+  return {
+    open:alarmen.filter(signaalgeverOpenActief).map(signaalgeverOpenRij),
+    historie:storingen.map(signaalgeverHistorieRij),
+    versie:String((json&&json.metadata&&json.metadata.versie)||'')
+  };
+}
+async function leesSignaalgeverTotaalBestand(file){
+  if(!ASSET_REGISTER_STATE){alert('Laad eerst All Assets. De signaalgeverbron wordt rechtstreeks aan dat stamregister gekoppeld.');renderDataGereedheid();return;}
+  zetImportVoortgang(file.name,0,'Signaalgeverbestand lezen',{direct:true});await uiPauze();
+  const buffer=await leesBlobAlsArrayBuffer(file,20000,'het JSON-bestand kon niet binnen 20 seconden worden gelezen');
+  let json;
+  try{json=JSON.parse(new TextDecoder('utf-8').decode(buffer));}
+  catch(err){throw new Error('geen geldige JSON: '+(err.message||String(err)));}
+  zetImportVoortgang(file.name,45,'Records omzetten naar storingsrijen',{direct:true});await uiPauze();
+  const {open,historie,versie}=signaalgeverTotaalBronnen(json);
+  if(!open.length&&!historie.length)throw new Error('geen datasets.mtm.alarm_episodes of datasets.mtm.storingen gevonden');
+  /* Vervang-modus: leeg de losse open- en historiebronnen zodat oud bestandsformaat
+     nooit met deze JSON mengt. De gebruiker kiest óf deze JSON óf de losse uploads. */
+  STORINGSBRONNEN=[{key:'signaalgever-totaal-historie',naam:file.name+' · historie',rijen:historie,size:file.size}];
+  STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeStoringsRijen());
+  MC_RESULT=null;
+  LIVE_STORINGSBRONNEN=[];LIVE_PEILDATUM=null;
+  zetImportVoortgang(file.name,80,'Open meldingen aan All Assets koppelen',{direct:true});await uiPauze();
+  if(open.length){
+    voegLiveBronnenToe([{key:'signaalgever-totaal-open',naam:file.name+' · open',rijen:open,size:file.size}]);
+  }else{
+    LIVE_STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeLiveStoringsRijen());
+    ANALYSE_SIGNATURE='';herbouwAssetMatchBeeld();
+  }
+  probeerAnalyseActiveren('overzicht',{inspectieAlGereed:true,matchAlGereed:true});
+  probeerAnalyseActiveren('prognose',{inspectieAlGereed:true,matchAlGereed:true});
+  importKlaar(file.name,`Signaalgevers totaal (JSON ${versie||'?'}) geladen: ${open.length.toLocaleString('nl-NL')} open, ${historie.length.toLocaleString('nl-NL')} historisch. Vervangt de losse Open storingen- en Storingshistorie-bronnen.`);
+  return {open:open.length,historie:historie.length};
+}
+
 function rijWaardeExact(row,namen){
   const zoek=new Set(namen.map(k=>kolomLicht(k))),zoekSleutel=new Set(namen.map(kolomSleutel));
   for(const k of Object.keys(row||{}))if(zoek.has(kolomLicht(k))||zoekSleutel.has(kolomSleutel(k)))return row[k];
