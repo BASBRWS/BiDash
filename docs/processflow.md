@@ -145,6 +145,24 @@ De standaardweergave is deze processflow. Alle Markdown-bestanden op het hoogste
 | [`site/engines/*-adapter.js`](../site/engines) | Het luik `window.HUB` tussen engine en schil |
 
 
+## Lokale kwaliteitscontrole
+
+De route **Data & export / Kwaliteit** start alleen na een bewuste klik een audit.
+De hoofdapp legt eerst de actuele engine-uitkomsten vast. Als een grote DVM-
+werkruimte bij de opstart bewust was uitgesteld, wordt zij voor deze audit alsnog
+verwerkt. Daarna vergelijkt `site/core/quality-audit.js` bronstatus, publieke assets,
+open meldingen, koppelingen, dienstuitkomsten en exportvoorwaarden.
+
+Elke bevinding heeft een vaste categorie en ernst. Blokkerende bevindingen wegen
+35 punten en waarschuwingen 12 punten binnen hun categorie. De categoriegewichten
+zijn Bronnen 25%, Datakwaliteit 25%, Koppelingen 20%, Doorrekening 20% en
+Beheerbaarheid 10%. Een blokkerende fout voorkomt het oordeel Op koers. De laatste
+twaalf scores worden lokaal als trend bewaard.
+
+De audit leest brondata, maar schrijft alleen het rapport en de scorehistorie. Zij
+wijzigt geen filter, koppeling of rekenregel. Een integrale export neemt deze twee
+onderdelen alleen mee wanneer **Kwaliteitsaudit en scorehistorie** is geselecteerd.
+
 ## DRIP meldingen en ontbrekende doorrekening
 
 Sinds BiDash 2.11 gebruikt Open storingen dezelfde verwerkte bronselectie als de

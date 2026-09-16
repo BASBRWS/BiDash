@@ -8,7 +8,7 @@ export const GROUPS=[
  {id:'organisation',label:'Formatie & contracten',icon:'◇',desc:'Beschikbare mensen, bedrijfsfuncties, contracten en budget.',items:[['organisation','Formatie & functies','native','organisation'],['vwm','VWM-formatiemodel','bi','vwm'],['civ','CIV-formatiemodel','bi','civ'],['contracts','Contracten & budget','bi','dash'],['businessData','Bedrijfsgegevens','bi','data']]},
  {id:'rules',label:'Regels & signalen',icon:'⚑',desc:'Eén eigenaar per regel en expliciete koppelingen tussen diensten en functies.',items:[['signals','Signalen','native','signals'],['rules','Dienstkoppelingen','native','rules'],['impactRules','Impactregels','dvm','regels'],['businessRules','Organisatieregels','bi','rules']]},
  {id:'scenarios',label:'Scenario’s',icon:'↗',desc:'Onzekerheid en toekomstverwachting gescheiden van de actuele situatie.',items:[['scenarios','Simulaties kiezen','native','scenarios'],['businessMC','Formatie & contracten','bi','sim']]},
- {id:'data',label:'Data & export',icon:'⇅',desc:'Lokale bestanden laden, bronbeheer en selectieve back-ups.',items:[['data','Laden & exporteren','native','data'],['sources','DVM-bronbeheer','dvm','datasets']]}
+ {id:'data',label:'Data & export',icon:'⇅',desc:'Lokale bestanden laden, bronbeheer, kwaliteitscontrole en selectieve back-ups.',items:[['data','Laden & exporteren','native','data'],['sources','DVM-bronbeheer','dvm','datasets'],['quality','Kwaliteit','native','quality']]}
 ];
 export const ROUTES=Object.fromEntries(GROUPS.flatMap(g=>g.items.map(([id,label,engine,target])=>[id,{id,label,engine,target,group:g.id}])));
 ROUTES.faultCalculation={id:'faultCalculation',label:'Storingsdoorrekening',engine:'dvm',target:'storingen',group:'assets'};

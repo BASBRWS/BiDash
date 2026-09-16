@@ -94,7 +94,7 @@ niet automatisch als duplicaat verwijderd. Overlap vraagt inhoudelijke beoordeli
 | Formatie & contracten | Functies, VWM- en CIV-model, contracten, bedrijfsgegevens |
 | Regels & signalen | Signalering, dienst-functiekoppelingen, domeinregels |
 | Scenario’s | Huidige verkeerskosten, MSI-toekomst, BI-scenario’s; DRIP via DVM |
-| Data & export | Lokale import met zichtbare voortgang, datasetbeheer inclusief live storingsfilter, selectieve back-up, oorspronkelijke broninvoer |
+| Data & export | Lokale import met zichtbare voortgang, datasetbeheer inclusief live storingsfilter, lokale kwaliteitsaudit, selectieve back-up, oorspronkelijke broninvoer |
 | Help | Gebruikersuitleg, aanbevolen laadvolgorde, actuele storingslijst en procesflow |
 
 Rechtsboven in de hoofdwerkruimte staat een Help-knop naar `site/help.html`. Die pagina is onderdeel van de gepubliceerde `site/`-map en werkt dus ook wanneer de repository later niet publiek toegankelijk is. De inhoud volgt de documentatie in `docs/`.
@@ -104,8 +104,9 @@ Een nieuwe navigatie mag oorspronkelijke analyses niet onbereikbaar maken.
 
 ## 4. Lokale gegevens en beveiliging
 
-De hoofdwerkruimte heeft `schema: 1` en bevat `dvm`, `bi`, `planning`, `links` en
-`history`. IndexedDB gebruikt database `bidash-integraal`, objectstore `workspace`,
+De hoofdwerkruimte heeft `schema: 1` en bevat `dvm`, `bi`, `planning`, `links`,
+`history`, `qualityAudit` en `qualityHistory`. IndexedDB gebruikt database
+`bidash-integraal`, objectstore `workspace`,
 sleutel `current`. Modules gebruiken daarnaast lokale browseropslag. Een back-up
 is een gedownloade export; browseropslag is geen garantie tegen gegevensverlies.
 Gebruik één werkruimte-tab tegelijk; er is geen uitgewerkte meergebruikerssynchronisatie.
@@ -405,6 +406,7 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 | Beheerder in de storingslijst | `tests/storingslijst-beheerder.test.js`: nooit een getal als beheerder, afleiding uit de verkeerscentrale, herkende bronwaarde blijft staan |
 | Planning zonder projectdata | `tests/planning-geen-projectdata.test.js`: geen objectnamen in de code, lege P6-, portfolio- en modelstructuren, tellers op nul, werkende triggerlaadroute met overgeslagen onvolledige regels |
 | Versiebalk | `tests/versiebalk.test.js`: schilversie zichtbaar zonder geladen module, gemelde engineversies erachter, lege melding blijft weg, versienummer op precies één plek |
+| Kwaliteitsaudit | `tests/quality-audit.test.js`: lege werkruimte, gezonde keten, bron-dashboardbreuk, onbekende impact naast exact dienstpercentage en zichtbare bediening/export |
 | Live overzichtsfilter | `tests/live-overview-filter.test.js`: defaults, uitsluitingen, lege waarden, nieuwe waarden, bronbehoud en DVM-parameteropslag |
 | Help/documentatie | Controleer `site/help.html`, Help-link in `site/index.html` en overeenstemming met `docs/GEBRUIKERSHULP.md` en `docs/processflow.md` |
 | DVM-regels/kosten/prognose | Aanvullende gerichte numerieke tests en scopes; bestaande tests dekken niet alle formules |
@@ -417,6 +419,23 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 Chromium. `PLAYWRIGHT_MODULE` en `CHROMIUM_PATH` kunnen naar een bestaande installatie
 wijzen. `npm run serve` serveert `site/` lokaal op poort 8080.
 
+
+## Kwaliteitsaudit en score
+
+`site/core/quality-audit.js` is een pure, lokaal uitgevoerde controlelaag. De module
+ontvangt de opgeslagen werkruimte en de publieke HUB-uitkomsten. Zij inspecteert
+geen frame-interne variabelen en past geen bron, filter of rekenregel aan.
+
+De audit gebruikt vijf categorieën. Bronnen en Datakwaliteit wegen ieder 25%,
+Koppelingen en Doorrekening ieder 20% en Beheerbaarheid 10%. Een blokkerende
+bevinding kost 35 punten binnen haar categorie, een waarschuwing 12 punten. Bij een
+blokkerende bevinding wordt de totaalscore begrensd en is het oordeel Niet op koers.
+De methode en haar inhoudelijke grens staan in ieder geëxporteerd rapport.
+
+De laatste volledige audit staat in `qualityAudit`. `qualityHistory` bewaart maximaal
+twaalf kleine trendsnapshots met tijd, score, oordeel en aantallen. Beide velden
+blijven lokaal en gaan alleen mee wanneer de exportselectie `quality` bevat. Het
+rapport bevat geen bronregels of assetnamen.
 
 ## DRIP meldingen en ontbrekende doorrekening
 
