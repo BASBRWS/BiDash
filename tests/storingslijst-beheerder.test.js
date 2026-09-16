@@ -88,10 +88,12 @@ test('zonder enige aanwijzing blijft de waarde leeg, niet een verzonnen dienst',
   assert.equal(beheerder({rd:'99',vc:'XX'}),'');
 });
 
-test('beide storingsroutes gebruiken dezelfde afleiding',()=>{
-  // De actuele momentopname en de uit historie afgeleide DRIP-storingen.
+test('de gezamenlijke storingsroute gebruikt de beheerderafleiding',()=>{
+  // Historische DRIP-meldingen lopen nu via dezelfde bronverwerking en verrijking.
   const treffers=extensie.match(/rd:regioDienst\(/g)||[];
-  assert.equal(treffers.length,2,'beide routes moeten regioDienst gebruiken');
+  assert.equal(treffers.length,1,'de gedeelde route moet regioDienst gebruiken');
+  assert.doesNotMatch(extensie,/function openDripFaults/);
+  assert.match(extensie,/baseFaults\(\)\.map\(enrichBase\)/);
   assert.doesNotMatch(extensie,/rd:row\.rd\|\|/);
   assert.doesNotMatch(extensie,/rd:asset\?\.rd\|\|d\?\.rd\|\|''/);
 });

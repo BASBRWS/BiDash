@@ -1557,14 +1557,14 @@ function koppelDripHistorieAanAreaal(opties){
     const logKey=assetLogSleutel(logId),cfg=assetConfigBasis();
     if(cfg.uitgeslotenLogIds[logKey])return null;
     const aliasKey=cfg.aliases[logKey];
-    if(aliasKey&&assetKeyMap.has(aliasKey))return assetKeyMap.get(aliasKey);
-    let cands=code?codeMap.get(code)||[]:[];
+    if(aliasKey&&assetKeyMap.has(aliasKey)){const d=assetKeyMap.get(aliasKey);return dripLocatiePast(loc||{},d)?d:null;}
+    let cands=(code?codeMap.get(code)||[]:[]).filter(d=>dripLocatiePast(loc||{},d));
     if(loc&&loc.vc){ const regioCands=cands.filter(d=>String(d.vc||'').toUpperCase()===String(loc.vc).toUpperCase()); if(regioCands.length)cands=regioCands; }
     if(cands.length===1) return cands[0];
     const pool=cands.length?cands:D.drips;
     if(!loc||!loc.weg||loc.hm==null) return null;
     let best=null,afstand=Math.max(.01,Number(assetConfigBasis().hmTolerantieKm)||.35)+.01;
-    pool.forEach(d=>{ if(d.weg!==loc.weg)return; if(loc.richting&&d.richting&&loc.richting!==d.richting)return; if(d.hm==null)return; const a=Math.abs(d.hm-loc.hm); if(a<afstand){afstand=a;best=d;} });
+    pool.forEach(d=>{ if(!dripLocatiePast(loc,d))return; if(d.weg!==loc.weg)return; if(loc.richting&&d.richting&&loc.richting!==d.richting)return; if(d.hm==null)return; const a=Math.abs(d.hm-loc.hm); if(a<afstand){afstand=a;best=d;} });
     return best;
   };
   const bronMap=new Map(H.sources.map(b=>[b.key,b]));
@@ -2371,7 +2371,7 @@ function renderStoringen(){
    ══════════════════════════════════════════════════════════════ */
 function renderBerekening(){
   const wegen=[...new Set(STATE.meldingen.map(m=>m.weg))].sort();
-  let h=`<div class="card"><h3>Rekenverslag per melding ${tip('Toont voor <b>elke afzonderlijke storing</b> hoe de impact stap voor stap is berekend: van classificatie van het assettype, via foutcode en locatiefactor, tot de bijdrage aan de wegdeelbeschikbaarheid. Bedoeld om te kunnen controleren en navertellen wat er precies gebeurt.<span class="frm">impact = basis × gewicht × locatiefactor</span>')}<span class="badge">${STATE.meldingen.length} meldingen</span></h3>
+  let h=v68NietDoorgerekendHtml()+`<div class="card"><h3>Rekenverslag per melding ${tip('Toont voor <b>elke afzonderlijke storing</b> hoe de impact stap voor stap is berekend: van classificatie van het assettype, via foutcode en locatiefactor, tot de bijdrage aan de wegdeelbeschikbaarheid. Bedoeld om te kunnen controleren en navertellen wat er precies gebeurt.<span class="frm">impact = basis × gewicht × locatiefactor</span>')}<span class="badge">${STATE.meldingen.length} meldingen</span></h3>
     <p class="muted" style="margin:-6px 0 12px;font-size:12px">Klap een melding open om te zien hoe elke stap de beschikbaarheids- en prestatie-impact opbouwt: van classificatie tot de bijdrage aan de wegdeel­beschikbaarheid. Alle getallen komen 1-op-1 uit de rule engine.</p>
     <div class="foot-note" style="margin-top:0;margin-bottom:14px">
       <b>Leeswijzer.</b> Per melding: <b>impact_beschikbaarheid</b> = basisimpact(foutcode) × gewicht(assettype) × factor(locatie) × individuele assetfactor, afgetopt op 100%.

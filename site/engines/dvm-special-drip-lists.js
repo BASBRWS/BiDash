@@ -64,21 +64,21 @@
   }
   function direction(v){const s=norm(v);if(['L','LI','LINKS'].includes(s))return 'L';if(['R','RE','RECHTS'].includes(s))return 'R';return s;}
   function vcCode(v){const s=norm(v).replace(/^VC/,'');return s==='WNN'?'NWN':s==='WNZ'?'ZWN':s;}
-  function number(v){const n=Number(String(v??'').replace(',','.'));return Number.isFinite(n)?n:null;}
+  function number(v){if(v==null||String(v).trim()==='')return null;const n=Number(String(v).replace(',','.').replace('-','.'));return Number.isFinite(n)?n:null;}
   function rowLocation(row){
     const text=Object.values(row||{}).map(v=>String(v??'')).join(' ');
     const roadRaw=firstValue(row,new Set(['weg','wegnummer','road'].map(normHeader)));
     const dirRaw=firstValue(row,new Set(['richting','ri','direction'].map(normHeader)));
     const hmRaw=firstValue(row,new Set(['hm','hectometer','hectometrering','km'].map(normHeader)));
     const vc=String(firstValue(row,new Set(['vc','verkeerscentrale','regio'].map(normHeader)))||'').trim();
-    const m=text.toUpperCase().match(/\b([AN]\s*\d{1,3})\s*([LR]|LI|RE)?\s*(\d{1,3}[,.]\d{1,3})\b/);
-    return {vc:vcCode(vc),weg:norm(roadRaw||(m&&m[1])||'').replace(/^RW0*/,''),richting:direction(dirRaw||(m&&m[2])||''),hm:number(hmRaw||(m&&m[3]))};
+    const m=text.toUpperCase().match(/\b([AN]\s*\d{1,3})\s*(LI|RE|L|R)?[\s_]*(\d{1,3}[,.-]\d{1,3})(?=\b|_)/);
+    return {vc:vcCode(vc),weg:norm(roadRaw||(m&&m[1])||'').replace(/^RW0*/,''),richting:direction(dirRaw||(m&&m[2])||''),hm:number(hmRaw)??number(m&&m[3])};
   }
   function recordForRow(row){return {ids:rowIds(row),locatie:rowLocation(row),sheet:row?.__sheet||''};}
   function locationCompatible(a,b){
     if(a.weg&&b.weg&&a.weg!==b.weg)return false;
     if(a.richting&&b.richting&&direction(a.richting)!==direction(b.richting))return false;
-    if(a.vc&&b.vc&&vcCode(a.vc)!==vcCode(b.vc))return false;
+    if(a.vc&&b.vc){const vcs=v=>vcCode(v)==='ZWNZN'?['ZWN','ZN']:[vcCode(v)];if(!vcs(a.vc).some(v=>vcs(b.vc).includes(v)))return false;}
     if(a.hm!=null&&b.hm!=null&&Math.abs(a.hm-b.hm)>.5)return false;
     return true;
   }
@@ -221,7 +221,15 @@
   window.getDripSpecialListsExport=exportState;
   window.restoreDripSpecialLists=function(data){
     if(!data||typeof data!=='object')return false;
-    for(const k of ['wind','ria4'])if(data[k])SPECIAL[k]={...EMPTY(),...data[k],identifiers:Array.isArray(data[k].identifiers)?data[k].identifiers:[],markerKolommen:Array.isArray(data[k].markerKolommen)?data[k].markerKolommen.map(String):[],herkomst:String(data[k].herkomst||''),rijenBron:Number(data[k].rijenBron)||0};
+    for(const k of ['wind','ria4'])if(data[k]){
+      const records=(Array.isArray(data[k].records)?data[k].records:[]).map(r=>{
+        const parsed=rowLocation({identifiers:(r.ids||[]).map(i=>i.raw||'').join(' ')});
+        // Recover location from the original Dynac identifier in older exports.
+        const old=r.locatie||{};
+        return {...r,locatie:!old.weg&&parsed.weg?{...old,weg:parsed.weg,richting:parsed.richting,hm:parsed.hm}:old};
+      });
+      SPECIAL[k]={...EMPTY(),...data[k],records,identifiers:Array.isArray(data[k].identifiers)?data[k].identifiers:[],markerKolommen:Array.isArray(data[k].markerKolommen)?data[k].markerKolommen.map(String):[],herkomst:String(data[k].herkomst||''),rijenBron:Number(data[k].rijenBron)||0};
+    }
     applyAll();return true;
   };
 

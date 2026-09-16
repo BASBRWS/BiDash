@@ -38,7 +38,9 @@ export function filterOpenFaults(rows,filters={}){
 }
 
 export function formatFaultDuration(hours){
+  if(hours==null||hours==='')return 'Onbekend';
   const h=Number(hours);if(!Number.isFinite(h)||h<0)return 'Onbekend';
+  if(h===0)return '0 min';
   if(h<1){const min=Math.max(1,Math.round(h*60));return `${min} min`;}
   if(h<24)return `${h<10?h.toFixed(1):Math.round(h)} uur`.replace('.',',');
   const d=Math.floor(h/24),rest=Math.round(h-d*24);
@@ -51,7 +53,7 @@ function countBy(rows,key){
 
 export function buildOpenFaultMemo(rows,context={}){
   const list=Array.isArray(rows)?rows:[];
-  const durations=list.map(r=>Number(r.duurUren)).filter(Number.isFinite);
+  const durations=list.filter(r=>r.duurUren!=null&&r.duurUren!==''&&r.duurBetrouwbaar!==false).map(r=>Number(r.duurUren)).filter(v=>Number.isFinite(v)&&v>=0);
   const avg=durations.length?durations.reduce((a,b)=>a+b,0)/durations.length:null;
   const oldest=durations.length?Math.max(...durations):null;
   return {

@@ -416,3 +416,25 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 `npm run test:browser` voert de drie browserscripts uit en vereist Playwright en
 Chromium. `PLAYWRIGHT_MODULE` en `CHROMIUM_PATH` kunnen naar een bestaande installatie
 wijzen. `npm run serve` serveert `site/` lokaal op poort 8080.
+
+
+## DRIP meldingen en ontbrekende doorrekening
+
+Sinds BiDash 2.11 gebruikt Open storingen dezelfde verwerkte bronselectie als de
+landelijke telling. Een melding zonder passende foutregel of met een locatieconflict
+blijft bewaard in `STATE.nietDoorgerekend` en zichtbaar met reden. Zij telt mee als
+open melding, maar krijgt geen verzonnen impact. Het betrokken assettype heeft dan
+geen exact beschikbaarheidspercentage, ook niet bij bevestigde bronvolledigheid.
+Het rekenverslag toont de niet doorgerekende bronregels apart. Oudere detailgrafieken
+bevatten uitsluitend het doorgerekende deel; de waarschuwing benoemt die beperking.
+
+De oorspronkelijke starttijd, bronduur en onzekerheidsmarkering blijven behouden.
+Een onbekende duur verschijnt als Onbekend; nul uur blijft nul. Onzekere duren
+worden niet gebruikt voor het gemiddelde in de open-storingenmemo. Bronpeildatum
+betekent niet dat de storing vandaag nog openstaat.
+
+DRIP-koppelingen controleren weg, richting en hectometer, ook bij een opgeslagen
+alias. Een conflicterende alias blijft opgeslagen voor controle maar wordt niet
+gebruikt om de bronlocatie te vervangen. Bij classificatie wordt de oorspronkelijke
+Dynac-locatie uit oudere exports herkend, inclusief underscores en hectometer met
+koppelteken. RIA4 en windwaarschuwing blijven afzonderlijke kenmerken.
