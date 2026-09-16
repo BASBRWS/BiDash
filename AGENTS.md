@@ -9,6 +9,7 @@ modelaannames en vereiste controles. Deze korte ingang bevat geen tweede set rek
 - Gebruikersdata blijft lokaal in de browser. Commit geen operationele bronnen of afgeleide data.
 - Behoud bestaande XML/JSON-imports, selectieve export en null/0-betekenis.
 - Voer de tests uit die bij de wijziging horen; Pages-CI draait niet alle browsertests.
+- Verhoog bij elke functionele wijziging het versienummer: de schil in `site/core/versie.js`, een engine in haar eigen constante. Zet hetzelfde nummer in de release notes en werk de tests bij die het vastleggen.
 - Werk de centrale beschrijving bij als de werking verandert en benoem ongeteste beperkingen.
 - Maak geen tests of kwaliteitsafspraken zwakker om een wijziging te laten slagen.
 

@@ -2,7 +2,7 @@
 
 Datum: 16 september 2026
 
-Versie: BiDash 2.10, DVM 79
+Versie: BiDash 2.11, DVM 80
 
 ## Opgelost
 

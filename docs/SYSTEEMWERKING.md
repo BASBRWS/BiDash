@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van Integratie 2.3, bijgewerkt op 14 september 2026 voor de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina en zichtbare voortgang bij gegevensimport.
+Status: beschrijving van Integratie 2.11, bijgewerkt op 14 september 2026 voor de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina en zichtbare voortgang bij gegevensimport.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -380,8 +380,9 @@ van alleen een gecombineerd signaal. Onbekende beschikbaarheid is geen bewezen n
 5. Controleer brondata, herkomst, scope, eenheden, null/0 en actualiteit van resultaten.
 6. Voer de relevante controles uit. Rapporteer wat niet is getest en waarom.
 7. Werk `GEBRUIKERSHULP.md`, `processflow.md`, relevante SVG’s en deze beschrijving bij wanneer de gebruikerswerking of gegevensstroom verandert. `site/help.html` is alleen de viewer; `docs/` is de inhoudelijke bron voor Help.
-8. Publiceer via een gerichte branch en reviewbare PR. Controleer vóór samenvoegen opnieuw de basisbranch. Behoud wijzigingen van andere auteurs; niet force-pushen.
-9. Voor functionele releases: controleer de Pages-run en claim pas daarna dat de nieuwe versie live is. Commit nooit lokale brondata om tests eenvoudiger te maken.
+8. Verhoog het versienummer bij elke functionele wijziging. De schilversie staat in `site/core/versie.js`; een engine houdt haar eigen nummer bij, zoals `DVM_VERSION` in `dvm-source-manager.js`. Raakt de wijziging alleen een engine, verhoog dan die engineversie; raakt zij de schil of het geheel, verhoog dan ook de schilversie. Zet hetzelfde nummer in de release notes en werk de tests bij die het nummer vastleggen. Een reeks wijzigingen die als één geheel wordt samengevoegd, mag één verhoging delen; dat wordt dan in de release notes benoemd.
+9. Publiceer via een gerichte branch en reviewbare PR. Controleer vóór samenvoegen opnieuw de basisbranch. Behoud wijzigingen van andere auteurs; niet force-pushen.
+10. Voor functionele releases: controleer de Pages-run en claim pas daarna dat de nieuwe versie live is. Commit nooit lokale brondata om tests eenvoudiger te maken.
 
 Een AI mag deze voorwaarden niet schrappen of afzwakken om zijn eigen wijziging
 als geslaagd te laten gelden. Een bewust gewijzigde producteis moet herkenbaar
