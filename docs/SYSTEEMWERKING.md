@@ -184,6 +184,13 @@ de overige subprocessen. Oude relatieve gewichten worden genormaliseerd; bij nul
 som geldt een gelijke verdeling. Pas dit gesloten-verdelingsgedrag niet toe op
 andere percentagevelden, zoals assetafhankelijkheden of impactwaarden.
 
+De normalisatie loopt bij het laden van de regels en bij het importeren van
+parameters, dus vóór iedere doorrekening. Zij mag niet afhankelijk zijn van het
+openen van een scherm: `v68Dienst()` weegt met deze aandelen, en een nog niet
+genormaliseerd aandeel telt daarom als 1, gelijk aan
+`dienstWaardeUitSubprocessen()`. De twee dienstpaden moeten bij dezelfde invoer
+dezelfde uitkomst geven.
+
 Het landelijke `v68LandelijkModel()` gebruikt volledigheid per assettype.
 `v68Subproces()` en `v68Dienst()` leveren bij onvolledige dekking een bereik en
 `besch: null`, in plaats van een schijnbaar exact percentage. Een ontbrekende
@@ -357,6 +364,7 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 | Canvas/tijdschaal/drag | `tests/planning-large.cjs`: grote synthetische planning, scrollen, slepen, resizen |
 | Formatie/BI-brug/fullscreen | `tests/planning-formation.cjs`: overlappende taken, regelwijziging, reload, grafieken |
 | Live storingsmomentopname | `tests/live-snapshot.test.js`: identiteit, dubbelen, verdwijnen en afsluiten |
+| Dienstaandelen en dienstwaarde | `tests/dienst-aandelen.test.js`: gesloten aandelen na laden, ontbrekend aandeel als 1, expliciete aandelen, onvolledige dekking blijft een band |
 | Live overzichtsfilter | `tests/live-overview-filter.test.js`: defaults, uitsluitingen, lege waarden, nieuwe waarden, bronbehoud en DVM-parameteropslag |
 | Help/documentatie | Controleer `site/help.html`, Help-link in `site/index.html` en overeenstemming met `docs/GEBRUIKERSHULP.md` en `docs/processflow.md` |
 | DVM-regels/kosten/prognose | Aanvullende gerichte numerieke tests en scopes; bestaande tests dekken niet alle formules |

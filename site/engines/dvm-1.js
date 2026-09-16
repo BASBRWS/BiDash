@@ -443,6 +443,11 @@ function normaliseerSubprocesAandelen(dienstId){
 function normaliseerAlleSubprocesAandelen(){
   DIENSTEN.forEach(d=>normaliseerSubprocesAandelen(d.id));
 }
+/* De aandelen moeten gesloten zijn vóórdat er iets wordt doorgerekend, niet pas
+   wanneer het regelscherm is geopend. v68Dienst weegt namelijk met deze aandelen;
+   zonder normalisatie is elk gewicht leeg en levert de dienstverlening een
+   betekenisloze band 0,00–0,00% op het overzicht en in de hub-samenvatting. */
+normaliseerAlleSubprocesAandelen();
 
 /* De gewijzigde invoer blijft staan. Het resterende percentage wordt naar
    verhouding over de andere subprocessen verdeeld. */
