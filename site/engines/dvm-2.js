@@ -2736,8 +2736,13 @@ function v68Subproces(sp,typen){
   return {naam:sp.naam,gewicht:Number(sp.gewicht)||0,loB,hiB,loP,hiP,bekend,exact:bekend>.999999,bronnen};
 }
 function v68Dienst(d,typen){
-  const subs=SUBPROCESSEN[d.id]||[],som=subs.reduce((s,x)=>s+(Number(x.gewicht)||0),0)||1;let loB=0,hiB=0,loP=0,hiP=0,dekking=0;
-  const detail=subs.map(sp=>{const r=v68Subproces(sp,typen),w=(Number(sp.gewicht)||0)/som;loB+=w*r.loB;hiB+=w*r.hiB;loP+=w*r.loP;hiP+=w*r.hiP;dekking+=w*r.bekend;return {...r,w};});
+  /* Een nog niet genormaliseerd aandeel telt als 1, gelijk aan
+     normaliseerSubprocesAandelen en dienstWaardeUitSubprocessen. Zo leveren de
+     twee dienstpaden dezelfde uitkomst en kan een ontbrekend gewicht nooit stil
+     tot nul wegingen en een lege dienstwaarde leiden. */
+  const aandeel=sp=>Math.max(0,Number(sp.gewicht==null?1:sp.gewicht)||0);
+  const subs=SUBPROCESSEN[d.id]||[],som=subs.reduce((s,x)=>s+aandeel(x),0)||1;let loB=0,hiB=0,loP=0,hiP=0,dekking=0;
+  const detail=subs.map(sp=>{const r=v68Subproces(sp,typen),w=aandeel(sp)/som;loB+=w*r.loB;hiB+=w*r.hiB;loP+=w*r.loP;hiP+=w*r.hiP;dekking+=w*r.bekend;return {...r,w};});
   const exact=dekking>.999999;return {d,exact,besch:exact?loB:null,prestatie:exact?loP:null,loB,hiB,loP,hiP,dekking,detail};
 }
 function v68LandelijkModel(){const typen=v68TypeStatus();return {typen,diensten:DIENSTEN.map(d=>v68Dienst(d,typen)),assets:v68Assets().length};}
