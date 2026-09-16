@@ -228,11 +228,12 @@ function inspecteerStoringsRijen(rijen){
     const prognoseRij=!ASSET_INDEX||!!(koppeling&&koppeling.asset);
     if(koppeling&&koppeling.asset)g.matchN++;else if(koppeling&&koppeling.status==='buiten-areaal')g.uitgeslotenN++;else if(ASSET_INDEX)g.ongekoppeldN++;
     if(prognoseRij&&tijd){g.tijden.push(tijd);g.maanden.add(maandSleutel(tijd));}
-    if(prognoseRij&&m.duurUren!=null&&m.duurUren>0)g.duurN++;
+    // Alleen gemeten herstelduren tellen als duurdekking; een afgeleide duur niet.
+    if(prognoseRij&&m.duurBetrouwbaar)g.duurN++;
     if(!prognoseRij)return;
     const naam=m.assetNaam||assetNaamUitMelding(m,tp);
     const a=g.assets[naam]||(g.assets[naam]={naam,n:0,tijden:[],duurN:0,maanden:new Set()});
-    a.n++; if(tijd){a.tijden.push(tijd);a.maanden.add(maandSleutel(tijd));} if(m.duurUren!=null&&m.duurUren>0)a.duurN++;
+    a.n++; if(tijd){a.tijden.push(tijd);a.maanden.add(maandSleutel(tijd));} if(m.duurBetrouwbaar)a.duurN++;
   });
   Object.values(typen).forEach(g=>{
     g.prognoseN=ASSET_INDEX?g.matchN:g.n;
@@ -267,13 +268,16 @@ function kwantielWaarde(vals,q){
 function bouwLiveMcHistorie(st){
   if(!st||!st.wegdelen||!STORINGS_INSPECTIE||!STORINGS_INSPECTIE.typen.MSI)return null;
   const dekkingJr=Math.max(STORINGS_INSPECTIE.typen.MSI.dekkingDagen/365.25,1/52);
-  const alleDuren=st.meldingen.filter(m=>m.typeId==='MSI'&&(!ASSET_INDEX||m.assetKey)&&m.duurUren!=null&&m.duurUren>0).map(m=>m.duurUren/24).sort((a,b)=>a-b);
+  /* Alleen gemeten herstelduren vormen de duurverdeling. Een duur die is
+     afgeleid uit de peildatum van een nieuwe momentopname is een bovengrens en
+     zou de MTTR laten meegroeien met de afstand tussen twee momentopnamen. */
+  const alleDuren=st.meldingen.filter(m=>m.typeId==='MSI'&&(!ASSET_INDEX||m.assetKey)&&m.duurBetrouwbaar).map(m=>m.duurUren/24).sort((a,b)=>a-b);
   if(!alleDuren.length)return null;
   const ankers=vals=>Array.from({length:21},(_,i)=>Math.max(1/6,kwantielWaarde(vals,i/20)));
   const globaal=ankers(alleDuren),wegdelen={};
   st.wegdelen.forEach(wd=>{
     const ms=wd.meldingen.filter(m=>m.typeId==='MSI'&&(!ASSET_INDEX||m.assetKey));if(!ms.length)return;
-    const lokaal=ms.filter(m=>m.duurUren!=null&&m.duurUren>0).map(m=>m.duurUren/24).sort((a,b)=>a-b);
+    const lokaal=ms.filter(m=>m.duurBetrouwbaar).map(m=>m.duurUren/24).sort((a,b)=>a-b);
     const fvc=VC_MAP[String(wd.vc||'').toUpperCase()]||String(wd.vc||'').toUpperCase();
     const key=fvc+'|'+wd.weg+(wd.richting?(' '+wd.richting):'');
     wegdelen[key]={events:ms.length,rate:ms.length/dekkingJr,durP:lokaal.length>=DATA_DREMPELS.assetDuren?ankers(lokaal):globaal,bron:lokaal.length>=DATA_DREMPELS.assetDuren?'geladen-log-wegdeel':'geladen-log-groepsduur'};
@@ -800,6 +804,12 @@ function normRij(m){
   return {
     eventId,entityid, osid, locatieTekst, weg, richting, hm, strook, gevolg, melding,
     duurUren, dagen, tVan, tTot,
+    /* Een storing die uit de nieuwe momentopname verdween is afgesloten op de
+       peildatum van die lijst. De duur is dan een bovengrens, geen meting: het
+       herstel lag ergens tussen de vorige en de nieuwe momentopname. */
+    duurAfgeleid:!!m._afgeslotenDoorNieuweMomentopname,
+    duurBetrouwbaar:duurUren!=null&&duurUren>0&&!m._afgeslotenDoorNieuweMomentopname,
+    afsluitPeildatum:String(m._afsluitPeildatum||''),
     rd:String(g('RD')||'').trim(), district:String(g('District')||'').trim(), vc:String(g('vc')||g('regio')||'').trim(),
     liveOpen:!!m._liveOpen,bronBestand:String(m._bronBestand||''),
     googleLink:String(g('google_link')||g('link')||'').trim(),
@@ -1644,7 +1654,9 @@ function bjlGebied(bron, koppelBW){
   const cp=bron.choke;
   const detail=(cp.leden||[]).slice(0,15).map(m=>[
     esc(m.code||''), esc((m.fout&&m.fout.oms)||m.melding||''),
-    m.hm!=null?m.hm.toFixed(1):'—', Math.round((m.duurUren||0)/24)+' d', fmt((m.zwaarteA||0)*100,0)+'%'
+    m.hm!=null?m.hm.toFixed(1):'—',
+    Math.round((m.duurUren||0)/24)+' d'+(m.duurAfgeleid?' (afgeleid, bovengrens)':''),
+    fmt((m.zwaarteA||0)*100,0)+'%'
   ]);
 
   let h=`<h4>C · Alle choke-points (≥2 storingen binnen ${bron.chokeVenster||2} km)</h4>
@@ -3554,7 +3566,10 @@ function mcWegConfig(wd,histPeriodeJr,vanMs,totMs,prior){
   const age=mcLeeftijdEquivalent(wd,vanMs,totMs,mcHistorieBron().periodeJr);
   const c={wd,ri,age,N:wd.N||1,
     zPool:wd.meldingen.map(m=>({z:m.zwaarteA,zp:m.zwaarteP})),
-    durPool:ri.gebruikLogs?null:wd.meldingen.map(m=>Math.min(m.duurUren||(+((assetOverrideVoor(m.assetKey)||{}).mttr)>0?+assetOverrideVoor(m.assetKey).mttr:RULES.cfg.hw_mttr),180*24))};
+    /* Een afgeleide duur telt hier als ontbrekend en valt terug op de MTTR,
+       net als een melding zonder duur. Zo groeit de herstelduur in de simulatie
+       niet mee met de afstand tussen twee momentopnamen. */
+    durPool:ri.gebruikLogs?null:wd.meldingen.map(m=>Math.min((m.duurBetrouwbaar&&m.duurUren)||(+((assetOverrideVoor(m.assetKey)||{}).mttr)>0?+assetOverrideVoor(m.assetKey).mttr:RULES.cfg.hw_mttr),180*24))};
   c.lossMoment=mcLossMomenten(c,(totMs-vanMs)/3600e3);
   return c;
 }

@@ -16,6 +16,8 @@ De standaardweergave is de processflow. Via de documentnavigatie zijn onder ande
 
 Historische storingen en actuele open storingen zijn twee verschillende gegevensstromen. Historische meldingen mogen het live dashboard niet beïnvloeden. Bij DRIP-historie leidt BiDash alleen incidenten af die aantoonbaar aan het actuele einde van hun eigen bron nog open staan. Oude gecensureerde incidenten worden niet als huidige storing meegenomen.
 
+Verdwijnt een MSI-storing uit de nieuwe momentopname, dan sluit BiDash die af op de peildatum van die lijst. De hersteltijd die daaruit volgt is een bovengrens: het herstel lag ergens tussen de vorige en de nieuwe lijst. Zo'n duur telt daarom niet mee in de herstelduurstatistiek en in de prognose, en wordt in memo's gemarkeerd als afgeleid. Laad je vaker een actuele lijst, dan worden die bovengrenzen scherper.
+
 RIA4 en Windwaarschuwing blijven twee losse kenmerken. Heeft één DRIP-bestand beide kolommen, dan splitst BiDash de regels automatisch op de markeringen in die kolommen. Bij dubbele DRIP-codes controleert de koppeling ook VC, weg, richting en hectometer. In de tabel Brondekking bekijken en bevestigen staat bij DRIP welke historische bron voor de actuele selectie is gebruikt. Bevestig die bron alleen als het bestand voor het bedoelde areaal volledig is.
 
 ## Voortgang tijdens data laden
