@@ -18,6 +18,13 @@ const priority=new Map([
   ['README.md',4]
 ]);
 
+// Datum uit een release-notes-bestandsnaam (release-notes-YYYY-MM-DD-...); zonder
+// herkende datum sorteert de note achteraan.
+function releaseDatum(name){
+  const m=name.match(/^release-notes-(\d{4})-(\d{2})-(\d{2})/);
+  return m?m[1]+m[2]+m[3]:'00000000';
+}
+
 const docs=readdirSync(docsDir,{withFileTypes:true})
   .filter(entry=>entry.isFile()&&entry.name.toLowerCase().endsWith('.md'))
   .map(entry=>{
@@ -33,6 +40,16 @@ const docs=readdirSync(docsDir,{withFileTypes:true})
   .sort((a,b)=>{
     const aName=a.path.slice(5);
     const bName=b.path.slice(5);
+    const aRelease=a.category==='Release notes';
+    const bRelease=b.category==='Release notes';
+    // Documentatie eerst, daarna de release notes. Binnen de release notes op datum
+    // uit de bestandsnaam, nieuwste eerst, zodat de Help de laatste bovenaan toont.
+    if(aRelease!==bRelease)return aRelease?1:-1;
+    if(aRelease&&bRelease){
+      const da=releaseDatum(aName);
+      const db=releaseDatum(bName);
+      return db.localeCompare(da)||a.title.localeCompare(b.title,'nl');
+    }
     const pa=priority.has(aName)?priority.get(aName):100;
     const pb=priority.has(bName)?priority.get(bName):100;
     return pa-pb||a.title.localeCompare(b.title,'nl');

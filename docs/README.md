@@ -9,6 +9,7 @@ Achtergrond bij BiDash integraal. De applicatie zelf staat in [`site/`](../site)
 | [Systeemwerking](SYSTEEMWERKING.md) | Technische architectuur, kwaliteitscontract, importregels, rekenketens en verplichte wijzigingscontroles |
 | [Logische architectuur](architectuur.md) | Dienstverlening als doellaag, de drie invloeddomeinen, rule engine en trigger engine, plus de relatie met de technische vierlagenarchitectuur |
 | [Rekenvoorbeeld signaalgevers](rekenvoorbeeld-signaalgevers.md) | Tien jaar geen signaalgevers vervangen, doorgerekend tot beschikbaarheid, dienstverlening en kosten |
+| [Release notes Help toont de laatste release notes bovenaan](release-notes-2026-09-17-help-release-notes-sortering.md) | Sorteert de release notes in de Help op datum, nieuwste eerst, zodat de laatste wijziging bovenaan staat in plaats van alfabetisch op titel |
 | [Release notes DRIP-foutregels en leidende toestand](release-notes-2026-09-17-drip-foutregel.md) | Geeft DRIP-storingen een passende foutregel op de alarmtekst en laat de functionele toestand (GESTOPT/IN-BEDRIJF, LANGDURIG/INTERMITTEREND) leidend zijn, met instelbare modelpercentages |
 | [Release notes kwaliteitsaudit severity](release-notes-2026-09-17-kwaliteitsaudit-severity.md) | Beoordeelt een veilig geblokkeerd conflict als aandachtspunt, een lege BI-werkruimte als waarschuwing, en splitst asset- en bronregelverschillen uit |
 | [Release notes brondekking laat de doorrekening weer toe](release-notes-2026-09-17-brondekking-doorrekening-herstel.md) | Herstelt dat een assettype met een deel doorgerekende meldingen de dienstverlening blijft voeden; alleen een volledig blind type wordt een band |
@@ -50,7 +51,7 @@ Achtergrond bij BiDash integraal. De applicatie zelf staat in [`site/`](../site)
 
 ## Help-publicatie
 
-`scripts/stage-docs.mjs` kopieert `docs/` naar de tijdelijke publicatiemap `site/docs/` en genereert `site/help-docs.js` met de inhoud van alle Markdown-bestanden op het hoogste niveau van deze map. Beide gegenereerde paden staan in `.gitignore`.
+`scripts/stage-docs.mjs` kopieert `docs/` naar de tijdelijke publicatiemap `site/docs/` en genereert `site/help-docs.js` met de inhoud van alle Markdown-bestanden op het hoogste niveau van deze map. De documentatiepagina's houden hun vaste volgorde; de release notes worden op datum uit de bestandsnaam gesorteerd, nieuwste eerst, zodat de Help de laatste wijziging bovenaan toont. Beide gegenereerde paden staan in `.gitignore`.
 
 De Help-viewer in `site/help.html` gebruikt die bundel met `site/help.js` en `site/core/markdown.js`. Relatieve afbeeldingsverwijzingen zoals `afbeeldingen/bidash-processflow.svg`, `afbeeldingen/storingsfilter-flow.svg` en `afbeeldingen/architectuur-dienstverlening.svg` blijven daardoor zowel op GitHub als in de gepubliceerde Help werken. Een wijziging onder `docs/**` start de Pages-workflow opnieuw.
 

@@ -35,6 +35,6 @@ test('bron-specifieke upload meldt wijziging terug aan de centrale werkruimte',(
   assert.match(sourceManager,/sourceSpecific:true/);
   assert.match(sourceManager,/DVM_VERSION='83'/);
   // De schilversie staat sinds de versiebalk in site/core/versie.js, niet hier.
-  assert.match(read('site/core/versie.js'),/BIDASH_VERSIE='2\.13'/);
+  assert.match(read('site/core/versie.js'),/BIDASH_VERSIE='2\.14'/);
   assert.doesNotMatch(sourceManager,/BIDASH_VERSION=/);
 });
