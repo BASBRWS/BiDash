@@ -1,6 +1,6 @@
 # Release notes kwaliteitsaudit: severity volgt of de beveiliging werkte
 
-Datum: 17 september 2026
+Datum: 16 september 2026
 
 Versie: BiDash 2.13, DVM 82
 

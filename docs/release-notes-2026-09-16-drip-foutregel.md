@@ -1,6 +1,6 @@
 # Release notes DRIP-foutregels en leidende toestand
 
-Datum: 17 september 2026
+Datum: 16 september 2026
 
 Versie: BiDash 2.13, DVM 83
 
