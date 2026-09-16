@@ -45,14 +45,14 @@ test('publieke open-storingenlijst krijgt DRIP-bron en assetkoppeling zonder ver
   assert.match(faults[0].omschrijving,/drip\.xlsx/i);
 });
 
-test('runtimepatch gebruikt een virtuele live bron en vult HUB.faults aan',()=>{
+test('runtimepatch levert een virtuele live bron zonder tweede HUB-storingenstroom',()=>{
   const source=read('site/core/drip-open-from-history.js');
   const forecast=read('site/core/signal-forecast.js');
   const dvm=read('site/engines/dvm-2.js');
   assert.match(source,new RegExp(DRIP_OPEN_VIRTUAL_KEY));
   assert.match(source,/LIVE_STORINGSBRONNEN=zonder/);
   assert.match(source,/afgeleidVan:'dripHistorie'/);
-  assert.match(source,/hub\.faults=function/);
+  assert.doesNotMatch(source,/hub\.faults=function/);
   assert.match(source,/probeerAnalyseActiveren\('drips'\)/);
   assert.match(source,/probeerAnalyseActiveren\('overzicht'\)/);
   assert.match(source,/LIVE_STORINGS_INSPECTIE=.*inspecteerStoringsRijen/);

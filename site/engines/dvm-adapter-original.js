@@ -25,7 +25,15 @@
   export(){return totaalExportBundle(Object.fromEntries(totaalExportOpties().map(o=>[o.id,true])));},
   summary(){const model=v68LandelijkModel();const roads=kostenDagRows().map(w=>{const c=kostenDagResultaat(w);return {id:w.key,naam:w.naam||w.wegdeel||w.key,vc:w.vc||'',kosten:c.kosten,vvu:c.vvu,status:c.status,bron:c.bron};});return {peildatum:STATE?.peildatum||null,assets:model.assets,roads,diensten:model.diensten.map(r=>({id:r.d.id,naam:String(r.d.naam||r.d.label||r.d.id).replace(/&amp;/g,'&'),norm:r.d.norm,besch:r.besch,prestatie:r.prestatie,lo:r.loB,hi:r.hiB,dekking:r.dekking})),liveBronnen:LIVE_STORINGSBRONNEN.length,forecast:FORECAST_SUMMARY,triggers:FORECAST_TRIGGERS};},
   assets(){return ASSET_REGISTER_STATE?.assets||[];},
-  faults(){return (STATE?.meldingen||[]).map((m,i)=>({id:i,assetKey:m.assetKey||'',naam:m.assetNaam||m.asset||'',weg:m.weg||'',richting:m.richting||'',vc:m.vc||'',hm:m.hm,code:m.code||m.foutcode||'',impact:m.avail,prestatie:m.perf,omschrijving:m.omschrijving||m.storingsomschrijving||'',wegKey:m.wegKey||''}));},
+  faults(){return [...(STATE?.meldingen||[]),...(STATE?.nietDoorgerekend||[])].map((m,i)=>({
+    id:m.eventId||i,assetKey:m.assetKey||'',naam:m.assetNaam||m.osid||m.asset||'',
+    typeId:m.typeId,weg:m.weg||'',richting:m.richting||'',vc:m.vc||'',rd:m.rd||'',district:m.district||'',hm:m.hm,
+    code:m.code||m.foutcode||'',impact:m.avail??null,prestatie:m.perf??null,
+    omschrijving:m.rekenStatus?[m.melding,m.rekenStatus].filter(Boolean).join(' · '):m.melding||m.omschrijving||'',
+    wegKey:m.wegKey||'',start:m.tVan??null,einde:m.tTot??null,duurUren:m.duurUren??null,
+    duurBetrouwbaar:m.duurBetrouwbaar!==false,bron:m.bron||m.bronBestand||'',bronPeildatum:m.bronPeildatum,
+    rekenStatus:m.rekenStatus||'Doorgerekend',assetMatchStatus:m.assetMatchStatus,afgeleidUitHistorie:!!m.afgeleidUitHistorie
+  }));},
   detail(key){return {asset:(ASSET_REGISTER_STATE?.assets||[]).find(a=>a.key===key),faults:this.faults().filter(m=>m.assetKey===key)};},
   async open(tab){if(tab==='prognose'){revealForecastTab();await renderForecastPage();toonTab('prognose');return;}const renderers={overzicht:renderOverzicht,wegdelen:renderWegdelen,storingen:renderStoringen,berekening:renderBerekening,wegdeelverslag:renderWegdeelverslag,gebied:renderGebied,rapport:renderRapport,drips:renderDrips,datasets:renderDatasetBeheer,regels:renderRegels};if(tabToegestaan(tab)&&renderers[tab])renderers[tab]();toonTab(tab);if(tab==='regels')await enhanceRules();if(tab==='datasets'){const host=document.getElementById('tab-datasets');if(host){host.querySelector('.hub-source-tools')?.remove();const bar=document.createElement('div');bar.className='hub-source-tools';for(const [label,id] of [['Assetlijst','dripInput'],['EOL-referentie','eolInputTop'],['Storingshistorie','autoLogInput'],['Open storingen','liveLogInput'],['U-routes','uRouteInput'],['Werkzaamheden','werkInput']]){const b=document.createElement('button');b.textContent=label+' laden';b.onclick=()=>document.getElementById(id).click();bar.append(b);}host.prepend(bar);}}},
   async scenario(kind){if(kind==='current')tmc70Open();else await this.open('prognose');},

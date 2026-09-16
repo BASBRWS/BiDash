@@ -7,9 +7,9 @@ De standaardweergave is de processflow. Via de documentnavigatie zijn onder ande
 ## Welke versie je voor je hebt
 
 Rechtsboven in de balk staat de versie, naast de Help-knop. Direct na het openen
-staat daar de versie van BiDash zelf, bijvoorbeeld `BiDash 2.11`. Zodra je een
-module opent die een eigen versie bijhoudt, komt die erachter: `BiDash 2.11 · DVM 80`.
-Onderin de navigatie staat hetzelfde nummer als `Integratie 2.11`. Noem dat nummer
+staat daar de versie van BiDash zelf, bijvoorbeeld `BiDash 2.12`. Zodra je een
+module opent die een eigen versie bijhoudt, komt die erachter: `BiDash 2.12 · DVM 81`.
+Onderin de navigatie staat hetzelfde nummer als `Integratie 2.12`. Noem dat nummer
 bij een melding over een verschil in uitkomsten; zonder versie is een uitkomst niet
 terug te vinden.
 
@@ -150,3 +150,53 @@ De bronbestanden blijven lokaal in de browser. De werkruimte wordt in IndexedDB 
 De publicatiestap voert `scripts/stage-docs.mjs` uit. Die maakt voor de browser een Help-bundel van alle Markdown-bestanden in `docs/` en kopieert de overige documentatiebestanden naar `site/docs/` in het publicatie-artifact. De gegenereerde bundel en kopie worden niet in Git opgeslagen.
 
 Afbeeldingen in Markdown blijven relatieve bronverwijzingen gebruiken, bijvoorbeeld `afbeeldingen/bidash-processflow.svg`. In Help worden die paden vanuit het bijbehorende Markdown-bestand opgelost, zodat dezelfde SVG zowel op GitHub als in de applicatie zichtbaar is.
+
+
+## Kwaliteitsaudit uitvoeren
+
+Ga onder **Data & export** naar **Kwaliteit** en klik op **Audit uitvoeren**. BiDash
+controleert de werkruimte die op dat moment in deze browser staat. Een uitgestelde
+DVM-werkruimte wordt voor deze bewuste controle eerst verwerkt.
+
+Het dashboard toont:
+
+- een totaalscore en het oordeel **Op koers**, **Aandacht nodig** of **Niet op koers**;
+- deelscores voor Bronnen, Datakwaliteit, Koppelingen, Doorrekening en Beheerbaarheid;
+- blokkerende fouten en waarschuwingen met een concrete herstelactie;
+- maximaal twaalf eerdere scores als ontwikkeling;
+- alle geslaagde, informatieve en afwijkende controles in een uitklapbare tabel.
+
+Een blokkerende fout begrenst de totaalscore. Voorbeelden zijn een ontbrekend
+assetregister, een actuele bron die geen melding in het dashboard oplevert, een
+locatieconflict of een exact beschikbaarheidspercentage terwijl meldingen niet zijn
+doorgerekend. Waarschuwingen benoemen onder andere een oude peildatum, lage
+koppeldekking, dubbele sleutels en ontbrekende duur.
+
+De audit verandert geen brondata, filters of rekenregels. De controle blijft lokaal.
+Via **Auditrapport exporteren** download je alleen de samenvatting. Bij **Export
+samenstellen** kun je de laatste audit en scorehistorie ook in de integrale back-up
+opnemen.
+
+De score is een technische kwaliteitsindicator. Zij controleert geen externe
+waarheid van verkeerskundige, statistische of beleidsmatige aannames.
+
+## DRIP meldingen en ontbrekende doorrekening
+
+Sinds BiDash 2.11 gebruikt Open storingen dezelfde verwerkte bronselectie als de
+landelijke telling. Een melding zonder passende foutregel of met een locatieconflict
+blijft bewaard in `STATE.nietDoorgerekend` en zichtbaar met reden. Zij telt mee als
+open melding, maar krijgt geen verzonnen impact. Het betrokken assettype heeft dan
+geen exact beschikbaarheidspercentage, ook niet bij bevestigde bronvolledigheid.
+Het rekenverslag toont de niet doorgerekende bronregels apart. Oudere detailgrafieken
+bevatten uitsluitend het doorgerekende deel; de waarschuwing benoemt die beperking.
+
+De oorspronkelijke starttijd, bronduur en onzekerheidsmarkering blijven behouden.
+Een onbekende duur verschijnt als Onbekend; nul uur blijft nul. Onzekere duren
+worden niet gebruikt voor het gemiddelde in de open-storingenmemo. Bronpeildatum
+betekent niet dat de storing vandaag nog openstaat.
+
+DRIP-koppelingen controleren weg, richting en hectometer, ook bij een opgeslagen
+alias. Een conflicterende alias blijft opgeslagen voor controle maar wordt niet
+gebruikt om de bronlocatie te vervangen. Bij classificatie wordt de oorspronkelijke
+Dynac-locatie uit oudere exports herkend, inclusief underscores en hectometer met
+koppelteken. RIA4 en windwaarschuwing blijven afzonderlijke kenmerken.

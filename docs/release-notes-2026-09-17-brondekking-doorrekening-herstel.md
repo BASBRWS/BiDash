@@ -2,7 +2,7 @@
 
 Datum: 17 september 2026
 
-Versie: BiDash 2.11, DVM 81
+Versie: BiDash 2.12, DVM 81
 
 ## Opgelost
 
@@ -68,10 +68,12 @@ wijziging.
   `v68TypeStatus()` oplevert.
 - Tegen de vorige (te grove) code gedraaid falen vier van deze tests, waaronder de
   reproductie van de gemelde storing.
-- Volledige Node-suite: 195 tests geslaagd. Browsersuite: `browser.cjs`,
-  `planning-large.cjs` en `planning-formation.cjs` alle drie geslaagd. Syntaxcontrole
-  geslaagd.
-- In Chromium is de versiebalk gemeten: `BiDash 2.11 · DVM 81`.
+- Na de merge met `main` (die parallel het lokale kwaliteitsdashboard en een eigen
+  DRIP-live-herstel toevoegde): volledige Node-suite 208 tests geslaagd, inclusief de
+  test van de andere auteur die eist dat een blind type geen exact percentage geeft.
+  Browsersuite `browser.cjs`, `planning-large.cjs` (na één herhaling wegens een
+  time-out) en `planning-formation.cjs` geslaagd. Syntaxcontrole geslaagd.
+- In Chromium is de versiebalk gemeten: `BiDash 2.12 · DVM 81`.
 
 ## Niet getest
 

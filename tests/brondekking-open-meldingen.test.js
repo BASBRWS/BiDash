@@ -81,7 +81,7 @@ test('open meldingen in de bron tellen mee, ook als ze niet doorgerekend zijn',(
   assert.doesNotMatch(t.DRIP.status,/geen open storing/);
   assert.match(t.DRIP.status,/14 open meldingen in de bron/);
   // Alle 14 zijn blind (0 doorgerekend), dus de status meldt dat en niet "waarvan N".
-  assert.match(t.DRIP.status,/geen enkele doorgerekend/);
+  assert.match(t.DRIP.status,/niet doorgerekend/);
 });
 
 test('een blind type — open meldingen, geen enkele doorgerekend — is onbekend',()=>{
@@ -96,7 +96,7 @@ test('een blind type — open meldingen, geen enkele doorgerekend — is onbeken
   assert.equal(t.DRIP.besch,null);
   assert.equal(t.DRIP.prestatie,null);
   assert.equal(t.DRIP.blindeMeldingen,true);
-  assert.match(t.DRIP.status,/geen enkele doorgerekend/);
+  assert.match(t.DRIP.status,/niet doorgerekend/);
   assert.match(t.DRIP.status,/beschikbaarheid onbekend/);
 });
 
