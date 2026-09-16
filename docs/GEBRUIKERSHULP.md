@@ -13,6 +13,43 @@ Onderin de navigatie staat hetzelfde nummer als `Integratie 2.10`. Noem dat numm
 bij een melding over een verschil in uitkomsten; zonder versie is een uitkomst niet
 terug te vinden.
 
+## Planning en triggers laden
+
+De planningmodule bevatte eerder een vaste, in de code opgenomen planning met
+werkelijke projecten, tunnels en openstellingsdata. Die is verwijderd. De module
+begint nu leeg en toont wat je zelf laadt:
+
+1. **Planning-XML** — een Primavera P6-export, via **Planning importeren**. Dit vult
+   de tijdlijn, de WBS-structuur, relaties en de formatiegrafieken.
+2. **Triggerbestand** — optioneel, JSON, op hetzelfde scherm. Dit vult het
+   triggerpaneel en de tellers Rode en Oranje triggers in de balk bovenaan.
+
+Zonder triggerbestand staan die tellers op nul en zegt het triggerpaneel dat er
+niets geladen is. Dat is geen storing: er is dan geen bron.
+
+Een sjabloon staat in [`voorbeeld-triggers.json`](voorbeeld-triggers.json). Per
+trigger:
+
+| Veld | Verplicht | Wat erin hoort |
+|---|---|---|
+| `naam` | ja | Korte omschrijving |
+| `klasse` | ja | `rood` of `oranje`; een andere waarde wordt overgeslagen |
+| `oorzaak` | ja | Wat er is gebeurd en waarom dat een besluit vraagt |
+| `urgentie` | nee | Label in de badge; standaard afgeleid uit `klasse` |
+| `oorzaakcat` | nee | Categorie, getoond onder de naam |
+| `impact` | nee | Per dienst wat het betekent |
+| `besluitopties` | nee | De keuzes die voorliggen |
+| `deadline` | nee | Datum waarvoor het besluit moet vallen |
+| `diensten` | nee | Betrokken diensten |
+
+Een regel zonder `naam`, `oorzaak` of een geldige `klasse` wordt overgeslagen; de
+melding na het laden noemt hoeveel regels zijn geladen en hoeveel zijn
+overgeslagen. Een bestand zonder bruikbare regels geeft een foutmelding in plaats
+van een leeg paneel.
+
+Het triggerbestand blijft in het geheugen van deze sessie. Herlaad je de pagina,
+dan laad je het opnieuw.
+
 ## Aanbevolen laadvolgorde
 
 1. Laad All Assets als technisch stamregister.

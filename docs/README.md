@@ -9,6 +9,7 @@ Achtergrond bij BiDash integraal. De applicatie zelf staat in [`site/`](../site)
 | [Systeemwerking](SYSTEEMWERKING.md) | Technische architectuur, kwaliteitscontract, importregels, rekenketens en verplichte wijzigingscontroles |
 | [Logische architectuur](architectuur.md) | Dienstverlening als doellaag, de drie invloeddomeinen, rule engine en trigger engine, plus de relatie met de technische vierlagenarchitectuur |
 | [Rekenvoorbeeld signaalgevers](rekenvoorbeeld-signaalgevers.md) | Tien jaar geen signaalgevers vervangen, doorgerekend tot beschikbaarheid, dienstverlening en kosten |
+| [Release notes planning zonder projectdata](release-notes-2026-09-16-planning-zonder-projectdata.md) | Haalt de ingesloten Primavera-export, portfolio-, trigger- en dashboardgegevens uit de planningmodule en maakt de triggers een te laden bron |
 | [Release notes runtime-patches en versiebalk](release-notes-2026-09-16-runtime-patches-en-versiebalk.md) | Bewaakt per runtime-patch dát hij installeert, en toont de versie van de schil en de geladen modules in de kopbalk |
 | [Release notes herkomst DRIP-classificatie](release-notes-2026-09-16-drip-markerherkomst.md) | Maakt zichtbaar wanneer geen markerkolom is herkend en de gekozen soort een aanname is, en herkent samengestelde kopteksten |
 | [Release notes afgeleide hersteltijd](release-notes-2026-09-16-afgeleide-hersteltijd.md) | Behandelt een hersteltijd die uit de peildatum volgt als bovengrens en houdt die buiten de herstelduurstatistiek en de prognose |
@@ -40,6 +41,7 @@ Achtergrond bij BiDash integraal. De applicatie zelf staat in [`site/`](../site)
 - [`afbeeldingen/`](afbeeldingen), de figuren als SVG. Schaalvrij en bruikbaar in Help, Word, PowerPoint of Confluence.
 - [`scripts/`](scripts), de scripts die het rekenvoorbeeld en de grafieken maken. Ze gebruiken de echte prognosemodule uit `site/core/`, zodat de documentatie niet uit de pas kan lopen met de applicatie.
 - [`rekenvoorbeeld.json`](rekenvoorbeeld.json), de uitkomsten van het rekenvoorbeeld, machineleesbaar.
+- [`voorbeeld-triggers.json`](voorbeeld-triggers.json), het sjabloon voor het triggerbestand van de planningmodule. Bevat bewust geen echte projectinformatie.
 
 ## Help-publicatie
 

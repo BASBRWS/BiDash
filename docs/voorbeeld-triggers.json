@@ -1,0 +1,33 @@
+{
+  "_toelichting": "Sjabloon voor het triggerbestand van de planningmodule. Vul dit met je eigen gegevens; er staat bewust geen echte projectinformatie in. Laad het op het scherm Planning importeren.",
+  "triggers": {
+    "trigger-sleutel": {
+      "naam": "Korte omschrijving van de trigger",
+      "klasse": "rood",
+      "urgentie": "ROOD",
+      "oorzaakcat": "Categorie, bijvoorbeeld: project schuift",
+      "oorzaak": "Wat er is gebeurd en waarom dat een besluit vraagt.",
+      "impact": {
+        "GPO": "Wat dit voor deze dienst betekent",
+        "CIV": "Wat dit voor deze dienst betekent"
+      },
+      "besluitopties": [
+        "Eerste besluitoptie",
+        "Tweede besluitoptie"
+      ],
+      "deadline": "1 januari 2030",
+      "diensten": ["GPO", "CIV"]
+    },
+    "tweede-trigger": {
+      "naam": "Tweede trigger",
+      "klasse": "oranje",
+      "urgentie": "ORANJE",
+      "oorzaakcat": "Categorie",
+      "oorzaak": "Toelichting.",
+      "impact": { "VWM": "Wat dit voor deze dienst betekent" },
+      "besluitopties": ["Besluitoptie"],
+      "deadline": "1 maart 2030",
+      "diensten": ["VWM"]
+    }
+  }
+}

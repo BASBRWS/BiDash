@@ -39,7 +39,7 @@ Een leeswijzer bij deze tekening staat in [architectuur.md](architectuur.md). De
 | Opslag | `site/core/storage.js` | IndexedDB, transactioneel schrijven |
 | DVM | `site/engines/dvm.html`, `dvm-1.js` t/m `dvm-3.js` | Buitenassets, storingen, dienstimpact, verkeerskosten, prognoses, memo’s |
 | BI | `site/engines/bi.html`, `bi-1.js` t/m `bi-3.js` | Formatie, capaciteit, contracten, interne bedienketens |
-| Planning | `site/engines/planning.html` | XML-model, WBS, afhankelijkheden, verschuivingen, planninggrafieken |
+| Planning | `site/engines/planning.html` | XML-model, WBS, afhankelijkheden, verschuivingen, planninggrafieken; begint leeg, alle projectgegevens komen uit geladen bestanden |
 | Bruggen | `*-adapter.js` | Expliciete gegevensuitwisseling via `window.HUB` |
 | Canvas | `site/engines/planning-canvas.js` | Begrensd tekenvlak en scrollcoördinaten |
 | Gedeelde modulestijl | `site/engines/component.css` | Vormgeving binnen de frames |
@@ -111,7 +111,8 @@ is een gedownloade export; browseropslag is geen garantie tegen gegevensverlies.
 Gebruik één werkruimte-tab tegelijk; er is geen uitgewerkte meergebruikerssynchronisatie.
 
 - Geen uploads van gebruikersbestanden naar GitHub, telemetrie of externe AI-diensten.
-- Geen operationele XML/JSON, uitsneden, screenshots of afgeleide operationele tellingen in de repository of publieke CI-logs. Gebruik synthetische testgegevens.
+- Geen operationele XML/JSON, uitsneden, screenshots of afgeleide operationele tellingen in de repository of publiek
+- Dat geldt ook voor gegevens die als voorbeeld of demonstratie in de broncode staan. Een ingesloten projectplanning, portfolio- of triggerlijst is een publicatie van die gegevens, ook als geen enkel scherm haar toont. Een module begint leeg en toont wat de gebruiker laadt. `tests/planning-geen-projectdata.test.js` bewaakt dit voor de planningmodulee CI-logs. Gebruik synthetische testgegevens.
 - Behoud het bestaande Content Security Policy en `connect-src 'none'`. Externe bronlinks kunnen de browser verlaten; dat is geen toestemming om datasets te verzenden.
 - Modules draaien onder dezelfde origin. Frames met `allow-scripts` en `allow-same-origin` zijn geen beveiligingsgrens tegen kwaadaardige eigen code.
 - `postMessage` wordt alleen verwerkt voor dezelfde origin én bekende bronframes.
@@ -397,6 +398,7 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 | Dienstaandelen en dienstwaarde | `tests/dienst-aandelen.test.js`: gesloten aandelen na laden, ontbrekend aandeel als 1, expliciete aandelen, onvolledige dekking blijft een band |
 | Herkomst DRIP-classificatie | `tests/drip-markerherkomst.test.js`: samengestelde kopteksten als markering, windmeting niet, aanname vastgelegd met regelaantal, herkomst door export en herstel, zichtbaar in de bronkaart |
 | Runtime-patches installeren | `tests/runtime-patches.test.js`: elke patch zet zijn vlag in een eigen scope, de koppeling in `signal-forecast.js` klopt met de registratie, geparkeerde patches blijven een vastgelegde keuze, geen patch zonder registratie |
+| Planning zonder projectdata | `tests/planning-geen-projectdata.test.js`: geen objectnamen in de code, lege P6-, portfolio- en modelstructuren, tellers op nul, werkende triggerlaadroute met overgeslagen onvolledige regels |
 | Versiebalk | `tests/versiebalk.test.js`: schilversie zichtbaar zonder geladen module, gemelde engineversies erachter, lege melding blijft weg, versienummer op precies één plek |
 | Live overzichtsfilter | `tests/live-overview-filter.test.js`: defaults, uitsluitingen, lege waarden, nieuwe waarden, bronbehoud en DVM-parameteropslag |
 | Help/documentatie | Controleer `site/help.html`, Help-link in `site/index.html` en overeenstemming met `docs/GEBRUIKERSHULP.md` en `docs/processflow.md` |
