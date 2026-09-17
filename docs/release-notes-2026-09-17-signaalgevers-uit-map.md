@@ -2,7 +2,7 @@
 
 Datum: 17 september 2026
 
-Versie: BiDash 2.14, DVM 94
+Versie: BiDash 2.14, DVM 95
 
 ## Toegevoegd
 
@@ -75,6 +75,16 @@ dezelfde koppeling en doorrekening als de JSON-bron (`pasSignaalgeverBundelToe`)
 verwerkt. `sbCombineerMetBasis()` vervangt in een meegegeven basis alleen de gekozen
 regio's door de nieuw gelezen gegevens en houdt de overige regio's ongewijzigd.
 
+## Prestatie: lichtere automatische opslag
+
+BiDash bewaart de werkruimte automatisch lokaal (IndexedDB). Met de signaalgeverdata
+(tienduizenden ruwe rijen) blokkeerde die serialisatie telkens de pagina ("wachten of
+sluiten") en overschreed ze de opslaglimiet. De automatische opslag (`adapter.export`
+met `autosaveLean`) laat de `_signaalgeverTotaal`-bronnen nu weg — die zijn per sessie
+opnieuw in te lezen (map of JSON), of te bewaren met de downloadknop. De **analyse
+blijft volledig werken** (in het geheugen) en de **handmatige totaalexport bevat de
+signaalgeverdata gewoon**. Alleen de automatische lokale momentopname is lichter.
+
 ## Schema-tolerantie
 
 De `storingen`-tabel bestaat in twee schema's. De mapping leest nu beide: v2.0
@@ -109,12 +119,12 @@ doorrekening leeg bleef.
   (parseren, alarmruns sluiten/openhouden, classificeren, padvalidatie, regio-/
   periodefilter, basiscombinatie, watermerken) en de bundeluitvoer via de schema-
   tolerante mapping als MSI laten herkennen.
-- DVM-versie 86 → 94, met de assertions in `tests/dvm-restore-policy.test.js`,
+- DVM-versie 86 → 95, met de assertions in `tests/dvm-restore-policy.test.js`,
   `tests/drip-special-lists.test.js` en `tests/versiebalk.test.js`. Schilversie blijft
   2.14. De maplezer kreeg een eigen bronkaart met een gele (`primary`) knop; de eerste
   opzet gebruikte een tweede knop met de standaard `tb-btn`-stijl (witte tekst op een
   witte kaart), waardoor die onzichtbaar was.
-- Volledige Node-suite geslaagd (246 tests). Browsersuites `browser.cjs` en
+- Volledige Node-suite geslaagd (247 tests). Browsersuites `browser.cjs` en
   `planning-formation.cjs` geslaagd. JavaScript-syntaxcontrole geslaagd.
 
 ## Niet getest

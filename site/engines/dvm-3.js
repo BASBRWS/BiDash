@@ -5438,10 +5438,15 @@ function bevestigTotaalExport(){
   sluitTotaalExportKeuze();
   totaalExportJson(selectie);
 }
-function totaalExportBundle(selectie){
+function totaalExportBundle(selectie,opties){
   selectie=selectie||Object.fromEntries(totaalExportOpties().map(o=>[o.id,o.aanwezig]));
+  opties=opties||{};
   const neem=id=>selectie[id]!==false;
-  const bron=(arr)=>(arr||[]).map(b=>({key:b.key,naam:b.naam,rijen:b.rijen||[],peildatum:b.peildatum||null,doel:b.doel||null}));
+  /* Bij de automatische lokale opslag (autosaveLean) laten we de signaalgever-
+     totaalbronnen weg: dat zijn tienduizenden ruwe rijen die de opslag te groot maken
+     en de pagina laten haperen. Ze zijn per sessie opnieuw in te lezen (map of JSON).
+     De handmatige export bevat ze wél. */
+  const bron=(arr)=>(arr||[]).filter(b=>!(opties.autosaveLean&&b&&b._signaalgeverTotaal)).map(b=>({key:b.key,naam:b.naam,rijen:b.rijen||[],peildatum:b.peildatum||null,doel:b.doel||null}));
   return {
     formaat:'DVM-dienstimpact-totaal',
     versie:54,
