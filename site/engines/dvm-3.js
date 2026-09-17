@@ -644,6 +644,9 @@ function signaalgeverOpenRij(a){
     van:String(a.start||''),
     tot:String(a.laatste_snapshot||a.start||''),
     status:'open',
+    /* Signaalgeverstoringen zijn MSI-installatiestoringen; forceer het assettype zodat
+       woorden als "wisselbord" in de omschrijving de doorrekening niet blokkeren. */
+    assetTypeHint:'MSI',
     source_name:(Array.isArray(a.bronbestanden)&&a.bronbestanden[0])||'signaalgevers totaal'
   };
 }
@@ -673,6 +676,7 @@ function signaalgeverHistorieRij(s){
     van:String(s.start||''),
     tot:String(s.laatste_bewezen_aanwezig||s.einde_bewezen||s.einde_bovengrens||''),
     duur_uur:duur===''?'':duur,
+    assetTypeHint:'MSI',
     source_name:'signaalgevers totaal'
   };
 }

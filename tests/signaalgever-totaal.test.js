@@ -129,6 +129,15 @@ test('een open alarm met een omschrijving zonder type-trefwoord wordt via catego
   assert.equal(classificeer(r),'MSI');
 });
 
+test('een signaalgever-alarm met "wisselbord" in de tekst blijft MSI (typehint blokkeert de doorrekening niet)',()=>{
+  // Zonder hint zou classificeer() hier WISSELBORD teruggeven; dat type zit niet in
+  // het register en zou de hele doorrekening blokkeren.
+  const rij=vm.runInContext('signaalgeverOpenRij',ctx)({event_id:'9',code:'2001',description:'Wisselbord hoofdvoeding uitgevallen',locatie:'A4 R 26,200',weg:'A4',richting_kenmerk:'R',km:26.2,categorie:'SYSTEEM',unit:'SYSTEEM',verkeerscentrale:'zwn',eindstatus:'open_aan_einde',meenemen:true});
+  assert.equal(rij.assetTypeHint,'MSI');
+  const r=normRij(rij);
+  assert.equal(classificeer(r),'MSI');
+});
+
 test('een historische storing zonder omschrijving wordt via signaalgever als MSI herkend',()=>{
   const {historie}=bronnen(fixture);
   const r=normRij(historie[0]);
