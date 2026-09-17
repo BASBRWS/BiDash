@@ -396,7 +396,7 @@
     if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,86,'Open meldingen aan All Assets koppelen',{direct:true});
     if(typeof uiPauze==='function')await uiPauze();
     const naam='Signaalgevers uit map ('+regios+')';
-    const {herkendOpen,herkendHist,laatsteEntry}=pasSignaalgeverBundelToe(naam,open,historie,versie);
+    const {herkendOpen,herkendHist,laatsteEntry}=await pasSignaalgeverBundelToe(naam,open,historie,versie);
     window.__BIDASH_SG_MAP_CONFIG__=null;
     const laatste=laatsteEntry?new Date(laatsteEntry).toLocaleDateString('nl-NL'):'onbekend';
     const klaarTekst=`Klaar (${regios}): ${bestanden.length.toLocaleString('nl-NL')} bestanden → ${open.length.toLocaleString('nl-NL')} open (${herkendOpen.toLocaleString('nl-NL')} herkend), ${historie.length.toLocaleString('nl-NL')} historisch (${herkendHist.toLocaleString('nl-NL')} herkend). Laatste entry ${laatste}.`;
