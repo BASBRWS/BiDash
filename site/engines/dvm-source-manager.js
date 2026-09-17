@@ -4,7 +4,7 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='86';
+  const DVM_VERSION='87';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
@@ -29,7 +29,7 @@
     uRoutes:{titel:'U-routes',meta:'Niet geladen. U-routes zijn operationele routecontext.'},
     werkzaamheden:{titel:'Werkzaamheden',meta:'Niet geladen. Werkzaamheden zijn operationele context.'},
     liveStoringen:{titel:'Open storingen',meta:'Nog geen actuele signaalgever-momentopname geladen. Open DRIP-incidenten kunnen daarnaast uit de DRIP-historie worden afgeleid.'},
-    signaalgeverTotaal:{titel:'Signaalgevers totaal (JSON)',meta:'Nog niet geladen. Eén gecombineerd JSON-bestand (datasets.mtm) met open alarmen én historische storingen. Alternatief voor de losse Open storingen- en Storingshistorie-uploads; bij het laden vervangt het die twee bronnen zodat oud en nieuw niet mengen.'}
+    signaalgeverTotaal:{titel:'Signaalgevers totaal',meta:'Nog niet geladen. Laad één gecombineerd JSON-bestand (datasets.mtm) met open alarmen én historische storingen, óf lees de ruwe MTM-storinglijsten rechtstreeks uit een map (X:/mtm). Alternatief voor de losse Open storingen- en Storingshistorie-uploads; bij het laden vervangt het die twee bronnen zodat oud en nieuw niet mengen.'}
   };
 
   function werkVersieBij(){
@@ -84,6 +84,25 @@
     input=document.createElement('input');input.type='file';input.id=c.input;input.hidden=true;input.multiple=!!c.multiple;
     input.accept=c.accept||'.xlsx,.xls,.xlsm,.csv,.json';input.dataset.bidashSource=type;document.body.appendChild(input);return input;
   }
+  /* Maplezen: een aparte directory-invoer (webkitdirectory) voor de ruwe MTM-
+     storinglijsten. Levert het resultaat onder dezelfde signaalgever-totaalkaart. */
+  function ensureMapInput(){
+    let input=document.getElementById('signaalgeverMapInput');if(input)return input;
+    input=document.createElement('input');input.type='file';input.id='signaalgeverMapInput';input.hidden=true;input.multiple=true;
+    try{input.webkitdirectory=true;}catch(error){}input.setAttribute('webkitdirectory','');
+    document.body.appendChild(input);
+    input.addEventListener('change',async event=>{
+      const inp=event.currentTarget,files=[...(inp.files||[])];if(!files.length)return;inp.disabled=true;
+      try{if(typeof leesSignaalgeverMap==='function')await leesSignaalgeverMap(files);meldWijzigingAanSchil('signaalgeverTotaal',files);}
+      catch(error){console.error(error);if(typeof importMislukt==='function')importMislukt('Signaalgevers uit map',error.message||String(error));}
+      finally{inp.value='';inp.disabled=false;if(typeof renderDatasetBeheer==='function'&&document.getElementById('tab-datasets')&&!document.getElementById('tab-datasets').classList.contains('hidden'))renderDatasetBeheer();}
+    });
+    return input;
+  }
+  window.openSignaalgeverMapUpload=function(){
+    if(!assetAanwezig()){alert('Laad eerst Assetregister / All Assets. Daarna kan een storingsmap worden gelezen.');return false;}
+    ensureMapInput().click();return true;
+  };
 
   window.DVM_SOURCE_UPLOADS=SOURCE_CONFIG;
   window.openDatasetUpload=function(type){
@@ -157,6 +176,9 @@
       const disabled=bronGeblokkeerd(item.type),title=disabled?'Laad eerst Assetregister / All Assets.':'Deze knop gebruikt rechtstreeks de bron-specifieke DVM-parser.';
       let upload=`<button class="tb-btn primary dataset-upload" onclick="openDatasetUpload('${item.type}')" ${disabled?'disabled':''} title="${title}">⭱ ${knopTekst(item)}</button>`;
       if(isSpecial(item.type)&&item.aanwezig)upload+=`<button class="tb-btn" onclick="clearSpecialDripSource('${item.type}')">Wissen</button>`;
+      /* Tweede weg om de signaalgever-totaalbron te vullen: rechtstreeks de ruwe
+         MTM-storinglijsten uit een map lezen. */
+      if(item.type==='signaalgeverTotaal')upload+=`<button class="tb-btn dataset-upload" onclick="openSignaalgeverMapUpload()" ${disabled?'disabled':''} title="Lees de ruwe MTM-storinglijsten uit een map (X:/mtm/<vc>/storinglijst/...)">⭱ Uit map lezen (MTM)</button>`;
       html=html.replace('<div class="dataset-actions">','<div class="dataset-actions">'+upload);return html;
     };
   }

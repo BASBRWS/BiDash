@@ -629,43 +629,51 @@ function signaalgeverOpenRij(a){
      (unit) toe zodat classificeer() de rij als MSI herkent, ook wanneer de
      omschrijving zelf geen type-trefwoord bevat. Zo blijft de rij herkenbaar en
      wordt de bron doorgerekend in plaats van als "geen bron" te vervallen. */
+  const eenheid=a.unit||a.asset||a.signaalgever||'';
   return {
     event_id:String(a.event_id||a.event_key||''),
-    foutcode:String(a.code||''),
-    melding:[a.description,a.categorie,a.unit].map(v=>String(v||'').trim()).filter(Boolean).join(' · '),
-    Gevolg:String(a.impact||''),
+    foutcode:String(a.code||a.foutcode||''),
+    melding:[a.description||a.omschrijving,a.categorie,eenheid].map(v=>String(v||'').trim()).filter(Boolean).join(' · '),
+    Gevolg:String(a.impact||a.impactklasse||''),
     locatie:String(a.locatie||''),
     weg:String(a.weg||''),
     richting:String(a.richting_kenmerk||''),
     hm:a.km==null?'':a.km,
-    MSI:String(a.unit||''),
+    MSI:String(eenheid),
     vc:String(a.verkeerscentrale||''),
     van:String(a.start||''),
     tot:String(a.laatste_snapshot||a.start||''),
     status:'open',
-    source_name:(Array.isArray(a.bronbestanden)&&a.bronbestanden[0])||'signaalgevers totaal (JSON)'
+    source_name:(Array.isArray(a.bronbestanden)&&a.bronbestanden[0])||'signaalgevers totaal'
   };
 }
 function signaalgeverHistorieRij(s){
   s=s||{};
-  const duur=s.incident_venster_uur||s.duur_min_uur||'';
+  /* De storingen-tabel bestaat in twee schema's: v2.0 (signaalgever/foutcodes/
+     impactklassen/incident_venster_uur/laatste_bewezen_aanwezig) en v2.5
+     (asset/foutcode/impactklasse/duur_min_uur/einde_bewezen, met omschrijving).
+     We lezen beide zodat de rij altijd herkend en doorgerekend wordt. */
+  const signaalgever=s.signaalgever||s.asset||'';
+  const foutcode=s.foutcodes||s.foutcode||'';
+  const impact=s.impactklassen||s.impactklasse||'';
+  const duur=s.incident_venster_uur||s.duur_min_uur||s.totale_storingsduur_uur||'';
   return {
-    incident_id:String(s.incident_id||''),
-    foutcode:String(s.foutcodes||''),
-    /* storingen dragen geen omschrijving; met signaalgever + impactklasse herkent
-       classificeer() ze als MSI en blijft de tekst leesbaar. */
-    melding:[s.signaalgever,s.impactklassen].filter(Boolean).join(' '),
+    incident_id:String(s.incident_id||s.event_id||''),
+    foutcode:String(foutcode),
+    /* Omschrijving indien aanwezig; anders signaalgever + impactklasse, zodat
+       classificeer() de rij als MSI herkent en de tekst leesbaar blijft. */
+    melding:[s.omschrijving,signaalgever,impact].map(v=>String(v||'').trim()).filter(Boolean).join(' · '),
     classificatie:String(s.classificatie||''),
     locatie:String(s.locatie||''),
     weg:String(s.weg||''),
     richting:String(s.richting_kenmerk||''),
     hm:s.km==null?'':s.km,
-    MSI:String(s.signaalgever||''),
+    MSI:String(signaalgever),
     vc:String(s.verkeerscentrale||''),
     van:String(s.start||''),
-    tot:String(s.laatste_bewezen_aanwezig||s.einde_bovengrens||''),
+    tot:String(s.laatste_bewezen_aanwezig||s.einde_bewezen||s.einde_bovengrens||''),
     duur_uur:duur===''?'':duur,
-    source_name:'signaalgevers totaal (JSON)'
+    source_name:'signaalgevers totaal'
   };
 }
 function signaalgeverTotaalBronnen(json){
@@ -678,6 +686,29 @@ function signaalgeverTotaalBronnen(json){
     versie:String((json&&json.metadata&&json.metadata.versie)||'')
   };
 }
+/* Gedeelde toepassing van een signaalgeverbundel (uit JSON óf uit maplezen).
+   Vervang-modus: de open- en historiebronnen worden vervangen zodat oud
+   bestandsformaat nooit met deze bundel mengt. De bronnen dragen _signaalgeverTotaal,
+   zodat Datasetbeheer ze onder de eigen kaart toont; de doorrekening gebruikt
+   onverminderd STORINGSBRONNEN en LIVE_STORINGSBRONNEN. */
+function pasSignaalgeverBundelToe(bestandsnaam,open,historie,versie){
+  STORINGSBRONNEN=[{key:'signaalgever-totaal-historie',naam:bestandsnaam+' · historie',rijen:historie,size:0,_signaalgeverTotaal:true,_signaalgeverBestand:bestandsnaam}];
+  STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeStoringsRijen());
+  MC_RESULT=null;
+  LIVE_STORINGSBRONNEN=[];LIVE_PEILDATUM=null;
+  if(open.length){
+    voegLiveBronnenToe([{key:'signaalgever-totaal-open',naam:bestandsnaam+' · open',rijen:open,size:0,_signaalgeverTotaal:true,_signaalgeverBestand:bestandsnaam}]);
+  }else{
+    LIVE_STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeLiveStoringsRijen());
+    ANALYSE_SIGNATURE='';herbouwAssetMatchBeeld();
+  }
+  probeerAnalyseActiveren('overzicht',{inspectieAlGereed:true,matchAlGereed:true});
+  probeerAnalyseActiveren('prognose',{inspectieAlGereed:true,matchAlGereed:true});
+  const herkendOpen=(LIVE_STORINGS_INSPECTIE&&LIVE_STORINGS_INSPECTIE.herkenbaar)||0;
+  const herkendHist=(STORINGS_INSPECTIE&&STORINGS_INSPECTIE.herkenbaar)||0;
+  window.__BIDASH_SIGNAALGEVER_TOTAAL__={bestand:bestandsnaam,versie,open:open.length,historie:historie.length,herkendOpen,herkendHist,peildatum:LIVE_PEILDATUM||null};
+  return {herkendOpen,herkendHist};
+}
 async function leesSignaalgeverTotaalBestand(file){
   if(!ASSET_REGISTER_STATE){alert('Laad eerst All Assets. De signaalgeverbron wordt rechtstreeks aan dat stamregister gekoppeld.');renderDataGereedheid();return;}
   zetImportVoortgang(file.name,0,'Signaalgeverbestand lezen',{direct:true});await uiPauze();
@@ -688,29 +719,8 @@ async function leesSignaalgeverTotaalBestand(file){
   zetImportVoortgang(file.name,45,'Records omzetten naar storingsrijen',{direct:true});await uiPauze();
   const {open,historie,versie}=signaalgeverTotaalBronnen(json);
   if(!open.length&&!historie.length)throw new Error('geen datasets.mtm.alarm_episodes of datasets.mtm.storingen gevonden');
-  /* Vervang-modus: leeg de losse open- en historiebronnen zodat oud bestandsformaat
-     nooit met deze JSON mengt. De gebruiker kiest óf deze JSON óf de losse uploads.
-     De bronnen dragen _signaalgeverTotaal, zodat Datasetbeheer ze onder de eigen kaart
-     "Signaalgevers totaal (JSON)" toont in plaats van onder Open storingen en
-     Storingshistorie — de doorrekening blijft dezelfde stores gebruiken. */
-  STORINGSBRONNEN=[{key:'signaalgever-totaal-historie',naam:file.name+' · historie',rijen:historie,size:file.size,_signaalgeverTotaal:true,_signaalgeverBestand:file.name}];
-  STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeStoringsRijen());
-  MC_RESULT=null;
-  LIVE_STORINGSBRONNEN=[];LIVE_PEILDATUM=null;
   zetImportVoortgang(file.name,80,'Open meldingen aan All Assets koppelen',{direct:true});await uiPauze();
-  if(open.length){
-    voegLiveBronnenToe([{key:'signaalgever-totaal-open',naam:file.name+' · open',rijen:open,size:file.size,_signaalgeverTotaal:true,_signaalgeverBestand:file.name}]);
-  }else{
-    LIVE_STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeLiveStoringsRijen());
-    ANALYSE_SIGNATURE='';herbouwAssetMatchBeeld();
-  }
-  probeerAnalyseActiveren('overzicht',{inspectieAlGereed:true,matchAlGereed:true});
-  probeerAnalyseActiveren('prognose',{inspectieAlGereed:true,matchAlGereed:true});
-  const herkendOpen=(LIVE_STORINGS_INSPECTIE&&LIVE_STORINGS_INSPECTIE.herkenbaar)||0;
-  const herkendHist=(STORINGS_INSPECTIE&&STORINGS_INSPECTIE.herkenbaar)||0;
-  /* Marker voor Datasetbeheer: de bron hoort onder de eigen kaart, niet onder Open
-     storingen/Storingshistorie. */
-  window.__BIDASH_SIGNAALGEVER_TOTAAL__={bestand:file.name,versie,open:open.length,historie:historie.length,herkendOpen,herkendHist,peildatum:LIVE_PEILDATUM||null};
+  const {herkendOpen,herkendHist}=pasSignaalgeverBundelToe(file.name,open,historie,versie);
   importKlaar(file.name,`Signaalgevers totaal (JSON ${versie||'?'}) geladen: ${open.length.toLocaleString('nl-NL')} open (${herkendOpen.toLocaleString('nl-NL')} herkend), ${historie.length.toLocaleString('nl-NL')} historisch (${herkendHist.toLocaleString('nl-NL')} herkend). Vervangt de losse Open storingen- en Storingshistorie-bronnen.`);
   if(open.length&&!herkendOpen)alert('De open meldingen zijn geladen maar geen enkele werd als een bekend assettype (bv. MSI) herkend, dus het actuele dashboard blijft leeg. Controleer of de records een omschrijving, categorie of signaalgever dragen.');
   return {open:open.length,historie:historie.length,herkendOpen,herkendHist};
