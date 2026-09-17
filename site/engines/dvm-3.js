@@ -2178,6 +2178,18 @@ function subprocessenVoorBron(bron){
     }).sort((a,b)=>a.besch-b.besch)
   }));
 }
+/* Eén canonieke VC-groepering voor alle overzichtsonderdelen. Hoofdletters,
+   spaties, het voorvoegsel VC en de historische WNN/WNZ-codes mogen dezelfde
+   verkeerscentrale niet als losse entiteiten tonen. */
+function groepeerWegdelenPerVc(wegdelen){
+  const groepen=new Map();
+  (wegdelen||[]).forEach(w=>{
+    const vc=normAssetVc(w&&w.vc)||'ONBEKEND';
+    if(!groepen.has(vc))groepen.set(vc,[]);
+    groepen.get(vc).push(w);
+  });
+  return [...groepen.entries()].map(([vc,wds])=>({vc,wds}));
+}
 function vwmLandelijkDienstHtml(){
   const bron=bronGemiddeldUitWegdelen(STATE.wegdelen);
   const sub=subprocessenVoorBron(bron);
@@ -2210,9 +2222,7 @@ function vcWerkRouteContext(vc){
   return {werk,werkAssets,route,routeAssets};
 }
 function vwmVcUitvoeringHtml(){
-  const vcCodes=[...new Set(STATE.wegdelen.map(w=>normAssetVc(w.vc)||'ONBEKEND'))].sort();
-  const rows=vcCodes.map(vc=>{
-    const wds=STATE.wegdelen.filter(w=>normAssetVc(w.vc)===vc);
+  const rows=groepeerWegdelenPerVc(STATE.wegdelen).map(({vc,wds})=>{
     const bron=bronGemiddeldUitWegdelen(wds);
     const diensten=DIENSTEN.map(d=>{
       let sb=0,sp=0,w=0,onder=0;
@@ -2369,15 +2379,14 @@ function renderOverzicht(){
   </div>`;
 
   // ── GRAFIEK 3: per VC de dienstbeschikbaarheid ──
-  const vcOrder=[...new Set(STATE.wegdelen.map(w=>w.vc))];
-  const vcRows=vcOrder.map(vc=>{
+  const vcRows=groepeerWegdelenPerVc(STATE.wegdelen).map(({vc,wds})=>{
     const dd={}; let n=0;
     DIENSTEN.forEach(d=>{
       let s=0,w=0;
-      STATE.wegdelen.filter(x=>x.vc===vc).forEach(x=>{const ww=x.N||1;s+=x.diensten[d.id].besch*ww;w+=ww;});
+      wds.forEach(x=>{const ww=x.N||1;s+=x.diensten[d.id].besch*ww;w+=ww;});
       dd[d.id]=w?s/w:100;
     });
-    STATE.wegdelen.filter(x=>x.vc===vc).forEach(x=>n+=x.n);
+    wds.forEach(x=>n+=x.n);
     return {vc,d:dd,n};
   }).sort((a,b)=>b.n-a.n);
   h+=`<div class="card"><h3>Dienstbeschikbaarheid per verkeerscentrale ${tip('De vier diensten per VC, areaalgewogen naar geregistreerde signaalgevers. Legt regionale verschillen bloot zonder wegdelen met veel storingen dubbel gewicht te geven. Onder elke groep blijft het aantal storingen als context zichtbaar.')}</h3>
@@ -2534,7 +2543,7 @@ function zwaarsteObj(afh){
 }
 
 function renderWegdelen(){
-  const vcs=[...new Set(STATE.wegdelen.map(w=>w.vc).filter(Boolean))].sort();
+  const vcs=groepeerWegdelenPerVc(STATE.wegdelen).map(g=>g.vc).filter(v=>v!=='ONBEKEND').sort();
   let h=`<div class="card"><h3>Beschikbaarheid &amp; prestatie per wegdeel</h3>
     <div class="filterbar">
       <label>Verkeerscentrale</label>
@@ -2557,7 +2566,7 @@ function tekenWegtabel(){
   const fVc=document.getElementById('fVc').value;
   const fWeg=document.getElementById('fWeg').value.trim().toUpperCase();
   const sort=document.getElementById('fSort').value;
-  let rows=STATE.wegdelen.filter(w=>(!fVc||w.vc===fVc)&&(!fWeg||w.key.includes(fWeg)));
+  let rows=STATE.wegdelen.filter(w=>(!fVc||normAssetVc(w.vc)===fVc)&&(!fWeg||w.key.includes(fWeg)));
   if(sort==='n') rows=[...rows].sort((a,b)=>b.n-a.n);
   else if(sort==='im') rows=[...rows].sort((a,b)=>a.diensten.im.besch-b.diensten.im.besch);
   else rows=[...rows].sort((a,b)=>a.besch-b.besch);

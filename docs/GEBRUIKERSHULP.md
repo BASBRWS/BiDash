@@ -89,6 +89,8 @@ Zolang er nog een deel is doorgerekend, rekent BiDash met die meldingen door en 
 
 RIA4 en Windwaarschuwing blijven twee losse kenmerken. Heeft één DRIP-bestand beide kolommen, dan splitst BiDash de regels automatisch op de markeringen in die kolommen. Naast de vaste kopteksten herkent BiDash ook samenstellingen als `RIA-4 DRIP` of `Windwaarschuwing DRIP`. Windmetingen zoals `Windrichting` of `Windsnelheid` tellen niet mee: die zeggen iets over het weer en niets over de soort DRIP. Bij dubbele DRIP-codes controleert de koppeling ook VC, weg, richting en hectometer. In de tabel Brondekking bekijken en bevestigen staat bij DRIP welke historische bron voor de actuele selectie is gebruikt. Bevestig die bron alleen als het bestand voor het bedoelde areaal volledig is.
 
+In Overzicht en Wegdelen worden verkeerscentralecodes hoofdletterongevoelig verwerkt. `zwn`, `ZWN`, `VC ZWN` en de historische code `WNZ` verschijnen daardoor samen als `ZWN`.
+
 Herkent BiDash in een referentielijst géén markerkolom, dan krijgt elke regel de soort die je met de knop koos. Dat is een aanname over het hele bestand. De melding na het laden en de bronkaart in Datasetbeheer benoemen die aanname met het aantal regels waarop hij is toegepast; is er wel gemarkeerd, dan staat er uit welke kolom de soort komt. Klopt de aanname niet, wis de bron dan en laad een bestand met een expliciete kolom.
 
 ## Voortgang tijdens data laden
