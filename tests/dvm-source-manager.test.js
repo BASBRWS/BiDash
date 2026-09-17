@@ -5,21 +5,34 @@ import {readFileSync} from 'node:fs';
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const source=read('site/engines/dvm-source-manager.js');
 
-test('DVM-bronbeheer heeft voor alle negen bronsoorten een eigen uploadroute',()=>{
+test('DVM-bronbeheer heeft voor elke bronsoort een eigen uploadroute',()=>{
   const expected={
     assetregister:['dripInput','leesDripBestand'],
     windDrips:['windDripListInput','special:wind'],
     ria4Drips:['ria4DripListInput','special:ria4'],
     eol:['eolInputTop','leesEolReferentie'],
     storingshistorie:['autoLogInput','leesStoringsBestanden'],
-    dripHistorie:['dripHistInput','leesDripHistorieBestanden'],
     uRoutes:['uRouteInput','leesURouteBestand'],
     werkzaamheden:['werkInput','leesWerkBestand'],
-    liveStoringen:['liveLogInput','leesLiveStoringsBestanden']
+    liveStoringen:['liveLogInput','leesLiveStoringsBestanden'],
+    signaalgeverTotaal:['signaalgeverTotaalInput','leesSignaalgeverTotaal'],
+    signaalgeverMap:['signaalgeverMapInput','leesSignaalgeverMap'],
+    dripTotaal:['dripTotaalInput','leesDripTotaal'],
+    dripMap:['dripMapInput','leesDripMap']
   };
   for(const [type,[input,handler]] of Object.entries(expected)){
     assert.match(source,new RegExp(`${type}:\\{input:'${input}'.*handler:'${handler}'`),type);
   }
+});
+
+test('de losse DRIP-storingshistorie-upload is vervangen door DRIP totaal en DRIP uit map',()=>{
+  // De oude XLSX/CSV DRIP-historie-uploadbron bestaat niet meer.
+  assert.doesNotMatch(source,/dripHistorie:\{input:/);
+  assert.doesNotMatch(source,/leesDripHistorieBestanden/);
+  // De nieuwe bronnen zijn er wel: een JSON-totaal en een CDMS-maplezer.
+  assert.match(source,/dripTotaal:\{input:'dripTotaalInput'.*handler:'leesDripTotaal'/);
+  assert.match(source,/dripMap:\{input:'dripMapInput'.*directory:true.*handler:'leesDripMap'/);
+  assert.match(source,/type==='dripMap'&&typeof openDripMapDialog==='function'/);
 });
 
 test('speciale DRIP-lijsten zijn classificatiebronnen en geen storingshistorie',()=>{
@@ -27,18 +40,17 @@ test('speciale DRIP-lijsten zijn classificatiebronnen en geen storingshistorie',
   assert.match(source,/RIA4 DRIP’s laden/);
   assert.match(source,/window\.loadDripSpecialList\('wind'/);
   assert.match(source,/window\.loadDripSpecialList\('ria4'/);
-  assert.match(source,/\['assetregister','dripHistorie'\]\.includes\(type\).*window\.applyDripSpecialLists\(\)/);
+  assert.match(source,/\['assetregister','dripTotaal','dripMap'\]\.includes\(type\).*window\.applyDripSpecialLists\(\)/);
 });
 
 test('historieknoppen omzeilen de generieke storingsherkenner',()=>{
   assert.match(source,/storingshistorie:\{input:'autoLogInput'.*handler:'leesStoringsBestanden'/);
-  assert.match(source,/dripHistorie:\{input:'dripHistInput'.*handler:'leesDripHistorieBestanden'/);
   assert.doesNotMatch(source,/handler:'laadStoringsBestandenAutomatisch'/);
 });
 
 test('bronbeheer blijft ook zonder geladen datasets toegankelijk en toont lege bronkaarten',()=>{
   assert.match(source,/tab==='datasets'\?true/);
-  for(const type of ['windDrips','ria4Drips','storingshistorie','dripHistorie','liveStoringen'])assert.match(source,new RegExp(`${type}:\\{titel:`));
+  for(const type of ['windDrips','ria4Drips','storingshistorie','liveStoringen','dripTotaal','dripMap'])assert.match(source,new RegExp(`${type}:\\{titel:`));
 });
 
 test('DVM-bronbeheer verwijdert de generieke totaalimport uit de primaire beheeracties',()=>{

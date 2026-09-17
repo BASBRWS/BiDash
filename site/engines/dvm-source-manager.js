@@ -4,7 +4,7 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='96';
+  const DVM_VERSION='98';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
@@ -12,26 +12,28 @@
     ria4Drips:{input:'ria4DripListInput',label:'RIA4 DRIP’s laden',multiple:false,requiresAsset:true,handler:'special:ria4',accept:SPECIAL_ACCEPT},
     eol:{input:'eolInputTop',label:'EOL-referentie laden',multiple:false,requiresAsset:true,handler:'leesEolReferentie'},
     storingshistorie:{input:'autoLogInput',label:'Storingshistorie toevoegen',multiple:true,requiresAsset:true,handler:'leesStoringsBestanden'},
-    dripHistorie:{input:'dripHistInput',label:'DRIP-historie toevoegen',multiple:true,requiresAsset:true,handler:'leesDripHistorieBestanden'},
     uRoutes:{input:'uRouteInput',label:'U-routes laden',multiple:false,requiresAsset:true,handler:'leesURouteBestand'},
     werkzaamheden:{input:'werkInput',label:'Werkzaamheden laden',multiple:false,requiresAsset:true,handler:'leesWerkBestand'},
     liveStoringen:{input:'liveLogInput',label:'Open storingen laden',multiple:true,requiresAsset:true,handler:'leesLiveStoringsBestanden'},
     signaalgeverTotaal:{input:'signaalgeverTotaalInput',label:'Signaalgevers totaal (JSON) laden',multiple:false,requiresAsset:true,handler:'leesSignaalgeverTotaal',accept:'.json'},
-    signaalgeverMap:{input:'signaalgeverMapInput',label:'Signaalgevers uit map lezen (MTM)',multiple:true,directory:true,requiresAsset:true,handler:'leesSignaalgeverMap'}
+    signaalgeverMap:{input:'signaalgeverMapInput',label:'Signaalgevers uit map lezen (MTM)',multiple:true,directory:true,requiresAsset:true,handler:'leesSignaalgeverMap'},
+    dripTotaal:{input:'dripTotaalInput',label:'DRIP totaal (JSON) laden',multiple:false,requiresAsset:true,handler:'leesDripTotaal',accept:'.json'},
+    dripMap:{input:'dripMapInput',label:'DRIP uit map lezen (CDMS)',multiple:true,directory:true,requiresAsset:true,handler:'leesDripMap'}
   });
-  const SOURCE_ORDER=['assetregister','windDrips','ria4Drips','eol','storingshistorie','dripHistorie','uRoutes','werkzaamheden','liveStoringen','signaalgeverTotaal','signaalgeverMap'];
+  const SOURCE_ORDER=['assetregister','windDrips','ria4Drips','eol','storingshistorie','uRoutes','werkzaamheden','liveStoringen','signaalgeverTotaal','signaalgeverMap','dripTotaal','dripMap'];
   const PLACEHOLDERS={
     assetregister:{titel:'Assetregister / All Assets',meta:'Nog niet geladen. Laad dit stamregister als eerste.'},
     windDrips:{titel:'Windwaarschuwing DRIP’s',meta:'Nog geen referentielijst geladen. Deze bron markeert welke DRIP-assets bij windwaarschuwing horen.'},
     ria4Drips:{titel:'RIA4 DRIP’s',meta:'Nog geen referentielijst geladen. Deze bron markeert welke DRIP-assets bij RIA4 horen.'},
     eol:{titel:'EOL-referentie',meta:'Niet geladen; generieke levensduur blijft mogelijk.'},
     storingshistorie:{titel:'Storingshistorie',meta:'Nog geen historische DVM-storingsbron geladen. Deze bron voedt alleen prognoses.'},
-    dripHistorie:{titel:'DRIP-storingshistorie',meta:'Nog geen DRIP-storingshistorie geladen. Historie voedt DRIP Monte Carlo; expliciet openstaande incidenten worden ook aan het actuele storingsbeeld toegevoegd.'},
     uRoutes:{titel:'U-routes',meta:'Niet geladen. U-routes zijn operationele routecontext.'},
     werkzaamheden:{titel:'Werkzaamheden',meta:'Niet geladen. Werkzaamheden zijn operationele context.'},
     liveStoringen:{titel:'Open storingen',meta:'Nog geen actuele signaalgever-momentopname geladen. Open DRIP-incidenten kunnen daarnaast uit de DRIP-historie worden afgeleid.'},
     signaalgeverTotaal:{titel:'Signaalgevers totaal (JSON)',meta:'Nog niet geladen. Eén gecombineerd JSON-bestand (datasets.mtm) met open alarmen én historische storingen. Alternatief voor de losse Open storingen- en Storingshistorie-uploads; bij het laden vervangt het die twee bronnen zodat oud en nieuw niet mengen.'},
-    signaalgeverMap:{titel:'Signaalgevers uit map (MTM)',meta:'Nog niet geladen. Kies de X-hoofdmap of de mtm-map; BiDash leest de ruwe storinglijsten onder mtm/<vc>/storinglijst/<jaar>/<maand>/<dag>, bouwt daaruit de open storingen en historie en bewaart alleen wat nodig is. Vult dezelfde bron als Signaalgevers totaal en vervangt de losse Open storingen en Storingshistorie. Werkt in Edge en Chrome.'}
+    signaalgeverMap:{titel:'Signaalgevers uit map (MTM)',meta:'Nog niet geladen. Kies de X-hoofdmap of de mtm-map; BiDash leest de ruwe storinglijsten onder mtm/<vc>/storinglijst/<jaar>/<maand>/<dag>, bouwt daaruit de open storingen en historie en bewaart alleen wat nodig is. Vult dezelfde bron als Signaalgevers totaal en vervangt de losse Open storingen en Storingshistorie. Werkt in Edge en Chrome.'},
+    dripTotaal:{titel:'DRIP totaal (JSON)',meta:'Nog niet geladen. Eén JSON-bestand (datasets.drip) met DRIP-episodes en geclassificeerde storingen. Vervangt de losse DRIP-storingshistorie-upload; voedt de DRIP Monte Carlo en de open DRIP-incidenten via dezelfde koppeling aan het DRIP-areaal.'},
+    dripMap:{titel:'DRIP uit map (CDMS)',meta:'Nog niet geladen. Kies de X-hoofdmap of de cdms-map; BiDash leest de ruwe DRIP-logs onder cdms/<vc>/log/<jaar>/<maand>/<dag>, reconstrueert de episodes en storingen en koppelt ze aan het DRIP-areaal. Vult dezelfde bron als DRIP totaal. Werkt in Edge en Chrome.'}
   };
 
   function werkVersieBij(){
@@ -97,6 +99,7 @@
     /* De maplezer opent eerst een configuratiedialoog (regio/periode/basis) en klikt
        daarna zelf de directory-invoer aan, zodat niet in één keer te veel wordt gelezen. */
     if(type==='signaalgeverMap'&&typeof openSignaalgeverMapDialog==='function'){openSignaalgeverMapDialog();return true;}
+    if(type==='dripMap'&&typeof openDripMapDialog==='function'){openDripMapDialog();return true;}
     const input=ensureInput(type,c);input.click();return true;
   };
   window.clearSpecialDripSource=function(type){
@@ -122,14 +125,48 @@
     return `${esctekst(s.bestand)}<br>${(s.open||0).toLocaleString('nl-NL')} open (${(s.herkendOpen||0).toLocaleString('nl-NL')} herkend), ${(s.historie||0).toLocaleString('nl-NL')} historisch (${(s.herkendHist||0).toLocaleString('nl-NL')} herkend).${laatste?'<br>Laatste entry '+laatste:''}${d?' · peildatum open '+d:''}${perVc}<br>Voedt zowel het actuele dashboard als de prognose; vervangt de losse Open storingen en Storingshistorie.`;
   }
 
+  /* De DRIP-totaalkaart toont de actuele DRIP-storingshistorie. Na een JSON- of
+     maplezing staat de samenvatting in __BIDASH_DRIP_TOTAAL__; na een back-up-
+     restore of universele import bestaat alleen DRIP_HIST_STATE, dus daaruit
+     leiden we de kaart alsnog af. */
+  function dripTotaalState(){
+    try{
+      if(window.__BIDASH_DRIP_TOTAAL__)return window.__BIDASH_DRIP_TOTAAL__;
+      if(typeof DRIP_HIST_STATE!=='undefined'&&DRIP_HIST_STATE&&DRIP_HIST_STATE.incidenten&&DRIP_HIST_STATE.incidenten.length){
+        const H=DRIP_HIST_STATE,k=H.koppeling||{};
+        return {bestand:(H.sources&&H.sources.map(s=>s.name).join(' + '))||'DRIP-historie',versie:'',
+          incidenten:H.incidenten.length,gekoppeldeIncidenten:k.gekoppeldeIncidenten||0,gekoppeldeAssets:k.gekoppeldeAssets||0,
+          nietGekoppeld:k.nietGekoppeldeIncidenten||0,laatsteEntry:H.tot||null,laatstePerVc:{}};
+      }
+      return null;
+    }catch(error){return null;}
+  }
+  /* De DRIP-totaalbron leeft in DRIP_HIST_STATE (net als de vroegere DRIP-historie),
+     maar hoort in Datasetbeheer onder de eigen kaart. De losse dripHistorie-items
+     (uit DRIP_HIST_STATE.sources) worden daarom onder deze kaart getoond. */
+  function isDripTotaalItem(item){return item.type==='dripHistorie';}
+  function dripTotaalMeta(s){
+    const esctekst=typeof esc==='function'?esc:(v=>String(v==null?'':v));
+    const dat=t=>t?new Date(t).toLocaleDateString('nl-NL'):'';
+    const laatste=dat(s.laatsteEntry);
+    const perVc=s.laatstePerVc&&Object.keys(s.laatstePerVc).length
+      ? '<br>Laatste entry per regio: '+Object.entries(s.laatstePerVc).sort().map(([v,t])=>v.toUpperCase()+' '+dat(t)).join(', ')
+      : '';
+    return `${esctekst(s.bestand)}<br>${(s.incidenten||0).toLocaleString('nl-NL')} incidenten (${(s.gekoppeldeIncidenten||0).toLocaleString('nl-NL')} gekoppeld aan het DRIP-areaal${s.nietGekoppeld?`, ${(s.nietGekoppeld||0).toLocaleString('nl-NL')} niet`:''}).${laatste?'<br>Laatste entry '+laatste:''}${perVc}<br>Voedt de DRIP Monte Carlo en de open DRIP-incidenten; vervangt de losse DRIP-storingshistorie.`;
+  }
+
   if(typeof datasetItems==='function'){
     const originalDatasetItems=datasetItems;
     datasetItems=function(){
-      const sgt=signaalgeverTotaalState();
-      const current=originalDatasetItems().filter(item=>!isSignaalgeverTotaalItem(item)),out=[];
+      const sgt=signaalgeverTotaalState(),drt=dripTotaalState();
+      const current=originalDatasetItems().filter(item=>!isSignaalgeverTotaalItem(item)&&!isDripTotaalItem(item)),out=[];
       SOURCE_ORDER.forEach(type=>{
         if(type==='signaalgeverTotaal'){
           out.push({type,key:'',titel:PLACEHOLDERS[type].titel,aanwezig:!!sgt,meta:sgt?signaalgeverTotaalMeta(sgt):PLACEHOLDERS[type].meta});
+          return;
+        }
+        if(type==='dripTotaal'){
+          out.push({type,key:'',titel:PLACEHOLDERS[type].titel,aanwezig:!!drt,meta:drt?dripTotaalMeta(drt):PLACEHOLDERS[type].meta});
           return;
         }
         const matches=current.filter(item=>item.type===type);
@@ -155,6 +192,17 @@
         }catch(error){console.error(error);}
         try{window.__BIDASH_SIGNAALGEVER_TOTAAL__=null;}catch(error){}
         if(typeof datasetNaMutatie==='function')await datasetNaMutatie('Signaalgevers totaal (JSON) verwijderd; afhankelijke berekeningen zijn opnieuw beoordeeld.');
+        if(typeof renderDatasetBeheer==='function')renderDatasetBeheer();
+        return;
+      }
+      if(type==='dripTotaal'){
+        if(!confirm('DRIP totaal verwijderen? De DRIP-storingshistorie en de daaruit afgeleide open DRIP-incidenten worden gewist.'))return;
+        try{
+          if(typeof wisDripHistorie==='function')wisDripHistorie();
+          else{DRIP_HIST_STATE=null;DRIP_MC=null;}
+        }catch(error){console.error(error);}
+        try{window.__BIDASH_DRIP_TOTAAL__=null;}catch(error){}
+        if(typeof datasetNaMutatie==='function')await datasetNaMutatie('DRIP totaal verwijderd; afhankelijke berekeningen zijn opnieuw beoordeeld.');
         if(typeof renderDatasetBeheer==='function')renderDatasetBeheer();
         return;
       }
@@ -205,17 +253,18 @@
       case 'leesDripBestand': result=await leesDripBestand(files[0]);break;
       case 'leesEolReferentie': result=await leesEolReferentie(files[0]);break;
       case 'leesStoringsBestanden': result=await leesStoringsBestanden(files);break;
-      case 'leesDripHistorieBestanden': result=await leesDripHistorieBestanden(files);break;
       case 'leesURouteBestand': result=await leesURouteBestand(files[0]);break;
       case 'leesWerkBestand': result=await leesWerkBestand(files[0]);break;
       case 'leesLiveStoringsBestanden': result=await leesLiveStoringsBestanden(files);break;
       case 'leesSignaalgeverTotaal': result=await leesSignaalgeverTotaalBestand(files[0]);break;
       case 'leesSignaalgeverMap': result=await leesSignaalgeverMap(files);break;
+      case 'leesDripTotaal': result=await leesDripTotaalBestand(files[0]);break;
+      case 'leesDripMap': result=await leesDripMap(files);break;
       case 'special:wind': result=await window.loadDripSpecialList('wind',files[0]);break;
       case 'special:ria4': result=await window.loadDripSpecialList('ria4',files[0]);break;
       default: throw new Error('Onbekende DVM-bronparser: '+c.handler);
     }
-    if(['assetregister','dripHistorie'].includes(type)&&typeof window.applyDripSpecialLists==='function')window.applyDripSpecialLists();
+    if(['assetregister','dripTotaal','dripMap'].includes(type)&&typeof window.applyDripSpecialLists==='function')window.applyDripSpecialLists();
     return result;
   }
 
