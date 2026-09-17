@@ -36,7 +36,7 @@ function haalFunctie(tekst,naam){
 
 const ctx=vm.createContext({Number,String,Object,Array,Math,Date,Set,Map,parseFloat,parseInt,isNaN,isFinite,console,RegExp});
 vm.runInContext(`const MSI_DEGRADATIE=new Set();const DETECTOR_CODES=new Set();const SYSTEEM_CODES=new Set();`,ctx);
-for(const naam of ['sbGroupBy','sbVcAlias','sbGeldigeDatum','sbClassificeer','sbPad','sbPadInfoDrip','sbDripBestandGeschikt','sbDripEventsUitTekst','sbBouwDripBundel','sbFilterDripBestanden','sbCombineerMetDripBasis','sbDripWatermerken','sgBuitenPeriode','sgVolgendeCtxDrip'])
+for(const naam of ['sbGroupBy','sbVcAlias','sbGeldigeDatum','sbClassificeer','sbPad','sbDuurTekst','sbMetWerkers','sbPadInfoDrip','sbDripBestandGeschikt','sbDripEventsUitTekst','sbBouwDripBundel','sbFilterDripBestanden','sbCombineerMetDripBasis','sbDripWatermerken','sgBuitenPeriode','sgVolgendeCtxDrip'])
   vm.runInContext(haalFunctie(bundelaar,naam),ctx,{filename:naam});
 for(const naam of ['num','parseDatum'])
   vm.runInContext(haalFunctie(dvm2,naam),ctx,{filename:naam});
@@ -129,4 +129,17 @@ test('E. combineren met een basis vervangt alleen de gekozen regio',()=>{
   const uit=call('sbCombineerMetDripBasis',basis,[{verkeerscentrale:'zwn',asset:'nieuw-zwn'}],[{verkeerscentrale:'zwn',asset:'s-nieuw'}],new Set(['zwn']));
   assert.equal(uit.episodes.map(r=>r.asset).sort().join('|'),'nieuw-zwn|oud-nwn');
   assert.equal(uit.storingen.map(r=>r.asset).sort().join('|'),'s-nieuw|s-nwn');
+});
+
+test('F. de DRIP-map leest begrensd parallel en meldt echte voortgang',async()=>{
+  let actief=0,maxActief=0;const gereed=[],voortgang=[];
+  await call('sbMetWerkers',[1,2,3,4,5,6,7,8],3,async item=>{
+    actief++;maxActief=Math.max(maxActief,actief);
+    await new Promise(resolve=>setTimeout(resolve,4));
+    gereed.push(item);actief--;
+  },(klaar,totaal)=>voortgang.push([klaar,totaal]));
+  assert.equal(maxActief,3,'maximaal drie gelijktijdige taken in deze test');
+  assert.deepEqual(gereed.sort((a,b)=>a-b),[1,2,3,4,5,6,7,8]);
+  assert.deepEqual(voortgang.at(-1),[8,8]);
+  assert.equal(call('sbDuurTekst',125000),'2 min 5 sec');
 });

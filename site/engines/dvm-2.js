@@ -55,7 +55,7 @@ function normAssetTekst(v){
   return String(v==null?'':v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,'');
 }
 function normAssetVc(v){
-  let s=String(v==null?'':v).trim().toUpperCase().replace(/^VC/,'');
+  let s=String(v==null?'':v).trim().toUpperCase().replace(/^VC[\s_-]*/,'').replace(/\s+/g,'');
   if(s==='WNN')s='NWN';
   if(s==='WNZ')s='ZWN';
   return VC_MAP[s]||s;
@@ -1081,7 +1081,7 @@ function doorrekenen(rijenRaw,opties){
   M.forEach(m=>{
     const key = wegdeelBestuurKey(m);
     const agg = perWeg[key] = perWeg[key] || {weg:m.weg,richting:m.richting,n:0,availUren:0,perfUren:0,
-      posities:new Set(), typePosities:{}, typeLoss:{}, typen:{}, meldingen:[], rd:m.rd,district:m.district,vc:m.vc,basisKey:wegdeelBasisKey(m),bestuurKey:key};
+      posities:new Set(), typePosities:{}, typeLoss:{}, typen:{}, meldingen:[], rd:m.rd,district:m.district,vc:normAssetVc(m.vc),basisKey:wegdeelBasisKey(m),bestuurKey:key};
     agg.n++;
     agg.typen[m.typeId]=(agg.typen[m.typeId]||0)+1;
     agg.posities.add(m.hm+'|'+m.strook);

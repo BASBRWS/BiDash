@@ -126,6 +126,31 @@
     if(typeof leesBlobAlsArrayBuffer==='function')return sbDecode(await leesBlobAlsArrayBuffer(bron,20000,'een storingsbestand kon niet op tijd worden gelezen'));
     return sbDecode(await bron.arrayBuffer());
   }
+  function sbDuurTekst(ms){
+    const sec=Math.max(0,Math.round((Number(ms)||0)/1000));
+    if(sec<60)return sec+' sec';
+    const min=Math.floor(sec/60),rest=sec%60;
+    return min+' min'+(rest?' '+rest+' sec':'');
+  }
+  /* Een netwerkshare volledig serieel lezen maakt een grote CDMS-map onnodig
+     traag. Een kleine, begrensde workerpool houdt meerdere map- of bestandslezingen
+     tegelijk bezig zonder duizenden handles in één keer te openen. */
+  function sbMetWerkers(items,aantal,taak,onVoortgang){
+    const lijst=[...(items||[])];
+    if(!lijst.length)return;
+    let volgende=0,klaar=0;
+    const werk=async()=>{
+      while(true){
+        const index=volgende++;
+        if(index>=lijst.length)return;
+        await taak(lijst[index],index);
+        klaar++;
+        if(onVoortgang)onVoortgang(klaar,lijst.length);
+      }
+    };
+    const parallel=Math.min(lijst.length,Math.max(1,Math.floor(Number(aantal)||1)));
+    return Promise.all(Array.from({length:parallel},()=>werk()));
+  }
   /* ── Mapkeuze via de File System Access API (showDirectoryPicker) ──────────────
      Loopt alleen mtm/<gekozen vc>/storinglijst/<gekozen periode> af en snoeit de rest
      (cdms, andere systemen, jaren/maanden buiten de periode) tijdens het aflopen, zodat
@@ -520,21 +545,30 @@
     if(startNaam==='cdms')startFase='cdms';
     else if(sbVcAlias(startNaam))startFase='vc';
     else if(startNaam==='log')startFase='log';
-    const files=[],stack=[{h:dirHandle,ctx:{fase:startFase,vc:sbVcAlias(startNaam)||''}}];
-    let mappen=0;
-    while(stack.length){
-      const {h,ctx}=stack.pop();mappen++;
-      for await(const [naam,kind] of h.entries()){
-        if(kind.kind==='directory'){
-          const volgende=sgVolgendeCtxDrip(ctx,String(naam).toLowerCase(),config);
-          if(volgende)stack.push({h:kind,ctx:volgende});
-        }else if(ctx.fase==='dag'){
-          files.push({name:naam,_handle:kind,_pad:'cdms/'+ctx.vc+'/log/'+ctx.jaar+'/'+ctx.maand+'/'+ctx.dag+'/'+naam});
+    const files=[];let niveau=[{h:dirHandle,ctx:{fase:startFase,vc:sbVcAlias(startNaam)||''}}];
+    let mappen=0,laatsteMelding=0;const gestart=Date.now();
+    const meld=force=>{
+      const nu=Date.now();
+      if(onVoortgang&&(force||nu-laatsteMelding>=250)){laatsteMelding=nu;onVoortgang(mappen,files.length,nu-gestart);}
+    };
+    while(niveau.length){
+      const volgendNiveau=[];
+      await sbMetWerkers(niveau,6,async ({h,ctx})=>{
+        mappen++;
+        for await(const [naam,kind] of h.entries()){
+          if(kind.kind==='directory'){
+            const volgende=sgVolgendeCtxDrip(ctx,String(naam).toLowerCase(),config);
+            if(volgende)volgendNiveau.push({h:kind,ctx:volgende});
+          }else if(ctx.fase==='dag'){
+            files.push({name:naam,_handle:kind,_pad:'cdms/'+ctx.vc+'/log/'+ctx.jaar+'/'+ctx.maand+'/'+ctx.dag+'/'+naam});
+          }
         }
-      }
-      if(mappen%15===0){if(onVoortgang)onVoortgang(mappen,files.length);await new Promise(r=>setTimeout(r));}
+        meld(false);
+      });
+      niveau=volgendNiveau;
+      await new Promise(r=>setTimeout(r));
     }
-    if(onVoortgang)onVoortgang(mappen,files.length);
+    meld(true);
     return files;
   }
 
@@ -592,8 +626,8 @@
           if(dir){
             dlg.close();
             try{
-              dgMapVoortgang(1,'Map doorzoeken (alleen cdms en de gekozen regio/periode)…');
-              const files=await sgVerzamelViaHandleDrip(dir,config,(m,f)=>dgMapVoortgang(Math.min(30,1+m/40),`Map doorzoeken: ${m.toLocaleString('nl-NL')} mappen bekeken, ${f.toLocaleString('nl-NL')} bestanden gevonden`));
+              dgMapVoortgang(null,'Map doorzoeken (alleen cdms en de gekozen regio/periode). Het totale aantal is tijdens deze stap nog niet bekend…');
+              const files=await sgVerzamelViaHandleDrip(dir,config,(m,f,duur)=>dgMapVoortgang(null,`Map doorzoeken: ${m.toLocaleString('nl-NL')} mappen bekeken · ${f.toLocaleString('nl-NL')} bestanden gevonden · ${sbDuurTekst(duur)} verstreken. Het totaal is nog niet bekend.`));
               await leesDripMap(files,config);
             }catch(err){if(!document.getElementById('dgMapProgress'))alert('Mislukt: '+(err&&err.message||err));}
             return;
@@ -619,7 +653,7 @@
     if(dlg)return dlg;
     dlg=document.createElement('dialog');dlg.id='dgMapProgress';
     dlg.style.cssText='max-width:460px;border:1px solid #d4dbe2;border-radius:10px;padding:0';
-    dlg.innerHTML=`<div style="padding:18px 20px;font:13px/1.5 inherit">
+    dlg.innerHTML=`<style>@keyframes bidashDgZoeken{from{transform:translateX(-120%)}to{transform:translateX(320%)}}</style><div style="padding:18px 20px;font:13px/1.5 inherit">
       <h3 style="margin:0 0 8px">DRIP-storingen uit map lezen</h3>
       <div id="dgPBalk" style="height:16px;border:1px solid #cfd6dd;border-radius:8px;background:#eef2f5;overflow:hidden"><div id="dgPVul" style="height:100%;width:0;background:#0078d4;transition:width .2s"></div></div>
       <p id="dgPFase" style="margin:8px 0 0;color:#1f2933" role="status" aria-live="polite">Voorbereiden…</p>
@@ -633,13 +667,15 @@
   function dgMapVoortgang(pct,fase){
     const dlg=dgMapVenster();if(!dlg.open)dlg.showModal();
     const vul=dlg.querySelector('#dgPVul'),f=dlg.querySelector('#dgPFase'),sluit=dlg.querySelector('#dgPSluit'),dl=dlg.querySelector('#dgPDownload');
-    sluit.hidden=true;dl.hidden=true;vul.style.background='#0078d4';
-    if(pct!=null)vul.style.width=Math.max(0,Math.min(100,pct))+'%';
+    sluit.hidden=true;dl.hidden=true;vul.style.background='#0078d4';f.style.color='#1f2933';
+    if(pct==null){vul.style.width='30%';vul.style.transition='none';vul.style.animation='bidashDgZoeken 1.2s linear infinite';}
+    else{vul.style.animation='none';vul.style.transform='translateX(0)';vul.style.transition='width .2s';vul.style.width=Math.max(0,Math.min(100,pct))+'%';}
     if(fase!=null)f.textContent=fase;
   }
   function dgMapVoltooid(tekst,fout){
     const dlg=dgMapVenster();if(!dlg.open)dlg.showModal();
     const vul=dlg.querySelector('#dgPVul'),f=dlg.querySelector('#dgPFase'),sluit=dlg.querySelector('#dgPSluit'),dl=dlg.querySelector('#dgPDownload');
+    vul.style.animation='none';vul.style.transform='translateX(0)';vul.style.transition='width .2s';
     vul.style.width='100%';vul.style.background=fout?'#a4262c':'#107c10';
     f.style.color=fout?'#a4262c':'#1f2933';f.textContent=tekst;sluit.hidden=false;
     dl.hidden=!(dgLaatsteExport&&!fout);
@@ -668,23 +704,27 @@
     if(!bestanden.length)throw new Error(`geen DRIP-logbestanden gevonden voor regio ${regios}${periode}. Van de ${alle.length.toLocaleString('nl-NL')} gekozen bestanden viel er geen onder cdms/<vc>/log/<jaar>/<maand>/<dag> met de gekozen regio en periode. Controleer de map (kies de X-hoofdmap of de cdms-map), de regiokeuze en de periode.`);
     const label='DRIP uit map ('+bestanden.length.toLocaleString('nl-NL')+' bestanden)';
     const startFase=`${bestanden.length.toLocaleString('nl-NL')} van ${alle.length.toLocaleString('nl-NL')} bestanden geselecteerd voor ${regios}${periode}; DRIP-logs lezen`;
-    dgMapVoortgang(2,startFase);
-    if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,2,startFase,{direct:true});
+    dgMapVoortgang(5,startFase);
+    if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,5,startFase,{direct:true});
     if(typeof uiPauze==='function')await uiPauze();
-    const events=[];
-    for(let n=0;n<bestanden.length;n++){
-      const f=bestanden[n],info=sbPadInfoDrip(sbPad(f));
+    const events=[];let nietLeesbaar=0,laatsteMelding=0;const leesStart=Date.now();
+    await sbMetWerkers(bestanden,6,async f=>{
+      const info=sbPadInfoDrip(sbPad(f));
       let text;
-      try{text=await sbLeesTekst(f);}catch(err){continue;}
+      try{text=await sbLeesTekst(f);}catch(err){nietLeesbaar++;return;}
       const eigen=sbDripEventsUitTekst(text,info.vc,info.datum,sbPad(f));
       for(const e of eigen)events.push(e);
-      if(n%25===0){
-        const pct=2+68*(n+1)/bestanden.length,fase=`DRIP-logs lezen: ${(n+1).toLocaleString('nl-NL')} / ${bestanden.length.toLocaleString('nl-NL')}`;
-        dgMapVoortgang(pct,fase);
-        if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,pct,fase,{direct:true});
-        if(typeof uiPauze==='function')await uiPauze();
-      }
-    }
+    },(klaar,totaal)=>{
+      const nu=Date.now();
+      if(klaar<totaal&&klaar%10!==0&&nu-laatsteMelding<300)return;
+      laatsteMelding=nu;
+      const verstreken=nu-leesStart,resterend=klaar?verstreken*(totaal-klaar)/klaar:0;
+      const pct=5+67*klaar/totaal;
+      const fase=`DRIP-logs lezen: ${klaar.toLocaleString('nl-NL')} / ${totaal.toLocaleString('nl-NL')} · ${events.length.toLocaleString('nl-NL')} gebeurtenissen${nietLeesbaar?` · ${nietLeesbaar.toLocaleString('nl-NL')} niet leesbaar`:''} · ${sbDuurTekst(verstreken)} verstreken${klaar<totaal?` · circa ${sbDuurTekst(resterend)} resterend`:''}`;
+      dgMapVoortgang(pct,fase);
+      if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,pct,fase,{direct:true});
+    });
+    if(typeof uiPauze==='function')await uiPauze();
     if(!events.length)throw new Error('de gevonden bestanden bevatten geen herkenbare DRIP-gebeurtenissen (tab-gescheiden statusregels). Controleer of dit CDMS-logbestanden zijn.');
     dgMapVoortgang(74,'DRIP-episodes en storingen reconstrueren…');
     if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,74,'DRIP-episodes en storingen reconstrueren',{direct:true});
@@ -703,7 +743,7 @@
     const {incidenten,gekoppeldeIncidenten,laatsteEntry}=await pasDripBundelToe(naam,gecombineerd,'maplezen');
     window.__BIDASH_DG_MAP_CONFIG__=null;
     const laatste=laatsteEntry?new Date(laatsteEntry).toLocaleDateString('nl-NL'):'onbekend';
-    const klaarTekst=`Klaar (${regios}): ${bestanden.length.toLocaleString('nl-NL')} bestanden → ${Number(incidenten).toLocaleString('nl-NL')} incidenten (${Number(gekoppeldeIncidenten).toLocaleString('nl-NL')} gekoppeld). Laatste entry ${laatste}.`;
+    const klaarTekst=`Klaar (${regios}): ${bestanden.length.toLocaleString('nl-NL')} bestanden${nietLeesbaar?` (${nietLeesbaar.toLocaleString('nl-NL')} niet leesbaar)`:''} → ${Number(incidenten).toLocaleString('nl-NL')} incidenten (${Number(gekoppeldeIncidenten).toLocaleString('nl-NL')} gekoppeld). Laatste entry ${laatste}.`;
     dgMapVoltooid(incidenten&&!gekoppeldeIncidenten?klaarTekst+' Let op: geen enkel incident kon aan een DRIP-asset worden gekoppeld.':klaarTekst,incidenten&&!gekoppeldeIncidenten);
     if(typeof importKlaar==='function')importKlaar(label,'DRIP uit map gelezen. '+klaarTekst+' Vervangt de losse DRIP-storingshistorie.');
     try{if(typeof renderDatasetBeheer==='function')renderDatasetBeheer();}catch(err){}
@@ -716,6 +756,6 @@
   window.openSignaalgeverMapDialog=openSignaalgeverMapDialog;
   window.leesDripMap=leesDripMap;
   window.openDripMapDialog=openDripMapDialog;
-  window.__BIDASH_STORINGSBUNDELAAR__={sbVcAlias,sbParseDT,sbLocatie,sbMtmCategorie,sbSnapshotDatum,sbMtmRijenUitTekst,sbClassificeer,sbBouwBundel,sbPadInfoMtm,sbBestandGeschikt,sbFilterBestanden,sbCombineerMetBasis,
+  window.__BIDASH_STORINGSBUNDELAAR__={sbVcAlias,sbParseDT,sbLocatie,sbMtmCategorie,sbSnapshotDatum,sbMtmRijenUitTekst,sbClassificeer,sbBouwBundel,sbPadInfoMtm,sbBestandGeschikt,sbFilterBestanden,sbCombineerMetBasis,sbDuurTekst,sbMetWerkers,
     sbPadInfoDrip,sbDripBestandGeschikt,sbDripEventsUitTekst,sbBouwDripBundel,sbFilterDripBestanden,sbCombineerMetDripBasis,sbDripWatermerken,sgVolgendeCtxDrip};
 })();
