@@ -2,14 +2,15 @@
 
 Datum: 17 september 2026
 
-Versie: BiDash 2.14, DVM 87
+Versie: BiDash 2.14, DVM 88
 
 ## Toegevoegd
 
 - BiDash kan de ruwe **MTM-storinglijsten** nu rechtstreeks uit een map lezen
   (`X:/mtm/<vc>/storinglijst/<jaar>/<maand>/<dag>`), naast het gecombineerde
-  JSON-bestand. De knop **Uit map lezen (MTM)** staat op de kaart *Signaalgevers
-  totaal* in Datasetbeheer.
+  JSON-bestand. In Datasetbeheer staat hiervoor een eigen kaart **Signaalgevers uit
+  map (MTM)** met een mapkeuze (directory-invoer). Het resultaat vult dezelfde bron
+  als *Signaalgevers totaal* en vervangt de losse Open storingen en Storingshistorie.
 
 ## Waarom
 
@@ -68,10 +69,11 @@ doorrekening leeg bleef.
   functies uit `dvm-storingsbundelaar.js` op synthetische storinglijsten uitvoeren
   (parseren, alarmruns sluiten/openhouden, classificeren, padvalidatie) en de
   bundeluitvoer via de schema-tolerante mapping als MSI laten herkennen.
-- DVM-versie 86 → 87, met de assertions in `tests/dvm-restore-policy.test.js`,
+- DVM-versie 86 → 88, met de assertions in `tests/dvm-restore-policy.test.js`,
   `tests/drip-special-lists.test.js` en `tests/versiebalk.test.js`. Schilversie blijft
-  2.14.
-- Volledige Node-suite geslaagd (240 tests). Browsersuites `browser.cjs` en
+  2.14. (De maplezer kreeg een eigen bronkaart met directory-invoer in plaats van een
+  tweede knop op de JSON-kaart; die eerste opzet toonde de knop niet betrouwbaar.)
+- Volledige Node-suite geslaagd (241 tests). Browsersuites `browser.cjs` en
   `planning-formation.cjs` geslaagd. JavaScript-syntaxcontrole geslaagd.
 
 ## Niet getest
