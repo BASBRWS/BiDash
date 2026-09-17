@@ -2,7 +2,7 @@
 
 Datum: 16 september 2026
 
-Versie: BiDash 2.14, DVM 85
+Versie: BiDash 2.14, DVM 86
 
 ## Toegevoegd
 
@@ -40,6 +40,18 @@ blijven:
 Alleen de signaalgevers (MTM) worden gelezen; een eventuele `datasets.drip`-sectie
 wordt in deze stap genegeerd.
 
+## Weergave in Datasetbeheer
+
+De open meldingen en de historie moeten in dezelfde stores staan als de losse Open
+storingen- en Storingshistorie-bronnen, anders zou de doorrekening ze niet zien. In
+Datasetbeheer horen ze echter onder de eigen kaart **Signaalgevers totaal (JSON)** —
+niet onder Open storingen en Storingshistorie, want dan lijkt het alsof de JSON niet
+geladen is. De bronnen dragen daarom een `_signaalgeverTotaal`-vlag: Datasetbeheer
+filtert ze uit de losse kaarten (die dan leeg tonen) en toont ze onder de eigen kaart,
+met het aantal open en historische meldingen (en hoeveel er herkend zijn) en de
+peildatum. Verwijderen op die kaart wist beide stores in één keer en herstelt daarna
+de doorrekening.
+
 ## Óf/óf, geen vermenging
 
 De bron is bewust een óf/óf-keuze. Bij het laden van de JSON worden de losse Open
@@ -67,7 +79,7 @@ beproefd en de oude daarna uitgefaseerd kan worden.
 - DVM-versie 83 → 84, met de assertions in `tests/dvm-restore-policy.test.js`,
   `tests/drip-special-lists.test.js` en `tests/versiebalk.test.js`. De schilversie
   blijft 2.14.
-- Volledige Node-suite geslaagd (234 tests). Browsersuites `browser.cjs`,
+- Volledige Node-suite geslaagd (235 tests). Browsersuites `browser.cjs`,
   `planning-formation.cjs` en `planning-large.cjs` geslaagd. JavaScript-syntaxcontrole
   geslaagd.
 

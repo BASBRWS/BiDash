@@ -150,3 +150,17 @@ test('de signaalgever-totaalbron heeft een eigen JSON-knop en handler',()=>{
   assert.match(manager,/case 'leesSignaalgeverTotaal': result=await leesSignaalgeverTotaalBestand/);
   assert.match(dvm3,/async function leesSignaalgeverTotaalBestand/);
 });
+
+test('de geladen JSON wordt onder de eigen kaart getoond, niet onder Open storingen of Storingshistorie',()=>{
+  // De bronnen dragen een marker en een gedeelde vlag, en Datasetbeheer filtert ze
+  // uit de losse kaarten en toont ze onder signaalgeverTotaal.
+  assert.match(dvm3,/_signaalgeverTotaal:true/);
+  assert.match(dvm3,/window\.__BIDASH_SIGNAALGEVER_TOTAAL__=\{/);
+  assert.match(manager,/function isSignaalgeverTotaalItem\(item\)/);
+  assert.match(manager,/signaalgever-totaal-/);
+  assert.match(manager,/if\(type==='signaalgeverTotaal'\)\{/);
+  // Verwijderen op de eigen kaart wist beide stores.
+  assert.match(manager,/type==='signaalgeverTotaal'/);
+  assert.match(manager,/STORINGSBRONNEN=STORINGSBRONNEN\.filter\(b=>!b\._signaalgeverTotaal\)/);
+  assert.match(manager,/LIVE_STORINGSBRONNEN=LIVE_STORINGSBRONNEN\.filter\(b=>!b\._signaalgeverTotaal\)/);
+});
