@@ -2,7 +2,7 @@
 
 Datum: 17 september 2026
 
-Versie: BiDash 2.14, DVM 89
+Versie: BiDash 2.14, DVM 90
 
 ## Toegevoegd
 
@@ -16,6 +16,15 @@ Versie: BiDash 2.14, DVM 89
   **basisbestand** (eerder totaal-JSON). Zo wordt niet in één keer te veel gelezen en
   kun je per regio bijwerken; met een basisbestand blijven de niet-gekozen regio's
   ongewijzigd.
+- **Inzicht in de laatste datum**: de dialoog toont wat er nu geladen is en tot welke
+  datum (totaal en per regio), en bij een gekozen basisbestand de laatste datum per
+  regio. Ook de bronkaart en de laadmelding tonen de laatste-entry-datum, zodat je
+  ziet wat de volgende te lezen periode zou zijn.
+- **Voortgang en foutmeldingen**: tijdens het lezen loopt de voortgangsbalk mee (aantal
+  geselecteerde bestanden, per-bestand voortgang, reconstructie). Klopt er iets niet —
+  geen bestanden voor de gekozen regio/periode, een ongeldig basisbestand, of geen
+  herkende MSI-meldingen — dan verschijnt een expliciete melding die zegt wat er mis
+  is.
 
 ## Waarom
 
@@ -75,16 +84,17 @@ doorrekening leeg bleef.
 
 ## Controle
 
-- `tests/storingsbundelaar.test.js` toegevoegd, 5 tests, die de verzonden pure
+- `tests/storingsbundelaar.test.js` toegevoegd, 8 tests, die de verzonden pure
   functies uit `dvm-storingsbundelaar.js` op synthetische storinglijsten uitvoeren
-  (parseren, alarmruns sluiten/openhouden, classificeren, padvalidatie) en de
-  bundeluitvoer via de schema-tolerante mapping als MSI laten herkennen.
-- DVM-versie 86 → 89, met de assertions in `tests/dvm-restore-policy.test.js`,
+  (parseren, alarmruns sluiten/openhouden, classificeren, padvalidatie, regio-/
+  periodefilter, basiscombinatie, watermerken) en de bundeluitvoer via de schema-
+  tolerante mapping als MSI laten herkennen.
+- DVM-versie 86 → 90, met de assertions in `tests/dvm-restore-policy.test.js`,
   `tests/drip-special-lists.test.js` en `tests/versiebalk.test.js`. Schilversie blijft
   2.14. De maplezer kreeg een eigen bronkaart met een gele (`primary`) knop; de eerste
   opzet gebruikte een tweede knop met de standaard `tb-btn`-stijl (witte tekst op een
   witte kaart), waardoor die onzichtbaar was.
-- Volledige Node-suite geslaagd (243 tests). Browsersuites `browser.cjs` en
+- Volledige Node-suite geslaagd (244 tests). Browsersuites `browser.cjs` en
   `planning-formation.cjs` geslaagd. JavaScript-syntaxcontrole geslaagd.
 
 ## Niet getest

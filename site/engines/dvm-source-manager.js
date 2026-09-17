@@ -4,7 +4,7 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='89';
+  const DVM_VERSION='90';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
@@ -114,8 +114,12 @@
   }
   function signaalgeverTotaalMeta(s){
     const esctekst=typeof esc==='function'?esc:(v=>String(v==null?'':v));
-    const d=s.peildatum?new Date(s.peildatum).toLocaleDateString('nl-NL'):'';
-    return `${esctekst(s.bestand)}<br>${(s.open||0).toLocaleString('nl-NL')} open (${(s.herkendOpen||0).toLocaleString('nl-NL')} herkend), ${(s.historie||0).toLocaleString('nl-NL')} historisch (${(s.herkendHist||0).toLocaleString('nl-NL')} herkend).${d?'<br>Peildatum '+d:''}<br>Voedt zowel het actuele dashboard als de prognose; vervangt de losse Open storingen en Storingshistorie.`;
+    const dat=t=>t?new Date(t).toLocaleDateString('nl-NL'):'';
+    const d=dat(s.peildatum),laatste=dat(s.laatsteEntry);
+    const perVc=s.laatstePerVc&&Object.keys(s.laatstePerVc).length
+      ? '<br>Laatste entry per regio: '+Object.entries(s.laatstePerVc).sort().map(([v,t])=>v.toUpperCase()+' '+dat(t)).join(', ')
+      : '';
+    return `${esctekst(s.bestand)}<br>${(s.open||0).toLocaleString('nl-NL')} open (${(s.herkendOpen||0).toLocaleString('nl-NL')} herkend), ${(s.historie||0).toLocaleString('nl-NL')} historisch (${(s.herkendHist||0).toLocaleString('nl-NL')} herkend).${laatste?'<br>Laatste entry '+laatste:''}${d?' · peildatum open '+d:''}${perVc}<br>Voedt zowel het actuele dashboard als de prognose; vervangt de losse Open storingen en Storingshistorie.`;
   }
 
   if(typeof datasetItems==='function'){

@@ -45,7 +45,7 @@ function haalFoutcodes(){
 const ctx=vm.createContext({Number,String,Object,Array,Math,Date,Set,Map,parseFloat,parseInt,isNaN,isFinite,console,RegExp,TextDecoder,RULES:{foutcodes:haalFoutcodes()}});
 // Module-lokale constanten en helpers uit de bundelaar meenemen.
 vm.runInContext(`const MSI_DEGRADATIE=new Set(['1001','1002','1061','6002']);const DETECTOR_CODES=new Set(['1005','1006','1007','1008','4017','4019','5004']);const SYSTEEM_CODES=new Set(['1011','2001','4006','4014','4015','4020','4021','4023','4027','6005']);`,ctx);
-for(const naam of ['sbGroupBy','sbVcAlias','sbGeldigeDatum','sbParseDT','sbMediaan','sbLocatie','sbMtmCategorie','sbSnapshotDatum','sbMtmRijenUitTekst','sbClassificeer','sbBouwBundel','sbPadInfoMtm','sbPad','sbBestandGeschikt','sbFilterBestanden','sbCombineerMetBasis'])
+for(const naam of ['sbGroupBy','sbVcAlias','sbGeldigeDatum','sbParseDT','sbMediaan','sbLocatie','sbMtmCategorie','sbSnapshotDatum','sbMtmRijenUitTekst','sbClassificeer','sbBouwBundel','sbPadInfoMtm','sbPad','sbBestandGeschikt','sbFilterBestanden','sbCombineerMetBasis','sbWatermerken'])
   vm.runInContext(haalFunctie(bundelaar,naam),ctx,{filename:naam});
 // Mapping + classificeer uit dvm-2/3 voor deel E.
 for(const naam of ['lc','num','parseDatum','normAssetRichting','normRij','classificeer'])
@@ -137,6 +137,20 @@ test('G. combineren met een basis vervangt alleen de gekozen regio',()=>{
   assert.equal(openIds,'nieuw-zwn|oud-nwn','oud-zwn vervangen, nwn behouden, nieuw-zwn toegevoegd');
   const storIds=uit.storingen.map(r=>r.incident_id).sort().join('|');
   assert.equal(storIds,'s-nieuw|s-nwn');
+});
+
+test('H. de watermerken tonen de laatste datum per regio',()=>{
+  const mtm={
+    storingen:[
+      {verkeerscentrale:'zwn',start:'2026-09-15T10:00:00'},
+      {verkeerscentrale:'zwn',start:'2026-08-01T10:00:00'},
+      {verkeerscentrale:'nwn',start:'2026-08-17T10:00:00'}
+    ],
+    alarm_episodes:[{verkeerscentrale:'zwn',laatste_snapshot:'2026-09-16T22:30:00.000Z'}]
+  };
+  const wm=call('sbWatermerken',mtm);
+  assert.equal(wm.zwn,'2026-09-16'); // nieuwste uit alarm_episodes
+  assert.equal(wm.nwn,'2026-08-17');
 });
 
 test('E. de bundeluitvoer wordt door de schema-tolerante mapping als MSI herkend',()=>{
