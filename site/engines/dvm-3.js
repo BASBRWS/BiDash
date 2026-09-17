@@ -2017,6 +2017,10 @@ function toonTab(t){
     const slot=document.getElementById('tab-'+t);slot.innerHTML=blokkadeHtml(t);slot.classList.remove('hidden');
     return;
   }
+  // De historie-doorrekening is uitgesteld tot de prognose echt in beeld komt.
+  // Bij het openen van dit tabblad bouwen we haar alsnog en verversen we de tab,
+  // zodat de gebruiker het correcte historiebeeld ziet.
+  if(t==='prognose'&&typeof HISTORIE_UITGESTELD!=='undefined'&&HISTORIE_UITGESTELD){zorgHistorieState();renderPrognose();}
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
   document.querySelectorAll('.tabpage').forEach(p=>p.classList.add('hidden'));
   document.getElementById('tab-'+t).classList.remove('hidden');
@@ -3576,7 +3580,7 @@ function renderPrognose(){
   const _histJr=basis?(MC_HISTORIE_LIVE?MC_HISTORIE_LIVE.periodeJr:basis.stats.periodeJr):0;
   let h=prognoseVerslagHtml();
   h+=`<div class="card"><h3 style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span>Prognose toekomstige uitval — Monte Carlo ${tip('Simuleert de gekozen kalenderperiode met een Gamma-Poisson-model. Daardoor varieert niet alleen het aantal storingen, maar ook de onbekende storingsintensiteit. Hersteltijden en zwaarte worden empirisch getrokken. Als een assetregister met bouwjaren is geladen, schaalt een leeftijdsafhankelijke Weibull/NHPP-laag de historische rate vooruit.')}</span><button class="memo-knop" onclick="opentMemo('montecarlo')" ${MC_RESULT?'':'disabled'}>📄 Begeleidend schrijven</button></h3>
-    <p class="muted" style="margin:-6px 0 12px;font-size:12px">${basis?`De geladen, goedgekeurde MSI-historie beslaat <b>${fmt(_histJr,2)} jaar</b>.`: 'Er is nog geen bruikbare MSI-historie doorgerekend.'} Alleen historische storingen kalibreren deze analyse; de open-storingenlijst is volledig uitgesloten. De p5–p95-band is een <b>voorspellingsband</b>: toevalsvariatie én onzekerheid in de storingsintensiteit tellen mee.</p>
+    <p class="muted" style="margin:-6px 0 12px;font-size:12px">${basis?`De geladen, goedgekeurde MSI-historie beslaat <b>${fmt(_histJr,2)} jaar</b>.`:(HISTORIE_UITGESTELD?'De MSI-historie staat klaar en wordt doorgerekend zodra je een simulatie start.':'Er is nog geen bruikbare MSI-historie doorgerekend.')} Alleen historische storingen kalibreren deze analyse; de open-storingenlijst is volledig uitgesloten. De p5–p95-band is een <b>voorspellingsband</b>: toevalsvariatie én onzekerheid in de storingsintensiteit tellen mee.</p>
     <div class="mc-controls">
       <div><label>Van</label><input type="date" id="mcVan" value="${isoDatumLokaal(_mcVan)}"></div>
       <div><label>Tot en met</label><input type="date" id="mcTot" value="${isoDatumLokaal(_mcTot)}"></div>
@@ -3621,6 +3625,8 @@ function runMonteCarlo(){
   // korte timeout zodat de UI de status kan tonen
   setTimeout(()=>{
     const t0=performance.now();
+    // De historie-doorrekening kan nog uitgesteld zijn; bouw haar hier af.
+    zorgHistorieState();
     const basis=prognoseBasisState();if(!basis){st.textContent='Historische prognosebasis ontbreekt.';return;}
     const histP=MC_HISTORIE_LIVE?MC_HISTORIE_LIVE.periodeJr:basis.stats.periodeJr;
     const prior=mcPriorContext(basis.wegdelen,histP);
@@ -5273,7 +5279,7 @@ function parametersLezen(){
 }
 
 function parametersToepassen(){
-  if(!ASSET_REGISTER_STATE&&!STATE&&!HISTORIE_STATE&&!DRIP_STATE){alert('Laad eerst een assetlijst of een analysebron.');return;}
+  if(!ASSET_REGISTER_STATE&&!STATE&&!HISTORIE_STATE&&!HISTORIE_UITGESTELD&&!DRIP_STATE){alert('Laad eerst een assetlijst of een analysebron.');return;}
   const hadLive=!!(STATE&&STATE.ruweRijen),voor={};
   if(hadLive)DIENSTEN.forEach(d=>voor[d.id]={b:STATE.netwerk[d.id].besch,p:STATE.netwerk[d.id].prestatie});
   parametersLezen();

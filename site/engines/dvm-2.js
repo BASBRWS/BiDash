@@ -45,6 +45,10 @@ let EOL_BRON_NAAM='';
 let EOL_VERSIE=0;
 let ANALYSE_SIGNATURE='';
 let MC_HISTORIE_LIVE=null;
+// De historie-doorrekening is zwaar bij grote signaalgeverbestanden. Ze wordt
+// pas gebouwd zodra het prognosetabblad wordt geopend of een simulatie start;
+// tot dan markeert deze vlag dat er wél bruikbare historie klaarstaat.
+let HISTORIE_UITGESTELD=false;
 let TOTAAL_IMPORT_GELADEN=false;
 
 function normAssetTekst(v){
@@ -298,6 +302,19 @@ function bouwLiveMcHistorie(st){
 function heeftStoringsdata(){return !!(STORINGSBRONNEN.length||(typeof DRIP_HIST_STATE!=='undefined'&&DRIP_HIST_STATE&&DRIP_HIST_STATE.incidenten&&DRIP_HIST_STATE.incidenten.length));}
 function heeftLiveStoringsdata(){return !!(LIVE_STORINGSBRONNEN.length&&LIVE_STORINGS_INSPECTIE&&LIVE_STORINGS_INSPECTIE.herkenbaar);}
 function prognoseBasisState(){return HISTORIE_STATE||null;}
+/* Bouwt de uitgestelde historie-doorrekening alsnog, precies zoals
+   probeerAnalyseActiveren dat vroeger meteen deed. Wordt aangeroepen zodra de
+   prognose daadwerkelijk nodig is (tabblad openen of simulatie starten), zodat
+   het laden van een grote signaalgeverbron de pagina niet blokkeert. */
+function zorgHistorieState(){
+  if(!HISTORIE_UITGESTELD)return HISTORIE_STATE;
+  HISTORIE_UITGESTELD=false;
+  if(berekenGereedheid().logsAlg&&STORINGSBRONNEN.length){
+    const hr=gecombineerdeStoringsRijen();HISTORIE_STATE=doorrekenen(hr);HISTORIE_STATE.bestand=STORINGSBRONNEN.map(b=>b.naam).join(' + ');HISTORIE_STATE.ruweRijen=hr;
+    MC_HISTORIE_LIVE=bouwLiveMcHistorie(HISTORIE_STATE);
+  }else{HISTORIE_STATE=null;MC_HISTORIE_LIVE=null;}
+  return HISTORIE_STATE;
+}
 function mcHistorieBron(){return MC_HISTORIE_LIVE||MC_HISTORIE;}
 function relevanteTypen(alleen){
   if(alleen&&alleen.length)return uniekeWaarden(alleen);
@@ -691,7 +708,7 @@ function renderDatasetBeheer(){
   nummerGrafiekenEnTabellen(host);
 }
 async function datasetAfgeleidenOngeldig(){
-  STATE=null;HISTORIE_STATE=null;MC_HISTORIE_LIVE=null;MC_RESULT=null;DRIP_MC=null;ANALYSE_SIGNATURE='';DIENST_SEL=null;
+  STATE=null;HISTORIE_STATE=null;MC_HISTORIE_LIVE=null;HISTORIE_UITGESTELD=false;MC_RESULT=null;DRIP_MC=null;ANALYSE_SIGNATURE='';DIENST_SEL=null;
   if(ASSET_REGISTER_STATE){ASSET_REGISTER_STATE._assetConfigVersie=-1;herberekenRegisterDekking();bouwAssetIndex();}
   else{ASSET_INDEX=null;DVM_LEEFTIJD_STATE=null;DRIP_STATE=null;}
   STORINGS_INSPECTIE=ASSET_INDEX?inspecteerStoringsRijen(gecombineerdeStoringsRijen()):null;
@@ -750,10 +767,12 @@ function probeerAnalyseActiveren(voorkeur,opties){
   }
   const g=berekenGereedheid(),sig=analyseSignatuur();
   if(sig!==ANALYSE_SIGNATURE){
-    if(g.logsAlg&&STORINGSBRONNEN.length){
-      const hr=gecombineerdeStoringsRijen();HISTORIE_STATE=doorrekenen(hr);HISTORIE_STATE.bestand=STORINGSBRONNEN.map(b=>b.naam).join(' + ');HISTORIE_STATE.ruweRijen=hr;
-      MC_HISTORIE_LIVE=bouwLiveMcHistorie(HISTORIE_STATE);
-    }else{HISTORIE_STATE=null;MC_HISTORIE_LIVE=null;}
+    // De historie-doorrekening is de zwaarste stap bij grote signaalgeverbronnen.
+    // We stellen haar uit tot het prognosetabblad (zorgHistorieState) in plaats
+    // van haar bij elke bronwijziging meteen te bouwen; hier markeren we alleen
+    // dat er historie klaarstaat.
+    HISTORIE_STATE=null;MC_HISTORIE_LIVE=null;
+    HISTORIE_UITGESTELD=!!(g.logsAlg&&STORINGSBRONNEN.length);
     if(g.basisAlgemeen&&LIVE_STORINGSBRONNEN.length){
       const lr=gecombineerdeLiveStoringsRijen(),dr=(typeof DRIP_STATE!=='undefined'?DRIP_STATE:null);
       STATE=doorrekenen(lr,{actueel:true,peildatum:LIVE_PEILDATUM});STATE.bestand=LIVE_STORINGSBRONNEN.map(b=>b.naam).join(' + ');STATE.ruweRijen=lr;STATE.peildatum=LIVE_PEILDATUM;if(dr)STATE.drips=dr;
