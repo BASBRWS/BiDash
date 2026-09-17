@@ -4,7 +4,7 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='88';
+  const DVM_VERSION='89';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
@@ -94,6 +94,9 @@
   window.openDatasetUpload=function(type){
     const c=config(type);if(!c)return false;
     if(bronGeblokkeerd(type)){alert('Laad eerst Assetregister / All Assets. Daarna kan deze bron rechtstreeks worden verwerkt.');return false;}
+    /* De maplezer opent eerst een configuratiedialoog (regio/periode/basis) en klikt
+       daarna zelf de directory-invoer aan, zodat niet in één keer te veel wordt gelezen. */
+    if(type==='signaalgeverMap'&&typeof openSignaalgeverMapDialog==='function'){openSignaalgeverMapDialog();return true;}
     const input=ensureInput(type,c);input.click();return true;
   };
   window.clearSpecialDripSource=function(type){
