@@ -2,7 +2,7 @@
 
 Datum: 16 september 2026
 
-Versie: BiDash 2.14, DVM 84
+Versie: BiDash 2.14, DVM 85
 
 ## Toegevoegd
 
@@ -28,7 +28,11 @@ blijven:
 - **Open storingen**: `datasets.mtm.alarm_episodes` met `eindstatus:
   "open_aan_einde"` (en `meenemen !== false`). De omschrijving gaat mee als
   `melding`, zodat de bestaande MSI-foutregels (lampcircuit, OS-communicatie, fatale
-  fout) blijven matchen.
+  fout) blijven matchen. Naast de omschrijving worden ook de `categorie` en de
+  signaalgever (`unit`) in de meldingstekst opgenomen, zodat `classificeer()` de rij
+  als MSI herkent ook wanneer de omschrijving zelf geen type-trefwoord bevat. Zonder
+  die herkenning bleef het actuele dashboard leeg (DVM-brondag "geen bron geladen"),
+  omdat de doorrekening pas start bij minstens één herkende open melding.
 - **Historie**: `datasets.mtm.storingen`. Deze records dragen geen omschrijving; met
   `signaalgever + impactklasse` als melding herkent `classificeer()` ze alsnog als
   MSI. De historie voedt zoals altijd alleen de prognose.
@@ -63,7 +67,7 @@ beproefd en de oude daarna uitgefaseerd kan worden.
 - DVM-versie 83 → 84, met de assertions in `tests/dvm-restore-policy.test.js`,
   `tests/drip-special-lists.test.js` en `tests/versiebalk.test.js`. De schilversie
   blijft 2.14.
-- Volledige Node-suite geslaagd (233 tests). Browsersuites `browser.cjs`,
+- Volledige Node-suite geslaagd (234 tests). Browsersuites `browser.cjs`,
   `planning-formation.cjs` en `planning-large.cjs` geslaagd. JavaScript-syntaxcontrole
   geslaagd.
 
