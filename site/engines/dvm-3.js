@@ -622,13 +622,18 @@ function signaalgeverOpenActief(a){
   if(a&&a.meenemen===false)return false;
   return String(a&&a.eindstatus||'').trim().toLowerCase()==='open_aan_einde';
 }
+function signaalgeverAssetType(a){
+  a=a||{};
+  const aanwijzing=[a.categorie,a.unit,a.asset,a.signaalgever,a.impact,a.impactklasse,a.description,a.omschrijving]
+    .map(v=>String(v||'').trim().toLowerCase()).filter(Boolean).join(' ');
+  return /\bdetector(?:station)?\b|\bdetectie\b|\bdetectielus(?:sen)?\b|\bmeetlus(?:sen)?\b|\blus(?:sen)?\b/.test(aanwijzing)?'LUS':'MSI';
+}
 function signaalgeverOpenRij(a){
   a=a||{};
   /* De alarmtekst zegt wát er mis is (nodig voor foutregel), maar dekt niet altijd
-     het assettype. Net als bij de historie voegen we de categorie en de signaalgever
-     (unit) toe zodat classificeer() de rij als MSI herkent, ook wanneer de
-     omschrijving zelf geen type-trefwoord bevat. Zo blijft de rij herkenbaar en
-     wordt de bron doorgerekend in plaats van als "geen bron" te vervallen. */
+     het assettype. Categorie/unit onderscheiden detectielussen van MSI. Onbekende
+     detectorcodes blijven als LUS zichtbaar maar worden pas doorgerekend zodra er
+     een passende foutregel bestaat. */
   const eenheid=a.unit||a.asset||a.signaalgever||'';
   return {
     event_id:String(a.event_id||a.event_key||''),
@@ -644,9 +649,7 @@ function signaalgeverOpenRij(a){
     van:String(a.start||''),
     tot:String(a.laatste_snapshot||a.start||''),
     status:'open',
-    /* Signaalgeverstoringen zijn MSI-installatiestoringen; forceer het assettype zodat
-       woorden als "wisselbord" in de omschrijving de doorrekening niet blokkeren. */
-    assetTypeHint:'MSI',
+    assetTypeHint:signaalgeverAssetType(a),
     source_name:(Array.isArray(a.bronbestanden)&&a.bronbestanden[0])||'signaalgevers totaal'
   };
 }
@@ -676,7 +679,7 @@ function signaalgeverHistorieRij(s){
     van:String(s.start||''),
     tot:String(s.laatste_bewezen_aanwezig||s.einde_bewezen||s.einde_bovengrens||''),
     duur_uur:duur===''?'':duur,
-    assetTypeHint:'MSI',
+    assetTypeHint:signaalgeverAssetType(s),
     source_name:'signaalgevers totaal'
   };
 }

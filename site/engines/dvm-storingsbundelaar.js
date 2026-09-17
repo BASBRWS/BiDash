@@ -22,7 +22,11 @@
   function sbLocatie(s){s=String(s||'').trim().replace(/\s+/g,' ');const p=s.split(' '),k=s.match(/(-?\d+[,.]\d+)\s*$/);return {locatie:s,weg:p[0]||'',richting_kenmerk:p.slice(1,k?-1:undefined).join(' '),km:k?+k[1].replace(',','.'):null};}
   function sbMtmCategorie(code,desc){
     const d=String(desc||'').toLowerCase();
-    if(DETECTOR_CODES.has(code)||/detectorstation|\bdet\.?\s*\d+|beide lussen|een lus goed/i.test(d))return ['DETECTOR',false,'DETECTOR'];
+    /* Detector- en lusalarmen zijn een eigen DVM-bron voor de detectieschakel.
+       Bewaar ze daarom in de open momentopname en historie. Een onbekende
+       detectorcode blijft zichtbaar zonder impact totdat een passende LUS-regel
+       is vastgelegd; uitsluiten bij de bron zou de storing volledig verbergen. */
+    if(DETECTOR_CODES.has(code)||/detectorstation|\bdet\.?\s*\d+|beide lussen|een lus goed/i.test(d))return ['DETECTOR',true,'DETECTOR'];
     if(/\bmsi\s*\d+/i.test(d))return ['MSI',true,code==='1003'||d.includes('fatale fout')?'UITVAL':MSI_DEGRADATIE.has(code)?'DEGRADATIE':'MSI_FOUT'];
     if(SYSTEEM_CODES.has(code)||/wisselbord|hoofdvoeding|noodvoeding|communicatie met os|os zelfstandig/i.test(d))return ['SYSTEEM',true,/uitgevallen|uitgeschakeld/.test(d)?'SYSTEEM_UITVAL':'SYSTEEM_FOUT'];
     return ['OVERIG',false,'OVERIG'];

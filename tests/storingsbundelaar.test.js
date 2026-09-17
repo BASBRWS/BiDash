@@ -10,7 +10,8 @@
    C. De geclassificeerde storingen ontstaan (langdurig / intermitterend).
    D. Een pad buiten mtm/<vc>/storinglijst/<jaar>/<maand>/<dag> wordt geweigerd.
    E. De bundeluitvoer (v2.5-velden) door de schema-tolerante mapping van dvm-3.js
-      wordt begrepen: normRij → classificeer levert MSI.
+      wordt begrepen: MSI blijft MSI en detector/lus wordt LUS met de bestaande
+      foutregel en detectiekoppeling.
 
    Geen DOM en geen brondata: de invoer is synthetisch. */
 import test from 'node:test';
@@ -48,9 +49,9 @@ vm.runInContext(`const MSI_DEGRADATIE=new Set(['1001','1002','1061','6002']);con
 for(const naam of ['sbGroupBy','sbVcAlias','sbGeldigeDatum','sbParseDT','sbMediaan','sbLocatie','sbMtmCategorie','sbSnapshotDatum','sbMtmRijenUitTekst','sbClassificeer','sbBouwBundel','sbPadInfoMtm','sbPad','sbBestandGeschikt','sbFilterBestanden','sbCombineerMetBasis','sbWatermerken','sgBuitenPeriode','sgVolgendeCtx'])
   vm.runInContext(haalFunctie(bundelaar,naam),ctx,{filename:naam});
 // Mapping + classificeer uit dvm-2/3 voor deel E.
-for(const naam of ['lc','num','parseDatum','normAssetRichting','normRij','classificeer'])
+for(const naam of ['lc','num','parseDatum','normAssetRichting','normRij','classificeer','dripToestandImpact','dripRegel','foutregel'])
   vm.runInContext(haalFunctie(dvm2,naam),ctx,{filename:naam});
-for(const naam of ['signaalgeverOpenActief','signaalgeverOpenRij','signaalgeverHistorieRij','signaalgeverTotaalBronnen'])
+for(const naam of ['signaalgeverOpenActief','signaalgeverAssetType','signaalgeverOpenRij','signaalgeverHistorieRij','signaalgeverTotaalBronnen'])
   vm.runInContext(haalFunctie(dvm3,naam),ctx,{filename:naam});
 
 const call=(naam,...args)=>vm.runInContext(naam,ctx)(...args);
@@ -74,7 +75,7 @@ test('A. een storinglijst wordt in alarmregels geparseerd',()=>{
   assert.equal(msi.meenemen,true);
   const det=rows.find(r=>r.event_id==='102');
   assert.equal(det.categorie,'DETECTOR');
-  assert.equal(det.meenemen,false); // detector telt niet mee als storing
+  assert.equal(det.meenemen,true); // detector is een open LUS-bron voor detectie
 });
 
 test('B. een verdwenen alarm sluit, een blijvend alarm blijft open_aan_einde',()=>{
@@ -170,7 +171,7 @@ test('I. de maptraversal snoeit buiten mtm en buiten de regio/periode',()=>{
   assert.equal(call('sgVolgendeCtx',{fase:'storinglijst',vc:'zwn'},'2026',per).jaar,2026);
 });
 
-test('E. de bundeluitvoer wordt door de schema-tolerante mapping als MSI herkend',()=>{
+test('E. een MSI-bundelregel blijft door de schema-tolerante mapping MSI',()=>{
   const desc='Fout in lampcircuit bij MSI 1 lamp LAMPF2';
   const snapshots=[
     {vc:'zwn',snapshot:'2026-08-16T00:30:00.000Z',rows:call('sbMtmRijenUitTekst',regel('101','1001',desc,'A4 R 26,200','16-08-2026 00:00:00'),'zwn')},
@@ -183,4 +184,38 @@ test('E. de bundeluitvoer wordt door de schema-tolerante mapping als MSI herkend
   const r=call('normRij',open[0]);
   assert.equal(r.weg,'A4');
   assert.equal(call('classificeer',r),'MSI');
+});
+
+test('J. een open detectielusstoring blijft zichtbaar en krijgt LUS-impact',()=>{
+  const desc='Detectorstation DET.3 Beide lussen fout';
+  const snapshots=[
+    {vc:'zwn',snapshot:'2026-08-16T00:30:00.000Z',rows:call('sbMtmRijenUitTekst',regel('201','1006',desc,'A4 R 27,000','16-08-2026 00:00:00'),'zwn')},
+    {vc:'zwn',snapshot:'2026-08-16T01:00:00.000Z',rows:call('sbMtmRijenUitTekst',regel('201','1006',desc,'A4 R 27,000','16-08-2026 00:00:00'),'zwn')}
+  ];
+  const bundel=call('sbBouwBundel',snapshots,{});
+  assert.equal(bundel.open.length,1,'de open detectorstoring blijft in de bronmomentopname');
+  const pseudo={datasets:{mtm:{alarm_episodes:bundel.open,storingen:bundel.storingen}},metadata:{versie:'maplezen'}};
+  const {open}=call('signaalgeverTotaalBronnen',pseudo);
+  const r=call('normRij',open[0]);
+  assert.equal(call('classificeer',r),'LUS');
+  const f=call('foutregel',r,'LUS');
+  assert.ok(f,'foutcode 1006 hoort een bestaande LUS-impactregel te krijgen');
+  assert.equal(f.code,'1006');
+  assert.equal(f.availPct,25);
+  assert.equal(f.perfPct,60);
+  assert.match(dvm1,/detectie:'LUS'/,'LUS moet de detectieschakel van dienstverlening voeden');
+});
+
+test('K. een onbekende detectorcode blijft zichtbaar zonder verzonnen impact',()=>{
+  const desc='Detectorstation DET.4 onbekend detectoralarm';
+  const snapshots=[
+    {vc:'zwn',snapshot:'2026-08-16T00:30:00.000Z',rows:call('sbMtmRijenUitTekst',regel('202','1008',desc,'A4 R 28,000','16-08-2026 00:00:00'),'zwn')}
+  ];
+  const bundel=call('sbBouwBundel',snapshots,{});
+  const pseudo={datasets:{mtm:{alarm_episodes:bundel.open,storingen:[]}},metadata:{versie:'maplezen'}};
+  const {open}=call('signaalgeverTotaalBronnen',pseudo);
+  assert.equal(open.length,1);
+  const r=call('normRij',open[0]);
+  assert.equal(call('classificeer',r),'LUS');
+  assert.equal(call('foutregel',r,'LUS'),null,'zonder regel mag geen impact worden verzonnen');
 });
