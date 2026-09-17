@@ -4,7 +4,7 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='85';
+  const DVM_VERSION='86';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
@@ -97,17 +97,56 @@
     window.clearDripSpecialList(k);meldWijzigingAanSchil(type,[]);if(typeof renderDatasetBeheer==='function')renderDatasetBeheer();return true;
   };
 
+  function signaalgeverTotaalState(){try{return window.__BIDASH_SIGNAALGEVER_TOTAAL__||null;}catch(error){return null;}}
+  /* De signaalgever-totaalbron leeft in dezelfde stores als Open storingen en
+     Storingshistorie (anders zou de doorrekening haar niet zien), maar hoort in
+     Datasetbeheer onder de eigen kaart. Deze rijen horen niet onder de losse kaarten. */
+  function isSignaalgeverTotaalItem(item){
+    return (item.type==='liveStoringen'||item.type==='storingshistorie')&&String(item.key||'').indexOf('signaalgever-totaal-')===0;
+  }
+  function signaalgeverTotaalMeta(s){
+    const esctekst=typeof esc==='function'?esc:(v=>String(v==null?'':v));
+    const d=s.peildatum?new Date(s.peildatum).toLocaleDateString('nl-NL'):'';
+    return `${esctekst(s.bestand)}<br>${(s.open||0).toLocaleString('nl-NL')} open (${(s.herkendOpen||0).toLocaleString('nl-NL')} herkend), ${(s.historie||0).toLocaleString('nl-NL')} historisch (${(s.herkendHist||0).toLocaleString('nl-NL')} herkend).${d?'<br>Peildatum '+d:''}<br>Voedt zowel het actuele dashboard als de prognose; vervangt de losse Open storingen en Storingshistorie.`;
+  }
+
   if(typeof datasetItems==='function'){
     const originalDatasetItems=datasetItems;
     datasetItems=function(){
-      const current=originalDatasetItems(),out=[];
+      const sgt=signaalgeverTotaalState();
+      const current=originalDatasetItems().filter(item=>!isSignaalgeverTotaalItem(item)),out=[];
       SOURCE_ORDER.forEach(type=>{
+        if(type==='signaalgeverTotaal'){
+          out.push({type,key:'',titel:PLACEHOLDERS[type].titel,aanwezig:!!sgt,meta:sgt?signaalgeverTotaalMeta(sgt):PLACEHOLDERS[type].meta});
+          return;
+        }
         const matches=current.filter(item=>item.type===type);
         if(matches.length){out.push(...matches);return;}
         const s=isSpecial(type)?specialState(type):null;
         out.push({type,key:'',titel:PLACEHOLDERS[type].titel,aanwezig:!!s?.bestand,meta:isSpecial(type)?specialMeta(type):PLACEHOLDERS[type].meta});
       });
       current.filter(item=>!SOURCE_ORDER.includes(item.type)).forEach(item=>out.push(item));return out;
+    };
+  }
+
+  /* Verwijderen op de signaalgever-totaalkaart wist beide stores (open + historie)
+     die uit dit ene bestand komen, en herstelt daarna de doorrekening. */
+  if(typeof verwijderDataset==='function'){
+    const originalVerwijderDataset=verwijderDataset;
+    verwijderDataset=async function(type,keyEnc){
+      if(type==='signaalgeverTotaal'){
+        if(!confirm('Signaalgevers totaal (JSON) verwijderen? De open storingen en historie uit dit bestand worden gewist.'))return;
+        try{
+          STORINGSBRONNEN=STORINGSBRONNEN.filter(b=>!b._signaalgeverTotaal);
+          LIVE_STORINGSBRONNEN=LIVE_STORINGSBRONNEN.filter(b=>!b._signaalgeverTotaal);
+          LIVE_PEILDATUM=Math.max(0,...LIVE_STORINGSBRONNEN.map(b=>b.peildatum||0))||null;
+        }catch(error){console.error(error);}
+        try{window.__BIDASH_SIGNAALGEVER_TOTAAL__=null;}catch(error){}
+        if(typeof datasetNaMutatie==='function')await datasetNaMutatie('Signaalgevers totaal (JSON) verwijderd; afhankelijke berekeningen zijn opnieuw beoordeeld.');
+        if(typeof renderDatasetBeheer==='function')renderDatasetBeheer();
+        return;
+      }
+      return originalVerwijderDataset.apply(this,arguments);
     };
   }
 

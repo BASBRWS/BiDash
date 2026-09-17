@@ -689,14 +689,17 @@ async function leesSignaalgeverTotaalBestand(file){
   const {open,historie,versie}=signaalgeverTotaalBronnen(json);
   if(!open.length&&!historie.length)throw new Error('geen datasets.mtm.alarm_episodes of datasets.mtm.storingen gevonden');
   /* Vervang-modus: leeg de losse open- en historiebronnen zodat oud bestandsformaat
-     nooit met deze JSON mengt. De gebruiker kiest óf deze JSON óf de losse uploads. */
-  STORINGSBRONNEN=[{key:'signaalgever-totaal-historie',naam:file.name+' · historie',rijen:historie,size:file.size}];
+     nooit met deze JSON mengt. De gebruiker kiest óf deze JSON óf de losse uploads.
+     De bronnen dragen _signaalgeverTotaal, zodat Datasetbeheer ze onder de eigen kaart
+     "Signaalgevers totaal (JSON)" toont in plaats van onder Open storingen en
+     Storingshistorie — de doorrekening blijft dezelfde stores gebruiken. */
+  STORINGSBRONNEN=[{key:'signaalgever-totaal-historie',naam:file.name+' · historie',rijen:historie,size:file.size,_signaalgeverTotaal:true,_signaalgeverBestand:file.name}];
   STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeStoringsRijen());
   MC_RESULT=null;
   LIVE_STORINGSBRONNEN=[];LIVE_PEILDATUM=null;
   zetImportVoortgang(file.name,80,'Open meldingen aan All Assets koppelen',{direct:true});await uiPauze();
   if(open.length){
-    voegLiveBronnenToe([{key:'signaalgever-totaal-open',naam:file.name+' · open',rijen:open,size:file.size}]);
+    voegLiveBronnenToe([{key:'signaalgever-totaal-open',naam:file.name+' · open',rijen:open,size:file.size,_signaalgeverTotaal:true,_signaalgeverBestand:file.name}]);
   }else{
     LIVE_STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeLiveStoringsRijen());
     ANALYSE_SIGNATURE='';herbouwAssetMatchBeeld();
@@ -705,6 +708,9 @@ async function leesSignaalgeverTotaalBestand(file){
   probeerAnalyseActiveren('prognose',{inspectieAlGereed:true,matchAlGereed:true});
   const herkendOpen=(LIVE_STORINGS_INSPECTIE&&LIVE_STORINGS_INSPECTIE.herkenbaar)||0;
   const herkendHist=(STORINGS_INSPECTIE&&STORINGS_INSPECTIE.herkenbaar)||0;
+  /* Marker voor Datasetbeheer: de bron hoort onder de eigen kaart, niet onder Open
+     storingen/Storingshistorie. */
+  window.__BIDASH_SIGNAALGEVER_TOTAAL__={bestand:file.name,versie,open:open.length,historie:historie.length,herkendOpen,herkendHist,peildatum:LIVE_PEILDATUM||null};
   importKlaar(file.name,`Signaalgevers totaal (JSON ${versie||'?'}) geladen: ${open.length.toLocaleString('nl-NL')} open (${herkendOpen.toLocaleString('nl-NL')} herkend), ${historie.length.toLocaleString('nl-NL')} historisch (${herkendHist.toLocaleString('nl-NL')} herkend). Vervangt de losse Open storingen- en Storingshistorie-bronnen.`);
   if(open.length&&!herkendOpen)alert('De open meldingen zijn geladen maar geen enkele werd als een bekend assettype (bv. MSI) herkend, dus het actuele dashboard blijft leeg. Controleer of de records een omschrijving, categorie of signaalgever dragen.');
   return {open:open.length,historie:historie.length,herkendOpen,herkendHist};
