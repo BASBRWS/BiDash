@@ -226,11 +226,47 @@
     dlg.showModal();
   }
 
+  /* Zichtbaar voortgangsvenster tijdens het maplezen. Het data-gereedheidspaneel staat
+     bovenaan de pagina en valt tijdens Datasetbeheer buiten beeld; dit venster staat
+     vóór de gebruiker en toont fase, percentage en de uitkomst of fout. */
+  function sgMapVenster(){
+    let dlg=document.getElementById('sgMapProgress');
+    if(dlg)return dlg;
+    dlg=document.createElement('dialog');dlg.id='sgMapProgress';
+    dlg.style.cssText='max-width:460px;border:1px solid #d4dbe2;border-radius:10px;padding:0';
+    dlg.innerHTML=`<div style="padding:18px 20px;font:13px/1.5 inherit">
+      <h3 style="margin:0 0 8px">Signaalgevers uit map lezen</h3>
+      <div id="sgPBalk" style="height:16px;border:1px solid #cfd6dd;border-radius:8px;background:#eef2f5;overflow:hidden"><div id="sgPVul" style="height:100%;width:0;background:#0078d4;transition:width .2s"></div></div>
+      <p id="sgPFase" style="margin:8px 0 0;color:#1f2933" role="status" aria-live="polite">Voorbereiden…</p>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px"><button type="button" id="sgPSluit" class="tb-btn" style="background:#e5e9ed;color:#1f2933;border-color:#cfd6dd" hidden>Sluiten</button></div>
+    </div>`;
+    document.body.appendChild(dlg);
+    dlg.querySelector('#sgPSluit').addEventListener('click',()=>dlg.close());
+    return dlg;
+  }
+  function sgMapVoortgang(pct,fase){
+    const dlg=sgMapVenster();if(!dlg.open)dlg.showModal();
+    const vul=dlg.querySelector('#sgPVul'),f=dlg.querySelector('#sgPFase'),sluit=dlg.querySelector('#sgPSluit');
+    sluit.hidden=true;vul.style.background='#0078d4';
+    if(pct!=null)vul.style.width=Math.max(0,Math.min(100,pct))+'%';
+    if(fase!=null)f.textContent=fase;
+  }
+  function sgMapVoltooid(tekst,fout){
+    const dlg=sgMapVenster();if(!dlg.open)dlg.showModal();
+    const vul=dlg.querySelector('#sgPVul'),f=dlg.querySelector('#sgPFase'),sluit=dlg.querySelector('#sgPSluit');
+    vul.style.width='100%';vul.style.background=fout?'#a4262c':'#107c10';
+    f.style.color=fout?'#a4262c':'#1f2933';f.textContent=tekst;sluit.hidden=false;
+  }
+
   /* Handler voor Datasetbeheer: een gekozen map (webkitdirectory) met MTM-
      storinglijsten → open storingen + historie, via dezelfde koppeling en
      doorrekening als de JSON-bron. De config (regio/periode/basis) komt uit de
      dialoog. */
   async function leesSignaalgeverMap(fileList,config){
+    try{return await leesSignaalgeverMapKern(fileList,config);}
+    catch(err){sgMapVoltooid('Mislukt: '+(err&&err.message||err),true);throw err;}
+  }
+  async function leesSignaalgeverMapKern(fileList,config){
     config=config||window.__BIDASH_SG_MAP_CONFIG__||{};
     if(typeof ASSET_REGISTER_STATE==='undefined'||!ASSET_REGISTER_STATE){alert('Laad eerst All Assets. De storingsmap wordt rechtstreeks aan dat stamregister gekoppeld.');if(typeof renderDataGereedheid==='function')renderDataGereedheid();return;}
     const alle=[...(fileList||[])];
@@ -239,7 +275,9 @@
     const periode=config.vanaf||config.tot?` (${config.vanaf||'begin'} t/m ${config.tot||'nu'})`:'';
     if(!bestanden.length)throw new Error(`geen MTM-storinglijsten gevonden voor regio ${regios}${periode}. Van de ${alle.length.toLocaleString('nl-NL')} gekozen bestanden viel er geen onder mtm/<vc>/storinglijst/<jaar>/<maand>/<dag> met de gekozen regio en periode. Controleer de map (kies de X-hoofdmap of de mtm-map), de regiokeuze en de periode.`);
     const label='Signaalgevers uit map ('+bestanden.length.toLocaleString('nl-NL')+' bestanden)';
-    if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,2,`${bestanden.length.toLocaleString('nl-NL')} van ${alle.length.toLocaleString('nl-NL')} bestanden geselecteerd voor ${regios}${periode}; storinglijsten lezen`,{direct:true});
+    const startFase=`${bestanden.length.toLocaleString('nl-NL')} van ${alle.length.toLocaleString('nl-NL')} bestanden geselecteerd voor ${regios}${periode}; storinglijsten lezen`;
+    sgMapVoortgang(2,startFase);
+    if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,2,startFase,{direct:true});
     if(typeof uiPauze==='function')await uiPauze();
     const snapshots=[];
     for(let n=0;n<bestanden.length;n++){
@@ -250,11 +288,14 @@
       const rows=sbMtmRijenUitTekst(text,info.vc);
       if(rows.length)snapshots.push({vc:info.vc,snapshot:new Date(snap).toISOString(),bestand:sbPad(f),rows});
       if(n%25===0){
-        if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,2+68*(n+1)/bestanden.length,`Storinglijsten lezen: ${(n+1).toLocaleString('nl-NL')}/${bestanden.length.toLocaleString('nl-NL')}`,{direct:true});
+        const pct=2+68*(n+1)/bestanden.length,fase=`Storinglijsten lezen: ${(n+1).toLocaleString('nl-NL')} / ${bestanden.length.toLocaleString('nl-NL')}`;
+        sgMapVoortgang(pct,fase);
+        if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,pct,fase,{direct:true});
         if(typeof uiPauze==='function')await uiPauze();
       }
     }
-    if(!snapshots.length)throw new Error('de gevonden bestanden bevatten geen herkenbare storingsregels');
+    if(!snapshots.length)throw new Error('de gevonden bestanden bevatten geen herkenbare storingsregels (regels beginnend met "|"). Controleer of dit MTM-storinglijsten zijn.');
+    sgMapVoortgang(74,'Alarmruns en storingen reconstrueren…');
     if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,74,'Alarmruns en storingen reconstrueren',{direct:true});
     if(typeof uiPauze==='function')await uiPauze();
     const bundel=sbBouwBundel(snapshots,{});
@@ -263,14 +304,16 @@
     const gecombineerd=config.basisMtm?sbCombineerMetBasis(config.basisMtm,bundel.open,bundel.storingen,config.vcs):{alarm_episodes:bundel.open,storingen:bundel.storingen};
     const pseudo={datasets:{mtm:gecombineerd},metadata:{versie:'maplezen'}};
     const {open,historie,versie}=signaalgeverTotaalBronnen(pseudo);
+    sgMapVoortgang(88,'Open meldingen aan All Assets koppelen en doorrekenen…');
     if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,86,'Open meldingen aan All Assets koppelen',{direct:true});
     if(typeof uiPauze==='function')await uiPauze();
     const naam='Signaalgevers uit map ('+regios+')';
     const {herkendOpen,herkendHist,laatsteEntry}=pasSignaalgeverBundelToe(naam,open,historie,versie);
     window.__BIDASH_SG_MAP_CONFIG__=null;
     const laatste=laatsteEntry?new Date(laatsteEntry).toLocaleDateString('nl-NL'):'onbekend';
-    if(typeof importKlaar==='function')importKlaar(label,`Signaalgevers uit map gelezen (${regios}): ${bestanden.length.toLocaleString('nl-NL')} bestanden → ${open.length.toLocaleString('nl-NL')} open (${herkendOpen.toLocaleString('nl-NL')} herkend), ${historie.length.toLocaleString('nl-NL')} historisch (${herkendHist.toLocaleString('nl-NL')} herkend). Laatste entry ${laatste}. Vervangt de losse Open storingen- en Storingshistorie-bronnen.`);
-    if(open.length&&!herkendOpen)alert('De open meldingen zijn gelezen maar geen enkele werd als een bekend assettype (bv. MSI) herkend, dus het actuele dashboard blijft leeg. Controleer of de storinglijsten MSI-meldingen bevatten voor de gekozen regio en periode.');
+    const klaarTekst=`Klaar (${regios}): ${bestanden.length.toLocaleString('nl-NL')} bestanden → ${open.length.toLocaleString('nl-NL')} open (${herkendOpen.toLocaleString('nl-NL')} herkend), ${historie.length.toLocaleString('nl-NL')} historisch (${herkendHist.toLocaleString('nl-NL')} herkend). Laatste entry ${laatste}.`;
+    sgMapVoltooid(open.length&&!herkendOpen?klaarTekst+' Let op: geen enkele open melding werd als MSI herkend, dus het actuele dashboard blijft leeg.':klaarTekst,open.length&&!herkendOpen);
+    if(typeof importKlaar==='function')importKlaar(label,'Signaalgevers uit map gelezen. '+klaarTekst+' Vervangt de losse Open storingen- en Storingshistorie-bronnen.');
     return {bestanden:bestanden.length,open:open.length,historie:historie.length,herkendOpen,herkendHist};
   }
 

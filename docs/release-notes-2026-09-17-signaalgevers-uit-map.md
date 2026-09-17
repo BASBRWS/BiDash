@@ -2,7 +2,7 @@
 
 Datum: 17 september 2026
 
-Versie: BiDash 2.14, DVM 90
+Versie: BiDash 2.14, DVM 91
 
 ## Toegevoegd
 
@@ -20,11 +20,13 @@ Versie: BiDash 2.14, DVM 90
   datum (totaal en per regio), en bij een gekozen basisbestand de laatste datum per
   regio. Ook de bronkaart en de laadmelding tonen de laatste-entry-datum, zodat je
   ziet wat de volgende te lezen periode zou zijn.
-- **Voortgang en foutmeldingen**: tijdens het lezen loopt de voortgangsbalk mee (aantal
-  geselecteerde bestanden, per-bestand voortgang, reconstructie). Klopt er iets niet —
-  geen bestanden voor de gekozen regio/periode, een ongeldig basisbestand, of geen
-  herkende MSI-meldingen — dan verschijnt een expliciete melding die zegt wat er mis
-  is.
+- **Voortgang en foutmeldingen**: tijdens het lezen verschijnt een voortgangsvenster
+  vóór de gebruiker (het data-gereedheidspaneel staat bovenaan de pagina en valt in
+  Datasetbeheer buiten beeld). Het toont fase en percentage (aantal geselecteerde
+  bestanden, per-bestand voortgang, reconstructie, koppeling) en bij afloop de uitkomst
+  met een Sluiten-knop. Klopt er iets niet — geen bestanden voor de gekozen
+  regio/periode, een ongeldig basisbestand, of geen herkende MSI-meldingen — dan toont
+  hetzelfde venster (en de laadmelding) expliciet wat er mis is.
 
 ## Waarom
 
@@ -89,7 +91,7 @@ doorrekening leeg bleef.
   (parseren, alarmruns sluiten/openhouden, classificeren, padvalidatie, regio-/
   periodefilter, basiscombinatie, watermerken) en de bundeluitvoer via de schema-
   tolerante mapping als MSI laten herkennen.
-- DVM-versie 86 → 90, met de assertions in `tests/dvm-restore-policy.test.js`,
+- DVM-versie 86 → 91, met de assertions in `tests/dvm-restore-policy.test.js`,
   `tests/drip-special-lists.test.js` en `tests/versiebalk.test.js`. Schilversie blijft
   2.14. De maplezer kreeg een eigen bronkaart met een gele (`primary`) knop; de eerste
   opzet gebruikte een tweede knop met de standaard `tb-btn`-stijl (witte tekst op een
