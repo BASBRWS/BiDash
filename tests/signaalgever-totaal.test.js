@@ -68,6 +68,7 @@ const fixture={
         {event_id:'1183',code:'1001',start:'2026-08-01T07:28:00.000Z',description:'Fout in lampcircuit bij MSI 1 lamp LAMPF2',locatie:'A4 R 26,200',weg:'A4',richting_kenmerk:'R',km:26.2,categorie:'MSI',meenemen:true,impact:'DEGRADATIE',unit:'MSI 1',verkeerscentrale:'zwn',laatste_snapshot:'2026-08-15T22:30:00.000Z',bronbestanden:['//mtm/zwn/x.txt'],eindstatus:'open_aan_einde'},
         {event_id:'1185',code:'4027',start:'2026-08-01T07:28:00.000Z',description:'Communicatie met OS uitgevallen',locatie:'A4 R 26,300',weg:'A4',richting_kenmerk:'R',km:26.3,categorie:'MSI',meenemen:true,impact:'UITVAL',unit:'MSI 2',verkeerscentrale:'zwn',laatste_snapshot:'2026-08-15T22:30:00.000Z',eindstatus:'open_aan_einde'},
         {event_id:'1190',code:'1001',description:'Fout in lampcircuit',locatie:'A4 R 27,000',weg:'A4',richting_kenmerk:'R',km:27.0,meenemen:true,unit:'MSI 3',verkeerscentrale:'zwn',eindstatus:'hersteld'},
+        {event_id:'1192',code:'9999',description:'Storing gemeld',locatie:'A4 R 29,000',weg:'A4',richting_kenmerk:'R',km:29.0,categorie:'MSI',meenemen:true,unit:'MSI 5',verkeerscentrale:'zwn',laatste_snapshot:'2026-08-15T22:30:00.000Z',eindstatus:'open_aan_einde'},
         {event_id:'1191',code:'1001',description:'Fout in lampcircuit',locatie:'A4 R 28,000',weg:'A4',richting_kenmerk:'R',km:28.0,meenemen:false,unit:'MSI 4',verkeerscentrale:'zwn',eindstatus:'open_aan_einde'}
       ],
       storingen:[
@@ -82,10 +83,10 @@ const fixture={
 test('open alarmen worden gefilterd op eindstatus en meenemen',()=>{
   const {open,historie,versie}=bronnen(fixture);
   assert.equal(versie,'2.0');
-  // Alleen de twee open_aan_einde-alarmen met meenemen!==false.
-  assert.equal(open.length,2);
+  // De open_aan_einde-alarmen met meenemen!==false (1190 is hersteld, 1191 meenemen:false).
+  assert.equal(open.length,3);
   const ids=open.map(r=>r.event_id).sort();
-  assert.deepEqual(ids,['1183','1185']);
+  assert.deepEqual(ids,['1183','1185','1192']);
   assert.equal(historie.length,1);
 });
 
@@ -117,6 +118,15 @@ test('een OS-communicatie-uitval matcht de zwaardere MSI-regel',()=>{
   assert.ok(f);
   assert.equal(f.availPct,60);
   assert.equal(f.perfPct,70);
+});
+
+test('een open alarm met een omschrijving zonder type-trefwoord wordt via categorie/unit toch als MSI herkend',()=>{
+  // Dit is de kern van de fix: eerder bleef zo'n rij ongeclassificeerd, waardoor
+  // het actuele dashboard leeg bleef ("geen bron geladen").
+  const {open}=bronnen(fixture);
+  const r=normRij(open.find(x=>x.event_id==='1192'));
+  assert.equal(r.weg,'A4');
+  assert.equal(classificeer(r),'MSI');
 });
 
 test('een historische storing zonder omschrijving wordt via signaalgever als MSI herkend',()=>{

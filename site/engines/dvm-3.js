@@ -624,10 +624,15 @@ function signaalgeverOpenActief(a){
 }
 function signaalgeverOpenRij(a){
   a=a||{};
+  /* De alarmtekst zegt wát er mis is (nodig voor foutregel), maar dekt niet altijd
+     het assettype. Net als bij de historie voegen we de categorie en de signaalgever
+     (unit) toe zodat classificeer() de rij als MSI herkent, ook wanneer de
+     omschrijving zelf geen type-trefwoord bevat. Zo blijft de rij herkenbaar en
+     wordt de bron doorgerekend in plaats van als "geen bron" te vervallen. */
   return {
     event_id:String(a.event_id||a.event_key||''),
     foutcode:String(a.code||''),
-    melding:String(a.description||''),
+    melding:[a.description,a.categorie,a.unit].map(v=>String(v||'').trim()).filter(Boolean).join(' · '),
     Gevolg:String(a.impact||''),
     locatie:String(a.locatie||''),
     weg:String(a.weg||''),
@@ -698,8 +703,11 @@ async function leesSignaalgeverTotaalBestand(file){
   }
   probeerAnalyseActiveren('overzicht',{inspectieAlGereed:true,matchAlGereed:true});
   probeerAnalyseActiveren('prognose',{inspectieAlGereed:true,matchAlGereed:true});
-  importKlaar(file.name,`Signaalgevers totaal (JSON ${versie||'?'}) geladen: ${open.length.toLocaleString('nl-NL')} open, ${historie.length.toLocaleString('nl-NL')} historisch. Vervangt de losse Open storingen- en Storingshistorie-bronnen.`);
-  return {open:open.length,historie:historie.length};
+  const herkendOpen=(LIVE_STORINGS_INSPECTIE&&LIVE_STORINGS_INSPECTIE.herkenbaar)||0;
+  const herkendHist=(STORINGS_INSPECTIE&&STORINGS_INSPECTIE.herkenbaar)||0;
+  importKlaar(file.name,`Signaalgevers totaal (JSON ${versie||'?'}) geladen: ${open.length.toLocaleString('nl-NL')} open (${herkendOpen.toLocaleString('nl-NL')} herkend), ${historie.length.toLocaleString('nl-NL')} historisch (${herkendHist.toLocaleString('nl-NL')} herkend). Vervangt de losse Open storingen- en Storingshistorie-bronnen.`);
+  if(open.length&&!herkendOpen)alert('De open meldingen zijn geladen maar geen enkele werd als een bekend assettype (bv. MSI) herkend, dus het actuele dashboard blijft leeg. Controleer of de records een omschrijving, categorie of signaalgever dragen.');
+  return {open:open.length,historie:historie.length,herkendOpen,herkendHist};
 }
 
 function rijWaardeExact(row,namen){
