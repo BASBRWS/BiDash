@@ -747,6 +747,117 @@ async function leesSignaalgeverTotaalBestand(file){
   return {open:open.length,historie:historie.length,herkendOpen,herkendHist};
 }
 
+/* ── DRIP totaal (JSON of maplezen) ───────────────────────────────────────────
+   Vervangt de losse DRIP-storingshistorie-upload. De bundelaar (JSON-bestand of
+   ruwe cdms/log-map) levert per DRIP een `datasets.drip`-blok met episodes en
+   geclassificeerde storingen. Deze mapper zet die records om naar de
+   incidentvorm die DRIP_HIST_STATE al kent (dezelfde velden als
+   normaliseerDripHistorieRij), zodat de bestaande koppeling aan het DRIP-areaal
+   (koppelDripHistorieAanAreaal), de afleiding van open DRIP's uit historie en de
+   DRIP Monte Carlo ongewijzigd blijven werken. */
+function dripTotaalIncidentUitRij(r,sourceKey,sourceName,open){
+  r=r||{};
+  const asset=String(r.asset||'').trim();
+  const locatieTekst=String(r.locatie||'').trim();
+  const code=normDripCode(asset)||normDripCode(locatieTekst);
+  const loc=parseDripHistorieLocatie(locatieTekst||asset);
+  const vc=normDripHistRegio(r.verkeerscentrale||'')||loc.vc||'';
+  const start=parseDripHistorieDatum(r.start);
+  if(start==null||(!code&&!loc.weg))return null;
+  let einde=open?null:parseDripHistorieDatum(r.einde_bewezen);
+  let duurUren=open?null:num(r.totale_storingsduur_uur);
+  if(duurUren==null&&!open)duurUren=num(r.duur_min_uur);
+  if(duurUren!=null)duurUren=Math.max(0,duurUren);
+  if(einde==null&&!open&&start!=null&&duurUren!=null)einde=start+duurUren*3600e3;
+  const cycli=Math.max(1,Math.round(num(r.aantal_cycli)||1));
+  const bron=String(r.bron||'').trim();
+  const hardUit=/UIT\s*\/\s*AAN/i.test(bron);
+  const classificatie=open?'OPEN':(String(r.classificatie||'').trim().toUpperCase()||(hardUit?'UITVAL':cycli>=3?'INTERMITTEREND':'STORING'));
+  return {asset,code,locatie:locatieTekst,vc,weg:loc.weg,richting:loc.richting,hm:loc.hm,
+    start,einde,duurUren,incidentvensterUren:null,cycli,classificatie,
+    hardUit,censored:false,technischeToestand:open?'open':'',bron,
+    alarmmeldingen:String(r.omschrijving||r.alarmmeldingen||'').trim(),
+    sourceKey,sourceName,duurBetrouwbaar:!open&&duurUren>0&&(hardUit||duurUren<168)};
+}
+/* Eén datasets.drip-blok → incidenten + dekking + assetcodes. De open episodes
+   (kwaliteitsstatus 'open' / geen eindtijd) gaan als open incidenten mee zodat de
+   afleiding van open DRIP's uit historie ze oppikt; de geclassificeerde storingen
+   voeden de rate en duurverdeling, net als voorheen. */
+function dripDatasetNaarBron(drip,sourceKey,sourceName){
+  drip=drip||{};
+  const storingen=Array.isArray(drip.storingen)?drip.storingen:[];
+  const episodes=Array.isArray(drip.episodes)?drip.episodes:[];
+  const incidenten=[];
+  storingen.forEach(r=>{const x=dripTotaalIncidentUitRij(r,sourceKey,sourceName,false);if(x)incidenten.push(x);});
+  episodes.forEach(r=>{
+    const open=String(r.kwaliteitsstatus||'').toLowerCase()==='open'||(r.einde_bewezen==null&&!(num(r.duur_min_uur)>0));
+    if(!open)return;
+    const x=dripTotaalIncidentUitRij(r,sourceKey,sourceName,true);if(x)incidenten.push(x);
+  });
+  const dekking=new Set();
+  (Array.isArray(drip.datadekking)?drip.datadekking:[]).forEach(r=>{
+    const d=String((r&&(r.datum||r.date))||'').slice(0,10);
+    if(/^\d{4}-\d{2}-\d{2}$/.test(d))dekking.add(d);
+  });
+  const assetCodes=new Set(incidenten.map(x=>x.code).filter(Boolean));
+  return {incidenten,dekkingDatums:[...dekking].sort(),assetCodes:[...assetCodes]};
+}
+function dripTotaalBronnen(json){
+  const drip=(json&&json.datasets&&json.datasets.drip)||{};
+  return {drip,versie:String((json&&json.metadata&&json.metadata.versie)||'')};
+}
+/* Gedeelde toepassing van een DRIP-bundel (uit JSON óf uit maplezen). Vervangt de
+   DRIP-storingshistorie volledig en bouwt DRIP_HIST_STATE opnieuw op, zodat
+   herbouwDripHistorie() de koppeling aan het areaal en de open-DRIP-afleiding
+   opnieuw legt. */
+async function pasDripBundelToe(bestandsnaam,drip,versie){
+  const adem=()=>typeof uiPauze==='function'?uiPauze():Promise.resolve();
+  const {incidenten,dekkingDatums,assetCodes}=dripDatasetNaarBron(drip,'drip-totaal',bestandsnaam);
+  const tijden=incidenten.flatMap(x=>[x.start,x.einde]).filter(x=>x!=null);
+  const van=tijden.length?Math.min(...tijden):null,tot=tijden.length?Math.max(...tijden):null;
+  let dek=dekkingDatums;
+  if(!dek.length&&van!=null&&tot!=null)dek=histDagenTussen(van,tot);
+  const regio=normDripHistRegio(bestandsnaam)||(incidenten.find(x=>x.vc)||{}).vc||'';
+  const bron={key:'drip-totaal',name:bestandsnaam,size:0,sheet:'datasets.drip',format:'DRIP totaal (JSON/map)',
+    episodesGenegeerd:0,regio,incidenten,afgewezen:0,dekkingDatums:dek,dekkingDagen:dek.length,van,tot,
+    assetCodes,_dripTotaal:true,_dripBestand:bestandsnaam};
+  DRIP_HIST_STATE={sources:[bron]};DRIP_MC=null;
+  await adem();
+  herbouwDripHistorie();
+  ANALYSE_SIGNATURE='';
+  await adem();
+  probeerAnalyseActiveren('drips',{inspectieAlGereed:true,matchAlGereed:true});
+  const koppeling=(DRIP_HIST_STATE&&DRIP_HIST_STATE.koppeling)||{};
+  const laatstePerVc={};
+  for(const x of (DRIP_HIST_STATE&&DRIP_HIST_STATE.incidenten)||[]){
+    const t=Math.max(x.einde||0,x.start||0);if(!t)continue;
+    const vc=String(x.vc||'').toLowerCase();if(!vc)continue;
+    if(!laatstePerVc[vc]||t>laatstePerVc[vc])laatstePerVc[vc]=t;
+  }
+  window.__BIDASH_DRIP_TOTAAL__={bestand:bestandsnaam,versie,
+    incidenten:(DRIP_HIST_STATE&&DRIP_HIST_STATE.incidenten.length)||0,
+    gekoppeldeIncidenten:koppeling.gekoppeldeIncidenten||0,gekoppeldeAssets:koppeling.gekoppeldeAssets||0,
+    nietGekoppeld:koppeling.nietGekoppeldeIncidenten||0,laatsteEntry:tot,laatstePerVc};
+  return {incidenten:bron.incidenten.length,gekoppeldeIncidenten:koppeling.gekoppeldeIncidenten||0,laatsteEntry:tot};
+}
+async function leesDripTotaalBestand(file){
+  if(!ASSET_REGISTER_STATE){alert('Laad eerst All Assets. De DRIP-bron wordt rechtstreeks aan dat stamregister gekoppeld.');renderDataGereedheid();return;}
+  zetImportVoortgang(file.name,0,'DRIP-totaalbestand lezen',{direct:true});await uiPauze();
+  const buffer=await leesBlobAlsArrayBuffer(file,20000,'het JSON-bestand kon niet binnen 20 seconden worden gelezen');
+  let json;
+  try{json=JSON.parse(new TextDecoder('utf-8').decode(buffer));}
+  catch(err){throw new Error('geen geldige JSON: '+(err.message||String(err)));}
+  zetImportVoortgang(file.name,45,'DRIP-records omzetten naar incidenten',{direct:true});await uiPauze();
+  const {drip,versie}=dripTotaalBronnen(json);
+  const heeftData=(Array.isArray(drip.storingen)&&drip.storingen.length)||(Array.isArray(drip.episodes)&&drip.episodes.length);
+  if(!heeftData)throw new Error('geen datasets.drip.storingen of datasets.drip.episodes gevonden');
+  zetImportVoortgang(file.name,80,'DRIP-incidenten aan All Assets koppelen',{direct:true});await uiPauze();
+  const {incidenten,gekoppeldeIncidenten}=await pasDripBundelToe(file.name,drip,versie);
+  importKlaar(file.name,`DRIP totaal (JSON ${versie||'?'}) geladen: ${incidenten.toLocaleString('nl-NL')} incidenten (${gekoppeldeIncidenten.toLocaleString('nl-NL')} gekoppeld aan het DRIP-areaal). Vervangt de losse DRIP-storingshistorie.`);
+  if(incidenten&&!gekoppeldeIncidenten)alert('De DRIP-incidenten zijn geladen maar geen enkele kon aan een DRIP-asset in All Assets worden gekoppeld. Controleer of het assetregister DRIP-assets met een CDMS-code bevat.');
+  return {incidenten,gekoppeldeIncidenten};
+}
+
 function rijWaardeExact(row,namen){
   const zoek=new Set(namen.map(k=>kolomLicht(k))),zoekSleutel=new Set(namen.map(kolomSleutel));
   for(const k of Object.keys(row||{}))if(zoek.has(kolomLicht(k))||zoekSleutel.has(kolomSleutel(k)))return row[k];
@@ -1837,6 +1948,7 @@ function leesDripHistorieBestanden(fileList){
 }
 function wisDripHistorie(){
   DRIP_HIST_STATE=null; DRIP_MC=null;
+  try{window.__BIDASH_DRIP_TOTAAL__=null;}catch(error){}
   const D=(STATE&&STATE.drips)||DRIP_STATE; if(D)D.drips.forEach(d=>d._hist=null);
   ANALYSE_SIGNATURE='';probeerAnalyseActiveren('drips');
 }
@@ -1994,7 +2106,6 @@ function leesDripBestand(file){
 }
 document.getElementById('xlsInput').addEventListener('change',async e=>{const invoer=e.currentTarget,f=[...invoer.files];if(!f.length)return;try{await laadStoringsBestandenAutomatisch(f);}finally{invoer.value='';}});
 document.addEventListener('DOMContentLoaded',()=>{ const di=document.getElementById('dripInput'); if(di) di.addEventListener('change',async e=>{const invoer=e.currentTarget,f=invoer.files[0];if(!f)return;try{await leesDripBestand(f);}finally{invoer.value='';}}); });
-document.addEventListener('DOMContentLoaded',()=>{ const hi=document.getElementById('dripHistInput'); if(hi) hi.addEventListener('change',async e=>{const invoer=e.currentTarget,f=[...invoer.files];if(!f.length)return;try{await laadStoringsBestandenAutomatisch(f);}finally{invoer.value='';}}); });
 document.addEventListener('DOMContentLoaded',()=>{ const ai=document.getElementById('autoLogInput'); if(ai) ai.addEventListener('change',async e=>{const invoer=e.currentTarget,f=[...invoer.files];if(!f.length)return;try{await laadStoringsBestandenAutomatisch(f);}finally{invoer.value='';}}); });
 document.addEventListener('DOMContentLoaded',()=>{ const ei=document.getElementById('eolInputTop'); if(ei) ei.addEventListener('change',async e=>{const invoer=e.currentTarget,f=invoer.files[0];if(!f)return;try{await leesEolReferentie(f);}finally{invoer.value='';}}); });
 document.addEventListener('DOMContentLoaded',()=>{ const ui=document.getElementById('uRouteInput'); if(ui) ui.addEventListener('change',async e=>{const invoer=e.currentTarget,f=invoer.files[0];if(!f)return;try{await leesURouteBestand(f);}finally{invoer.value='';}}); });
@@ -4637,10 +4748,13 @@ function tekenDripMcResult(){
 function renderDripHistorieKaart(){
   const H=DRIP_HIST_STATE;
   if(!H){
-    return `<div class="card"><h3>DRIP-storingshistorie ${tip('Laad één of meer incidentbestanden. De bestaande vlakke CSV/XLSX-indeling en WNN- of WNZ-werkmappen met de tabbladen storingen, datadekking en asset_samenvatting worden automatisch herkend en samengevoegd.')}</h3>
+    return `<div class="card"><h3>DRIP-storingshistorie ${tip('Laad de DRIP-storingshistorie via één DRIP-totaal JSON-bestand (datasets.drip) of rechtstreeks uit de ruwe CDMS-logmap (cdms/<vc>/log/<jaar>/<maand>/<dag>). Beide leveren dezelfde incidenten en koppelen aan het DRIP-areaal.')}</h3>
       <p class="muted" style="margin:-6px 0 10px;font-size:12px">Nog geen DRIP-storingshistorie geladen. Dit is een aanvullende bron en vervangt de bestaande DVM-storingslijst of het DRIP-areaal niet.</p>
-      <button class="tb-btn primary" onclick="document.getElementById('dripHistInput').click()">⭱ DRIP-storingshistorie laden (.xlsx/.csv)</button>
-      <p class="muted" style="font-size:11.5px;margin-top:8px">Bij een werkmap met meerdere tabbladen gebruikt het model alleen het tabblad <b>storingen</b> als incidentenbron. Losse technische alarmepisodes worden niet als afzonderlijke storingen geteld.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="tb-btn primary" onclick="openDatasetUpload('dripTotaal')">⭱ DRIP totaal (JSON) laden</button>
+        <button class="tb-btn primary" onclick="openDripMapDialog()">⭱ DRIP uit map lezen (CDMS)</button>
+      </div>
+      <p class="muted" style="font-size:11.5px;margin-top:8px">De DRIP-map leest de ruwe logs zelf en bewaart alleen de episodes en geclassificeerde storingen. Losse technische alarmepisodes worden niet als afzonderlijke storingen geteld.</p>
     </div>`;
   }
   const K=H.koppeling||{gekoppeldeAssets:0,gekoppeldeIncidenten:0,nietGekoppeldeIncidenten:H.incidenten.length,nietGekoppeldeCodes:[]};
@@ -4656,7 +4770,8 @@ function renderDripHistorieKaart(){
       <div class="wv-kpi"><div class="v" style="color:var(--rws-blauw-mid)">${H.duplicaten.toLocaleString('nl-NL')}</div><div class="l">Dubbelen verwijderd</div></div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-      <button class="tb-btn primary" onclick="document.getElementById('dripHistInput').click()">⭱ Historie toevoegen of vervangen</button>
+      <button class="tb-btn primary" onclick="openDatasetUpload('dripTotaal')">⭱ DRIP totaal (JSON) laden</button>
+      <button class="tb-btn primary" onclick="openDripMapDialog()">⭱ DRIP uit map lezen (CDMS)</button>
       <button class="tb-btn re-sec" onclick="wisDripHistorie()">Historie wissen</button>
     </div>`;
   h+=`<div class="calc-warn" style="margin-top:12px"><b>Kwaliteitsfilter.</b> ${H.episodesGenegeerd.toLocaleString('nl-NL')} losse alarmepisodes zijn niet als storingen gebruikt. ${H.duurUitgeslotenN.toLocaleString('nl-NL')} incidenten tellen wel mee voor de frequentie, maar niet voor kalibratie van de hersteltijd omdat ze open zijn, geen positieve duur hebben of langer dan 7 dagen duren zonder bevestigde UIT/AAN-status. De overige duren worden voor de MTTR op p95 begrensd${H.duurCapUren!=null?` op ${fmt(H.duurCapUren,1)} uur`:''}.</div>`;

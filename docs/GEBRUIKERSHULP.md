@@ -72,6 +72,15 @@ Naast een kant-en-klaar JSON-bestand kun je de ruwe storinglijsten rechtstreeks 
 
 Verdwijnt een MSI-storing uit de nieuwe momentopname, dan sluit BiDash die af op de peildatum van die lijst. De hersteltijd die daaruit volgt is een bovengrens: het herstel lag ergens tussen de vorige en de nieuwe lijst. Zo'n duur telt daarom niet mee in de herstelduurstatistiek en in de prognose, en wordt in memo's gemarkeerd als afgeleid. Laad je vaker een actuele lijst, dan worden die bovengrenzen scherper.
 
+### DRIP-storingshistorie: totaal-JSON of CDMS-map
+
+De DRIP-storingshistorie werkt op dezelfde manier. De losse XLSX/CSV DRIP-historie-upload is vervangen door twee bronkaarten in Datasetbeheer:
+
+- **DRIP totaal (JSON)**: één bestand met `datasets.drip` (DRIP-episodes en geclassificeerde storingen).
+- **DRIP uit map (CDMS)**: BiDash leest de ruwe DRIP-logs rechtstreeks. Net als bij de signaalgevers verschijnt eerst een klein venster waarin je **verkeerscentrale(s)**, optioneel een **periode** en optioneel een eerder **DRIP-totaal-JSON als basis** kiest. In **Edge of Chrome** mag je gewoon de **X-schijf** kiezen; BiDash daalt zelf alleen af in `cdms/<vc>/log/<jaar>/<maand>/<dag>` voor de gekozen regio en periode. Lukt de moderne mapkiezer niet, kies dan **`X:\cdms`** (niet heel X:). Na afloop kun je het resultaat als bijgewerkt DRIP-totaal-JSON downloaden om de volgende keer als basis te gebruiken.
+
+Beide bronnen koppelen de DRIP-incidenten op dezelfde manier aan het DRIP-areaal (eerst op CDMS-code, anders op weg, richting en hectometer) en voeden dezelfde DRIP Monte Carlo en dezelfde afleiding van open DRIP's uit historie. De aparte Windwaarschuwing- en RIA4-selectielijsten blijven bestaan.
+
 In de tabel **Brondekking bekijken en bevestigen** staat per assettype hoeveel open meldingen er in de actuele bron zitten. Staat er achter dat aantal een lager aantal *doorgerekend*, dan konden niet alle meldingen worden meegerekend: meestal omdat de melding geen locatie draagt of omdat er geen passende foutregel is. Die meldingen zie je wel op Open storingen.
 
 Zolang er nog een deel is doorgerekend, rekent BiDash met die meldingen door en voedt het type de dienstverlening; het beschikbaarheidspercentage is dan optimistisch (het verlies van de niet-doorgerekende meldingen zit er niet in), en het gat blijft zichtbaar in de tabel. Is er van een assettype géén enkele melding doorgerekend terwijl er wel open meldingen zijn, dan is de beschikbaarheid onbekend: BiDash laat dat type als band meetellen in plaats van het als volledig beschikbaar te presenteren. Zo telt een bevestigde bron met open storingen nooit stil als nul verlies mee.

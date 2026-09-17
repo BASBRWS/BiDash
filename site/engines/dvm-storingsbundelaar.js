@@ -410,8 +410,308 @@
     return {bestanden:bestanden.length,open:open.length,historie:historie.length,herkendOpen,herkendHist};
   }
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     DRIP / CDMS
+     Ruwe DRIP-logbestanden (X:/cdms/<vc>/log/<jaar>/<maand>/<dag>) zijn tab-
+     gescheiden gebeurtenisregels. Poort van verwerkDRIP uit de bundelaar-HTML
+     (v2.5). De episodeclassificatie deelt sbClassificeer met MTM. Het resultaat
+     (datasets.drip: episodes + storingen) loopt via dezelfde koppeling en
+     doorrekening als het DRIP-totaal JSON-bestand (pasDripBundelToe).
+     ══════════════════════════════════════════════════════════════════════════ */
+  function sbPadInfoDrip(pad){
+    const a=String(pad).replace(/\\/g,'/').toLowerCase().split('/').filter(Boolean);
+    let root=-1;for(let i=0;i<a.length;i++)if(a[i]==='cdms')root=i;
+    if(root<0)return null;
+    const vc=sbVcAlias(a[root+1]);if(!vc)return null;
+    if(a[root+2]!=='log')return null;
+    if(!/^20\d{2}$/.test(a[root+3]||''))return null;
+    const jaar=+a[root+3],maand=+(a[root+4]||'');if(!(maand>=1&&maand<=12))return null;
+    const d=sbGeldigeDatum(jaar,maand,+(a[root+5]||''));if(!d)return null;
+    if(a.length<root+7)return null; // er moet nog een bestandsnaam achter de dag staan
+    return {vc,jaar,maand,datum:d};
+  }
+  function sbDripBestandGeschikt(f){
+    const naam=String(f.name||'').toLowerCase();
+    if(!/\.(txt|log|dat|csv)$/.test(naam)&&/\.[a-z0-9]+$/.test(naam))return false;
+    return !!sbPadInfoDrip(sbPad(f));
+  }
+  /* Eén DRIP-logbestand → gebeurtenissen. status (2|1): toestand+waarde
+     URGENT/OK; power (2|6): waarde UIT/AAN. De kalenderdag komt uit het pad. */
+  function sbDripEventsUitTekst(text,vc,datum,padnaam){
+    const events=[],y=datum.getFullYear(),mo=datum.getMonth(),da=datum.getDate();
+    for(const regel of String(text).split(/\r?\n/)){
+      const p=regel.split('\t'),t=(p[0]||'').match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+      if(p.length<4||!t)continue;
+      const ts=new Date(y,mo,da,+t[1],+t[2],+t[3]),asset=String(p[3]||'').trim(),loc=String(p[4]||'').trim();
+      if(p[1]==='2'&&p[2]==='1'&&p.length>=8)events.push({vc,ts,asset,loc,type:'status',toestand:String(p[5]||'').trim().toUpperCase(),waarde:String(p[6]||'').trim().toUpperCase(),file:padnaam});
+      else if(p[1]==='2'&&p[2]==='6'&&p.length>=6)events.push({vc,ts,asset,loc,type:'power',toestand:'',waarde:String(p[5]||'').trim().toUpperCase(),file:padnaam});
+    }
+    return events;
+  }
+  /* Gebeurtenissen (alle bestanden) → episodes (open/dicht) + geclassificeerde
+     storingen. Wat aan het einde open blijft, krijgt kwaliteitsstatus 'open'. */
+  function sbBouwDripBundel(events,opties){
+    opties=Object.assign({langUur:4,minEpisodes:3,vensterMin:60},opties||{});
+    const lijst=[...events].sort((a,b)=>a.ts-b.ts);
+    const actief=new Map(),episodes=[];
+    for(const e of lijst){
+      const key=e.vc+'|'+e.asset+'|'+e.type+'|'+e.toestand;
+      const open=e.type==='status'?e.waarde==='URGENT':e.waarde==='UIT';
+      const dicht=e.type==='status'?e.waarde==='OK':e.waarde==='AAN';
+      if(open&&!actief.has(key))actief.set(key,e);
+      else if(dicht&&actief.has(key)){
+        const s=actief.get(key);actief.delete(key);
+        episodes.push({systeem:'drip',verkeerscentrale:e.vc,locatie:s.loc,asset:s.asset,asset_key:e.vc+'|'+s.asset,start:s.ts.toISOString(),einde_bewezen:e.ts.toISOString(),duur_min_uur:+((e.ts-s.ts)/3600000).toFixed(6),bron:e.type==='status'?'URGENT/OK':'UIT/AAN',bestanden:s.file+' | '+e.file});
+      }
+    }
+    for(const s of actief.values())episodes.push({systeem:'drip',verkeerscentrale:s.vc,locatie:s.loc,asset:s.asset,asset_key:s.vc+'|'+s.asset,start:s.ts.toISOString(),einde_bewezen:null,duur_min_uur:0,bron:s.type==='status'?'URGENT/OK':'UIT/AAN',kwaliteitsstatus:'open'});
+    const storingen=sbClassificeer(episodes,opties);
+    const open=episodes.filter(e=>e.kwaliteitsstatus==='open');
+    return {episodes,storingen,open};
+  }
+  function sbFilterDripBestanden(files,opties){
+    opties=opties||{};
+    const vcs=opties.vcs,vanaf=opties.vanaf?new Date(opties.vanaf+'T00:00:00'):null,tot=opties.tot?new Date(opties.tot+'T23:59:59'):null;
+    const uit=[];
+    for(const f of files){
+      if(!sbDripBestandGeschikt(f))continue;
+      const info=sbPadInfoDrip(sbPad(f));
+      if(vcs&&vcs.size&&!vcs.has(info.vc))continue;
+      if(vanaf&&info.datum<vanaf)continue;
+      if(tot&&info.datum>tot)continue;
+      uit.push(f);
+    }
+    return uit;
+  }
+  function sbCombineerMetDripBasis(basisDrip,nieuwEpisodes,nieuwStoringen,vcs){
+    basisDrip=basisDrip||{};
+    const vervang=r=>{const v=sbVcAlias(r&&r.verkeerscentrale);return vcs&&vcs.size?vcs.has(v):true;};
+    const basisEp=(Array.isArray(basisDrip.episodes)?basisDrip.episodes:[]).filter(r=>!vervang(r));
+    const basisSt=(Array.isArray(basisDrip.storingen)?basisDrip.storingen:[]).filter(r=>!vervang(r));
+    return {episodes:[...basisEp,...nieuwEpisodes],storingen:[...basisSt,...nieuwStoringen]};
+  }
+  function sbDripWatermerken(drip){
+    drip=drip||{};const uit={};
+    const bekijk=arr=>{for(const r of (Array.isArray(arr)?arr:[])){const v=sbVcAlias(r&&r.verkeerscentrale);if(!v)continue;let d='';for(const veld of ['einde_bewezen','start']){const w=String(r[veld]||'').slice(0,10);if(/^\d{4}-\d{2}-\d{2}$/.test(w)&&w>d)d=w;}if(d&&(!uit[v]||d>uit[v]))uit[v]=d;}};
+    bekijk(drip.storingen);bekijk(drip.episodes);
+    return uit;
+  }
+  /* Maptraversal voor DRIP: root → cdms → vc → log → jaar → maand → dag. */
+  function sgVolgendeCtxDrip(ctx,laag,config){
+    const vcs=config.vcs;
+    switch(ctx.fase){
+      case 'root': return laag==='cdms'?{fase:'cdms',vc:''}:null;
+      case 'cdms': {const v=sbVcAlias(laag);return v&&(!vcs||!vcs.size||vcs.has(v))?{fase:'vc',vc:v}:null;}
+      case 'vc': return laag==='log'?{fase:'log',vc:ctx.vc}:null;
+      case 'log': return /^20\d{2}$/.test(laag)&&!sgBuitenPeriode(+laag,null,null,config)?{fase:'jaar',vc:ctx.vc,jaar:+laag}:null;
+      case 'jaar': {const m=+laag;return /^\d{1,2}$/.test(laag)&&m>=1&&m<=12&&!sgBuitenPeriode(ctx.jaar,m,null,config)?{fase:'maand',vc:ctx.vc,jaar:ctx.jaar,maand:m}:null;}
+      case 'maand': {const d=+laag;return /^\d{1,2}$/.test(laag)&&sbGeldigeDatum(ctx.jaar,ctx.maand,d)&&!sgBuitenPeriode(ctx.jaar,ctx.maand,d,config)?{fase:'dag',vc:ctx.vc,jaar:ctx.jaar,maand:ctx.maand,dag:d}:null;}
+      case 'dag': return {fase:'dag',vc:ctx.vc,jaar:ctx.jaar,maand:ctx.maand,dag:ctx.dag};
+      default: return null;
+    }
+  }
+  async function sgVerzamelViaHandleDrip(dirHandle,config,onVoortgang){
+    const startNaam=String(dirHandle.name||'').toLowerCase();
+    let startFase='root';
+    if(startNaam==='cdms')startFase='cdms';
+    else if(sbVcAlias(startNaam))startFase='vc';
+    else if(startNaam==='log')startFase='log';
+    const files=[],stack=[{h:dirHandle,ctx:{fase:startFase,vc:sbVcAlias(startNaam)||''}}];
+    let mappen=0;
+    while(stack.length){
+      const {h,ctx}=stack.pop();mappen++;
+      for await(const [naam,kind] of h.entries()){
+        if(kind.kind==='directory'){
+          const volgende=sgVolgendeCtxDrip(ctx,String(naam).toLowerCase(),config);
+          if(volgende)stack.push({h:kind,ctx:volgende});
+        }else if(ctx.fase==='dag'){
+          files.push({name:naam,_handle:kind,_pad:'cdms/'+ctx.vc+'/log/'+ctx.jaar+'/'+ctx.maand+'/'+ctx.dag+'/'+naam});
+        }
+      }
+      if(mappen%15===0){if(onVoortgang)onVoortgang(mappen,files.length);await new Promise(r=>setTimeout(r));}
+    }
+    if(onVoortgang)onVoortgang(mappen,files.length);
+    return files;
+  }
+
+  /* Configuratiedialoog voor DRIP (regio/periode/basis), parallel aan MTM. */
+  function openDripMapDialog(){
+    if(typeof ASSET_REGISTER_STATE==='undefined'||!ASSET_REGISTER_STATE){alert('Laad eerst All Assets. De DRIP-map wordt rechtstreeks aan dat stamregister gekoppeld.');return;}
+    let dlg=document.getElementById('dgMapDialog');
+    if(!dlg){
+      dlg=document.createElement('dialog');dlg.id='dgMapDialog';
+      dlg.style.cssText='max-width:520px;border:1px solid #d4dbe2;border-radius:10px;padding:0';
+      dlg.innerHTML=`<form method="dialog" style="padding:18px 20px;font:13px/1.5 inherit">
+        <h3 style="margin:0 0 4px">DRIP-storingen uit map lezen (CDMS)</h3>
+        <p style="margin:0 0 10px;color:#566574">Beperk wat er in één keer wordt gelezen. Kies eerst regio('s) en eventueel een periode; kies daarna de map. In Edge/Chrome mag je gewoon de X-schijf kiezen — BiDash daalt zelf alleen af in <code>cdms</code> en de gekozen regio/periode. Lukt de moderne mapkiezer niet, kies dan <b>X:\\cdms</b> (niet heel X:), anders leest de browser de hele schijf in.</p>
+        <div id="dgHuidig" style="margin:0 0 10px;padding:8px 10px;background:#f0f6fb;border:1px solid #cfe0ee;border-radius:6px;font-size:12px"></div>
+        <fieldset style="border:1px solid #d4dbe2;border-radius:6px;margin:0 0 10px;padding:8px 10px"><legend style="font-weight:700">Verkeerscentrales</legend>
+          ${SG_VCS.map(([v,l])=>`<label style="display:inline-block;margin:3px 14px 3px 0"><input type="checkbox" class="dgVc" value="${v}"> ${l}</label>`).join('')}
+        </fieldset>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px">
+          <label>Vanaf<br><input type="date" id="dgVanaf" style="padding:6px;border:1px solid #9ca8b4;border-radius:5px"></label>
+          <label>Tot en met<br><input type="date" id="dgTot" style="padding:6px;border:1px solid #9ca8b4;border-radius:5px"></label>
+        </div>
+        <label style="display:block;margin-bottom:6px">Optioneel basisbestand (eerder DRIP-totaal JSON, alleen de gekozen regio's worden bijgewerkt)<br><input type="file" id="dgBasis" accept=".json"></label>
+        <p id="dgBasisInfo" style="margin:0 0 10px;font-size:12px;color:#107c10;min-height:15px"></p>
+        <p id="dgMapMelding" style="color:#a4262c;min-height:16px;margin:0 0 10px"></p>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button type="button" id="dgMapAnnuleer" class="tb-btn" style="background:#e5e9ed;color:#1f2933;border-color:#cfd6dd">Annuleren</button>
+          <button type="button" id="dgMapVerder" class="tb-btn primary">Map kiezen en verwerken</button>
+        </div></form>`;
+      document.body.appendChild(dlg);
+      dlg.querySelector('#dgMapAnnuleer').addEventListener('click',()=>dlg.close());
+      dlg.querySelector('#dgBasis').addEventListener('change',async e=>{
+        const info=dlg.querySelector('#dgBasisInfo'),f=e.target.files[0];
+        if(!f){info.textContent='';return;}
+        info.style.color='#566574';info.textContent='Basisbestand lezen…';
+        try{const j=JSON.parse(await f.text());const wm=sbDripWatermerken((j&&j.datasets&&j.datasets.drip)||{});info.style.color='#107c10';info.textContent='Basis geladen. Laatste datum per regio: '+sbWatermerkTekst(wm)+'.';}
+        catch(err){info.style.color='#a4262c';info.textContent='Het basisbestand is geen geldige JSON.';}
+      });
+      dlg.querySelector('#dgMapVerder').addEventListener('click',async()=>{
+        const vcs=new Set([...dlg.querySelectorAll('.dgVc:checked')].map(x=>x.value));
+        const melding=dlg.querySelector('#dgMapMelding');
+        if(!vcs.size){melding.textContent='Kies minstens één verkeerscentrale.';return;}
+        const vanaf=dlg.querySelector('#dgVanaf').value||null,tot=dlg.querySelector('#dgTot').value||null;
+        if(vanaf&&tot&&vanaf>tot){melding.textContent='De begindatum ligt na de einddatum.';return;}
+        const config={vcs,vanaf,tot};
+        const basisFile=dlg.querySelector('#dgBasis').files[0];
+        if(basisFile){
+          try{const j=JSON.parse(await basisFile.text());config.basisDrip=(j&&j.datasets&&j.datasets.drip)||{};}
+          catch(err){melding.textContent='Het basisbestand is geen geldige JSON.';return;}
+        }
+        window.__BIDASH_DG_MAP_CONFIG__=config;
+        if(sgHeeftDirPicker()){
+          let dir=null;
+          try{dir=await window.showDirectoryPicker({mode:'read',id:'bidash-cdms'});}
+          catch(err){if(err&&err.name==='AbortError'){return;}dir=null;}
+          if(dir){
+            dlg.close();
+            try{
+              dgMapVoortgang(1,'Map doorzoeken (alleen cdms en de gekozen regio/periode)…');
+              const files=await sgVerzamelViaHandleDrip(dir,config,(m,f)=>dgMapVoortgang(Math.min(30,1+m/40),`Map doorzoeken: ${m.toLocaleString('nl-NL')} mappen bekeken, ${f.toLocaleString('nl-NL')} bestanden gevonden`));
+              await leesDripMap(files,config);
+            }catch(err){if(!document.getElementById('dgMapProgress'))alert('Mislukt: '+(err&&err.message||err));}
+            return;
+          }
+        }
+        dlg.close();
+        const input=document.getElementById('dripMapInput');
+        if(input)input.click();else alert('De mapkeuze is niet beschikbaar.');
+      });
+    }else{dlg.querySelector('#dgMapMelding').textContent='';dlg.querySelector('#dgBasisInfo').textContent='';}
+    const huidig=dlg.querySelector('#dgHuidig');
+    const s=window.__BIDASH_DRIP_TOTAAL__;
+    if(s&&s.incidenten){
+      const dat=t=>t?new Date(t).toLocaleDateString('nl-NL'):'onbekend';
+      const perVc=s.laatstePerVc&&Object.keys(s.laatstePerVc).length?Object.entries(s.laatstePerVc).sort().map(([v,t])=>v.toUpperCase()+' '+dat(t)).join(', '):'—';
+      huidig.style.display='';
+      huidig.innerHTML=`<b>Nu geladen:</b> ${s.bestand||'DRIP-bron'} · ${Number(s.incidenten).toLocaleString('nl-NL')} incidenten · laatste entry ${dat(s.laatsteEntry)}.<br>Per regio: ${perVc}.`;
+    }else{huidig.style.display='none';huidig.textContent='';}
+    dlg.showModal();
+  }
+  function dgMapVenster(){
+    let dlg=document.getElementById('dgMapProgress');
+    if(dlg)return dlg;
+    dlg=document.createElement('dialog');dlg.id='dgMapProgress';
+    dlg.style.cssText='max-width:460px;border:1px solid #d4dbe2;border-radius:10px;padding:0';
+    dlg.innerHTML=`<div style="padding:18px 20px;font:13px/1.5 inherit">
+      <h3 style="margin:0 0 8px">DRIP-storingen uit map lezen</h3>
+      <div id="dgPBalk" style="height:16px;border:1px solid #cfd6dd;border-radius:8px;background:#eef2f5;overflow:hidden"><div id="dgPVul" style="height:100%;width:0;background:#0078d4;transition:width .2s"></div></div>
+      <p id="dgPFase" style="margin:8px 0 0;color:#1f2933" role="status" aria-live="polite">Voorbereiden…</p>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button type="button" id="dgPDownload" class="tb-btn primary" hidden>⭳ Download bijgewerkte JSON</button><button type="button" id="dgPSluit" class="tb-btn" style="background:#e5e9ed;color:#1f2933;border-color:#cfd6dd" hidden>Sluiten</button></div>
+    </div>`;
+    document.body.appendChild(dlg);
+    dlg.querySelector('#dgPSluit').addEventListener('click',()=>dlg.close());
+    dlg.querySelector('#dgPDownload').addEventListener('click',()=>dgDownloadExport());
+    return dlg;
+  }
+  function dgMapVoortgang(pct,fase){
+    const dlg=dgMapVenster();if(!dlg.open)dlg.showModal();
+    const vul=dlg.querySelector('#dgPVul'),f=dlg.querySelector('#dgPFase'),sluit=dlg.querySelector('#dgPSluit'),dl=dlg.querySelector('#dgPDownload');
+    sluit.hidden=true;dl.hidden=true;vul.style.background='#0078d4';
+    if(pct!=null)vul.style.width=Math.max(0,Math.min(100,pct))+'%';
+    if(fase!=null)f.textContent=fase;
+  }
+  function dgMapVoltooid(tekst,fout){
+    const dlg=dgMapVenster();if(!dlg.open)dlg.showModal();
+    const vul=dlg.querySelector('#dgPVul'),f=dlg.querySelector('#dgPFase'),sluit=dlg.querySelector('#dgPSluit'),dl=dlg.querySelector('#dgPDownload');
+    vul.style.width='100%';vul.style.background=fout?'#a4262c':'#107c10';
+    f.style.color=fout?'#a4262c':'#1f2933';f.textContent=tekst;sluit.hidden=false;
+    dl.hidden=!(dgLaatsteExport&&!fout);
+  }
+  let dgLaatsteExport=null;
+  function dgDownloadExport(){
+    if(!dgLaatsteExport)return;
+    try{
+      const blob=new Blob([JSON.stringify(dgLaatsteExport.data)],{type:'application/json'});
+      const url=URL.createObjectURL(blob),a=document.createElement('a');
+      a.href=url;a.download=dgLaatsteExport.naam;document.body.appendChild(a);a.click();
+      setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},3000);
+    }catch(err){alert('Downloaden mislukt: '+(err&&err.message||err));}
+  }
+  async function leesDripMap(fileList,config){
+    try{return await leesDripMapKern(fileList,config);}
+    catch(err){dgMapVoltooid('Mislukt: '+(err&&err.message||err),true);throw err;}
+  }
+  async function leesDripMapKern(fileList,config){
+    config=config||window.__BIDASH_DG_MAP_CONFIG__||{};
+    if(typeof ASSET_REGISTER_STATE==='undefined'||!ASSET_REGISTER_STATE){alert('Laad eerst All Assets. De DRIP-map wordt rechtstreeks aan dat stamregister gekoppeld.');if(typeof renderDataGereedheid==='function')renderDataGereedheid();return;}
+    const alle=[...(fileList||[])];
+    const bestanden=sbFilterDripBestanden(alle,config);
+    const regios=config.vcs&&config.vcs.size?[...config.vcs].map(v=>v.toUpperCase()).join(', '):'alle';
+    const periode=config.vanaf||config.tot?` (${config.vanaf||'begin'} t/m ${config.tot||'nu'})`:'';
+    if(!bestanden.length)throw new Error(`geen DRIP-logbestanden gevonden voor regio ${regios}${periode}. Van de ${alle.length.toLocaleString('nl-NL')} gekozen bestanden viel er geen onder cdms/<vc>/log/<jaar>/<maand>/<dag> met de gekozen regio en periode. Controleer de map (kies de X-hoofdmap of de cdms-map), de regiokeuze en de periode.`);
+    const label='DRIP uit map ('+bestanden.length.toLocaleString('nl-NL')+' bestanden)';
+    const startFase=`${bestanden.length.toLocaleString('nl-NL')} van ${alle.length.toLocaleString('nl-NL')} bestanden geselecteerd voor ${regios}${periode}; DRIP-logs lezen`;
+    dgMapVoortgang(2,startFase);
+    if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,2,startFase,{direct:true});
+    if(typeof uiPauze==='function')await uiPauze();
+    const events=[];
+    for(let n=0;n<bestanden.length;n++){
+      const f=bestanden[n],info=sbPadInfoDrip(sbPad(f));
+      let text;
+      try{text=await sbLeesTekst(f);}catch(err){continue;}
+      const eigen=sbDripEventsUitTekst(text,info.vc,info.datum,sbPad(f));
+      for(const e of eigen)events.push(e);
+      if(n%25===0){
+        const pct=2+68*(n+1)/bestanden.length,fase=`DRIP-logs lezen: ${(n+1).toLocaleString('nl-NL')} / ${bestanden.length.toLocaleString('nl-NL')}`;
+        dgMapVoortgang(pct,fase);
+        if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,pct,fase,{direct:true});
+        if(typeof uiPauze==='function')await uiPauze();
+      }
+    }
+    if(!events.length)throw new Error('de gevonden bestanden bevatten geen herkenbare DRIP-gebeurtenissen (tab-gescheiden statusregels). Controleer of dit CDMS-logbestanden zijn.');
+    dgMapVoortgang(74,'DRIP-episodes en storingen reconstrueren…');
+    if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,74,'DRIP-episodes en storingen reconstrueren',{direct:true});
+    if(typeof uiPauze==='function')await uiPauze();
+    const bundel=sbBouwDripBundel(events,{});
+    const gecombineerd=config.basisDrip
+      ?sbCombineerMetDripBasis(config.basisDrip,bundel.episodes,bundel.storingen,config.vcs)
+      :{episodes:bundel.episodes,storingen:bundel.storingen};
+    const tijdstip=new Date(),z=n=>String(n).padStart(2,'0');
+    const stempel=`${tijdstip.getFullYear()}${z(tijdstip.getMonth()+1)}${z(tijdstip.getDate())}_${z(tijdstip.getHours())}${z(tijdstip.getMinutes())}`;
+    dgLaatsteExport={data:{metadata:{versie:'2.5',herkomst:'bidash-maplezer',aangemaakt:tijdstip.toISOString(),watermarks:{drip:sbDripWatermerken(gecombineerd)}},datasets:{drip:gecombineerd}},naam:`DRIP_totaal_bidash_${stempel}.json`};
+    dgMapVoortgang(88,'DRIP-incidenten aan All Assets koppelen en doorrekenen…');
+    if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,86,'DRIP-incidenten aan All Assets koppelen',{direct:true});
+    if(typeof uiPauze==='function')await uiPauze();
+    const naam='DRIP uit map ('+regios+')';
+    const {incidenten,gekoppeldeIncidenten,laatsteEntry}=await pasDripBundelToe(naam,gecombineerd,'maplezen');
+    window.__BIDASH_DG_MAP_CONFIG__=null;
+    const laatste=laatsteEntry?new Date(laatsteEntry).toLocaleDateString('nl-NL'):'onbekend';
+    const klaarTekst=`Klaar (${regios}): ${bestanden.length.toLocaleString('nl-NL')} bestanden → ${Number(incidenten).toLocaleString('nl-NL')} incidenten (${Number(gekoppeldeIncidenten).toLocaleString('nl-NL')} gekoppeld). Laatste entry ${laatste}.`;
+    dgMapVoltooid(incidenten&&!gekoppeldeIncidenten?klaarTekst+' Let op: geen enkel incident kon aan een DRIP-asset worden gekoppeld.':klaarTekst,incidenten&&!gekoppeldeIncidenten);
+    if(typeof importKlaar==='function')importKlaar(label,'DRIP uit map gelezen. '+klaarTekst+' Vervangt de losse DRIP-storingshistorie.');
+    try{if(typeof renderDatasetBeheer==='function')renderDatasetBeheer();}catch(err){}
+    try{if(parent!==window)parent.postMessage({type:'hub:changed',engine:'dvm',sourceSpecific:true,bron:'dripMap'},location.origin);}catch(err){}
+    return {bestanden:bestanden.length,incidenten,gekoppeldeIncidenten};
+  }
+
   // Globaal beschikbaar voor de source-manager en de test.
   window.leesSignaalgeverMap=leesSignaalgeverMap;
   window.openSignaalgeverMapDialog=openSignaalgeverMapDialog;
-  window.__BIDASH_STORINGSBUNDELAAR__={sbVcAlias,sbParseDT,sbLocatie,sbMtmCategorie,sbSnapshotDatum,sbMtmRijenUitTekst,sbClassificeer,sbBouwBundel,sbPadInfoMtm,sbBestandGeschikt,sbFilterBestanden,sbCombineerMetBasis};
+  window.leesDripMap=leesDripMap;
+  window.openDripMapDialog=openDripMapDialog;
+  window.__BIDASH_STORINGSBUNDELAAR__={sbVcAlias,sbParseDT,sbLocatie,sbMtmCategorie,sbSnapshotDatum,sbMtmRijenUitTekst,sbClassificeer,sbBouwBundel,sbPadInfoMtm,sbBestandGeschikt,sbFilterBestanden,sbCombineerMetBasis,
+    sbPadInfoDrip,sbDripBestandGeschikt,sbDripEventsUitTekst,sbBouwDripBundel,sbFilterDripBestanden,sbCombineerMetDripBasis,sbDripWatermerken,sgVolgendeCtxDrip};
 })();
