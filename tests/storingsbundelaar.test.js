@@ -45,7 +45,7 @@ function haalFoutcodes(){
 const ctx=vm.createContext({Number,String,Object,Array,Math,Date,Set,Map,parseFloat,parseInt,isNaN,isFinite,console,RegExp,TextDecoder,RULES:{foutcodes:haalFoutcodes()}});
 // Module-lokale constanten en helpers uit de bundelaar meenemen.
 vm.runInContext(`const MSI_DEGRADATIE=new Set(['1001','1002','1061','6002']);const DETECTOR_CODES=new Set(['1005','1006','1007','1008','4017','4019','5004']);const SYSTEEM_CODES=new Set(['1011','2001','4006','4014','4015','4020','4021','4023','4027','6005']);`,ctx);
-for(const naam of ['sbGroupBy','sbVcAlias','sbGeldigeDatum','sbParseDT','sbMediaan','sbLocatie','sbMtmCategorie','sbSnapshotDatum','sbMtmRijenUitTekst','sbClassificeer','sbBouwBundel','sbPadInfoMtm','sbPad','sbBestandGeschikt','sbFilterBestanden','sbCombineerMetBasis','sbWatermerken'])
+for(const naam of ['sbGroupBy','sbVcAlias','sbGeldigeDatum','sbParseDT','sbMediaan','sbLocatie','sbMtmCategorie','sbSnapshotDatum','sbMtmRijenUitTekst','sbClassificeer','sbBouwBundel','sbPadInfoMtm','sbPad','sbBestandGeschikt','sbFilterBestanden','sbCombineerMetBasis','sbWatermerken','sgBuitenPeriode','sgVolgendeCtx'])
   vm.runInContext(haalFunctie(bundelaar,naam),ctx,{filename:naam});
 // Mapping + classificeer uit dvm-2/3 voor deel E.
 for(const naam of ['lc','num','parseDatum','normAssetRichting','normRij','classificeer'])
@@ -151,6 +151,23 @@ test('H. de watermerken tonen de laatste datum per regio',()=>{
   const wm=call('sbWatermerken',mtm);
   assert.equal(wm.zwn,'2026-09-16'); // nieuwste uit alarm_episodes
   assert.equal(wm.nwn,'2026-08-17');
+});
+
+test('I. de maptraversal snoeit buiten mtm en buiten de regio/periode',()=>{
+  const leeg={vcs:new Set(['zwn'])};
+  // Vanaf root wordt alleen mtm geopend, niet cdms/miriam/etc.
+  assert.equal(call('sgVolgendeCtx',{fase:'root'},'mtm',leeg).fase,'mtm');
+  assert.equal(call('sgVolgendeCtx',{fase:'root'},'cdms',leeg),null);
+  assert.equal(call('sgVolgendeCtx',{fase:'root'},'miriam',leeg),null);
+  // Onder mtm alleen de gekozen verkeerscentrale.
+  assert.equal(call('sgVolgendeCtx',{fase:'mtm'},'zwn',leeg).vc,'zwn');
+  assert.equal(call('sgVolgendeCtx',{fase:'mtm'},'nwn',leeg),null);
+  assert.equal(call('sgVolgendeCtx',{fase:'vc',vc:'zwn'},'storinglijst',leeg).fase,'storinglijst');
+  assert.equal(call('sgVolgendeCtx',{fase:'vc',vc:'zwn'},'iets-anders',leeg),null);
+  // Periode snoeit jaren buiten bereik.
+  const per={vcs:new Set(['zwn']),vanaf:'2026-08-01'};
+  assert.equal(call('sgVolgendeCtx',{fase:'storinglijst',vc:'zwn'},'2025',per),null);
+  assert.equal(call('sgVolgendeCtx',{fase:'storinglijst',vc:'zwn'},'2026',per).jaar,2026);
 });
 
 test('E. de bundeluitvoer wordt door de schema-tolerante mapping als MSI herkend',()=>{

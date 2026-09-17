@@ -2,15 +2,20 @@
 
 Datum: 17 september 2026
 
-Versie: BiDash 2.14, DVM 91
+Versie: BiDash 2.14, DVM 92
 
 ## Toegevoegd
 
 - BiDash kan de ruwe **MTM-storinglijsten** nu rechtstreeks uit een map lezen
   (`X:/mtm/<vc>/storinglijst/<jaar>/<maand>/<dag>`), naast het gecombineerde
   JSON-bestand. In Datasetbeheer staat hiervoor een eigen kaart **Signaalgevers uit
-  map (MTM)** met een mapkeuze (directory-invoer). Het resultaat vult dezelfde bron
-  als *Signaalgevers totaal* en vervangt de losse Open storingen en Storingshistorie.
+  map (MTM)**. Het resultaat vult dezelfde bron als *Signaalgevers totaal* en vervangt
+  de losse Open storingen en Storingshistorie.
+- **Gerichte mapkeuze**: in Edge/Chrome gebruikt BiDash `showDirectoryPicker` en daalt
+  het zelf alleen af in `mtm/<gekozen regio>/storinglijst/<gekozen periode>` — de rest
+  van de (enorme) X-schijf wordt tijdens het aflopen gesnoeid, dus je mag gewoon de
+  X-schijf kiezen. Lukt die moderne mapkiezer niet, dan valt BiDash terug op de gewone
+  mapinvoer; kies dan `X:\mtm` (niet heel X:), want die leest de hele gekozen map in.
 - Voor het lezen opent een **configuratiedialoog**: kies één of meer
   **verkeerscentrales**, optioneel een **periode** (vanaf/tot) en optioneel een
   **basisbestand** (eerder totaal-JSON). Zo wordt niet in één keer te veel gelezen en
@@ -79,24 +84,26 @@ doorrekening leeg bleef.
 
 ## Beperkingen
 
-- De mapkeuze gebruikt `webkitdirectory` en werkt in Chromium/Edge; de parsing zelf
-  is browseronafhankelijk.
+- De gerichte mapkeuze gebruikt `showDirectoryPicker` (Edge/Chrome, beveiligde
+  context). Waar die niet beschikbaar is, geldt de `webkitdirectory`-terugval die de
+  hele gekozen map inleest; kies dan `X:\mtm` en niet heel X:. De parsing zelf is
+  browseronafhankelijk.
 - Alleen MTM (signaalgevers) wordt uit de map gelezen; DRIP blijft via de eigen
   bronnen.
 
 ## Controle
 
-- `tests/storingsbundelaar.test.js` toegevoegd, 8 tests, die de verzonden pure
+- `tests/storingsbundelaar.test.js` toegevoegd, 9 tests, die de verzonden pure
   functies uit `dvm-storingsbundelaar.js` op synthetische storinglijsten uitvoeren
   (parseren, alarmruns sluiten/openhouden, classificeren, padvalidatie, regio-/
   periodefilter, basiscombinatie, watermerken) en de bundeluitvoer via de schema-
   tolerante mapping als MSI laten herkennen.
-- DVM-versie 86 → 91, met de assertions in `tests/dvm-restore-policy.test.js`,
+- DVM-versie 86 → 92, met de assertions in `tests/dvm-restore-policy.test.js`,
   `tests/drip-special-lists.test.js` en `tests/versiebalk.test.js`. Schilversie blijft
   2.14. De maplezer kreeg een eigen bronkaart met een gele (`primary`) knop; de eerste
   opzet gebruikte een tweede knop met de standaard `tb-btn`-stijl (witte tekst op een
   witte kaart), waardoor die onzichtbaar was.
-- Volledige Node-suite geslaagd (244 tests). Browsersuites `browser.cjs` en
+- Volledige Node-suite geslaagd (245 tests). Browsersuites `browser.cjs` en
   `planning-formation.cjs` geslaagd. JavaScript-syntaxcontrole geslaagd.
 
 ## Niet getest

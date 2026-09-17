@@ -118,8 +118,59 @@
     catch(err){try{return new TextDecoder('windows-1252').decode(buffer);}catch(e){return new TextDecoder('utf-8').decode(buffer);}}
   }
   async function sbLeesTekst(file){
-    if(typeof leesBlobAlsArrayBuffer==='function')return sbDecode(await leesBlobAlsArrayBuffer(file,20000,'een storingsbestand kon niet op tijd worden gelezen'));
-    return sbDecode(await file.arrayBuffer());
+    const bron=file&&file._handle?await file._handle.getFile():file;
+    if(typeof leesBlobAlsArrayBuffer==='function')return sbDecode(await leesBlobAlsArrayBuffer(bron,20000,'een storingsbestand kon niet op tijd worden gelezen'));
+    return sbDecode(await bron.arrayBuffer());
+  }
+  /* ── Mapkeuze via de File System Access API (showDirectoryPicker) ──────────────
+     Loopt alleen mtm/<gekozen vc>/storinglijst/<gekozen periode> af en snoeit de rest
+     (cdms, andere systemen, jaren/maanden buiten de periode) tijdens het aflopen, zodat
+     de enorme X-schijf niet volledig wordt gelezen. Levert bestand-achtige objecten met
+     een _handle en een _pad, zodat de bestaande filter- en leesroute werkt. */
+  function sgHeeftDirPicker(){try{return typeof window.showDirectoryPicker==='function';}catch(e){return false;}}
+  function sgBuitenPeriode(jaar,maand,dag,config){
+    const vanaf=config.vanaf?new Date(config.vanaf+'T00:00:00'):null,tot=config.tot?new Date(config.tot+'T23:59:59'):null;
+    let a,b;
+    if(dag!=null){a=new Date(jaar,maand-1,dag);b=new Date(jaar,maand-1,dag,23,59,59);}
+    else if(maand!=null){a=new Date(jaar,maand-1,1);b=new Date(jaar,maand,0,23,59,59);}
+    else{a=new Date(jaar,0,1);b=new Date(jaar,11,31,23,59,59);}
+    return (tot&&a>tot)||(vanaf&&b<vanaf);
+  }
+  function sgVolgendeCtx(ctx,laag,config){
+    const vcs=config.vcs;
+    switch(ctx.fase){
+      case 'root': return laag==='mtm'?{fase:'mtm',vc:''}:null;
+      case 'mtm': {const v=sbVcAlias(laag);return v&&(!vcs||!vcs.size||vcs.has(v))?{fase:'vc',vc:v}:null;}
+      case 'vc': return laag==='storinglijst'?{fase:'storinglijst',vc:ctx.vc}:null;
+      case 'storinglijst': return /^20\d{2}$/.test(laag)&&!sgBuitenPeriode(+laag,null,null,config)?{fase:'jaar',vc:ctx.vc,jaar:+laag}:null;
+      case 'jaar': {const m=+laag;return /^\d{1,2}$/.test(laag)&&m>=1&&m<=12&&!sgBuitenPeriode(ctx.jaar,m,null,config)?{fase:'maand',vc:ctx.vc,jaar:ctx.jaar,maand:m}:null;}
+      case 'maand': {const d=+laag;return /^\d{1,2}$/.test(laag)&&sbGeldigeDatum(ctx.jaar,ctx.maand,d)&&!sgBuitenPeriode(ctx.jaar,ctx.maand,d,config)?{fase:'dag',vc:ctx.vc,jaar:ctx.jaar,maand:ctx.maand,dag:d}:null;}
+      case 'dag': return {fase:'dag',vc:ctx.vc,jaar:ctx.jaar,maand:ctx.maand,dag:ctx.dag};
+      default: return null;
+    }
+  }
+  async function sgVerzamelViaHandle(dirHandle,config,onVoortgang){
+    const startNaam=String(dirHandle.name||'').toLowerCase();
+    let startFase='root';
+    if(startNaam==='mtm')startFase='mtm';
+    else if(sbVcAlias(startNaam))startFase='vc';
+    else if(startNaam==='storinglijst')startFase='storinglijst';
+    const files=[],stack=[{h:dirHandle,ctx:{fase:startFase,vc:sbVcAlias(startNaam)||''}}];
+    let mappen=0;
+    while(stack.length){
+      const {h,ctx}=stack.pop();mappen++;
+      for await(const [naam,kind] of h.entries()){
+        if(kind.kind==='directory'){
+          const volgende=sgVolgendeCtx(ctx,String(naam).toLowerCase(),config);
+          if(volgende)stack.push({h:kind,ctx:volgende});
+        }else if(ctx.fase==='dag'){
+          files.push({name:naam,_handle:kind,_pad:'mtm/'+ctx.vc+'/storinglijst/'+ctx.jaar+'/'+ctx.maand+'/'+ctx.dag+'/'+naam});
+        }
+      }
+      if(mappen%15===0){if(onVoortgang)onVoortgang(mappen,files.length);await new Promise(r=>setTimeout(r));}
+    }
+    if(onVoortgang)onVoortgang(mappen,files.length);
+    return files;
   }
   /* Selecteer alleen de bestanden voor de gekozen regio's en periode. Zo wordt niet
      in één keer de hele X-schijf gelezen. vcs is een Set met vc-codes (leeg = alle). */
@@ -170,7 +221,7 @@
       dlg.style.cssText='max-width:520px;border:1px solid #d4dbe2;border-radius:10px;padding:0';
       dlg.innerHTML=`<form method="dialog" style="padding:18px 20px;font:13px/1.5 inherit">
         <h3 style="margin:0 0 4px">Signaalgevers uit map lezen (MTM)</h3>
-        <p style="margin:0 0 10px;color:#566574">Beperk wat er in één keer wordt gelezen. Kies eerst regio('s) en eventueel een periode; kies daarna de X-hoofdmap of de mtm-map.</p>
+        <p style="margin:0 0 10px;color:#566574">Beperk wat er in één keer wordt gelezen. Kies eerst regio('s) en eventueel een periode; kies daarna de map. In Edge/Chrome mag je gewoon de X-schijf kiezen — BiDash daalt zelf alleen af in <code>mtm</code> en de gekozen regio/periode. Lukt de moderne mapkiezer niet, kies dan <b>X:\\mtm</b> (niet heel X:), anders leest de browser de hele schijf in.</p>
         <div id="sgHuidig" style="margin:0 0 10px;padding:8px 10px;background:#f0f6fb;border:1px solid #cfe0ee;border-radius:6px;font-size:12px"></div>
         <fieldset style="border:1px solid #d4dbe2;border-radius:6px;margin:0 0 10px;padding:8px 10px"><legend style="font-weight:700">Verkeerscentrales</legend>
           ${SG_VCS.map(([v,l])=>`<label style="display:inline-block;margin:3px 14px 3px 0"><input type="checkbox" class="sgVc" value="${v}"> ${l}</label>`).join('')}
@@ -208,6 +259,24 @@
           catch(err){melding.textContent='Het basisbestand is geen geldige JSON.';return;}
         }
         window.__BIDASH_SG_MAP_CONFIG__=config;
+        /* Voorkeur: showDirectoryPicker, die alleen mtm/<vc>/<periode> afloopt en de
+           rest van X: overslaat. Terugval: de webkitdirectory-invoer (leest de hele
+           gekozen map; kies dan X:\\mtm en niet heel X:). */
+        if(sgHeeftDirPicker()){
+          let dir=null;
+          try{dir=await window.showDirectoryPicker({mode:'read',id:'bidash-mtm'});}
+          catch(err){if(err&&err.name==='AbortError'){return;}dir=null;}
+          if(dir){
+            dlg.close();
+            try{
+              sgMapVoortgang(1,'Map doorzoeken (alleen mtm en de gekozen regio/periode)…');
+              const files=await sgVerzamelViaHandle(dir,config,(m,f)=>sgMapVoortgang(Math.min(30,1+m/40),`Map doorzoeken: ${m.toLocaleString('nl-NL')} mappen bekeken, ${f.toLocaleString('nl-NL')} bestanden gevonden`));
+              await leesSignaalgeverMap(files,config);
+            }catch(err){/* leesSignaalgeverMap toont de fout al in het venster */if(!document.getElementById('sgMapProgress'))alert('Mislukt: '+(err&&err.message||err));}
+            return;
+          }
+          // dir null (geblokkeerd in deze context): val terug op de mapinvoer.
+        }
         dlg.close();
         const input=document.getElementById('signaalgeverMapInput');
         if(input)input.click();else alert('De mapkeuze is niet beschikbaar.');
