@@ -706,8 +706,18 @@ function pasSignaalgeverBundelToe(bestandsnaam,open,historie,versie){
   probeerAnalyseActiveren('prognose',{inspectieAlGereed:true,matchAlGereed:true});
   const herkendOpen=(LIVE_STORINGS_INSPECTIE&&LIVE_STORINGS_INSPECTIE.herkenbaar)||0;
   const herkendHist=(STORINGS_INSPECTIE&&STORINGS_INSPECTIE.herkenbaar)||0;
-  window.__BIDASH_SIGNAALGEVER_TOTAAL__={bestand:bestandsnaam,versie,open:open.length,historie:historie.length,herkendOpen,herkendHist,peildatum:LIVE_PEILDATUM||null};
-  return {herkendOpen,herkendHist};
+  /* Laatste-entry-datum: het meest recente tijdstip uit open + historie, en per
+     verkeerscentrale, zodat de gebruiker ziet tot wanneer de bron geladen is. */
+  const laatstePerVc={};let laatsteEntry=null;
+  for(const r of [...open,...historie]){
+    const t=Math.max(Date.parse(r.tot)||0,Date.parse(r.van)||0);
+    if(!t)continue;
+    if(!laatsteEntry||t>laatsteEntry)laatsteEntry=t;
+    const vc=String(r.vc||'').toLowerCase();if(!vc)continue;
+    if(!laatstePerVc[vc]||t>laatstePerVc[vc])laatstePerVc[vc]=t;
+  }
+  window.__BIDASH_SIGNAALGEVER_TOTAAL__={bestand:bestandsnaam,versie,open:open.length,historie:historie.length,herkendOpen,herkendHist,peildatum:LIVE_PEILDATUM||null,laatsteEntry,laatstePerVc};
+  return {herkendOpen,herkendHist,laatsteEntry};
 }
 async function leesSignaalgeverTotaalBestand(file){
   if(!ASSET_REGISTER_STATE){alert('Laad eerst All Assets. De signaalgeverbron wordt rechtstreeks aan dat stamregister gekoppeld.');renderDataGereedheid();return;}

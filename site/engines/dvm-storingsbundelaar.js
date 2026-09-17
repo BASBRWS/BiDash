@@ -146,6 +146,19 @@
     const basisStoringen=(Array.isArray(basisMtm.storingen)?basisMtm.storingen:[]).filter(r=>!vervang(r));
     return {alarm_episodes:[...basisOpen,...nieuwOpen],storingen:[...basisStoringen,...nieuwStoringen]};
   }
+  /* Laatste datum per verkeerscentrale uit een datasets.mtm-blok (storingen +
+     alarm_episodes). Zo ziet de gebruiker tot wanneer een basisbestand geladen is. */
+  function sbWatermerken(mtm){
+    mtm=mtm||{};const uit={};
+    const bekijk=(arr,velden)=>{for(const r of (Array.isArray(arr)?arr:[])){const v=sbVcAlias(r&&r.verkeerscentrale);if(!v)continue;let d='';for(const veld of velden){const w=String(r[veld]||'').slice(0,10);if(/^\d{4}-\d{2}-\d{2}$/.test(w)&&w>d)d=w;}if(d&&(!uit[v]||d>uit[v]))uit[v]=d;}};
+    bekijk(mtm.storingen,['start','einde_bewezen','laatste_bewezen_aanwezig']);
+    bekijk(mtm.alarm_episodes,['laatste_snapshot','start','eerste_snapshot']);
+    return uit;
+  }
+  function sbWatermerkTekst(wm){
+    const rijen=Object.entries(wm||{}).sort();
+    return rijen.length?rijen.map(([v,d])=>v.toUpperCase()+' '+d).join(', '):'geen datum herkend';
+  }
   const SG_VCS=[['mn','MN'],['non','NON'],['nwn','NWN / WNN'],['zwn','ZWN / WNZ'],['zn','ZN']];
   /* Configuratiedialoog: kies regio('s), optioneel een periode en optioneel een
      basisbestand, zodat niet in één keer te veel wordt gelezen. */
@@ -157,7 +170,8 @@
       dlg.style.cssText='max-width:520px;border:1px solid #d4dbe2;border-radius:10px;padding:0';
       dlg.innerHTML=`<form method="dialog" style="padding:18px 20px;font:13px/1.5 inherit">
         <h3 style="margin:0 0 4px">Signaalgevers uit map lezen (MTM)</h3>
-        <p style="margin:0 0 12px;color:#566574">Beperk wat er in één keer wordt gelezen. Kies eerst regio('s) en eventueel een periode; kies daarna de X-hoofdmap of de mtm-map.</p>
+        <p style="margin:0 0 10px;color:#566574">Beperk wat er in één keer wordt gelezen. Kies eerst regio('s) en eventueel een periode; kies daarna de X-hoofdmap of de mtm-map.</p>
+        <div id="sgHuidig" style="margin:0 0 10px;padding:8px 10px;background:#f0f6fb;border:1px solid #cfe0ee;border-radius:6px;font-size:12px"></div>
         <fieldset style="border:1px solid #d4dbe2;border-radius:6px;margin:0 0 10px;padding:8px 10px"><legend style="font-weight:700">Verkeerscentrales</legend>
           ${SG_VCS.map(([v,l])=>`<label style="display:inline-block;margin:3px 14px 3px 0"><input type="checkbox" class="sgVc" value="${v}"> ${l}</label>`).join('')}
         </fieldset>
@@ -165,7 +179,8 @@
           <label>Vanaf<br><input type="date" id="sgVanaf" style="padding:6px;border:1px solid #9ca8b4;border-radius:5px"></label>
           <label>Tot en met<br><input type="date" id="sgTot" style="padding:6px;border:1px solid #9ca8b4;border-radius:5px"></label>
         </div>
-        <label style="display:block;margin-bottom:12px">Optioneel basisbestand (eerder totaal-JSON, alleen de gekozen regio's worden bijgewerkt)<br><input type="file" id="sgBasis" accept=".json"></label>
+        <label style="display:block;margin-bottom:6px">Optioneel basisbestand (eerder totaal-JSON, alleen de gekozen regio's worden bijgewerkt)<br><input type="file" id="sgBasis" accept=".json"></label>
+        <p id="sgBasisInfo" style="margin:0 0 10px;font-size:12px;color:#107c10;min-height:15px"></p>
         <p id="sgMapMelding" style="color:#a4262c;min-height:16px;margin:0 0 10px"></p>
         <div style="display:flex;gap:8px;justify-content:flex-end">
           <button type="button" id="sgMapAnnuleer" class="tb-btn" style="background:#e5e9ed;color:#1f2933;border-color:#cfd6dd">Annuleren</button>
@@ -173,6 +188,13 @@
         </div></form>`;
       document.body.appendChild(dlg);
       dlg.querySelector('#sgMapAnnuleer').addEventListener('click',()=>dlg.close());
+      dlg.querySelector('#sgBasis').addEventListener('change',async e=>{
+        const info=dlg.querySelector('#sgBasisInfo'),f=e.target.files[0];
+        if(!f){info.textContent='';return;}
+        info.style.color='#566574';info.textContent='Basisbestand lezen…';
+        try{const j=JSON.parse(await f.text());const wm=sbWatermerken((j&&j.datasets&&j.datasets.mtm)||{});info.style.color='#107c10';info.textContent='Basis geladen. Laatste datum per regio: '+sbWatermerkTekst(wm)+'.';}
+        catch(err){info.style.color='#a4262c';info.textContent='Het basisbestand is geen geldige JSON.';}
+      });
       dlg.querySelector('#sgMapVerder').addEventListener('click',async()=>{
         const vcs=new Set([...dlg.querySelectorAll('.sgVc:checked')].map(x=>x.value));
         const melding=dlg.querySelector('#sgMapMelding');
@@ -190,7 +212,17 @@
         const input=document.getElementById('signaalgeverMapInput');
         if(input)input.click();else alert('De mapkeuze is niet beschikbaar.');
       });
-    }else dlg.querySelector('#sgMapMelding').textContent='';
+    }else{dlg.querySelector('#sgMapMelding').textContent='';dlg.querySelector('#sgBasisInfo').textContent='';}
+    /* Toon wat er nu geladen is en tot welke datum, zodat de gebruiker weet wat de
+       volgende te lezen regio/periode zou zijn. */
+    const huidig=dlg.querySelector('#sgHuidig');
+    const s=window.__BIDASH_SIGNAALGEVER_TOTAAL__;
+    if(s&&(s.open||s.historie)){
+      const dat=t=>t?new Date(t).toLocaleDateString('nl-NL'):'onbekend';
+      const perVc=s.laatstePerVc&&Object.keys(s.laatstePerVc).length?Object.entries(s.laatstePerVc).sort().map(([v,t])=>v.toUpperCase()+' '+dat(t)).join(', '):'—';
+      huidig.style.display='';
+      huidig.innerHTML=`<b>Nu geladen:</b> ${s.bestand||'signaalgeverbron'} · laatste entry ${dat(s.laatsteEntry)}.<br>Per regio: ${perVc}.`;
+    }else{huidig.style.display='none';huidig.textContent='';}
     dlg.showModal();
   }
 
@@ -201,10 +233,14 @@
   async function leesSignaalgeverMap(fileList,config){
     config=config||window.__BIDASH_SG_MAP_CONFIG__||{};
     if(typeof ASSET_REGISTER_STATE==='undefined'||!ASSET_REGISTER_STATE){alert('Laad eerst All Assets. De storingsmap wordt rechtstreeks aan dat stamregister gekoppeld.');if(typeof renderDataGereedheid==='function')renderDataGereedheid();return;}
-    const bestanden=sbFilterBestanden([...(fileList||[])],config);
-    if(!bestanden.length)throw new Error('geen MTM-storinglijsten gevonden voor de gekozen regio en periode onder <map>/mtm/<vc>/storinglijst/<jaar>/<maand>/<dag>. Controleer de map, de regiokeuze en de periode.');
+    const alle=[...(fileList||[])];
+    const bestanden=sbFilterBestanden(alle,config);
+    const regios=config.vcs&&config.vcs.size?[...config.vcs].map(v=>v.toUpperCase()).join(', '):'alle';
+    const periode=config.vanaf||config.tot?` (${config.vanaf||'begin'} t/m ${config.tot||'nu'})`:'';
+    if(!bestanden.length)throw new Error(`geen MTM-storinglijsten gevonden voor regio ${regios}${periode}. Van de ${alle.length.toLocaleString('nl-NL')} gekozen bestanden viel er geen onder mtm/<vc>/storinglijst/<jaar>/<maand>/<dag> met de gekozen regio en periode. Controleer de map (kies de X-hoofdmap of de mtm-map), de regiokeuze en de periode.`);
     const label='Signaalgevers uit map ('+bestanden.length.toLocaleString('nl-NL')+' bestanden)';
-    if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,2,'Storinglijsten lezen',{direct:true});
+    if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,2,`${bestanden.length.toLocaleString('nl-NL')} van ${alle.length.toLocaleString('nl-NL')} bestanden geselecteerd voor ${regios}${periode}; storinglijsten lezen`,{direct:true});
+    if(typeof uiPauze==='function')await uiPauze();
     const snapshots=[];
     for(let n=0;n<bestanden.length;n++){
       const f=bestanden[n],info=sbPadInfoMtm(sbPad(f));
@@ -229,12 +265,12 @@
     const {open,historie,versie}=signaalgeverTotaalBronnen(pseudo);
     if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,86,'Open meldingen aan All Assets koppelen',{direct:true});
     if(typeof uiPauze==='function')await uiPauze();
-    const regios=config.vcs&&config.vcs.size?[...config.vcs].map(v=>v.toUpperCase()).join(', '):'alle';
     const naam='Signaalgevers uit map ('+regios+')';
-    const {herkendOpen,herkendHist}=pasSignaalgeverBundelToe(naam,open,historie,versie);
+    const {herkendOpen,herkendHist,laatsteEntry}=pasSignaalgeverBundelToe(naam,open,historie,versie);
     window.__BIDASH_SG_MAP_CONFIG__=null;
-    if(typeof importKlaar==='function')importKlaar(label,`Signaalgevers uit map gelezen (${regios}): ${bestanden.length.toLocaleString('nl-NL')} bestanden → ${open.length.toLocaleString('nl-NL')} open (${herkendOpen.toLocaleString('nl-NL')} herkend), ${historie.length.toLocaleString('nl-NL')} historisch (${herkendHist.toLocaleString('nl-NL')} herkend). Vervangt de losse Open storingen- en Storingshistorie-bronnen.`);
-    if(open.length&&!herkendOpen)alert('De open meldingen zijn gelezen maar geen enkele werd als een bekend assettype (bv. MSI) herkend, dus het actuele dashboard blijft leeg.');
+    const laatste=laatsteEntry?new Date(laatsteEntry).toLocaleDateString('nl-NL'):'onbekend';
+    if(typeof importKlaar==='function')importKlaar(label,`Signaalgevers uit map gelezen (${regios}): ${bestanden.length.toLocaleString('nl-NL')} bestanden → ${open.length.toLocaleString('nl-NL')} open (${herkendOpen.toLocaleString('nl-NL')} herkend), ${historie.length.toLocaleString('nl-NL')} historisch (${herkendHist.toLocaleString('nl-NL')} herkend). Laatste entry ${laatste}. Vervangt de losse Open storingen- en Storingshistorie-bronnen.`);
+    if(open.length&&!herkendOpen)alert('De open meldingen zijn gelezen maar geen enkele werd als een bekend assettype (bv. MSI) herkend, dus het actuele dashboard blijft leeg. Controleer of de storinglijsten MSI-meldingen bevatten voor de gekozen regio en periode.');
     return {bestanden:bestanden.length,open:open.length,historie:historie.length,herkendOpen,herkendHist};
   }
 
