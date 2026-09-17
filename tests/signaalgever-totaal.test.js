@@ -51,7 +51,7 @@ function haalFoutcodes(){
 const ctx=vm.createContext({Number,String,Object,Array,Math,Date,parseFloat,parseInt,isNaN,isFinite,console,RULES:{foutcodes:haalFoutcodes()}});
 for(const naam of ['lc','num','parseDatum','normAssetRichting','normRij','classificeer','dripToestandImpact','dripRegel','foutregel'])
   vm.runInContext(haalFunctie(dvm2,naam),ctx,{filename:naam});
-for(const naam of ['signaalgeverOpenActief','signaalgeverOpenRij','signaalgeverHistorieRij','signaalgeverTotaalBronnen'])
+for(const naam of ['signaalgeverOpenActief','signaalgeverAssetType','signaalgeverOpenRij','signaalgeverHistorieRij','signaalgeverTotaalBronnen'])
   vm.runInContext(haalFunctie(dvm3,naam),ctx,{filename:naam});
 const bronnen=json=>vm.runInContext('signaalgeverTotaalBronnen',ctx)(json);
 const normRij=r=>vm.runInContext('normRij',ctx)(r);
@@ -136,6 +136,16 @@ test('een signaalgever-alarm met "wisselbord" in de tekst blijft MSI (typehint b
   assert.equal(rij.assetTypeHint,'MSI');
   const r=normRij(rij);
   assert.equal(classificeer(r),'MSI');
+});
+
+test('een detectoralarm wordt als LUS herkend en gebruikt de bestaande lusregel',()=>{
+  const rij=vm.runInContext('signaalgeverOpenRij',ctx)({event_id:'10',code:'1006',description:'Beide lussen fout',locatie:'A4 R 27,000',weg:'A4',richting_kenmerk:'R',km:27,categorie:'DETECTOR',unit:'DETECTOR',verkeerscentrale:'zwn',eindstatus:'open_aan_einde',meenemen:true});
+  assert.equal(rij.assetTypeHint,'LUS');
+  const r=normRij(rij);
+  assert.equal(classificeer(r),'LUS');
+  const f=foutregel(r,'LUS');
+  assert.ok(f);
+  assert.equal(f.code,'1006');
 });
 
 test('een historische storing zonder omschrijving wordt via signaalgever als MSI herkend',()=>{
