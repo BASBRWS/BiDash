@@ -307,24 +307,38 @@
       <h3 style="margin:0 0 8px">Signaalgevers uit map lezen</h3>
       <div id="sgPBalk" style="height:16px;border:1px solid #cfd6dd;border-radius:8px;background:#eef2f5;overflow:hidden"><div id="sgPVul" style="height:100%;width:0;background:#0078d4;transition:width .2s"></div></div>
       <p id="sgPFase" style="margin:8px 0 0;color:#1f2933" role="status" aria-live="polite">Voorbereiden…</p>
-      <div style="display:flex;justify-content:flex-end;margin-top:12px"><button type="button" id="sgPSluit" class="tb-btn" style="background:#e5e9ed;color:#1f2933;border-color:#cfd6dd" hidden>Sluiten</button></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button type="button" id="sgPDownload" class="tb-btn primary" hidden>⭳ Download bijgewerkte JSON</button><button type="button" id="sgPSluit" class="tb-btn" style="background:#e5e9ed;color:#1f2933;border-color:#cfd6dd" hidden>Sluiten</button></div>
     </div>`;
     document.body.appendChild(dlg);
     dlg.querySelector('#sgPSluit').addEventListener('click',()=>dlg.close());
+    dlg.querySelector('#sgPDownload').addEventListener('click',()=>sgDownloadExport());
     return dlg;
   }
   function sgMapVoortgang(pct,fase){
     const dlg=sgMapVenster();if(!dlg.open)dlg.showModal();
-    const vul=dlg.querySelector('#sgPVul'),f=dlg.querySelector('#sgPFase'),sluit=dlg.querySelector('#sgPSluit');
-    sluit.hidden=true;vul.style.background='#0078d4';
+    const vul=dlg.querySelector('#sgPVul'),f=dlg.querySelector('#sgPFase'),sluit=dlg.querySelector('#sgPSluit'),dl=dlg.querySelector('#sgPDownload');
+    sluit.hidden=true;dl.hidden=true;vul.style.background='#0078d4';
     if(pct!=null)vul.style.width=Math.max(0,Math.min(100,pct))+'%';
     if(fase!=null)f.textContent=fase;
   }
   function sgMapVoltooid(tekst,fout){
     const dlg=sgMapVenster();if(!dlg.open)dlg.showModal();
-    const vul=dlg.querySelector('#sgPVul'),f=dlg.querySelector('#sgPFase'),sluit=dlg.querySelector('#sgPSluit');
+    const vul=dlg.querySelector('#sgPVul'),f=dlg.querySelector('#sgPFase'),sluit=dlg.querySelector('#sgPSluit'),dl=dlg.querySelector('#sgPDownload');
     vul.style.width='100%';vul.style.background=fout?'#a4262c':'#107c10';
     f.style.color=fout?'#a4262c':'#1f2933';f.textContent=tekst;sluit.hidden=false;
+    dl.hidden=!(sgLaatsteExport&&!fout);
+  }
+  /* Laatst gelezen mapresultaat als downloadbaar totaal-JSON (BiDash-lean: alleen open
+     alarmen + storingen). Bruikbaar als basisbestand bij een volgende maplezing. */
+  let sgLaatsteExport=null;
+  function sgDownloadExport(){
+    if(!sgLaatsteExport)return;
+    try{
+      const blob=new Blob([JSON.stringify(sgLaatsteExport.data)],{type:'application/json'});
+      const url=URL.createObjectURL(blob),a=document.createElement('a');
+      a.href=url;a.download=sgLaatsteExport.naam;document.body.appendChild(a);a.click();
+      setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},3000);
+    }catch(err){alert('Downloaden mislukt: '+(err&&err.message||err));}
   }
 
   /* Handler voor Datasetbeheer: een gekozen map (webkitdirectory) met MTM-
@@ -371,6 +385,11 @@
     /* Optioneel: combineer met een eerder totaal-JSON; alleen de gekozen regio's
        worden vervangen, de overige regio's blijven ongewijzigd. */
     const gecombineerd=config.basisMtm?sbCombineerMetBasis(config.basisMtm,bundel.open,bundel.storingen,config.vcs):{alarm_episodes:bundel.open,storingen:bundel.storingen};
+    /* Downloadbaar totaal-JSON (BiDash-lean: alleen open alarmen + storingen), bruikbaar
+       als basisbestand bij een volgende maplezing. */
+    const tijdstip=new Date(),z=n=>String(n).padStart(2,'0');
+    const stempel=`${tijdstip.getFullYear()}${z(tijdstip.getMonth()+1)}${z(tijdstip.getDate())}_${z(tijdstip.getHours())}${z(tijdstip.getMinutes())}`;
+    sgLaatsteExport={data:{metadata:{versie:'2.5',herkomst:'bidash-maplezer',aangemaakt:tijdstip.toISOString(),watermarks:{mtm:sbWatermerken(gecombineerd)}},datasets:{mtm:gecombineerd}},naam:`MTM_totaal_bidash_${stempel}.json`};
     const pseudo={datasets:{mtm:gecombineerd},metadata:{versie:'maplezen'}};
     const {open,historie,versie}=signaalgeverTotaalBronnen(pseudo);
     sgMapVoortgang(88,'Open meldingen aan All Assets koppelen en doorrekenen…');
@@ -383,6 +402,11 @@
     const klaarTekst=`Klaar (${regios}): ${bestanden.length.toLocaleString('nl-NL')} bestanden → ${open.length.toLocaleString('nl-NL')} open (${herkendOpen.toLocaleString('nl-NL')} herkend), ${historie.length.toLocaleString('nl-NL')} historisch (${herkendHist.toLocaleString('nl-NL')} herkend). Laatste entry ${laatste}.`;
     sgMapVoltooid(open.length&&!herkendOpen?klaarTekst+' Let op: geen enkele open melding werd als MSI herkend, dus het actuele dashboard blijft leeg.':klaarTekst,open.length&&!herkendOpen);
     if(typeof importKlaar==='function')importKlaar(label,'Signaalgevers uit map gelezen. '+klaarTekst+' Vervangt de losse Open storingen- en Storingshistorie-bronnen.');
+    /* Ook bij de showDirectoryPicker-route (die niet via de bron-inputhandler loopt)
+       Datasetbeheer verversen en de schil op de hoogte brengen, zodat de kaart
+       Signaalgevers totaal en het overzicht meteen bijwerken. */
+    try{if(typeof renderDatasetBeheer==='function')renderDatasetBeheer();}catch(err){}
+    try{if(parent!==window)parent.postMessage({type:'hub:changed',engine:'dvm',sourceSpecific:true,bron:'signaalgeverMap'},location.origin);}catch(err){}
     return {bestanden:bestanden.length,open:open.length,historie:historie.length,herkendOpen,herkendHist};
   }
 
