@@ -830,6 +830,8 @@ function normRij(m){
     /* Voor DRIP bepaalt de functionele toestand de impact; foutregel() leest deze. */
     classificatie:String(g('classificatie')||'').trim(),
     technischeToestand:String(g('technische_toestand')||g('technischeToestand')||g('toestand')||'').trim(),
+    /* Expliciete assettypehint (bv. signaalgever = MSI); classificeer() gebruikt deze. */
+    assetTypeHint:String(g('assettypehint')||g('assettype')||'').trim(),
     googleLink:String(g('google_link')||g('link')||'').trim(),
     noodmaatregel:String(g('Noodmaatregel')||g('noodmaatregel')||'').trim(),
     msiContext,
@@ -851,6 +853,11 @@ function parseDatum(v){
 
 /* stap 1: classificeer assettype */
 function classificeer(m){
+  /* Een expliciete typehint gaat vóór de tekstherkenning. Signaalgeverstoringen (uit
+     de MTM-storinglijsten) zijn altijd MSI-installatiestoringen; hun omschrijving kan
+     woorden als "wisselbord" bevatten die anders naar een assettype zouden wijzen dat
+     niet in het register zit en de hele doorrekening zou blokkeren. */
+  if(m&&m.assetTypeHint) return m.assetTypeHint;
   const hay = (m.osid+' '+m.melding+' '+m.gevolg).toLowerCase();
   if(/\bdrip\b|dynamisch route|route[-\s]?informatie|tekstpaneel/.test(hay)) return 'DRIP';
   if(hay.includes('wisselbord')) return 'WISSELBORD';
