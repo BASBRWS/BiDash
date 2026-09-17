@@ -160,6 +160,14 @@ test('de signaalgever-totaalbron heeft een eigen JSON-knop en handler',()=>{
   assert.match(dvm3,/async function leesSignaalgeverTotaalBestand/);
 });
 
+test('de automatische opslag laat de zware signaalgeverbronnen weg',()=>{
+  // De autosave (adapter.export) mag de tienduizenden ruwe signaalgeverrijen niet
+  // meeserialiseren; de handmatige export bevat ze wel.
+  const adapter=read('site/engines/dvm-adapter-original.js');
+  assert.match(adapter,/export\(\)\{return totaalExportBundle\(.*\{autosaveLean:true\}\);\},/);
+  assert.match(dvm3,/autosaveLean&&b&&b\._signaalgeverTotaal/);
+});
+
 test('de maplezer is als eigen bron met directory-invoer geregistreerd',()=>{
   assert.match(manager,/signaalgeverMap:\{input:'signaalgeverMapInput'/);
   assert.match(manager,/directory:true/);
