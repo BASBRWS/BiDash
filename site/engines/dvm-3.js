@@ -698,18 +698,25 @@ function signaalgeverTotaalBronnen(json){
    bestandsformaat nooit met deze bundel mengt. De bronnen dragen _signaalgeverTotaal,
    zodat Datasetbeheer ze onder de eigen kaart toont; de doorrekening gebruikt
    onverminderd STORINGSBRONNEN en LIVE_STORINGSBRONNEN. */
-function pasSignaalgeverBundelToe(bestandsnaam,open,historie,versie){
+async function pasSignaalgeverBundelToe(bestandsnaam,open,historie,versie){
+  /* Tussen de zware stappen (historie inspecteren, koppelen, doorrekenen) even de
+     hoofdthread vrijgeven, zodat de browser bij grote datasets niet "pagina reageert
+     niet" toont. De berekening zelf verandert niet. */
+  const adem=()=>typeof uiPauze==='function'?uiPauze():Promise.resolve();
   STORINGSBRONNEN=[{key:'signaalgever-totaal-historie',naam:bestandsnaam+' · historie',rijen:historie,size:0,_signaalgeverTotaal:true,_signaalgeverBestand:bestandsnaam}];
   STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeStoringsRijen());
   MC_RESULT=null;
   LIVE_STORINGSBRONNEN=[];LIVE_PEILDATUM=null;
+  await adem();
   if(open.length){
     voegLiveBronnenToe([{key:'signaalgever-totaal-open',naam:bestandsnaam+' · open',rijen:open,size:0,_signaalgeverTotaal:true,_signaalgeverBestand:bestandsnaam}]);
   }else{
     LIVE_STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeLiveStoringsRijen());
     ANALYSE_SIGNATURE='';herbouwAssetMatchBeeld();
   }
+  await adem();
   probeerAnalyseActiveren('overzicht',{inspectieAlGereed:true,matchAlGereed:true});
+  await adem();
   probeerAnalyseActiveren('prognose',{inspectieAlGereed:true,matchAlGereed:true});
   const herkendOpen=(LIVE_STORINGS_INSPECTIE&&LIVE_STORINGS_INSPECTIE.herkenbaar)||0;
   const herkendHist=(STORINGS_INSPECTIE&&STORINGS_INSPECTIE.herkenbaar)||0;
@@ -737,7 +744,7 @@ async function leesSignaalgeverTotaalBestand(file){
   const {open,historie,versie}=signaalgeverTotaalBronnen(json);
   if(!open.length&&!historie.length)throw new Error('geen datasets.mtm.alarm_episodes of datasets.mtm.storingen gevonden');
   zetImportVoortgang(file.name,80,'Open meldingen aan All Assets koppelen',{direct:true});await uiPauze();
-  const {herkendOpen,herkendHist}=pasSignaalgeverBundelToe(file.name,open,historie,versie);
+  const {herkendOpen,herkendHist}=await pasSignaalgeverBundelToe(file.name,open,historie,versie);
   importKlaar(file.name,`Signaalgevers totaal (JSON ${versie||'?'}) geladen: ${open.length.toLocaleString('nl-NL')} open (${herkendOpen.toLocaleString('nl-NL')} herkend), ${historie.length.toLocaleString('nl-NL')} historisch (${herkendHist.toLocaleString('nl-NL')} herkend). Vervangt de losse Open storingen- en Storingshistorie-bronnen.`);
   if(open.length&&!herkendOpen)alert('De open meldingen zijn geladen maar geen enkele werd als een bekend assettype (bv. MSI) herkend, dus het actuele dashboard blijft leeg. Controleer of de records een omschrijving, categorie of signaalgever dragen.');
   return {open:open.length,historie:historie.length,herkendOpen,herkendHist};

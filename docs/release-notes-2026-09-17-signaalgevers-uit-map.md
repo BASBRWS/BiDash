@@ -2,7 +2,7 @@
 
 Datum: 17 september 2026
 
-Versie: BiDash 2.14, DVM 95
+Versie: BiDash 2.14, DVM 96
 
 ## Toegevoegd
 
@@ -83,7 +83,7 @@ sluiten") en overschreed ze de opslaglimiet. De automatische opslag (`adapter.ex
 met `autosaveLean`) laat de `_signaalgeverTotaal`-bronnen nu weg — die zijn per sessie
 opnieuw in te lezen (map of JSON), of te bewaren met de downloadknop. De **analyse
 blijft volledig werken** (in het geheugen) en de **handmatige totaalexport bevat de
-signaalgeverdata gewoon**. Alleen de automatische lokale momentopname is lichter.
+signaalgeverdata gewoon**. Alleen de automatische lokale momentopname is lichter. Daarnaast geeft `pasSignaalgeverBundelToe()` tussen de zware stappen (inspecteren, koppelen, doorrekenen) de hoofdthread even vrij, zodat de browser bij grote datasets niet "pagina reageert niet" toont; de berekening zelf verandert niet.
 
 ## Schema-tolerantie
 
@@ -119,7 +119,7 @@ doorrekening leeg bleef.
   (parseren, alarmruns sluiten/openhouden, classificeren, padvalidatie, regio-/
   periodefilter, basiscombinatie, watermerken) en de bundeluitvoer via de schema-
   tolerante mapping als MSI laten herkennen.
-- DVM-versie 86 → 95, met de assertions in `tests/dvm-restore-policy.test.js`,
+- DVM-versie 86 → 96, met de assertions in `tests/dvm-restore-policy.test.js`,
   `tests/drip-special-lists.test.js` en `tests/versiebalk.test.js`. Schilversie blijft
   2.14. De maplezer kreeg een eigen bronkaart met een gele (`primary`) knop; de eerste
   opzet gebruikte een tweede knop met de standaard `tb-btn`-stijl (witte tekst op een
