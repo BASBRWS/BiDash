@@ -2,14 +2,20 @@
 
 Datum: 17 september 2026
 
-Versie: BiDash 2.14, DVM 87
+Versie: BiDash 2.14, DVM 89
 
 ## Toegevoegd
 
 - BiDash kan de ruwe **MTM-storinglijsten** nu rechtstreeks uit een map lezen
   (`X:/mtm/<vc>/storinglijst/<jaar>/<maand>/<dag>`), naast het gecombineerde
-  JSON-bestand. De knop **Uit map lezen (MTM)** staat op de kaart *Signaalgevers
-  totaal* in Datasetbeheer.
+  JSON-bestand. In Datasetbeheer staat hiervoor een eigen kaart **Signaalgevers uit
+  map (MTM)** met een mapkeuze (directory-invoer). Het resultaat vult dezelfde bron
+  als *Signaalgevers totaal* en vervangt de losse Open storingen en Storingshistorie.
+- Voor het lezen opent een **configuratiedialoog**: kies één of meer
+  **verkeerscentrales**, optioneel een **periode** (vanaf/tot) en optioneel een
+  **basisbestand** (eerder totaal-JSON). Zo wordt niet in één keer te veel gelezen en
+  kun je per regio bijwerken; met een basisbestand blijven de niet-gekozen regio's
+  ongewijzigd.
 
 ## Waarom
 
@@ -36,6 +42,11 @@ gaan niet de opslag in.
 
 Alleen de open alarmen en de storingen worden bewaard; het resultaat loopt door
 dezelfde koppeling en doorrekening als de JSON-bron (`pasSignaalgeverBundelToe`).
+
+`sbFilterBestanden()` beperkt de te lezen bestanden op de gekozen regio's en periode
+(uit de bestandsnaam-context), zodat een grote map niet in één keer volledig wordt
+verwerkt. `sbCombineerMetBasis()` vervangt in een meegegeven basis alleen de gekozen
+regio's door de nieuw gelezen gegevens en houdt de overige regio's ongewijzigd.
 
 ## Schema-tolerantie
 
@@ -68,10 +79,12 @@ doorrekening leeg bleef.
   functies uit `dvm-storingsbundelaar.js` op synthetische storinglijsten uitvoeren
   (parseren, alarmruns sluiten/openhouden, classificeren, padvalidatie) en de
   bundeluitvoer via de schema-tolerante mapping als MSI laten herkennen.
-- DVM-versie 86 → 87, met de assertions in `tests/dvm-restore-policy.test.js`,
+- DVM-versie 86 → 89, met de assertions in `tests/dvm-restore-policy.test.js`,
   `tests/drip-special-lists.test.js` en `tests/versiebalk.test.js`. Schilversie blijft
-  2.14.
-- Volledige Node-suite geslaagd (240 tests). Browsersuites `browser.cjs` en
+  2.14. De maplezer kreeg een eigen bronkaart met een gele (`primary`) knop; de eerste
+  opzet gebruikte een tweede knop met de standaard `tb-btn`-stijl (witte tekst op een
+  witte kaart), waardoor die onzichtbaar was.
+- Volledige Node-suite geslaagd (243 tests). Browsersuites `browser.cjs` en
   `planning-formation.cjs` geslaagd. JavaScript-syntaxcontrole geslaagd.
 
 ## Niet getest

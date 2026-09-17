@@ -45,7 +45,7 @@ function haalFoutcodes(){
 const ctx=vm.createContext({Number,String,Object,Array,Math,Date,Set,Map,parseFloat,parseInt,isNaN,isFinite,console,RegExp,TextDecoder,RULES:{foutcodes:haalFoutcodes()}});
 // Module-lokale constanten en helpers uit de bundelaar meenemen.
 vm.runInContext(`const MSI_DEGRADATIE=new Set(['1001','1002','1061','6002']);const DETECTOR_CODES=new Set(['1005','1006','1007','1008','4017','4019','5004']);const SYSTEEM_CODES=new Set(['1011','2001','4006','4014','4015','4020','4021','4023','4027','6005']);`,ctx);
-for(const naam of ['sbGroupBy','sbVcAlias','sbGeldigeDatum','sbParseDT','sbMediaan','sbLocatie','sbMtmCategorie','sbSnapshotDatum','sbMtmRijenUitTekst','sbClassificeer','sbBouwBundel','sbPadInfoMtm','sbBestandGeschikt'])
+for(const naam of ['sbGroupBy','sbVcAlias','sbGeldigeDatum','sbParseDT','sbMediaan','sbLocatie','sbMtmCategorie','sbSnapshotDatum','sbMtmRijenUitTekst','sbClassificeer','sbBouwBundel','sbPadInfoMtm','sbPad','sbBestandGeschikt','sbFilterBestanden','sbCombineerMetBasis'])
   vm.runInContext(haalFunctie(bundelaar,naam),ctx,{filename:naam});
 // Mapping + classificeer uit dvm-2/3 voor deel E.
 for(const naam of ['lc','num','parseDatum','normAssetRichting','normRij','classificeer'])
@@ -104,6 +104,39 @@ test('D. een pad buiten de MTM-mapstructuur wordt geweigerd',()=>{
   assert.equal(call('sbPadInfoMtm','X/cdms/zwn/log/2026/08/16/x.txt'),null); // DRIP, geen MTM
   assert.equal(call('sbPadInfoMtm','X/mtm/zwn/verkeerd/2026/08/16/x.txt'),null);
   assert.equal(call('sbPadInfoMtm','X/mtm/onbekendevc/storinglijst/2026/08/16/x.txt'),null);
+});
+
+test('F. de bestandsfilter beperkt op regio en periode',()=>{
+  const mk=p=>({name:p.split('/').pop(),webkitRelativePath:p});
+  const files=[
+    mk('X/mtm/zwn/storinglijst/2026/08/16/a.txt'),
+    mk('X/mtm/nwn/storinglijst/2026/08/16/b.txt'),
+    mk('X/mtm/zwn/storinglijst/2026/07/10/c.txt'),
+    mk('X/cdms/zwn/log/2026/08/16/d.txt') // DRIP: nooit
+  ];
+  const alleenZwn=call('sbFilterBestanden',files,{vcs:new Set(['zwn'])});
+  assert.equal(alleenZwn.length,2); // a + c
+  const zwnVanaf=call('sbFilterBestanden',files,{vcs:new Set(['zwn']),vanaf:'2026-08-01'});
+  assert.equal(zwnVanaf.length,1); // alleen a (c is juli)
+  const zwnPeriode=call('sbFilterBestanden',files,{vcs:new Set(['zwn']),vanaf:'2026-08-01',tot:'2026-08-31'});
+  assert.equal(zwnPeriode.length,1);
+});
+
+test('G. combineren met een basis vervangt alleen de gekozen regio',()=>{
+  const basisMtm={
+    alarm_episodes:[
+      {verkeerscentrale:'zwn',eindstatus:'open_aan_einde',meenemen:true,event_id:'oud-zwn'},
+      {verkeerscentrale:'nwn',eindstatus:'open_aan_einde',meenemen:true,event_id:'oud-nwn'}
+    ],
+    storingen:[{verkeerscentrale:'zwn',incident_id:'s-zwn'},{verkeerscentrale:'nwn',incident_id:'s-nwn'}]
+  };
+  const nieuwOpen=[{verkeerscentrale:'zwn',eindstatus:'open_aan_einde',meenemen:true,event_id:'nieuw-zwn'}];
+  const nieuwStoringen=[{verkeerscentrale:'zwn',incident_id:'s-nieuw'}];
+  const uit=call('sbCombineerMetBasis',basisMtm,nieuwOpen,nieuwStoringen,new Set(['zwn']));
+  const openIds=uit.alarm_episodes.map(r=>r.event_id).sort().join('|');
+  assert.equal(openIds,'nieuw-zwn|oud-nwn','oud-zwn vervangen, nwn behouden, nieuw-zwn toegevoegd');
+  const storIds=uit.storingen.map(r=>r.incident_id).sort().join('|');
+  assert.equal(storIds,'s-nieuw|s-nwn');
 });
 
 test('E. de bundeluitvoer wordt door de schema-tolerante mapping als MSI herkend',()=>{

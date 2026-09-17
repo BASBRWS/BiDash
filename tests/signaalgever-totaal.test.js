@@ -151,6 +151,16 @@ test('de signaalgever-totaalbron heeft een eigen JSON-knop en handler',()=>{
   assert.match(dvm3,/async function leesSignaalgeverTotaalBestand/);
 });
 
+test('de maplezer is als eigen bron met directory-invoer geregistreerd',()=>{
+  assert.match(manager,/signaalgeverMap:\{input:'signaalgeverMapInput'/);
+  assert.match(manager,/directory:true/);
+  assert.match(manager,/handler:'leesSignaalgeverMap'/);
+  assert.match(manager,/SOURCE_ORDER=\[[^\]]*'signaalgeverMap'/);
+  assert.match(manager,/case 'leesSignaalgeverMap': result=await leesSignaalgeverMap/);
+  // ensureInput zet webkitdirectory voor een directory-bron.
+  assert.match(manager,/if\(c\.directory\)\{[^}]*webkitdirectory/);
+});
+
 test('de geladen JSON wordt onder de eigen kaart getoond, niet onder Open storingen of Storingshistorie',()=>{
   // De bronnen dragen een marker en een gedeelde vlag, en Datasetbeheer filtert ze
   // uit de losse kaarten en toont ze onder signaalgeverTotaal.
