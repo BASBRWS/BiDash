@@ -2,7 +2,7 @@
 
 Datum: 17 september 2026
 
-Versie: BiDash 2.14, DVM 92
+Versie: BiDash 2.14, DVM 93
 
 ## Toegevoegd
 
@@ -25,6 +25,13 @@ Versie: BiDash 2.14, DVM 92
   datum (totaal en per regio), en bij een gekozen basisbestand de laatste datum per
   regio. Ook de bronkaart en de laadmelding tonen de laatste-entry-datum, zodat je
   ziet wat de volgende te lezen periode zou zijn.
+- **Download bijgewerkte JSON**: na een maplezing biedt het voortgangsvenster een knop
+  *Download bijgewerkte JSON* die het resultaat als lean totaal-JSON opslaat
+  (`datasets.mtm` met open alarmen + storingen en `metadata.watermarks`). Dat bestand
+  is direct bruikbaar als basisbestand bij een volgende maplezing.
+- **Datasetbeheer werkt meteen bij**: ook via de moderne mapkiezer (die niet door de
+  bron-inputhandler loopt) worden na afloop de kaart *Signaalgevers totaal* en het
+  overzicht ververst.
 - **Voortgang en foutmeldingen**: tijdens het lezen verschijnt een voortgangsvenster
   vóór de gebruiker (het data-gereedheidspaneel staat bovenaan de pagina en valt in
   Datasetbeheer buiten beeld). Het toont fase en percentage (aantal geselecteerde
@@ -98,7 +105,7 @@ doorrekening leeg bleef.
   (parseren, alarmruns sluiten/openhouden, classificeren, padvalidatie, regio-/
   periodefilter, basiscombinatie, watermerken) en de bundeluitvoer via de schema-
   tolerante mapping als MSI laten herkennen.
-- DVM-versie 86 → 92, met de assertions in `tests/dvm-restore-policy.test.js`,
+- DVM-versie 86 → 93, met de assertions in `tests/dvm-restore-policy.test.js`,
   `tests/drip-special-lists.test.js` en `tests/versiebalk.test.js`. Schilversie blijft
   2.14. De maplezer kreeg een eigen bronkaart met een gele (`primary`) knop; de eerste
   opzet gebruikte een tweede knop met de standaard `tb-btn`-stijl (witte tekst op een
