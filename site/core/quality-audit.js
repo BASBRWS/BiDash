@@ -60,6 +60,19 @@ function duplicateCount(values){
    foutcode op dezelfde plek uit twee verschillende bronbestanden, of met een eigen
    event-ID, is een aparte melding en geen duplicaat. Ontbreekt het event-ID, dan
    valt de vergelijking terug op assetcode, starttijd, foutcode en locatie. */
+function duplicateGroups(items,keyOf){
+  const groups=new Map();
+  for(const item of items){const key=text(keyOf(item));if(!key)continue;const group=groups.get(key)||[];group.push(item);groups.set(key,group);}
+  return [...groups.values()].filter(group=>group.length>1);
+}
+
+function faultEvidence(f){
+  return {
+    id:text(f.id||f.eventId),naam:text(f.naam||f.assetNaam||f.osid||f.asset),type:text(f.typeId),
+    code:text(f.code||f.foutcode),bron:text(f.bron||f.bronBestand),reden:text(f.rekenStatus),
+    assetKey:text(f.assetKey),locatie:[text(f.weg),text(f.richting),finite(f.hm)?`hm ${Number(f.hm).toLocaleString('nl-NL')}`:''].filter(Boolean).join(' ')
+  };
+}
 function faultFingerprint(f){
   const eventId=text(f.eventId||f.event_id);
   const bron=text(f.bron||f.bronBestand||f.source_name);
@@ -79,7 +92,7 @@ export function runQualityAudit(input={}){
   const summaries=input.summaries||{},dvmSummary=summaries.dvm||{};
   const assets=list(input.dvmAssets),biAssets=list(input.biAssets),faults=list(input.faults);
   const now=timeValue(input.now)||Date.now(),findings=[];
-  const add=(category,severity,title,detail,action='',metric=null)=>findings.push({category,severity,title,detail,action,metric});
+  const add=(category,severity,title,detail,action='',metric=null,items=[])=>findings.push({category,severity,title,detail,action,metric,items:list(items).slice(0,100)});
 
   const rawAssetCount=rowsIn(dvm?.assetregister),liveRows=rowsIn(dvm?.liveStoringen);
   const historyRows=rowsIn(dvm?.storingshistorie),dripHistoryRows=rowsIn(dvm?.dripHistorie);
@@ -135,8 +148,8 @@ export function runQualityAudit(input={}){
     add('integrity',lifePct<50?'warning':'good','Levensduurdekking assets',`${lifePct.toLocaleString('nl-NL')}% van de assets heeft een bouwjaar, EOL of bruikbaar levensduuranker.`,lifePct<50?'Vul EOL of bouwjaar aan voordat je leeftijdsprognoses gebruikt.':'',lifePct);
   }
 
-  const duplicateFaults=duplicateCount(faults.map(faultFingerprint));
-  if(duplicateFaults)add('integrity','warning','Mogelijke dubbele open storingen',`${duplicateFaults.toLocaleString('nl-NL')} meldingen hebben dezelfde asset-, code-, tijd- en locatiekenmerken.`,'Controleer of dezelfde bronregel meer dan één keer in de gezamenlijke storingsset staat.',duplicateFaults);
+  const duplicateFaultGroups=duplicateGroups(faults,faultFingerprint),duplicateFaults=duplicateFaultGroups.reduce((sum,group)=>sum+group.length-1,0);
+  if(duplicateFaults)add('integrity','warning','Mogelijke dubbele open storingen',`${duplicateFaults.toLocaleString('nl-NL')} meldingen hebben dezelfde asset-, code-, tijd- en locatiekenmerken.`,'Controleer of dezelfde bronregel meer dan één keer in de gezamenlijke storingsset staat.',duplicateFaults,duplicateFaultGroups.flatMap(group=>group.map(faultEvidence)));
   else if(faults.length)add('integrity','good','Geen exacte storingsduplicaten gevonden','De audit vond geen dubbele combinatie van asset, foutcode, starttijd en locatie.','',faults.length);
   const durations=faults.filter(f=>finite(f.duurUren)).length;
   if(faults.length){
@@ -145,7 +158,10 @@ export function runQualityAudit(input={}){
   }
 
   if(liveRows&&faults.length===0)add('linkage','critical','Storingsbron bereikt het dashboard niet',`De bron bevat ${liveRows.toLocaleString('nl-NL')} regels, maar de gezamenlijke storingsweergave is leeg.`,'Verwerk de actuele bron opnieuw en controleer het ingestelde storingsfilter.');
-  else if(faults.length)add('linkage','good','Storingsketen levert meldingen',`${faults.length.toLocaleString('nl-NL')} open meldingen zijn beschikbaar in de gezamenlijke weergave.`,'',faults.length);
+  else if(faults.length){
+    const outputPct=pct(faults.length,liveRows||faults.length),difference=Math.max(0,liveRows-faults.length);
+    add('linkage',outputPct<50?'warning':'good','Storingsketen levert meldingen',`${faults.length.toLocaleString('nl-NL')} van ${liveRows.toLocaleString('nl-NL')} bronregels (${outputPct.toLocaleString('nl-NL')}%) staan in de gezamenlijke weergave.${difference?` ${difference.toLocaleString('nl-NL')} regels zijn uitgefilterd, gede-dupliceerd of niet geclassificeerd.`:''}`,outputPct<50?'Controleer bronfilters, classificatie en de-duplicatie van de ontbrekende regels.':'',outputPct);
+  }
 
   /* Het verschil tussen bronregels en getoonde meldingen mag geen zwart gat zijn.
      De engine houdt zelf bij waarom een regel afvalt; die uitsplitsing tonen we,
@@ -173,8 +189,9 @@ export function runQualityAudit(input={}){
        impact heeft gekregen; dan heeft de beveiliging gefaald. */
     const conflictFaults=faults.filter(f=>f.assetMatchStatus==='locatieconflict');
     const gelektConflict=conflictFaults.filter(f=>text(f.assetKey)||finite(f.impact)).length;
-    if(gelektConflict)add('linkage','critical','Locatieconflict toch doorgerekend',`${gelektConflict.toLocaleString('nl-NL')} meldingen met een tegenstrijdige locatie kregen tóch een koppeling of impact.`,'Onderzoek waarom de blokkade hier niet greep en herstel de bron voordat je hierop stuurt.',gelektConflict);
-    if(conflictFaults.length)add('linkage','warning','Locatieconflicten veilig geblokkeerd',`${conflictFaults.length.toLocaleString('nl-NL')} meldingen verwijzen qua identiteit en locatie naar verschillende assets. BiDash weigert de koppeling en rekent geen impact; ze staan als niet gekoppeld.`,'Los per geval de bronidentiteit of locatie op. Forceer de koppeling niet.',conflictFaults.length);
+    const gelekteConflicten=conflictFaults.filter(f=>text(f.assetKey)||finite(f.impact));
+    if(gelektConflict)add('linkage','critical','Locatieconflict toch doorgerekend',`${gelektConflict.toLocaleString('nl-NL')} meldingen met een tegenstrijdige locatie kregen tóch een koppeling of impact.`,'Onderzoek waarom de blokkade hier niet greep en herstel de bron voordat je hierop stuurt.',gelektConflict,gelekteConflicten.map(faultEvidence));
+    if(conflictFaults.length)add('linkage','warning','Locatieconflicten veilig geblokkeerd',`${conflictFaults.length.toLocaleString('nl-NL')} meldingen verwijzen qua identiteit en locatie naar verschillende assets. BiDash weigert de koppeling en rekent geen impact; ze staan als niet gekoppeld.`,'Los per geval de bronidentiteit of locatie op. Forceer de koppeling niet.',conflictFaults.length,conflictFaults.map(faultEvidence));
     else add('linkage','good','Geen locatieconflicten','De audit vond geen geblokkeerde koppeling met tegenstrijdige locatie.','',0);
     const dripFaults=faults.filter(f=>text(f.typeId).toUpperCase()==='DRIP'),wind=dripFaults.filter(f=>f.wind).length,ria4=dripFaults.filter(f=>f.ria4).length;
     if(dripFaults.length)add('linkage','info','Speciale DRIP-classificatie',`${wind.toLocaleString('nl-NL')} open DRIP-meldingen zijn als Windwaarschuwing gemarkeerd en ${ria4.toLocaleString('nl-NL')} als RIA4. Overige DRIP-meldingen blijven regulier.`,'Controleer de bronherkomst wanneer deze aantallen onverwacht zijn.',wind+ria4);
@@ -198,8 +215,8 @@ export function runQualityAudit(input={}){
   else if(services.length)add('calculation','good','Dienstaandelen zijn genormaliseerd','Alle dienstdefinities tellen binnen de tolerantie op tot 100%.','',services.length);
 
   if(rules&&list(dvmSummary.diensten).length===0)add('calculation','critical','Geen dienstuitkomsten','Er zijn regels geladen, maar het publieke analysemodel levert geen dienstuitkomsten.','Vernieuw de uitkomsten of verwerk de DVM-bronnen opnieuw.');
-  const uncalculated=faults.filter(f=>(text(f.rekenStatus)&&!/^doorgerekend$/i.test(text(f.rekenStatus)))||(!text(f.rekenStatus)&&!finite(f.impact))).length;
-  if(uncalculated)add('calculation','warning','Open meldingen niet doorgerekend',`${uncalculated.toLocaleString('nl-NL')} open meldingen blijven zichtbaar, maar hebben geen bewezen impactuitkomst.`,'Vul alleen een passende foutregel of koppeling aan als die inhoudelijk kan worden onderbouwd.',uncalculated);
+  const uncalculatedRows=faults.filter(f=>(text(f.rekenStatus)&&!/^doorgerekend$/i.test(text(f.rekenStatus)))||(!text(f.rekenStatus)&&!finite(f.impact))),uncalculated=uncalculatedRows.length;
+  if(uncalculated)add('calculation','warning','Open meldingen niet doorgerekend',`${uncalculated.toLocaleString('nl-NL')} open meldingen blijven zichtbaar, maar hebben geen bewezen impactuitkomst.`,'Maak of wijs alleen een passende foutcode toe als de impact inhoudelijk kan worden onderbouwd. Los locatieconflicten via Assetconfiguratie op.',uncalculated,uncalculatedRows.map(faultEvidence));
   else if(faults.length)add('calculation','good','Alle open meldingen doorgerekend','Iedere open melding heeft een door de engine geaccepteerde rekenstatus.','',faults.length);
   const exactServices=list(dvmSummary.diensten).filter(s=>finite(s.besch)).length;
   if(uncalculated&&exactServices)add('calculation','critical','Exact percentage ondanks onbekende impact',`${exactServices.toLocaleString('nl-NL')} diensten tonen een exact beschikbaarheidspercentage terwijl open meldingen niet zijn doorgerekend.`,'Toon voor deze diensten een databand of onbekende uitkomst totdat de impact is onderbouwd.',exactServices);
@@ -208,7 +225,7 @@ export function runQualityAudit(input={}){
   const roads=list(dvmSummary.roads),knownCosts=roads.filter(r=>finite(r.kosten)).length;
   if(roads.length){
     const costPct=pct(knownCosts,roads.length);
-    add('calculation',costPct<50?'warning':'good','Dekking verkeerskosten',`${costPct.toLocaleString('nl-NL')}% van de geraakte wegdelen heeft een berekenbaar kostenscenario.`,costPct<50?'Vul NDW-verkeer, hinderuren, snelheidsreductie en routecontrole aan.':'',costPct);
+    add('calculation',costPct<80?'warning':'good','Dekking verkeerskosten',`${costPct.toLocaleString('nl-NL')}% van de geraakte wegdelen heeft een berekenbaar kostenscenario.`,costPct<80?'Vul NDW-verkeer, hinderuren, snelheidsreductie en routecontrole aan.':'',costPct);
   }
 
   const backupReady=!!(dvm?.assetregister&&dvm?.parameters&&dvm?.liveStoringen);
@@ -235,6 +252,6 @@ export function runQualityAudit(input={}){
     format:'BiDash-kwaliteitsaudit',version:QUALITY_AUDIT_VERSION,generatedAt:new Date(now).toISOString(),
     score,verdict,blockers,warnings,categories,findings,
     scope:{dvm:!!dvm,bi:!!bi,planning:!!state.planning,rawAssets:rawAssetCount,processedAssets:assets.length,openSourceRows:liveRows,openFaults:faults.length,historicalRows:historyRows+dripHistoryRows},
-    method:'Vaste lokale controles op bronaanwezigheid, actualiteit, uniciteit, koppelingen, rekenstatus en exporteerbaarheid. De audit bewijst niet dat verkeerskundige of statistische aannames inhoudelijk juist zijn.'
+    method:'Vaste lokale controles op bronaanwezigheid, actualiteit, uniciteit, koppelingen, rekenstatus en exporteerbaarheid. Probleemgevallen bevatten alleen minimale identifiers voor herstelacties, geen volledige bronregels. De audit bewijst niet dat verkeerskundige of statistische aannames inhoudelijk juist zijn.'
   };
 }

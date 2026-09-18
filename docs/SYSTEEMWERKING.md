@@ -424,6 +424,8 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 | Planning zonder projectdata | `tests/planning-geen-projectdata.test.js`: geen objectnamen in de code, lege P6-, portfolio- en modelstructuren, tellers op nul, werkende triggerlaadroute met overgeslagen onvolledige regels |
 | Versiebalk | `tests/versiebalk.test.js`: schilversie zichtbaar zonder geladen module, gemelde engineversies erachter, lege melding blijft weg, versienummer op precies één plek |
 | Kwaliteitsaudit | `tests/quality-audit.test.js`: lege werkruimte, gezonde keten, bron-dashboardbreuk, onbekende impact naast exact dienstpercentage, veilig geblokkeerd conflict als waarschuwing, gelekt conflict als blokker, lege BI-werkruimte, asset- en bronregelverschil, duplicaat op event-ID en bronbestand, en zichtbare bediening/export |
+| Queryfilters | `tests/query-filter.test.js`: EN, OF, tekstnormalisatie, numerieke vergelijking en foutcodes op hetzelfde asset |
+| Foutcodebeheer | `tests/fault-rule-manager.test.js`: code maken, expliciet toewijzen, typecontrole, locatieconflict niet omzeilen en adaptervolgorde |
 | Live overzichtsfilter | `tests/live-overview-filter.test.js`: defaults, uitsluitingen, lege waarden, nieuwe waarden, bronbehoud en DVM-parameteropslag |
 | VC-normalisatie in Overzicht en Wegdelen | `tests/vc-normalisatie-overzicht.test.js`: `ZWN`, `zwn`, `VC ZWN` en `WNZ` vormen één groep en de overzichtsgrafiek en het wegdelenfilter gebruiken de canonieke VC-code |
 | Help/documentatie | Controleer `site/help.html`, Help-link in `site/index.html` en overeenstemming met `docs/GEBRUIKERSHULP.md` en `docs/processflow.md` |
@@ -473,7 +475,20 @@ zodra de engine die telling meelevert.
 De laatste volledige audit staat in `qualityAudit`. `qualityHistory` bewaart maximaal
 twaalf kleine trendsnapshots met tijd, score, oordeel en aantallen. Beide velden
 blijven lokaal en gaan alleen mee wanneer de exportselectie `quality` bevat. Het
-rapport bevat geen bronregels of assetnamen.
+rapport bevat geen volledige bronregels. Een afwijkende controle mag maximaal
+honderd minimale herstelidentifiers bevatten, zoals melding-ID, assetnaam, type,
+foutcode, locatie, bron en rekenstatus.
+
+`site/core/query-filter.js` voert de queryfilters van Assetregister en Open storingen
+uit. Iedere regel kan een andere kolom gebruiken en wordt vanaf de tweede regel met
+EN of OF verbonden. EN krijgt volgens SQL-logica voorrang. Het afgeleide veld `assetFaultCodes` groepeert
+alle actuele foutcodes per `assetKey`, zodat een EN-query op code 1001 en 1003 een
+combinatie op hetzelfde asset betekent en niet een onmogelijke combinatie op één melding.
+
+`site/engines/dvm-fault-rule-manager.js` bewaart expliciete melding-codekoppelingen in
+`RULES.cfg.foutToewijzingen`. De toewijzing krijgt voorrang op patroonherkenning,
+maar pas nadat de gewone asset- en locatiecontrole is uitgevoerd. Een locatieconflict
+blijft daardoor niet-doorgerekend.
 
 ## DRIP meldingen en ontbrekende doorrekening
 

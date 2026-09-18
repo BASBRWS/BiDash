@@ -3,6 +3,7 @@ import {DEFAULT_STATE,DVM_PARTS,BI_RULE_KEYS,LABELS,validate,makeExport,mergeImp
 import {read,write} from './core/storage.js';
 import {toonVersies} from './core/versie.js';
 import {runQualityAudit,QUALITY_CATEGORIES} from './core/quality-audit.js';
+import {applyQuery,operatorsFor} from './core/query-filter.js';
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=1)=>Number.isFinite(n)?n.toLocaleString('nl-NL',{maximumFractionDigits:d}):'Onbekend';
 const money=n=>Number.isFinite(n)?n.toLocaleString('nl-NL',{style:'currency',currency:'EUR'}):'Onbekend';
@@ -11,6 +12,22 @@ let state=DEFAULT_STATE(),summaries={},busy=false,failedImport=false,timer,view=
 const engineVersies={};
 function status(s,error=false){$('#status').textContent=s;$('#status').classList.toggle('error',error);}
 let routeTicket=0,assetPage=0;const pageSize=60;
+const ASSET_QUERY_FIELDS=[
+ {key:'naam',label:'Assetnaam'},{key:'key',label:'Asset-ID'},{key:'tp',label:'Assettype'},{key:'source',label:'Bron'},
+ {key:'vc',label:'Verkeerscentrale'},{key:'weg',label:'Locatie of weg'},{key:'status',label:'Status'},
+ {key:'contract',label:'Contract'},{key:'aannemer',label:'Aannemer'},{key:'leverancier',label:'Leverancier'},
+ {key:'openFaults',label:'Aantal open storingen',type:'number'},{key:'assetFaultCodes',label:'Asset heeft foutcode'}
+];
+const FAULT_QUERY_FIELDS=[
+ {key:'naam',label:'Asset of melding'},{key:'assetKey',label:'Asset-ID'},{key:'typeId',label:'Assettype'},
+ {key:'code',label:'Foutcode van deze melding'},{key:'assetFaultCodes',label:'Asset heeft foutcode'},
+ {key:'weg',label:'Weg'},{key:'richting',label:'Richting'},{key:'hm',label:'Hectometer',type:'number'},
+ {key:'vc',label:'Verkeerscentrale'},{key:'rd',label:'Beheerder'},{key:'operationeleStatus',label:'Operationele status'},
+ {key:'impact',label:'Impactpercentage',type:'number'},{key:'duurUren',label:'Duur in uren',type:'number'},
+ {key:'rekenStatus',label:'Rekenstatus'},{key:'omschrijving',label:'Omschrijving'}
+];
+const queries={assets:{rules:[]},faults:{rules:[]}};
+document.__bidashQueries=queries;
 async function ensurePlanning(){const p=await engine('planning'),b=await engine('bi');b.attachPlanning(frames.planning);return p;}
 async function show(id){
  const route=resolveRoute(id),group=GROUPS.find(g=>g.id===route.group),ticket=++routeTicket;view=route.id;
@@ -68,12 +85,17 @@ function download(obj,name,type='application/json'){const blob=new Blob([typeof 
 function qualityDate(value){const d=new Date(value);return Number.isFinite(d.getTime())?d.toLocaleString('nl-NL'):'Onbekend';}
 function qualityTone(severity){return {critical:'red',warning:'amber',info:'blue',good:'green'}[severity]||'blue';}
 function qualitySeverity(severity){return {critical:'Blokkerend',warning:'Waarschuwing',info:'Informatie',good:'Goed'}[severity]||severity;}
+function qualityEvidence(finding){
+ const items=Array.isArray(finding.items)?finding.items:[];if(!items.length)return '';
+ const rows=items.slice(0,25).map(item=>`<tr><td>${esc(item.id||item.naam||'Onbekend')}</td><td>${esc(item.type||'')}</td><td>${esc(item.code||'')}</td><td>${esc(item.locatie||'')}</td><td>${esc(item.reden||'')}</td></tr>`).join('');
+ return `<details class="quality-evidence"><summary>Bekijk ${num(items.length,0)} probleemgeval${items.length===1?'':'len'}</summary><div class="table-scroll"><table><thead><tr><th>ID of naam</th><th>Type</th><th>Code</th><th>Locatie</th><th>Reden</th></tr></thead><tbody>${rows}</tbody></table></div>${items.length>25?`<small>Eerste 25 getoond. Het auditrapport bevat maximaal 100 gevallen.</small>`:''}</details>`;
+}
 function renderQualityDashboard(){
  const host=$('#qualityDashboard');if(!host)return;const report=state.qualityAudit;
  if(!report){host.innerHTML='<div class="empty"><b>Nog geen kwaliteitsaudit uitgevoerd.</b>Klik op Audit uitvoeren om de huidige werkruimte te controleren.</div>';return;}
  const categories=(report.categories||[]).map(c=>`<article class="quality-category"><div class="quality-score-ring tone-${Number(c.score)<70?'red':Number(c.score)<85?'amber':'green'}"><strong>${num(Number(c.score),0)}</strong><span>/ 100</span></div><div><h3>${esc(c.label||QUALITY_CATEGORIES[c.id]?.label||c.id)}</h3><p>${esc(c.description||'')}</p><small>${num(Number(c.critical),0)} blokkerend · ${num(Number(c.warnings),0)} waarschuwingen</small></div></article>`).join('');
  const priorities=(report.findings||[]).filter(f=>f.severity==='critical'||f.severity==='warning');
- const priorityHtml=priorities.length?priorities.map(f=>`<article class="quality-finding tone-${qualityTone(f.severity)}"><div><span class="quality-tag">${esc(qualitySeverity(f.severity))}</span><strong>${esc(f.title)}</strong><p>${esc(f.detail)}</p>${f.action?`<small><b>Actie.</b> ${esc(f.action)}</small>`:''}</div><span class="quality-category-name">${esc(QUALITY_CATEGORIES[f.category]?.label||f.category)}</span></article>`).join(''):'<div class="quality-ok"><b>Geen blokkerende fouten of waarschuwingen.</b><span>De vaste controles geven geen directe herstelactie.</span></div>';
+ const priorityHtml=priorities.length?priorities.map(f=>`<article class="quality-finding tone-${qualityTone(f.severity)}"><div><span class="quality-tag">${esc(qualitySeverity(f.severity))}</span><strong>${esc(f.title)}</strong><p>${esc(f.detail)}</p>${f.action?`<small><b>Actie.</b> ${esc(f.action)}</small>`:''}${qualityEvidence(f)}${f.title==='Open meldingen niet doorgerekend'?'<button data-quality-open="faultRules">Foutcodes beheren</button>':''}</div><span class="quality-category-name">${esc(QUALITY_CATEGORIES[f.category]?.label||f.category)}</span></article>`).join(''):'<div class="quality-ok"><b>Geen blokkerende fouten of waarschuwingen.</b><span>De vaste controles geven geen directe herstelactie.</span></div>';
  const allRows=(report.findings||[]).map(f=>`<tr><td><span class="quality-dot tone-${qualityTone(f.severity)}"></span>${esc(qualitySeverity(f.severity))}</td><td>${esc(QUALITY_CATEGORIES[f.category]?.label||f.category)}</td><td><b>${esc(f.title)}</b><br><small>${esc(f.detail)}</small></td><td>${esc(f.action||'Geen actie nodig.')}</td></tr>`).join('');
  const history=Array.isArray(state.qualityHistory)?state.qualityHistory:[],max=Math.max(100,...history.map(x=>Number(x.score)||0));
  const trend=history.length>1?`<section><div class="section-heading"><h2>Ontwikkeling</h2><span class="muted">Laatste ${history.length} audits</span></div><div class="quality-trend">${history.map(x=>`<div class="quality-trend-item" title="${esc(qualityDate(x.generatedAt))}: ${num(x.score,0)}"><span style="height:${Math.max(4,(Number(x.score)||0)/max*100)}%" class="tone-${x.blockers?'red':x.score<85?'amber':'green'}"></span><small>${num(x.score,0)}</small></div>`).join('')}</div></section>`:'';
@@ -119,7 +141,7 @@ for(const [id,key,name] of [['exportDvm','dvm','dvm-dienstimpact-totaal.json'],[
 $('#save').onclick=sync;$('#refresh').onclick=sync;$('#signalFilter').onchange=render;
 $('#linkForm').onsubmit=e=>{e.preventDefault();const l={dienst:$('#linkService').value,functie:$('#linkFunction').value,eigenaar:$('#linkOwner').value.trim()};state.links=state.links.filter(x=>x.dienst!==l.dienst||x.functie!==l.functie);state.links.push(l);sync();};
 $('#links').onclick=e=>{if(e.target.dataset.remove!==undefined){state.links.splice(Number(e.target.dataset.remove),1);sync();}};
-document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;if(b.id==='runQualityAudit')executeQualityAudit().catch(fail);if(b.id==='exportQualityAudit'&&state.qualityAudit)download(state.qualityAudit,'bidash-kwaliteitsaudit_'+new Date().toISOString().slice(0,10)+'.json');if(b.dataset.route)show(b.dataset.route);if(b.dataset.open){const [name,tab]=b.dataset.open.split(':');const r=Object.values(ROUTES).find(r=>r.engine===name&&r.target===tab);show(r?.id||'overview');}if(b.dataset.scenario){await show('services');const d=await engine('dvm');d.scenario(b.dataset.scenario);}});
+document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;if(b.id==='runQualityAudit')executeQualityAudit().catch(fail);if(b.id==='exportQualityAudit'&&state.qualityAudit)download(state.qualityAudit,'bidash-kwaliteitsaudit_'+new Date().toISOString().slice(0,10)+'.json');if(b.dataset.qualityOpen==='faultRules'){await show('impactRules');const d=await engine('dvm');if(typeof d.openFaultRules==='function')await d.openFaultRules();}if(b.dataset.route)show(b.dataset.route);if(b.dataset.open){const [name,tab]=b.dataset.open.split(':');const r=Object.values(ROUTES).find(r=>r.engine===name&&r.target===tab);show(r?.id||'overview');}if(b.dataset.scenario){await show('services');const d=await engine('dvm');d.scenario(b.dataset.scenario);}});
 $('#primaryNav').innerHTML=GROUPS.map(g=>`<button data-route="${g.items[0][0]}" data-group="${g.id}"><span class="nav-icon" aria-hidden="true">${g.icon}</span>${g.label}</button>`).join('');
 // De schil toont haar eigen versie meteen; engineversies komen erbij zodra een
 // module zich meldt. Zo staat er nooit een leeg of verouderd nummer in de balk.
@@ -136,6 +158,30 @@ function options(id,values){const el=$(id),selected=el.value;el.innerHTML='<opti
 function sourceApi(name){return frames[name]?.contentWindow?.HUB;}
 function catalogue(){return [...(sourceApi('dvm')?.assets()||[]).map(a=>({source:'DVM',key:a.key,naam:a.naam,tp:a.tp,vc:a.vc,weg:[a.weg,a.richting,a.hm!=null?'hm '+num(a.hm,3):''].filter(Boolean).join(' '),status:a.prognoseActief===false?'Niet operationeel':a.status||'Operationeel',raw:a})),...(sourceApi('bi')?.assets()||[]).map(a=>({source:'BI',key:a.key,naam:a.naam,tp:a.assetType,vc:a.vc,weg:a.weg,status:a.status,raw:a}))];}
 function allFaults(){return sourceApi('dvm')?.faults()||[];}
+function faultCodesByAsset(faults=allFaults()){
+ const map=new Map();for(const fault of faults){if(!fault.assetKey||!fault.code)continue;const codes=map.get(fault.assetKey)||new Set();codes.add(String(fault.code));map.set(fault.assetKey,codes);}return map;
+}
+function queryAssets(rows,faults){
+ const codes=faultCodesByAsset(faults),counts=new Map();for(const fault of faults)if(fault.assetKey)counts.set(fault.assetKey,(counts.get(fault.assetKey)||0)+1);
+ return rows.map(asset=>({...asset,contract:asset.raw?.contract,aannemer:asset.raw?.aannemer,leverancier:asset.raw?.leverancier,openFaults:counts.get(asset.key)||0,assetFaultCodes:[...(codes.get(asset.key)||[])]}));
+}
+function queryFaults(rows){
+ const codes=faultCodesByAsset(rows);
+ return rows.map(fault=>({...fault,assetFaultCodes:[...(codes.get(fault.assetKey)||[])]}));
+}
+function queryField(type,key){return (type==='assets'?ASSET_QUERY_FIELDS:FAULT_QUERY_FIELDS).find(field=>field.key===key);}
+function renderQueryBuilder(type){
+ const host=$('#'+(type==='assets'?'assetQueryBuilder':'faultQueryBuilder'));if(!host)return;const query=queries[type],fields=type==='assets'?ASSET_QUERY_FIELDS:FAULT_QUERY_FIELDS;
+ const rules=query.rules.map((rule,index)=>{const field=queryField(type,rule.field)||fields[0],operators=operatorsFor(field.type),noValue=['empty','notEmpty'].includes(rule.operator),join=index?`<select data-query-join aria-label="Logische koppeling"><option value="and" ${rule.join!=='or'?'selected':''}>EN</option><option value="or" ${rule.join==='or'?'selected':''}>OF</option></select>`:'<span class="query-where">WAAR</span>';return `<div class="query-rule" data-query-rule="${index}">${join}<select data-query-field>${fields.map(item=>`<option value="${esc(item.key)}" ${item.key===field.key?'selected':''}>${esc(item.label)}</option>`).join('')}</select><select data-query-operator>${operators.map(([value,label])=>`<option value="${esc(value)}" ${value===rule.operator?'selected':''}>${esc(label)}</option>`).join('')}</select><input data-query-value value="${esc(rule.value||'')}" placeholder="Waarde" ${noValue?'disabled':''}><button data-query-remove="${index}" aria-label="Filterregel verwijderen">Verwijderen</button></div>`;}).join('');
+ host.innerHTML=`<div class="query-toolbar"><button data-query-add>Voorwaarde toevoegen</button><button data-query-reset ${query.rules.length?'':'disabled'}>Query wissen</button><span>SQL-logica, EN wordt vóór OF uitgevoerd.</span></div>${rules}<div class="query-summary">${query.rules.length?`${query.rules.length} voorwaarde${query.rules.length===1?'':'n'} actief. Filters boven deze module blijven ook gelden.`:'Nog geen queryvoorwaarden.'}</div>`;
+}
+function queryChanged(type){assetPage=0;renderQueryBuilder(type);if(type==='assets')renderAssets();else{renderFaults();document.dispatchEvent(new CustomEvent('bidash:query-change',{detail:{type}}));}}
+function installQueryBuilder(type){
+ const host=$('#'+(type==='assets'?'assetQueryBuilder':'faultQueryBuilder'));if(!host||host.dataset.ready)return;host.dataset.ready='1';renderQueryBuilder(type);
+ host.addEventListener('click',event=>{const button=event.target.closest('button');if(!button)return;if(button.hasAttribute('data-query-add'))queries[type].rules.push({join:'and',field:(type==='assets'?ASSET_QUERY_FIELDS:FAULT_QUERY_FIELDS)[0].key,operator:'contains',value:''});else if(button.hasAttribute('data-query-reset'))queries[type]={rules:[]};else if(button.dataset.queryRemove!==undefined)queries[type].rules.splice(Number(button.dataset.queryRemove),1);queryChanged(type);});
+ host.addEventListener('change',event=>{const row=event.target.closest('[data-query-rule]'),index=row?Number(row.dataset.queryRule):-1;if(index>=0&&event.target.matches('[data-query-join]'))queries[type].rules[index].join=event.target.value;else if(index>=0&&event.target.matches('[data-query-field]')){const field=queryField(type,event.target.value),join=queries[type].rules[index].join;queries[type].rules[index]={join,field:event.target.value,operator:operatorsFor(field?.type)[0][0],value:''};}else if(index>=0&&event.target.matches('[data-query-operator]'))queries[type].rules[index].operator=event.target.value;queryChanged(type);});
+ host.addEventListener('input',event=>{const row=event.target.closest('[data-query-rule]');if(!row||!event.target.matches('[data-query-value]'))return;queries[type].rules[Number(row.dataset.queryRule)].value=event.target.value;assetPage=0;if(type==='assets')renderAssets();else{renderFaults();document.dispatchEvent(new CustomEvent('bidash:query-change',{detail:{type}}));}});
+}
 
 function renderNative(){
  const d=summaries.dvm,b=summaries.bi;
@@ -153,15 +199,16 @@ function renderNative(){
 }
 function renderAssets(){
  const all=catalogue(),faults=allFaults(),affected=new Set(faults.map(m=>m.assetKey)),q=$('#assetSearch').value.toLowerCase(),vc=$('#assetVc').value,src=$('#assetSource').value,only=$('#assetFaultOnly').checked;
- const rows=all.filter(a=>(!src||src===a.source)&&(!vc||vc===a.vc)&&(!only||(a.source==='DVM'&&affected.has(a.key)))&&(!q||[a.naam,a.weg,a.tp,a.raw.contract,a.raw.aannemer,a.raw.leverancier].join(' ').toLowerCase().includes(q)));
+ const rows=applyQuery(queryAssets(all,faults).filter(a=>(!src||src===a.source)&&(!vc||vc===a.vc)&&(!only||(a.source==='DVM'&&affected.has(a.key)))&&(!q||[a.naam,a.weg,a.tp,a.raw.contract,a.raw.aannemer,a.raw.leverancier].join(' ').toLowerCase().includes(q))),queries.assets,ASSET_QUERY_FIELDS);
  assetPage=Math.min(assetPage,Math.max(0,Math.ceil(rows.length/pageSize)-1));
  $('#assetKpis').innerHTML=[['Assets in register',num(all.length,0),'Alle geladen assets, inclusief niet-operationele'],['Open storingen',num(faults.length,0),'Op de brondag '+date(summaries.dvm?.peildatum)],['Bronnen','DVM + BI','Impactregels en identiteit blijven bij hun bron']].map(c=>`<div class="card">${c[0]}<strong>${c[1]}</strong><small>${esc(c[2])}</small></div>`).join('');
  $('#assetTable').innerHTML=rows.length?`<table><thead><tr><th>Asset</th><th>Type / bron</th><th>Locatie</th><th>VC</th><th>Status</th><th>Open</th></tr></thead><tbody>${rows.slice(assetPage*pageSize,(assetPage+1)*pageSize).map(a=>`<tr><td><button data-asset="${esc(a.key)}" data-source="${a.source}">${esc(a.naam)}</button></td><td>${esc(a.tp)} <span class="pill">${a.source}</span></td><td>${esc(a.weg)}</td><td>${esc(a.vc||'Onbekend')}</td><td>${esc(a.status)}</td><td>${a.source==='DVM'?faults.filter(m=>m.assetKey===a.key).length:'—'}</td></tr>`).join('')}</tbody></table>`:empty('Geen assets in deze selectie',all.length?'Pas de filters aan.':'Laad je DVM-totaalbestand of BI-assets.');
  $('#assetCount').textContent=`${num(rows.length,0)} resultaten · pagina ${assetPage+1} van ${Math.max(1,Math.ceil(rows.length/pageSize))}`;$('#assetPrev').disabled=assetPage===0;$('#assetNext').disabled=(assetPage+1)*pageSize>=rows.length;
 }
-function renderFaults(){const q=$('#faultSearch').value.toLowerCase(),vc=$('#faultVc').value,rows=allFaults().filter(m=>(!vc||m.vc===vc)&&[m.naam,m.weg,m.code,m.omschrijving].join(' ').toLowerCase().includes(q));$('#faultTable').innerHTML=rows.length?`<table><thead><tr><th>Asset / melding</th><th>Weg / richting</th><th>VC</th><th>Code</th><th>Impact</th></tr></thead><tbody>${rows.map(m=>`<tr><td>${m.assetKey?`<button data-asset="${esc(m.assetKey)}" data-source="DVM">${esc(m.naam||m.assetKey)}</button>`:esc(m.naam||'Niet gekoppeld')}<br><small class="muted">${esc(m.omschrijving)}</small></td><td>${esc(m.weg+' '+m.richting)} ${m.hm!=null?'· '+esc(m.hm):''}</td><td>${esc(m.vc)}</td><td>${esc(m.code)}</td><td>${m.impact==null?'Niet doorgerekend':num(m.impact)+'%'}</td></tr>`).join('')}</tbody></table>`:empty('Geen open storingen in deze selectie','Laad open storingen of pas de filters aan.');}
+function renderFaults(){const q=$('#faultSearch').value.toLowerCase(),vc=$('#faultVc').value,rows=applyQuery(queryFaults(allFaults()).filter(m=>(!vc||m.vc===vc)&&[m.naam,m.weg,m.code,m.omschrijving].join(' ').toLowerCase().includes(q)),queries.faults,FAULT_QUERY_FIELDS);$('#faultTable').innerHTML=rows.length?`<table><thead><tr><th>Asset / melding</th><th>Weg / richting</th><th>VC</th><th>Code</th><th>Impact</th></tr></thead><tbody>${rows.map(m=>`<tr><td>${m.assetKey?`<button data-asset="${esc(m.assetKey)}" data-source="DVM">${esc(m.naam||m.assetKey)}</button>`:esc(m.naam||'Niet gekoppeld')}<br><small class="muted">${esc(m.omschrijving)}</small></td><td>${esc(m.weg+' '+m.richting)} ${m.hm!=null?'· '+esc(m.hm):''}</td><td>${esc(m.vc)}</td><td>${esc(m.code)}</td><td>${m.impact==null?'Niet doorgerekend':num(m.impact)+'%'}</td></tr>`).join('')}</tbody></table>`:empty('Geen open storingen in deze selectie','Laad open storingen of pas de filters aan.');}
 function renderCosts(){const vc=$('#costVc').value,rows=(summaries.dvm?.roads||[]).filter(r=>!vc||r.vc===vc),known=rows.filter(r=>Number.isFinite(r.kosten)),total=known.reduce((s,r)=>s+r.kosten,0);$('#costKpis').innerHTML=[['Bekend subtotaal / brondag',known.length?money(total):'Onbekend'],['Berekenbare wegdelen',known.length+' / '+rows.length],['Brondag',date(summaries.dvm?.peildatum)]].map(c=>`<div class="card">${c[0]}<strong>${esc(c[1])}</strong></div>`).join('');$('#costTable').innerHTML=rows.length?`<table><thead><tr><th>Wegdeel</th><th>VC</th><th>VVU / brondag</th><th>Kosten / brondag</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.naam)}</td><td>${esc(r.vc)}</td><td>${num(r.vvu)}</td><td>${money(r.kosten)}</td><td><button data-cost="${esc(r.id)}">Bekijk berekening →</button></td></tr>`).join('')}</tbody></table>`:empty('Nog geen wegdelen','Laad een actuele storingsbron met assetregister.');}
 $('#assetSearch').oninput=()=>{assetPage=0;renderAssets();};for(const id of ['assetVc','assetSource','assetFaultOnly'])$('#'+id).onchange=()=>{assetPage=0;renderAssets();};$('#assetPrev').onclick=()=>{assetPage--;renderAssets();};$('#assetNext').onclick=()=>{assetPage++;renderAssets();};$('#faultSearch').oninput=renderFaults;$('#faultVc').onchange=renderFaults;$('#costVc').onchange=renderCosts;
+installQueryBuilder('assets');installQueryBuilder('faults');
 $('#closeAsset').onclick=()=>$('#assetDialog').close();
 document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.asset){const src=b.dataset.source,key=b.dataset.asset,a=src==='DVM'?sourceApi('dvm').detail(key).asset:sourceApi('bi').assets().find(a=>a.key===key);if(!a)return;const fields=[['Bron',src],['Naam',a.naam],['Type',a.tp||a.assetType],['Verkeerscentrale',a.vc],['Weg',a.weg],['Bouwjaar',a.bouwjaar],['EOL',a.eol],['Contract',a.contract],['Aannemer',a.aannemer],['Leverancier',a.leverancier]];const faults=src==='DVM'?sourceApi('dvm').detail(key).faults:[];$('#assetDetail').innerHTML=`<div class="detail-grid">${fields.map(([k,v])=>`<div><small>${k}</small><b>${esc(v??'Onbekend')}</b></div>`).join('')}</div><h3>${faults.length} gekoppelde open meldingen</h3>${faults.map(m=>`<p>${esc(m.code)} · ${m.impact==null?'Niet doorgerekend':num(m.impact)+'%'} impact · ${esc(m.omschrijving)}</p>`).join('')}<button id="detailFaults">${src==='DVM'?'Storingen en impact':'Bedienketens'} bekijken →</button>`;$('#detailFaults').onclick=()=>{$('#assetDialog').close();if(src==='DVM'){$('#faultSearch').value=a.naam;show('faults');}else show('chains');};$('#assetDialog').showModal();}if(b.dataset.cost){await show('services');sourceApi('dvm').openCosts(b.dataset.cost);}});
 

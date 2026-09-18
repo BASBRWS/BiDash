@@ -1,8 +1,14 @@
 import {OPEN_FAULT_TYPES,OPEN_OPERATIONAL_STATUSES,filterOpenFaults,formatFaultDuration,buildOpenFaultMemo} from './open-fault-view.js';
+import {applyQuery} from './query-filter.js';
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtHm=v=>Number.isFinite(Number(v))?Number(v).toLocaleString('nl-NL',{maximumFractionDigits:3}):'';
 const fmtDate=v=>{if(!v)return 'Onbekend';const d=new Date(v);return Number.isFinite(d.getTime())?d.toLocaleString('nl-NL'):'Onbekend';};
+const FAULT_QUERY_FIELDS=[
+  {key:'naam'},{key:'assetKey'},{key:'typeId'},{key:'code'},{key:'assetFaultCodes'},
+  {key:'weg'},{key:'richting'},{key:'hm',type:'number'},{key:'vc'},{key:'rd'},
+  {key:'operationeleStatus'},{key:'impact',type:'number'},{key:'duurUren',type:'number'},{key:'rekenStatus'},{key:'omschrijving'}
+];
 
 function typeLabel(type){return OPEN_FAULT_TYPES.find(([v])=>v===String(type||'').toUpperCase())?.[1]||type||'Onbekend';}
 function locationLabel(f){return [f.weg||'',f.richting||'',f.hm!=null&&f.hm!==''?'hm '+fmtHm(f.hm):''].filter(Boolean).join(' ')||'Locatie onbekend';}
@@ -17,7 +23,12 @@ export function installOpenFaultParentUi(scope=globalThis){
 
   function faults(){try{return scope.HUB?.faults?.()||[];}catch(e){return [];}}
   function filters(){return {query:doc.getElementById('faultSearch')?.value||'',vc:doc.getElementById('faultVc')?.value||'',type:doc.getElementById('faultType')?.value||'',status:doc.getElementById('faultOperationalStatus')?.value||'',wind:!!doc.getElementById('faultWind')?.checked,ria4:!!doc.getElementById('faultRia4')?.checked};}
-  function filtered(){return filterOpenFaults(faults(),filters());}
+  function filtered(){
+    const base=filterOpenFaults(faults(),filters()),codes=new Map();
+    for(const fault of faults()){if(!fault.assetKey||!fault.code)continue;const set=codes.get(fault.assetKey)||new Set();set.add(String(fault.code));codes.set(fault.assetKey,set);}
+    const enriched=base.map(fault=>({...fault,assetFaultCodes:[...(codes.get(fault.assetKey)||[])]}));
+    return applyQuery(enriched,doc.__bidashQueries?.faults,FAULT_QUERY_FIELDS);
+  }
   function schedule(){if(scheduled)return;scheduled=true;setTimeout(()=>{scheduled=false;ensure();render();},0);}
 
   function selectControl(id,labelText,options){
@@ -93,6 +104,7 @@ export function installOpenFaultParentUi(scope=globalThis){
     scope.parent.addEventListener('hashchange',schedule);
     scope.parent.addEventListener('popstate',schedule);
   };
+  doc.addEventListener('bidash:query-change',event=>{if(event.detail?.type==='faults')schedule();});
   if(scope.document.readyState==='complete')start();else scope.addEventListener('load',start,{once:true});
   return true;
 }

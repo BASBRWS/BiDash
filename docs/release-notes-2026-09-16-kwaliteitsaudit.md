@@ -1,6 +1,6 @@
 # Release notes, lokaal kwaliteitsdashboard
 
-BiDash 2.12, DVM 80. Datum 16 september 2026.
+BiDash 2.15, DVM 100. Bijgewerkt op 18 september 2026.
 
 ## Nieuwe kwaliteitstab
 
@@ -26,8 +26,9 @@ dat ieder model extern is gevalideerd.
 
 ## Opslag en export
 
-Auditresultaten bevatten alleen samenvattingen en aantallen. De audit verzendt geen
-brondata. De laatste audit en scorehistorie worden in dezelfde lokale IndexedDB-
+Auditresultaten bevatten samenvattingen, aantallen en maximaal honderd minimale
+herstelidentifiers per bevinding. Volledige bronregels worden niet opgenomen en de
+audit verzendt geen brondata. De laatste audit en scorehistorie worden in dezelfde lokale IndexedDB-
 werkruimte opgeslagen. Bij **Export samenstellen** kan **Kwaliteitsaudit en
 scorehistorie** worden meegenomen. Het laatste rapport kan ook apart als JSON worden
 gedownload.
@@ -37,3 +38,15 @@ gedownload.
 `tests/quality-audit.test.js` bewaakt de lege werkruimte, een gezonde synthetische
 DVM-keten, een ketenbreuk tussen bron en dashboard en het onterecht tonen van een
 exact dienstpercentage naast niet-doorgerekende meldingen.
+
+## Betere beoordeling en herstelactie
+
+Een locatieconflict dat veilig buiten de berekening blijft, is een waarschuwing.
+Het wordt alleen blokkerend wanneer een melding met een locatieconflict toch een
+impactuitkomst krijgt. De audit toont de betrokken identifiers, locaties,
+rekenstatussen en foutcodes zodat de oorzaak gericht kan worden hersteld.
+
+Vanuit de bevinding **Open meldingen niet doorgerekend** kan **Foutcodes beheren**
+worden geopend. Daar kun je een onderbouwde foutcode maken en geselecteerde meldingen
+toewijzen. Een locatieconflict kan niet met een foutcode worden omzeild en moet via
+Assetconfiguratie worden opgelost.
