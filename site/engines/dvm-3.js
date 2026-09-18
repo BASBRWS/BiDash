@@ -624,9 +624,9 @@ function signaalgeverOpenActief(a){
 }
 function signaalgeverAssetType(a){
   a=a||{};
-  const aanwijzing=[a.categorie,a.unit,a.asset,a.signaalgever,a.impact,a.impactklasse,a.description,a.omschrijving]
+  const aanwijzing=[a.assetType,a.assettype,a.categorie,a.unit,a.asset,a.signaalgever,a.impact,a.impactklasse,a.description,a.omschrijving]
     .map(v=>String(v||'').trim().toLowerCase()).filter(Boolean).join(' ');
-  return /\bdetector(?:station)?\b|\bdetectie\b|\bdetectielus(?:sen)?\b|\bmeetlus(?:sen)?\b|\blus(?:sen)?\b/.test(aanwijzing)?'LUS':'MSI';
+  return canoniekAssetType(aanwijzing)==='LUS'?'LUS':'MSI';
 }
 function signaalgeverOpenRij(a){
   a=a||{};
@@ -1558,11 +1558,15 @@ function statusActiefVoorPrognose(status){
 /* Classificatie voor de leeftijdscohorten uit het volledige assetregister. */
 function registerAssetType(row,g){
   if(isDripRij(row,g)) return 'DRIP';
-  const hay=[g(row,['ci-type']),g(row,['nen-subtype']),g(row,['nen-bouwdeel']),g(row,['asset'])].join(' ').toLowerCase();
+  const specifiek=[g(row,['nen-subtype']),g(row,['nen-bouwdeel']),g(row,['type']),g(row,['functie'])].join(' ');
+  const hay=[g(row,['ci-type']),specifiek,g(row,['asset'])].join(' ').toLowerCase();
   if(/wisselbord/.test(hay)) return 'WISSELBORD';
-  if(/matrixsignaalgever|vks signaalgevers|\bmsi\b|kruis.?pijl/.test(hay)) return 'MSI';
   if(/camera|cctv/.test(hay)) return 'CAM';
-  if(/detectielus|meetlus|\blussen?\b|mon detector/.test(hay)) return 'LUS';
+  /* Een specifiek bouwdeel of type gaat vóór de bredere CI-familie. Zo wordt een
+     Inductielus onder VKS niet als algemene signaalgever ingedeeld. */
+  if(canoniekAssetType(specifiek)==='LUS')return 'LUS';
+  if(/matrixsignaalgever|vks signaalgevers|\bmsi\b|kruis.?pijl/.test(hay)) return 'MSI';
+  if(canoniekAssetType(hay)==='LUS')return 'LUS';
   return null;
 }
 
@@ -2614,7 +2618,7 @@ function renderStoringen(){
       <td class="num mono">${m.hm!=null?fmt(m.hm,3):'–'}</td>
       <td class="num">${esc(m.strook||'–')}</td>
       <td style="max-width:190px">${m.assetKey?`<span title="${esc(m.assetMatchMethode)}">${esc(m.assetNaam)}</span>`:`<button class="asset-match-link" onclick="openAssetConfigForLog('${encodeURIComponent(m.assetLogId||m.osid||'')}')">Niet gekoppeld · configureren</button>`}</td>
-      <td><span class="tag gy">${m.typeId}</span></td>
+      <td><span class="tag gy">${m.typeId==='LUS'?'Detectielus':m.typeId}</span></td>
       <td><span class="tag ${tg}">${m.code}</span> <span class="muted">${esc(sev)}</span></td>
       <td style="max-width:230px">${esc((m.melding||'').slice(0,60))}</td>
       <td class="muted" style="font-size:11px">${esc(m.locCtx)}</td>

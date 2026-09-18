@@ -26,9 +26,11 @@
        Bewaar ze daarom in de open momentopname en historie. Een onbekende
        detectorcode blijft zichtbaar zonder impact totdat een passende LUS-regel
        is vastgelegd; uitsluiten bij de bron zou de storing volledig verbergen. */
-    if(DETECTOR_CODES.has(code)||/detectorstation|\bdet\.?\s*\d+|beide lussen|een lus goed/i.test(d))return ['DETECTOR',true,'DETECTOR'];
+    const detectielus=/\bdetectie\b|\bdetector(?:en|station|stations)?\b|\bdet\.?\s*\d+|\binductielus(?:sen)?\b|\bmeetlus(?:sen)?\b|\bdetectielus(?:sen)?\b|\blus(?:sen)?\b/i.test(d);
+    if(detectielus)return ['DETECTIELUS',true,'DETECTIE'];
     if(/\bmsi\s*\d+/i.test(d))return ['MSI',true,code==='1003'||d.includes('fatale fout')?'UITVAL':MSI_DEGRADATIE.has(code)?'DEGRADATIE':'MSI_FOUT'];
     if(SYSTEEM_CODES.has(code)||/wisselbord|hoofdvoeding|noodvoeding|communicatie met os|os zelfstandig/i.test(d))return ['SYSTEEM',true,/uitgevallen|uitgeschakeld/.test(d)?'SYSTEEM_UITVAL':'SYSTEEM_FOUT'];
+    if(DETECTOR_CODES.has(code))return ['DETECTIELUS',true,'DETECTIE'];
     return ['OVERIG',false,'OVERIG'];
   }
   function sbSnapshotDatum(text,naam){
@@ -46,7 +48,7 @@
       const id=p[0].trim(),code=p[1].trim(),start=sbParseDT(p.at(-1)),loc=sbLocatie(p.at(-2));
       const desc=p.slice(2,-2).join('|').replace(new RegExp('^\\s*'+code+'\\s+'),'').trim();
       const cat=sbMtmCategorie(code,desc);
-      const m=desc.match(/\bMSI\s*(\d+)/i),unit=m?'MSI '+(+m[1]):cat[0]==='SYSTEEM'?'SYSTEEM':cat[0]==='DETECTOR'?'DETECTOR':'OVERIG';
+      const m=desc.match(/\bMSI\s*(\d+)/i),unit=m?'MSI '+(+m[1]):cat[0]==='SYSTEEM'?'SYSTEEM':cat[0]==='DETECTIELUS'?'DETECTIELUS':'OVERIG';
       rows.push({event_key:vc+'|'+id,event_id:id,code,start:start?start.toISOString():null,description:desc,locatie:loc.locatie,weg:loc.weg,richting_kenmerk:loc.richting_kenmerk,km:loc.km,categorie:cat[0],meenemen:cat[1],impact:cat[2],unit,asset_key:vc+'|'+loc.locatie+'|'+unit});
     }
     return rows;
