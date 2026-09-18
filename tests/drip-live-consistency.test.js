@@ -16,6 +16,7 @@ function scope(){
   normAssetRichting:v=>String(v||'').toUpperCase(),koppelMeldingAanAsset:()=>({status:'niet-gekoppeld'}),pasAssetKoppelingToe:()=>{},
   datasetPeriode:()=>({}),areaalVoorWegdeel:()=>1};
  vm.createContext(context);
+ vm.runInContext(between('function canoniekAssetType(', 'function normAssetVc'),context);
  vm.runInContext(between('function lc(', '/* stap 2: MSI-ernstcontext'),context);
  vm.runInContext(between('const V68_TYPES=', 'function v68ObjType'),context);
  return context;

@@ -49,7 +49,7 @@ vm.runInContext(`const MSI_DEGRADATIE=new Set(['1001','1002','1061','6002']);con
 for(const naam of ['sbGroupBy','sbVcAlias','sbGeldigeDatum','sbParseDT','sbMediaan','sbLocatie','sbMtmCategorie','sbSnapshotDatum','sbMtmRijenUitTekst','sbClassificeer','sbBouwBundel','sbPadInfoMtm','sbPad','sbBestandGeschikt','sbFilterBestanden','sbCombineerMetBasis','sbWatermerken','sgBuitenPeriode','sgVolgendeCtx'])
   vm.runInContext(haalFunctie(bundelaar,naam),ctx,{filename:naam});
 // Mapping + classificeer uit dvm-2/3 voor deel E.
-for(const naam of ['lc','num','parseDatum','normAssetRichting','normRij','classificeer','dripToestandImpact','dripRegel','foutregel'])
+for(const naam of ['lc','num','parseDatum','normAssetRichting','normRij','canoniekAssetType','classificeer','dripToestandImpact','dripRegel','foutregel'])
   vm.runInContext(haalFunctie(dvm2,naam),ctx,{filename:naam});
 for(const naam of ['signaalgeverOpenActief','signaalgeverAssetType','signaalgeverOpenRij','signaalgeverHistorieRij','signaalgeverTotaalBronnen'])
   vm.runInContext(haalFunctie(dvm3,naam),ctx,{filename:naam});
@@ -74,7 +74,9 @@ test('A. een storinglijst wordt in alarmregels geparseerd',()=>{
   assert.equal(msi.categorie,'MSI');
   assert.equal(msi.meenemen,true);
   const det=rows.find(r=>r.event_id==='102');
-  assert.equal(det.categorie,'DETECTOR');
+  assert.equal(det.categorie,'DETECTIELUS');
+  assert.equal(det.unit,'DETECTIELUS');
+  assert.equal(det.impact,'DETECTIE');
   assert.equal(det.meenemen,true); // detector is een open LUS-bron voor detectie
 });
 
@@ -204,6 +206,18 @@ test('J. een open detectielusstoring blijft zichtbaar en krijgt LUS-impact',()=>
   assert.equal(f.availPct,25);
   assert.equal(f.perfPct,60);
   assert.match(dvm1,/detectie:'LUS'/,'LUS moet de detectieschakel van dienstverlening voeden');
+});
+
+test('J2. losse bronwoorden lus en detectie worden als Detectielus aan detectie gekoppeld',()=>{
+  const varianten=['LUS','lussen','detectie','detector','detectielus','meetlus','inductielus'];
+  varianten.forEach(v=>assert.equal(call('signaalgeverAssetType',{categorie:v}), 'LUS',v+' hoort LUS te worden'));
+  const tekst=regel('203','1006','Lus 1 fout','A4 R 27,000','16-08-2026 00:00:00');
+  const bron=call('sbMtmRijenUitTekst',tekst,'zwn')[0];
+  assert.equal(bron.categorie,'DETECTIELUS');
+  const rij=call('normRij',call('signaalgeverOpenRij',{...bron,eindstatus:'open_aan_einde'}));
+  assert.equal(call('classificeer',rij),'LUS');
+  assert.equal(call('foutregel',rij,'LUS').code,'1006','de bekende foutcode werkt ook bij een afwijkende omschrijving');
+  assert.match(dvm1,/detectie:'LUS'/);
 });
 
 test('K. een onbekende detectorcode blijft zichtbaar zonder verzonnen impact',()=>{

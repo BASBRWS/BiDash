@@ -54,6 +54,19 @@ let TOTAAL_IMPORT_GELADEN=false;
 function normAssetTekst(v){
   return String(v==null?'':v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,'');
 }
+/* Bronbestanden gebruiken verschillende woorden voor dezelfde functionele bron.
+   Intern blijft LUS de stabiele technische sleutel; in de bediening heet dit
+   Detectielus en in de dienstketen voedt het de schakel detectie. */
+function canoniekAssetType(v){
+  const s=String(v==null?'':v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase();
+  if(!s)return '';
+  if(/(?:^|[^A-Z0-9])(?:DETECTIE|DETECTIELUS(?:SEN)?|MEETLUS(?:SEN)?|INDUCTIELUS(?:SEN)?|LUS(?:SEN)?|DETECTOR(?:EN|STATION|STATIONS)?)(?:[^A-Z0-9]|$)/.test(s))return 'LUS';
+  if(/^(?:MSI|SIGNAALGEVER|MATRIXSIGNAALGEVER)$/.test(s))return 'MSI';
+  if(/^(?:CAM|CAMERA|CCTV)$/.test(s))return 'CAM';
+  if(s==='DRIP')return 'DRIP';
+  if(s==='WISSELBORD')return 'WISSELBORD';
+  return '';
+}
 function normAssetVc(v){
   let s=String(v==null?'':v).trim().toUpperCase().replace(/^VC[\s_-]*/,'').replace(/\s+/g,'');
   if(s==='WNN')s='NWN';
@@ -876,12 +889,13 @@ function classificeer(m){
      de MTM-storinglijsten) zijn altijd MSI-installatiestoringen; hun omschrijving kan
      woorden als "wisselbord" bevatten die anders naar een assettype zouden wijzen dat
      niet in het register zit en de hele doorrekening zou blokkeren. */
-  if(m&&m.assetTypeHint) return m.assetTypeHint;
+  const hint=canoniekAssetType(m&&m.assetTypeHint);
+  if(hint)return hint;
   const hay = (m.osid+' '+m.melding+' '+m.gevolg).toLowerCase();
   if(/\bdrip\b|dynamisch route|route[-\s]?informatie|tekstpaneel/.test(hay)) return 'DRIP';
   if(hay.includes('wisselbord')) return 'WISSELBORD';
   if(/\bcamera\b|cctv/.test(hay)) return 'CAM';
-  if(/\blus\b|meetlus|detectielus/.test(hay)) return 'LUS';
+  if(/\bdetectie\b|\bdetector(?:en|station|stations)?\b|\binductielus(?:sen)?\b|\bmeetlus(?:sen)?\b|\bdetectielus(?:sen)?\b|\blus(?:sen)?\b/.test(hay)) return 'LUS';
   if(/msi|signaalgever|kruislamp|aanstuurcirc|lampcircuit|\bos\b/.test(hay)) return 'MSI';
   return null;
 }
@@ -915,13 +929,18 @@ function dripRegel(code,availPct,perfPct,oms,severity){
 }
 function foutregel(m,typeId){
   const oms = lc(m.melding+' '+m.gevolg);
+  const bronCode=String(m&&m.code||'').trim().toUpperCase();
   let best=null;
   for(const f of RULES.foutcodes){
     if(!f.actief||f.assetType!==typeId) continue;
-    if(oms.includes(lc(f.patroon))){
-      const score=(Number(f.availPct)||0)+(Number(f.perfPct)||0);
+    const codeMatch=bronCode&&bronCode===String(f.code||'').trim().toUpperCase();
+    if(codeMatch||oms.includes(lc(f.patroon))){
+      /* Een exacte foutcode gaat voor op een toevallige tekstmatch. Dit is vooral
+         nodig bij detectielussen waarvan de omschrijving per MTM-versie verschilt. */
+      const score=(codeMatch?1000:0)+(Number(f.availPct)||0)+(Number(f.perfPct)||0);
       const bestScore=best?((Number(best.availPct)||0)+(Number(best.perfPct)||0)):-1;
-      if(score>bestScore)best=f;
+      const bestCode=best&&bronCode===String(best.code||'').trim().toUpperCase();
+      if(score>(bestCode?1000:0)+bestScore)best=f;
     }
   }
   // DRIP: de functionele toestand is leidend boven de losse alarmtekst.

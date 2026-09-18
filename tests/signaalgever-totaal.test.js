@@ -49,7 +49,7 @@ function haalFoutcodes(){
 }
 
 const ctx=vm.createContext({Number,String,Object,Array,Math,Date,parseFloat,parseInt,isNaN,isFinite,console,RULES:{foutcodes:haalFoutcodes()}});
-for(const naam of ['lc','num','parseDatum','normAssetRichting','normRij','classificeer','dripToestandImpact','dripRegel','foutregel'])
+for(const naam of ['lc','num','parseDatum','normAssetRichting','normRij','canoniekAssetType','classificeer','dripToestandImpact','dripRegel','foutregel'])
   vm.runInContext(haalFunctie(dvm2,naam),ctx,{filename:naam});
 for(const naam of ['signaalgeverOpenActief','signaalgeverAssetType','signaalgeverOpenRij','signaalgeverHistorieRij','signaalgeverTotaalBronnen'])
   vm.runInContext(haalFunctie(dvm3,naam),ctx,{filename:naam});
