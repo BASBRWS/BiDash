@@ -3506,7 +3506,7 @@ function beschKleur(b,norm){
 function fmt(v,d=2){return v==null?'–':(+v).toFixed(d);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 /* tooltip-icoon met uitlegbubbel; body mag HTML bevatten (b, .frm) */
-function tip(body,left){return `<span class="tip${left?' tip-left':''}" tabindex="0">i<span class="tip-body">${body}</span></span>`;}
+function tip(body,left){return `<span class="tip${left?' tip-left':''}" role="note">i<span class="tip-body">${body}</span></span>`;}
 function tekstLabelVan(el){
   if(!el)return '';
   const c=el.cloneNode(true);

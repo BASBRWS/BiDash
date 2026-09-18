@@ -20,3 +20,11 @@ body.planning-fullscreen{overflow:hidden}body.planning-fullscreen #engine-planni
 .query-where{font-size:10px;font-weight:700;color:#617587;text-align:center}.query-toolbar span{font-size:10px;color:#718699}
 .query-summary{font-size:11px;color:#557087;margin-top:9px}
 @media(max-width:720px){.query-rule{grid-template-columns:1fr}}
+
+/* CSP-veilige, toegankelijke vormgeving voor dynamisch opgebouwde schilonderdelen. */
+.fault-filter-summary{margin:8px 0}.fault-memo-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.quality-trend-item .quality-trend-bar{display:block;width:min(34px,70%);border-radius:4px 4px 0 0;background:#7391a8}
+.quality-height-5{height:5%}.quality-height-10{height:10%}.quality-height-15{height:15%}.quality-height-20{height:20%}.quality-height-25{height:25%}
+.quality-height-30{height:30%}.quality-height-35{height:35%}.quality-height-40{height:40%}.quality-height-45{height:45%}.quality-height-50{height:50%}
+.quality-height-55{height:55%}.quality-height-60{height:60%}.quality-height-65{height:65%}.quality-height-70{height:70%}.quality-height-75{height:75%}
+.quality-height-80{height:80%}.quality-height-85{height:85%}.quality-height-90{height:90%}.quality-height-95{height:95%}.quality-height-100{height:100%}

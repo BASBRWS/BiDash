@@ -54,10 +54,10 @@ export function installOpenFaultParentUi(scope=globalThis){
       const btn=doc.createElement('button');btn.id='faultMemo';btn.className='primary';btn.textContent='Memo huidige selectie';btn.addEventListener('click',openMemo);heading.append(btn);
     }
     if(!doc.getElementById('faultFilterSummary')){
-      const p=doc.createElement('p');p.id='faultFilterSummary';p.className='muted';p.style.margin='8px 0';row.insertAdjacentElement('afterend',p);
+      const p=doc.createElement('p');p.id='faultFilterSummary';p.className='muted fault-filter-summary';row.insertAdjacentElement('afterend',p);
     }
     if(!doc.getElementById('faultMemoDialog')){
-      const dialog=doc.createElement('dialog');dialog.id='faultMemoDialog';dialog.innerHTML='<div class="dialog-heading"><h2>Memo open storingen</h2><button id="faultMemoClose" aria-label="Sluiten">✕</button></div><div id="faultMemoBody"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px"><button id="faultMemoCopy">Kopieer memo</button><button id="faultMemoPrint" class="primary">Afdrukken / PDF</button></div>';
+      const dialog=doc.createElement('dialog');dialog.id='faultMemoDialog';dialog.innerHTML='<div class="dialog-heading"><h2>Memo open storingen</h2><button id="faultMemoClose" aria-label="Sluiten">✕</button></div><div id="faultMemoBody"></div><div class="fault-memo-actions"><button id="faultMemoCopy">Kopieer memo</button><button id="faultMemoPrint" class="primary">Afdrukken / PDF</button></div>';
       doc.body.append(dialog);doc.getElementById('faultMemoClose').onclick=()=>dialog.close();doc.getElementById('faultMemoCopy').onclick=copyMemo;doc.getElementById('faultMemoPrint').onclick=()=>scope.parent.print();
     }
     return true;

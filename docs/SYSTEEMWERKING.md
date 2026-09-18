@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van Integratie 2.13, bijgewerkt op 14 september 2026 voor de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina en zichtbare voortgang bij gegevensimport.
+Status: beschrijving van BiDash 2.16 en DVM 102, bijgewerkt op 18 september 2026 voor de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina, zichtbare voortgang bij gegevensimport en CSP-veilige dynamische bediening.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -115,6 +115,7 @@ Gebruik één werkruimte-tab tegelijk; er is geen uitgewerkte meergebruikerssync
 - Geen operationele XML/JSON, uitsneden, screenshots of afgeleide operationele tellingen in de repository of publiek
 - Dat geldt ook voor gegevens die als voorbeeld of demonstratie in de broncode staan. Een ingesloten projectplanning, portfolio- of triggerlijst is een publicatie van die gegevens, ook als geen enkel scherm haar toont. Een module begint leeg en toont wat de gebruiker laadt. `tests/planning-geen-projectdata.test.js` bewaakt dit voor de planningmodulee CI-logs. Gebruik synthetische testgegevens.
 - Behoud het bestaande Content Security Policy en `connect-src 'none'`. Externe bronlinks kunnen de browser verlaten; dat is geen toestemming om datasets te verzenden.
+- De hoofdschil staat geen inline stijl toe. Dynamische schilonderdelen gebruiken klassen uit `site/style.css`; voeg geen `unsafe-inline` toe om een geblokkeerde stijl te omzeilen.
 - Modules draaien onder dezelfde origin. Frames met `allow-scripts` en `allow-same-origin` zijn geen beveiligingsgrens tegen kwaadaardige eigen code.
 - `postMessage` wordt alleen verwerkt voor dezelfde origin én bekende bronframes.
 - JSON-validatie weigert `__proto__`, `constructor`, `prototype` en te diepe nesting. Dit vervangt niet de inhoudelijke validatie van een dataset.
