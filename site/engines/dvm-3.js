@@ -5354,10 +5354,20 @@ function renderRegels(){
 
   const dekkingKaart=STATE?`<div class="card"><h3>Live brondekking voor landelijke percentages</h3><p>Bevestig een bron alleen als deze voor het volledige geladen areaal en de bronpeildatum alle open storingen bevat. Niet bevestigde bronnen blijven onbekend en worden niet stilzwijgend als 100% beschikbaar behandeld.</p>${v68BronnenHtml(v68LandelijkModel())}</div>`:'';
   document.getElementById('tab-regels').innerHTML=h+dekkingKaart+kostenInstellingenHtml();
+  benoemRegelvelden(document.getElementById('tab-regels'));
   const eolI=document.getElementById('eolInput');
   if(eolI) eolI.addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)leesEolReferentie(f);});
   document.getElementById('paramImport').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)parametersImport(f);});
   document.querySelectorAll('#tab-regels [data-p="subprocesGewicht"]').forEach(el=>el.addEventListener('change',()=>verdeelSubprocesAandeel(el)));
+}
+
+function benoemRegelvelden(root){
+  if(!root)return;
+  root.querySelectorAll('input:not([id]):not([name]),select:not([id]):not([name]),textarea:not([id]):not([name])').forEach((el,index)=>{
+    const delen=['p','i','di','si','k'].map(key=>el.dataset[key]).filter(value=>value!==undefined&&value!=='');
+    const basis=(delen.length?delen.join('-'):`veld-${index+1}`).toLowerCase().replace(/[^a-z0-9_-]+/g,'-');
+    el.name=`dvm-regel-${basis}`;
+  });
 }
 
 /* Lees alle inputs en schrijf terug in RULES / DIENSTEN */
