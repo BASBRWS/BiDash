@@ -117,6 +117,14 @@ test('de verwerking van bronregels wordt uitgesplitst wanneer de engine dat meel
   assert.match(split.detail,/46 zonder passende foutregel/);
 });
 
+test('auditrapport versie 2 bevat minimale herstelidentifiers',()=>{
+  const rows=[{...faults[0],impact:null,rekenStatus:'Passende foutregel ontbreekt'}];
+  const report=runQualityAudit({state:state(),summaries,dvmAssets:assets,faults:rows,now});
+  const finding=report.findings.find(f=>f.title==='Open meldingen niet doorgerekend');
+  assert.equal(report.version,2);
+  assert.deepEqual(Object.keys(finding.items[0]),['id','naam','type','code','bron','reden','assetKey','locatie']);
+});
+
 test('kwaliteitstab, auditknop en lokale rapportexport zijn bedraad',()=>{
   const routes=readFileSync(new URL('../site/ui/routes.js',import.meta.url),'utf8');
   const index=readFileSync(new URL('../site/index.html',import.meta.url),'utf8');
@@ -127,4 +135,5 @@ test('kwaliteitstab, auditknop en lokale rapportexport zijn bedraad',()=>{
   assert.match(app,/runQualityAudit\(/);
   assert.match(app,/bidash-kwaliteitsaudit_/);
   assert.match(app,/qualityHistory=.*slice\(-12\)/);
+  assert.match(app,/data-quality-open="faultRules"/);
 });

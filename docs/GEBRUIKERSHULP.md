@@ -166,6 +166,23 @@ De rule engine bepaalt wat meetelt en hoe die feiten doorwerken naar de dienstve
 
 De bronbestanden blijven lokaal in de browser. De werkruimte wordt in IndexedDB opgeslagen. Voor overdracht of back-up gebruik je een integrale export.
 
+## Queryfilters voor assets en storingen
+
+Onder **Assetmanagement** hebben **Assetregister** en **Open storingen** een
+uitklapbare querybouwer. Voeg per regel een veld, operator en waarde toe. Vanaf de
+tweede regel kies je zelf **EN** of **OF**. Net als bij SQL wordt EN vóór OF uitgevoerd.
+Je kunt voorwaarden over verschillende kolommen combineren.
+
+Gebruik voor een combinatie van foutcodes het veld **Asset heeft foutcode**. Voorbeeld:
+
+1. Asset heeft foutcode is gelijk aan `1001`;
+2. Asset heeft foutcode is gelijk aan `1003`;
+3. verbind de tweede regel met EN.
+
+Deze query toont assets waarop beide codes openstaan. In Open storingen toont zij de
+meldingen die bij zulke assets horen. Twee voorwaarden op **Foutcode van deze melding**
+kunnen niet beide waar zijn, omdat één melding maar één foutcode heeft.
+
 ## Documentatie in Help
 
 De publicatiestap voert `scripts/stage-docs.mjs` uit. Die maakt voor de browser een Help-bundel van alle Markdown-bestanden in `docs/` en kopieert de overige documentatiebestanden naar `site/docs/` in het publicatie-artifact. De gegenereerde bundel en kopie worden niet in Git opgeslagen.
@@ -189,14 +206,20 @@ Het dashboard toont:
 
 Een blokkerende fout begrenst de totaalscore. Voorbeelden zijn een ontbrekend
 assetregister, een actuele bron die geen melding in het dashboard oplevert, een
-locatieconflict of een exact beschikbaarheidspercentage terwijl meldingen niet zijn
+doorgerekend locatieconflict of een exact beschikbaarheidspercentage terwijl meldingen niet zijn
 doorgerekend. Waarschuwingen benoemen onder andere een oude peildatum, lage
-koppeldekking, dubbele sleutels en ontbrekende duur.
+koppeldekking, veilig geblokkeerde locatieconflicten, dubbele sleutels en ontbrekende duur.
 
 De audit verandert geen brondata, filters of rekenregels. De controle blijft lokaal.
-Via **Auditrapport exporteren** download je alleen de samenvatting. Bij **Export
+Via **Auditrapport exporteren** download je de samenvatting en minimale identifiers
+van probleemgevallen. Bij **Export
 samenstellen** kun je de laatste audit en scorehistorie ook in de integrale back-up
 opnemen.
+
+Bij **Open meldingen niet doorgerekend** opent **Foutcodes beheren** de derde tab van
+Impactregels. Daar maak je een foutcode met patroon, assettype, ernst, twee
+impactpercentages en onderbouwing. Selecteer daarna alleen meldingen waarvoor een
+passende foutregel ontbreekt. Locatieconflicten moet je via Assetconfiguratie oplossen.
 
 De score is een technische kwaliteitsindicator. Zij controleert geen externe
 waarheid van verkeerskundige, statistische of beleidsmatige aannames.

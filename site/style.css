@@ -10,3 +10,13 @@ body.planning-fullscreen{overflow:hidden}body.planning-fullscreen #engine-planni
 @media(max-width:720px){.sidebar{padding:10px 12px;gap:8px}.sidebar-foot{display:block}.sidebar-foot .local-dot{display:none}.sidebar-foot .version{display:block;margin:3px 0}#primaryNav button{font-size:12px;padding:10px}.workspace{margin:0}#planningFullscreenBar span{display:none}.page-title{flex-wrap:wrap}#planningFullscreen{font-size:12px}.engine iframe{min-height:580px}}
 @media(max-width:1200px){.quality-category-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){.quality-intro,.quality-overall{align-items:flex-start;flex-direction:column}.quality-total{justify-content:flex-start}.quality-category-grid{grid-template-columns:1fr}.quality-finding{flex-direction:column}.quality-category-name{white-space:normal}}
+/* Querybouwer voor assetregister en open storingen. */
+.query-module{padding:12px 14px;margin:-4px 0 18px;background:#f9fbfc;box-shadow:none}
+.query-module>p{font-size:11px;color:#718699;margin:8px 0 10px}
+.query-toolbar{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-bottom:9px}
+.query-toolbar label{margin:0}.query-toolbar button{font-size:11px}
+.query-rule{display:grid;grid-template-columns:72px minmax(150px,1fr) minmax(145px,1fr) minmax(180px,2fr) auto;gap:8px;align-items:center;margin:7px 0}
+.query-rule select,.query-rule input{width:100%}.query-rule button{font-size:11px;padding:8px 10px}
+.query-where{font-size:10px;font-weight:700;color:#617587;text-align:center}.query-toolbar span{font-size:10px;color:#718699}
+.query-summary{font-size:11px;color:#557087;margin-top:9px}
+@media(max-width:720px){.query-rule{grid-template-columns:1fr}}

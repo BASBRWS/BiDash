@@ -164,6 +164,18 @@ twaalf scores worden lokaal als trend bewaard.
 De audit leest brondata, maar schrijft alleen het rapport en de scorehistorie. Zij
 wijzigt geen filter, koppeling of rekenregel. Een integrale export neemt deze twee
 onderdelen alleen mee wanneer **Kwaliteitsaudit en scorehistorie** is geselecteerd.
+Afwijkende controles kunnen minimale herstelidentifiers tonen. Een veilig geblokkeerd
+locatieconflict is een waarschuwing. Alleen een conflict dat toch is doorgerekend is
+blokkerend. Meldingen zonder passende foutregel kunnen vanuit de audit naar het
+foutcodebeheer worden geopend.
+
+## Queryfilters binnen Assetmanagement
+
+De hoofdapp past gewone zoekfilters eerst toe en daarna de query uit
+`site/core/query-filter.js`. Iedere regel kan een andere kolom gebruiken. Regels
+worden met EN of OF verbonden, waarbij EN volgens SQL-logica voorrang krijgt. Voor het veld
+**Asset heeft foutcode** worden de codes eerst per `assetKey` gegroepeerd. Daardoor
+betekent code 1001 EN code 1003 dat beide storingssoorten op hetzelfde asset voorkomen.
 
 ## DRIP meldingen en ontbrekende doorrekening
 
