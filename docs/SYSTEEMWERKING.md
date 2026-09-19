@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.18 en DVM 102, bijgewerkt op 19 september 2026 voor de integrale BiDash Context API en de relationele Vraag BiDash-queryassistent, naast de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina, zichtbare voortgang bij gegevensimport en CSP-veilige dynamische bediening.
+Status: beschrijving van BiDash 2.19 en DVM 102, bijgewerkt op 19 september 2026 voor brede natuurlijke periodevragen en veilige contextwisseling in Vraag BiDash, naast de integrale BiDash Context API, actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina, zichtbare voortgang bij gegevensimport en CSP-veilige dynamische bediening.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -586,3 +586,12 @@ Een gewogen verliesbijdrage in de chat is uitsluitend bedoeld om storingen binne
 Historische storingen blijven in de huidige versie primair prognosebron. De Context API meldt welke historische bronstromen zijn geladen en hoeveel records zij bevatten; zij materialiseert niet bij elke chatvraag alle ruwe historische regels in het geheugen. Dit voorkomt dat de queryinterface de performancewinst van gescheiden historische data ongedaan maakt.
 
 De queryassistent blijft volledig lokaal. Er is geen AI-call of netwerkendpoint toegevoegd; de Content Security Policy `connect-src 'none'` blijft leidend.
+
+
+## Vraag BiDash 2.19: brede periodevragen
+
+De lokale queryparser begrijpt periodevragen niet alleen als exact jaar of kwartaal. Ondersteund zijn onder meer meerdere kwartalen, halfjaren, seizoenen, maanden en maandranges, jaarfasen, meerjarige bereiken en relatieve perioden zoals komende N maanden, komende N volledige kwartalen en komende N jaren. De geïnterpreteerde periode wordt als contextlabel teruggegeven.
+
+Brede termen hebben vaste semantiek: voorjaar = maart-mei, zomer = juni-augustus, najaar/herfst = september-november en winter = december-februari. Eerste/tweede halfjaar betekent respectievelijk januari-juni en juli-december; begin/eind van een jaar volgt Q1/Q4. **Komende N kwartalen** betekent de eerstvolgende N volledige kwartalen, niet het reeds lopende kwartaal.
+
+Een nieuw expliciet onderwerp, bijvoorbeeld projecten/planning, verbreekt oude dienst- of storingscontext. Niet-herkende nieuwe vragen erven evenmin automatisch het vorige domein. Alleen herkenbare vervolgconstructies of een explicietzelfde domein mogen de gesprekcontext voortzetten. Dit voorkomt dat een nieuwe vraag het vorige antwoordspad herhaalt.
