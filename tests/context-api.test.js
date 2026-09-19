@@ -179,3 +179,40 @@ test('nieuwe onbekende vraag neemt niet stilzwijgend vorige dienstcontext over',
   assert.notEqual(parsed.context.dataset,'relations');
   assert.equal(parsed.context.serviceId,null);
 });
+
+
+test('onbekende term uit planning wordt dynamisch als planning herkend',()=>{
+  const local=buildBiDashContext({
+    faults:[],assets:[],roads:[],services:[],functions:[],dvm:{},
+    bi:{planning:{bestand:'test.xml',regels:[
+      {id:'ifat1',naam:'Systeemtest IFAT verkeerscentrale',code:'IFAT-01',kind:'mile',blok:'Testen',dienst:'VWM',wbs:'TEST',wbsPath:['VWM','Testen','IFAT'],t0:2027.25,t1:2027.25},
+      {id:'ifat2',naam:'Tweede IFAT keten',code:'IFAT-02',kind:'mile',blok:'Testen',dienst:'VWM',wbs:'TEST',wbsPath:['VWM','Testen','IFAT'],t0:2028,t1:2028}
+    ],relaties:[],nRel:0,nCross:0,shift:0},functions:[]},links:[],state:{dvm:{},history:[]}
+  });
+  const previous={dataset:'relations',filters:{vc:'ZWN'},serviceId:'im'};
+  const answer=answerQuestion('Wanneer is de eerst volgende IFAT?',{data:local,previousContext:previous});
+  assert.equal(answer.context.dataset,'planning');
+  assert.equal(answer.context.serviceId,null);
+  assert.equal(answer.context.filters.planningLabel,'IFAT');
+  assert.equal(answer.title,'Planningterm · IFAT');
+  assert.equal(answer.rows[0].naam,'Systeemtest IFAT verkeerscentrale');
+  assert.match(answer.text,/eerstvolgende/i);
+});
+
+test('planningcode en WBS-pad zijn dynamisch bevraagbaar',()=>{
+  const local=buildBiDashContext({
+    faults:[],assets:[],roads:[],services:[],functions:[],dvm:{},
+    bi:{planning:{bestand:'test.xml',regels:[
+      {id:'x1',naam:'Validatie bediening',code:'VAL-77',kind:'bar',blok:'Integratie',dienst:'VWM',wbs:'WBS-900',wbsPath:['Programma X','Integratie','Gate-Z'],t0:2027.5,t1:2027.75}
+    ],relaties:[],nRel:0,nCross:0,shift:0},functions:[]},links:[],state:{dvm:{},history:[]}
+  });
+  const byCode=answerQuestion('Wanneer is VAL-77?',{data:local});
+  const byWbs=answerQuestion('Wanneer is WBS-900?',{data:local});
+  const byPath=answerQuestion('Wanneer is Gate-Z?',{data:local});
+  assert.equal(byCode.context.dataset,'planning');
+  assert.equal(byWbs.context.dataset,'planning');
+  assert.equal(byPath.context.dataset,'planning');
+  assert.equal(byCode.rows[0].naam,'Validatie bediening');
+  assert.equal(byWbs.rows[0].naam,'Validatie bediening');
+  assert.equal(byPath.rows[0].naam,'Validatie bediening');
+});
