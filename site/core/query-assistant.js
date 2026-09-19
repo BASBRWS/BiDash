@@ -149,7 +149,7 @@ function detectPeriod(text){
     ranges=[[start,end]];label='komende '+n+' jaar';
   }else if(!ranges.length&&relativeQuarters){
     const n=Math.max(1,Math.min(16,Number(relativeQuarters[1])));
-    const start=decimalMonth(currentYear,Math.floor(currentMonth/3)*3),end=start+n/4;
+    const start=decimalMonth(currentYear,(Math.floor(currentMonth/3)+1)*3),end=start+n/4;
     ranges=[[start,end]];label='komende '+n+' kwartalen';
   }else
   if(!ranges.length&&relative){
@@ -227,10 +227,10 @@ function cleanContext(previous={}){
 export function parseQuestion(question,{previousContext={},screenContext={},data={},mode='all'}={}){
   const raw=String(question||'').trim();
   const text=normalizeQuestion(raw);
-  const follow=FOLLOW_WORDS.some(word=>text.includes(word));
+  const follow=FOLLOW_WORDS.some(word=>text.includes(word))||/^(en|daarvan|daarin|die|deze|alleen|ook)\b/.test(text);
   const explicit=explicitDataset(text);
   const previous=cleanContext(previousContext),screen=cleanContext(mode==='screen'?screenContext:{});
-  const inheritPrevious=!!previous.dataset&&(!explicit||explicit===previous.dataset||follow);
+  const inheritPrevious=!!previous.dataset&&(follow||(explicit&&explicit===previous.dataset));
   const base=inheritPrevious?previous:screen;
   const dataset=explicit||base.dataset||'overview';
   const filters={...(base.filters||{})};
