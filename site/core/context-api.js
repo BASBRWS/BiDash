@@ -16,10 +16,12 @@ export function planningPeriodLabel(value){
 }
 
 function compactActivity(row={}){
-  const roads=corridorTokens([row.naam,row.code,row.blok].filter(Boolean).join(' ')).filter(x=>/^[AN]\d/.test(x));
+  const wbsPath=[...(row.wbsPath||[])].map(String),wbs=String(row.wbs??'');
+  const roads=corridorTokens([row.naam,row.code,row.blok,wbs,...wbsPath].filter(Boolean).join(' ')).filter(x=>/^[AN]\d/.test(x));
+  const searchText=fold([row.naam,row.code,row.blok,row.dienst,row.kind,wbs,...wbsPath].filter(Boolean).join(' '));
   return {
     id:String(row.id??''),naam:String(row.naam??''),code:String(row.code??''),kind:String(row.kind??''),
-    blok:String(row.blok??''),dienst:String(row.dienst??''),t0:num(row.t0),t1:num(row.t1),roads,
+    blok:String(row.blok??''),dienst:String(row.dienst??''),wbs,wbsPath,t0:num(row.t0),t1:num(row.t1),roads,searchText,
     periode:[planningPeriodLabel(row.t0),planningPeriodLabel(row.t1)].filter(Boolean).join(' – ')
   };
 }
