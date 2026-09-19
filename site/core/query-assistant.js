@@ -82,9 +82,53 @@ function explicitDataset(text){
   return null;
 }
 
+const PLANNING_QUERY_STOPWORDS=new Set([
+  'wanneer','is','zijn','was','waren','wordt','worden','de','het','een','van','voor','in','op','aan','met','om','bij','naar','uit',
+  'wat','welke','welk','wie','waar','hoe','hoeveel','eerste','eerst','volgende','volgend','komende','komend','laatste','vorige',
+  'start','starten','begint','beginnen','eindigt','eindigen','loopt','lopen','staat','staan','gepland','planning','project','projecten',
+  'activiteit','activiteiten','mijlpaal','mijlpalen','kwartaal','kwartalen','jaar','jaren','maand','maanden','week','weken','dag','dagen',
+  'dit','deze','die','dat','daarvan','daarin','en','of','tot','tussen','vanaf','tm','t/m','ook','alleen','nog','keer','moment'
+]);
+for(const names of MONTH_TERMS)for(const name of names)PLANNING_QUERY_STOPWORDS.add(name);
+for(const word of ['voorjaar','lente','zomer','najaar','herfst','winter','halfjaar','helft','begin','midden','eind','einde'])PLANNING_QUERY_STOPWORDS.add(word);
+
+function planningHay(row={}){
+  return fold(row.searchText||[row.naam,row.code,row.blok,row.dienst,row.kind,row.wbs,...(row.wbsPath||[])].filter(Boolean).join(' '));
+}
+function planningQuestionTerms(text){
+  const raw=normalizeQuestion(text).split(/[^a-z0-9._/-]+/).filter(Boolean);
+  return [...new Set(raw.filter(token=>{
+    if(token.length<2)return false;
+    if(/^20\d{2}$/.test(token)||/^q[1-4]$/.test(token)||/^\d{1,2}$/.test(token))return false;
+    return !PLANNING_QUERY_STOPWORDS.has(token);
+  }))];
+}
+function detectPlanningReference(text,data){
+  const rows=data?.planning?.activities||[];
+  if(!rows.length)return null;
+  const candidates=planningQuestionTerms(text);
+  if(!candidates.length)return null;
+  const matched=[];
+  for(const token of candidates){
+    let hits=0;
+    for(const row of rows){
+      const hay=planningHay(row);
+      if(hay.includes(token)){hits++;if(hits>25)break;}
+    }
+    if(hits>0)matched.push({token,hits});
+  }
+  if(!matched.length)return null;
+  matched.sort((a,b)=>a.hits-b.hits||b.token.length-a.token.length);
+  const terms=matched.slice(0,4).map(x=>x.token);
+  return {terms,label:terms.join(' + '),hits:matched[0].hits};
+}
+
+
 function inferDataset(text,previous={},screen={}){return explicitDataset(text)||previous.dataset||screen.dataset||'overview';}
 
 function inferIntent(text,dataset){
+  if(dataset==='planning'&&/\b(wanneer|wanneer is|eerstvolgende|eerst volgende|volgende keer|volgende)\b/.test(text))return /\b(eerstvolgende|eerst volgende|volgende keer|volgende)\b/.test(text)?'next':'when';
+  if(dataset==='planning'&&/\b(vorige|laatste keer|meest recente)\b/.test(text))return 'previous';
   if(/\b(meest voorkomende|vaakst|top\s*\d*\s*fout|welke foutcodes|foutcodes komen)\b/.test(text))return 'groupCodes';
   if(/\b(meeste impact|hoogste impact|grootste impact|grootste bijdrage|zwaarst)\b/.test(text))return 'topImpact';
   if(/\b(waarom|verklaar|oorzaak|waardoor)\b/.test(text))return 'explain';
@@ -228,7 +272,8 @@ export function parseQuestion(question,{previousContext={},screenContext={},data
   const raw=String(question||'').trim();
   const text=normalizeQuestion(raw);
   const follow=FOLLOW_WORDS.some(word=>text.includes(word))||/^(en|daarvan|daarin|die|deze|alleen|ook)\b/.test(text);
-  const explicit=explicitDataset(text);
+  const planningReference=detectPlanningReference(text,data);
+  const explicit=explicitDataset(text)||(planningReference?'planning':null);
   const previous=cleanContext(previousContext),screen=cleanContext(mode==='screen'?screenContext:{});
   const inheritPrevious=!!previous.dataset&&(follow||(explicit&&explicit===previous.dataset));
   const base=inheritPrevious?previous:screen;
@@ -251,6 +296,12 @@ export function parseQuestion(question,{previousContext={},screenContext={},data
     if(period.quarters?.length>1){filters.quarters=period.quarters.slice();delete filters.quarter;}
     else if(period.quarter){filters.quarter=period.quarter;delete filters.quarters;}
     else{delete filters.quarter;delete filters.quarters;}
+  }
+  if(planningReference){
+    filters.planningTerms=planningReference.terms.slice();
+    filters.planningLabel=planningReference.label;
+  }else if(explicit==='planning'&&!follow){
+    delete filters.planningTerms;delete filters.planningLabel;
   }
   const service=detectService(text,data);
   let finalDataset=dataset;
@@ -305,6 +356,7 @@ function contextLabels(context={}){
   if(f.rekenStatus)out.push(f.rekenStatus);
   if(f.periodLabel)out.push(f.periodLabel);
   else if(f.year)out.push(String(f.year));
+  if(f.planningLabel)out.push(f.planningLabel);
   if(context.planningDienst)out.push(String(context.planningDienst));
   return out;
 }
@@ -383,6 +435,7 @@ function planningRows(data,context={}){
   let rows=(data.planning?.activities||[]).slice(),f=context.filters||{};
   if(f.road)rows=planningForRoad(data,f.road);
   if(context.planningDienst)rows=rows.filter(r=>upper(r.dienst)===upper(context.planningDienst));
+  if(Array.isArray(f.planningTerms)&&f.planningTerms.length)rows=rows.filter(r=>{const hay=planningHay(r);return f.planningTerms.every(term=>hay.includes(fold(term)));});
   const ranges=planningRanges(f);
   if(ranges)rows=rows.filter(r=>ranges.some(([from,to])=>Number(r.t0)<to&&Number(r.t1)>=from));
   return rows;
