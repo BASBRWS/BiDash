@@ -61,10 +61,23 @@ function detectService(text,data){
 }
 
 function explicitDataset(text){
+  const fault=/\b(storing|storingen|melding|meldingen|foutcode|foutcodes|impact|msi|drip|drips|detectie|detectielus|detectielussen|lus|lussen|camera|cameras)\b/.test(text);
+  const service=/\b(dienstverlening|dienst|diensten|beschikbaarheid|subproces|subprocessen)\b/.test(text);
+  const planning=/\b(planning|planningactiviteit|planningactiviteiten|activiteit|activiteiten|mijlpaal|mijlpalen|projectplanning)\b/.test(text);
+  const work=/\b(werkzaamheid|werkzaamheden|werkvak|werkvakken|afsluiting|hinder)\b/.test(text);
+  const capacity=/\b(formatie|capaciteit|fte|bezetting|personeel|capaciteitstekort|capaciteitsoverschrijding)\b/.test(text);
+  const relation=/\b(verband|samenhang|oorzaak|verklaar|waarom|raakt|raken|beinvloed|beinvloeden|drukt|effect op)\b/.test(text);
+  if((fault&&(service||planning||work))||(service&&capacity)||relation&&(fault||service||planning||work||capacity))return 'relations';
+  if(planning)return 'planning';
+  if(capacity)return 'capacity';
+  if(work)return 'works';
+  if(/\b(u[- ]?route|u[- ]?routes|omleidingsroute|omleidingsroutes)\b/.test(text))return 'uroutes';
+  if(/\b(historie|historisch|historische|storingshistorie|verleden)\b/.test(text))return 'history';
+  if(/\b(eol|end of life|einde levensduur|levensduur|veroudering|verouderd)\b/.test(text))return 'eol';
   if(/\b(kosten|verkeerskosten|vvu|voertuigverlies|voertuigverliesuren|wegdeel|wegdelen)\b/.test(text))return 'roads';
-  if(/\b(dienstverlening|dienst|diensten|beschikbaarheid|subproces|subprocessen)\b/.test(text))return 'services';
-  if(/\b(asset|assets|areaal|register)\b/.test(text)&&!/storing|storingen|melding|meldingen|foutcode|foutcodes/.test(text))return 'assets';
-  if(/\b(storing|storingen|melding|meldingen|foutcode|foutcodes|impact|msi|drip|drips|detectie|detectielus|detectielussen|lus|lussen|camera|cameras)\b/.test(text))return 'faults';
+  if(service)return 'services';
+  if(/\b(asset|assets|areaal|register)\b/.test(text)&&!fault)return 'assets';
+  if(fault)return 'faults';
   return null;
 }
 
@@ -72,20 +85,41 @@ function inferDataset(text,previous={},screen={}){return explicitDataset(text)||
 
 function inferIntent(text,dataset){
   if(/\b(meest voorkomende|vaakst|top\s*\d*\s*fout|welke foutcodes|foutcodes komen)\b/.test(text))return 'groupCodes';
-  if(/\b(meeste impact|hoogste impact|grootste impact)\b/.test(text))return 'topImpact';
+  if(/\b(meeste impact|hoogste impact|grootste impact|grootste bijdrage|zwaarst)\b/.test(text))return 'topImpact';
+  if(/\b(waarom|verklaar|oorzaak|waardoor)\b/.test(text))return 'explain';
+  if(/\b(overlap|samen|tegelijk|samenvallen|raakt|raken|verband|samenhang)\b/.test(text))return 'relate';
   if(/\b(hoeveel|hoe veel|aantal)\b/.test(text))return 'count';
   if(/\b(vergelijk|verschil tussen)\b/.test(text))return 'compare';
-  if(/\b(toon|laat zien|welke|lijst|overzicht)\b/.test(text))return 'list';
+  if(/\b(toon|laat zien|welke|lijst|overzicht|wat staat|wat loopt)\b/.test(text))return 'list';
   if(dataset==='services'&&/\b(hoe|wat|beschikbaarheid|dienstverlening)\b/.test(text))return 'list';
   if(dataset==='roads'&&/\b(kosten|vvu|voertuigverlies)\b/.test(text))return 'sum';
   return 'summary';
 }
 
+function detectPeriod(text){
+  const yearMatch=text.match(/\b(20\d{2})\b/);
+  let year=yearMatch?Number(yearMatch[1]):null,quarter=null;
+  const qMatch=text.match(/\bq([1-4])\b|\b([1-4])e\s+kwartaal\b/);
+  if(qMatch)quarter=Number(qMatch[1]||qMatch[2]);
+  if(/\bdit jaar\b/.test(text))year=new Date().getFullYear();
+  if(/\bvolgend jaar\b/.test(text))year=new Date().getFullYear()+1;
+  if(/\bdit kwartaal\b/.test(text)){const d=new Date();year=d.getFullYear();quarter=Math.floor(d.getMonth()/3)+1;}
+  return {year,quarter};
+}
+function detectPlanningDienst(text,data){
+  const candidates=new Set([
+    ...Object.keys(data?.capacity?.perDienst||{}),
+    ...(data?.planning?.activities||[]).map(a=>a.dienst).filter(Boolean)
+  ]);
+  const raw=upper(text);
+  return [...candidates].sort((a,b)=>String(b).length-String(a).length).find(x=>containsTerm(raw,upper(x)))||null;
+}
 function cleanContext(previous={}){
   return {
     dataset:previous.dataset||null,
     filters:{...(previous.filters||{})},
-    serviceId:previous.serviceId||null
+    serviceId:previous.serviceId||null,
+    planningDienst:previous.planningDienst||null
   };
 }
 export function parseQuestion(question,{previousContext={},screenContext={},data={},mode='all'}={}){
@@ -107,9 +141,13 @@ export function parseQuestion(question,{previousContext={},screenContext={},data
   const code=detectCode(raw);if(code)filters.code=code;
   if(/\b(niet doorgerekend|zonder impact|onbekende impact)\b/.test(text))filters.rekenStatus='niet doorgerekend';
   if(/\b(doorgerekend|met impact)\b/.test(text)&&!/niet doorgerekend/.test(text))filters.rekenStatus='doorgerekend';
+  const period=detectPeriod(text);if(period.year)filters.year=period.year;if(period.quarter)filters.quarter=period.quarter;
   const service=detectService(text,data);
-  const context={dataset,filters,serviceId:service?.id||base.serviceId||null};
-  return {raw,text,dataset,intent:inferIntent(text,dataset),context,follow};
+  let finalDataset=dataset;
+  if(service&&/\b(waarom|oorzaak|storing|storingen|impact|drukt|beinvloed|verband|samenhang)\b/.test(text))finalDataset='relations';
+  const planningDienst=detectPlanningDienst(text,data)||base.planningDienst||null;
+  const context={dataset:finalDataset,filters,serviceId:service?.id||base.serviceId||null,planningDienst};
+  return {raw,text,dataset:finalDataset,intent:inferIntent(text,finalDataset),context,follow};
 }
 
 function sameText(a,b){return fold(a)===fold(b);}
