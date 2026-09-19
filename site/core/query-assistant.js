@@ -120,7 +120,9 @@ function detectPlanningReference(text,data){
   if(!matched.length)return null;
   matched.sort((a,b)=>a.hits-b.hits||b.token.length-a.token.length);
   const terms=matched.slice(0,4).map(x=>x.token);
-  return {terms,label:terms.join(' + '),hits:matched[0].hits};
+  const originals=String(text||'').match(/[A-Za-z0-9._/-]+/g)||[];
+  const label=terms.map(term=>originals.find(token=>fold(token)===term)||term).join(' + ');
+  return {terms,label,hits:matched[0].hits};
 }
 
 
@@ -272,7 +274,7 @@ export function parseQuestion(question,{previousContext={},screenContext={},data
   const raw=String(question||'').trim();
   const text=normalizeQuestion(raw);
   const follow=FOLLOW_WORDS.some(word=>text.includes(word))||/^(en|daarvan|daarin|die|deze|alleen|ook)\b/.test(text);
-  const planningReference=detectPlanningReference(text,data);
+  const planningReference=detectPlanningReference(raw,data);
   const explicit=explicitDataset(text)||(planningReference?'planning':null);
   const previous=cleanContext(previousContext),screen=cleanContext(mode==='screen'?screenContext:{});
   const inheritPrevious=!!previous.dataset&&(follow||(explicit&&explicit===previous.dataset));
