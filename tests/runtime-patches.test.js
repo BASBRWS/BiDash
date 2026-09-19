@@ -131,6 +131,11 @@ const PATCHES=[
   /* Installeert op het bestandsveld van de schil in plaats van op een scope en
      heeft geen scope-argument. tests/universal-importer.test.js dekt het gedrag. */
   {naam:'universele importer',bestand:'universal-importer.js',exportNaam:'installUniversalImporter',
+   vlag:null,koppeling:'module',scope:null},
+
+  /* Hoofdschilfunctie, geen legacy runtime-patch. De chat koppelt direct aan de
+     integrale shell; tests/query-assistant.test.js dekt parser en gedrag. */
+  {naam:'Vraag BiDash',bestand:'query-assistant.js',exportNaam:'installQueryAssistant',
    vlag:null,koppeling:'module',scope:null}
 ];
 
