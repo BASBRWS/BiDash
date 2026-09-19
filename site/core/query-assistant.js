@@ -89,7 +89,6 @@ const PLANNING_QUERY_STOPWORDS=new Set([
   'activiteit','activiteiten','mijlpaal','mijlpalen','kwartaal','kwartalen','jaar','jaren','maand','maanden','week','weken','dag','dagen',
   'dit','deze','die','dat','daarvan','daarin','en','of','tot','tussen','vanaf','tm','t/m','ook','alleen','nog','keer','moment'
 ]);
-for(const names of MONTH_TERMS)for(const name of names)PLANNING_QUERY_STOPWORDS.add(name);
 for(const word of ['voorjaar','lente','zomer','najaar','herfst','winter','halfjaar','helft','begin','midden','eind','einde'])PLANNING_QUERY_STOPWORDS.add(word);
 
 function planningHay(row={}){
@@ -100,6 +99,7 @@ function planningQuestionTerms(text){
   return [...new Set(raw.filter(token=>{
     if(token.length<2)return false;
     if(/^20\d{2}$/.test(token)||/^q[1-4]$/.test(token)||/^\d{1,2}$/.test(token))return false;
+    if(MONTH_TERMS.some(names=>names.includes(token)))return false;
     return !PLANNING_QUERY_STOPWORDS.has(token);
   }))];
 }
@@ -440,10 +440,42 @@ function planningRows(data,context={}){
   if(ranges)rows=rows.filter(r=>ranges.some(([from,to])=>Number(r.t0)<to&&Number(r.t1)>=from));
   return rows;
 }
+function planningNow(){
+  const d=new Date();return d.getFullYear()+d.getMonth()/12+(Math.max(1,d.getDate())-1)/(12*31);
+}
+function planningTimingRows(rows=[]){
+  return rows.map(r=>({...r,wbsLabel:[r.blok,r.wbs,...(r.wbsPath||[])].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' › ')}));
+}
 function planningResult(parsed,data){
   const planning=data.planning;
   if(!planning)return result('Er is geen planningmodel geladen in BiDash.',parsed.context,{title:'Planning',metrics:[{label:'Planning',value:'Niet geladen'}]});
   const selected=planningRows(data,parsed.context).sort((a,b)=>(Number(a.t0)||0)-(Number(b.t0)||0));
+  if((parsed.intent==='next'||parsed.intent==='when'||parsed.intent==='previous')&&parsed.context.filters?.planningTerms?.length){
+    const now=planningNow();let rows=selected.slice(),focus=null;
+    if(parsed.intent==='previous'){
+      rows=rows.filter(r=>Number(r.t1)<now).sort((a,b)=>Number(b.t1)-Number(a.t1));
+      focus=rows[0]||null;
+    }else if(parsed.intent==='next'){
+      const future=rows.filter(r=>Number(r.t0)>=now).sort((a,b)=>Number(a.t0)-Number(b.t0));
+      const ongoing=rows.filter(r=>Number(r.t0)<now&&Number(r.t1)>=now).sort((a,b)=>Number(a.t1)-Number(b.t1));
+      focus=future[0]||ongoing[0]||null;
+      rows=focus?[focus,...future.filter(r=>r.id!==focus.id).slice(0,9)]:[];
+    }else{
+      const futureOrCurrent=rows.filter(r=>Number(r.t1)>=now).sort((a,b)=>Number(a.t0)-Number(b.t0));
+      rows=futureOrCurrent.length?futureOrCurrent:rows;
+      focus=rows[0]||null;
+    }
+    const label=parsed.context.filters.planningLabel||parsed.context.filters.planningTerms.join(' + ');
+    if(!focus)return result(`Ik vind geen ${label} in de geladen planning binnen deze selectie.`,parsed.context,{title:'Planningterm · '+label,metrics:[{label:'Matches',value:'0'}]});
+    const status=Number(focus.t0)<=now&&Number(focus.t1)>=now?'loopt nu':Number(focus.t0)>now?'eerstvolgend':'meest recent';
+    const phrase=parsed.intent==='previous'?'De meest recente':parsed.intent==='next'?'De eerstvolgende':'De eerste relevante';
+    return result(`${phrase} planningmatch voor “${label}” is “${focus.naam}” en ${status} in ${focus.periode||planningPeriodLabel(focus.t0)}.`,parsed.context,{
+      title:'Planningterm · '+label,
+      metrics:[{label:'Match',value:focus.naam||focus.code||label},{label:'Periode',value:focus.periode||planningPeriodLabel(focus.t0)},{label:'Dienst',value:focus.dienst||'–'},{label:'Type',value:focus.kind==='mile'?'Mijlpaal':'Activiteit'}],
+      columns:[['naam','Activiteit / mijlpaal'],['code','Code'],['dienst','Dienst'],['wbsLabel','WBS / pad'],['periode','Periode']],
+      rows:planningTimingRows(rows.slice(0,10))
+    });
+  }
   if(/afhankelijk|relatie/.test(parsed.text)){
     const ids=new Set(selected.map(r=>String(r.id))),byId=new Map((planning.activities||[]).map(r=>[String(r.id),r]));
     let rels=(planning.relations||[]).filter(r=>!ids.size||ids.has(String(r.from))||ids.has(String(r.to)));
