@@ -135,15 +135,36 @@ function detectPeriod(text){
     const q=Math.floor(currentMonth/3);year=currentYear+(q<1?-1:0);quarter=q<1?4:q;quarters=[quarter];
   }
 
+  if(yearMatches.length>=2&&/\b(?:tot|t\/m|tm|en)\b|\d{4}\s*[-–]\s*\d{4}/.test(text)){
+    const from=Math.min(yearMatches[0],yearMatches[1]),to=Math.max(yearMatches[0],yearMatches[1]);
+    ranges=[[from,to+1]];label=from+'–'+to;
+  }
+
+  const relativeYears=text.match(/\b(?:de\s+)?(?:komende|volgende)\s+(\d{1,2})\s+jaar\b/);
+  const relativeQuarters=text.match(/\b(?:de\s+)?(?:komende|volgende)\s+(\d{1,2})\s+kwartal(?:en)?\b/);
   const relative=text.match(/\b(?:de\s+)?(?:komende|volgende)\s+(\d{1,2})\s+maand(?:en)?\b/);
-  if(relative){
+  if(!ranges.length&&relativeYears){
+    const n=Math.max(1,Math.min(10,Number(relativeYears[1])));
+    const start=decimalMonth(currentYear,currentMonth),end=start+n;
+    ranges=[[start,end]];label='komende '+n+' jaar';
+  }else if(!ranges.length&&relativeQuarters){
+    const n=Math.max(1,Math.min(16,Number(relativeQuarters[1])));
+    const start=decimalMonth(currentYear,Math.floor(currentMonth/3)*3),end=start+n/4;
+    ranges=[[start,end]];label='komende '+n+' kwartalen';
+  }else
+  if(!ranges.length&&relative){
     const n=Math.max(1,Math.min(36,Number(relative[1])));
     const start=decimalMonth(currentYear,currentMonth),end=decimalMonth(currentYear,currentMonth+n);
     ranges=[[start,end]];label='komende '+n+' maanden';
-  }else if(/\b(?:komend|volgend) halfjaar\b/.test(text)){
+  }else if(!ranges.length&&/\b(?:komend|volgend) halfjaar\b/.test(text)){
     ranges=[[decimalMonth(currentYear,currentMonth),decimalMonth(currentYear,currentMonth+6)]];label='komend halfjaar';
-  }else if(/\b(?:komend|volgend) jaar vanaf nu\b|\bkomende 12 maanden\b/.test(text)){
+  }else if(!ranges.length&&/\b(?:komend|volgend) jaar vanaf nu\b|\bkomende 12 maanden\b/.test(text)){
     ranges=[[decimalMonth(currentYear,currentMonth),decimalMonth(currentYear,currentMonth+12)]];label='komende 12 maanden';
+  }
+
+  if(!ranges.length&&year&&/\b(?:vanaf nu\s+)?tot\s+(?:het\s+)?eind(?:e)?(?:\s+van)?\s+20\d{2}\b/.test(text)){
+    const start=decimalMonth(currentYear,currentMonth),end=year+1;
+    ranges=[[start,end]];label='tot eind '+year;
   }
 
   if(!ranges.length&&year){
