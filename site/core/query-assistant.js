@@ -82,9 +82,55 @@ function explicitDataset(text){
   return null;
 }
 
+const PLANNING_QUERY_STOPWORDS=new Set([
+  'wanneer','is','zijn','was','waren','wordt','worden','de','het','een','van','voor','in','op','aan','met','om','bij','naar','uit',
+  'wat','welke','welk','wie','waar','hoe','hoeveel','eerste','eerst','volgende','volgend','komende','komend','laatste','vorige',
+  'start','starten','begint','beginnen','eindigt','eindigen','loopt','lopen','staat','staan','gepland','planning','project','projecten',
+  'activiteit','activiteiten','mijlpaal','mijlpalen','kwartaal','kwartalen','jaar','jaren','maand','maanden','week','weken','dag','dagen',
+  'dit','deze','die','dat','daarvan','daarin','en','of','tot','tussen','vanaf','tm','t/m','ook','alleen','nog','keer','moment'
+]);
+for(const word of ['voorjaar','lente','zomer','najaar','herfst','winter','halfjaar','helft','begin','midden','eind','einde'])PLANNING_QUERY_STOPWORDS.add(word);
+
+function planningHay(row={}){
+  return fold(row.searchText||[row.naam,row.code,row.blok,row.dienst,row.kind,row.wbs,...(row.wbsPath||[])].filter(Boolean).join(' '));
+}
+function planningQuestionTerms(text){
+  const raw=normalizeQuestion(text).split(/[^a-z0-9._/-]+/).filter(Boolean);
+  return [...new Set(raw.filter(token=>{
+    if(token.length<2)return false;
+    if(/^20\d{2}$/.test(token)||/^q[1-4]$/.test(token)||/^\d{1,2}$/.test(token))return false;
+    if(MONTH_TERMS.some(names=>names.includes(token)))return false;
+    return !PLANNING_QUERY_STOPWORDS.has(token);
+  }))];
+}
+function detectPlanningReference(text,data){
+  const rows=data?.planning?.activities||[];
+  if(!rows.length)return null;
+  const candidates=planningQuestionTerms(text);
+  if(!candidates.length)return null;
+  const matched=[];
+  for(const token of candidates){
+    let hits=0;
+    for(const row of rows){
+      const hay=planningHay(row);
+      if(hay.includes(token)){hits++;if(hits>25)break;}
+    }
+    if(hits>0)matched.push({token,hits});
+  }
+  if(!matched.length)return null;
+  matched.sort((a,b)=>a.hits-b.hits||b.token.length-a.token.length);
+  const terms=matched.slice(0,4).map(x=>x.token);
+  const originals=String(text||'').match(/[A-Za-z0-9._/-]+/g)||[];
+  const label=terms.map(term=>originals.find(token=>fold(token)===term)||term).join(' + ');
+  return {terms,label,hits:matched[0].hits};
+}
+
+
 function inferDataset(text,previous={},screen={}){return explicitDataset(text)||previous.dataset||screen.dataset||'overview';}
 
 function inferIntent(text,dataset){
+  if(dataset==='planning'&&/\b(wanneer|eerstvolgende|eerst volgende|volgende keer|volgende)\b/.test(text))return /\b(eerstvolgende|eerst volgende|volgende keer|volgende)\b/.test(text)?'next':'when';
+  if(dataset==='planning'&&/\b(vorige|laatste keer|meest recente)\b/.test(text))return 'previous';
   if(/\b(meest voorkomende|vaakst|top\s*\d*\s*fout|welke foutcodes|foutcodes komen)\b/.test(text))return 'groupCodes';
   if(/\b(meeste impact|hoogste impact|grootste impact|grootste bijdrage|zwaarst)\b/.test(text))return 'topImpact';
   if(/\b(waarom|verklaar|oorzaak|waardoor)\b/.test(text))return 'explain';
@@ -228,7 +274,8 @@ export function parseQuestion(question,{previousContext={},screenContext={},data
   const raw=String(question||'').trim();
   const text=normalizeQuestion(raw);
   const follow=FOLLOW_WORDS.some(word=>text.includes(word))||/^(en|daarvan|daarin|die|deze|alleen|ook)\b/.test(text);
-  const explicit=explicitDataset(text);
+  const planningReference=detectPlanningReference(raw,data);
+  const explicit=explicitDataset(text)||(planningReference?'planning':null);
   const previous=cleanContext(previousContext),screen=cleanContext(mode==='screen'?screenContext:{});
   const inheritPrevious=!!previous.dataset&&(follow||(explicit&&explicit===previous.dataset));
   const base=inheritPrevious?previous:screen;
@@ -251,6 +298,12 @@ export function parseQuestion(question,{previousContext={},screenContext={},data
     if(period.quarters?.length>1){filters.quarters=period.quarters.slice();delete filters.quarter;}
     else if(period.quarter){filters.quarter=period.quarter;delete filters.quarters;}
     else{delete filters.quarter;delete filters.quarters;}
+  }
+  if(planningReference){
+    filters.planningTerms=planningReference.terms.slice();
+    filters.planningLabel=planningReference.label;
+  }else if(explicit==='planning'&&!follow){
+    delete filters.planningTerms;delete filters.planningLabel;
   }
   const service=detectService(text,data);
   let finalDataset=dataset;
@@ -305,6 +358,7 @@ function contextLabels(context={}){
   if(f.rekenStatus)out.push(f.rekenStatus);
   if(f.periodLabel)out.push(f.periodLabel);
   else if(f.year)out.push(String(f.year));
+  if(f.planningLabel)out.push(f.planningLabel);
   if(context.planningDienst)out.push(String(context.planningDienst));
   return out;
 }
@@ -383,14 +437,44 @@ function planningRows(data,context={}){
   let rows=(data.planning?.activities||[]).slice(),f=context.filters||{};
   if(f.road)rows=planningForRoad(data,f.road);
   if(context.planningDienst)rows=rows.filter(r=>upper(r.dienst)===upper(context.planningDienst));
+  if(Array.isArray(f.planningTerms)&&f.planningTerms.length)rows=rows.filter(r=>{const hay=planningHay(r);return f.planningTerms.every(term=>hay.includes(fold(term)));});
   const ranges=planningRanges(f);
   if(ranges)rows=rows.filter(r=>ranges.some(([from,to])=>Number(r.t0)<to&&Number(r.t1)>=from));
   return rows;
+}
+function planningNow(){
+  const d=new Date();return d.getFullYear()+d.getMonth()/12+(Math.max(1,d.getDate())-1)/(12*31);
+}
+function planningTimingRows(rows=[]){
+  return rows.map(r=>({...r,wbsLabel:[r.blok,r.wbs,...(r.wbsPath||[])].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' › ')}));
 }
 function planningResult(parsed,data){
   const planning=data.planning;
   if(!planning)return result('Er is geen planningmodel geladen in BiDash.',parsed.context,{title:'Planning',metrics:[{label:'Planning',value:'Niet geladen'}]});
   const selected=planningRows(data,parsed.context).sort((a,b)=>(Number(a.t0)||0)-(Number(b.t0)||0));
+  if((parsed.intent==='next'||parsed.intent==='when'||parsed.intent==='previous')&&parsed.context.filters?.planningTerms?.length){
+    const now=planningNow();let rows=selected.slice(),focus=null;
+    if(parsed.intent==='previous'){
+      rows=rows.filter(r=>Number(r.t1)<now).sort((a,b)=>Number(b.t1)-Number(a.t1));focus=rows[0]||null;
+    }else if(parsed.intent==='next'){
+      const future=rows.filter(r=>Number(r.t0)>=now).sort((a,b)=>Number(a.t0)-Number(b.t0));
+      const ongoing=rows.filter(r=>Number(r.t0)<now&&Number(r.t1)>=now).sort((a,b)=>Number(a.t1)-Number(b.t1));
+      focus=future[0]||ongoing[0]||null;rows=focus?[focus,...future.filter(r=>r.id!==focus.id).slice(0,9)]:[];
+    }else{
+      const futureOrCurrent=rows.filter(r=>Number(r.t1)>=now).sort((a,b)=>Number(a.t0)-Number(b.t0));
+      rows=futureOrCurrent.length?futureOrCurrent:rows;focus=rows[0]||null;
+    }
+    const label=parsed.context.filters.planningLabel||parsed.context.filters.planningTerms.join(' + ');
+    if(!focus)return result(`Ik vind geen ${label} in de geladen planning binnen deze selectie.`,parsed.context,{title:'Planningterm · '+label,metrics:[{label:'Matches',value:'0'}]});
+    const status=Number(focus.t0)<=now&&Number(focus.t1)>=now?'loopt nu':Number(focus.t0)>now?'eerstvolgend':'meest recent';
+    const phrase=parsed.intent==='previous'?'De meest recente':parsed.intent==='next'?'De eerstvolgende':'De eerste relevante';
+    return result(`${phrase} planningmatch voor “${label}” is “${focus.naam}” en ${status} in ${focus.periode||planningPeriodLabel(focus.t0)}.`,parsed.context,{
+      title:'Planningterm · '+label,
+      metrics:[{label:'Match',value:focus.naam||focus.code||label},{label:'Periode',value:focus.periode||planningPeriodLabel(focus.t0)},{label:'Dienst',value:focus.dienst||'–'},{label:'Type',value:focus.kind==='mile'?'Mijlpaal':'Activiteit'}],
+      columns:[['naam','Activiteit / mijlpaal'],['code','Code'],['dienst','Dienst'],['wbsLabel','WBS / pad'],['periode','Periode']],
+      rows:planningTimingRows(rows.slice(0,10))
+    });
+  }
   if(/afhankelijk|relatie/.test(parsed.text)){
     const ids=new Set(selected.map(r=>String(r.id))),byId=new Map((planning.activities||[]).map(r=>[String(r.id),r]));
     let rels=(planning.relations||[]).filter(r=>!ids.size||ids.has(String(r.from))||ids.has(String(r.to)));
