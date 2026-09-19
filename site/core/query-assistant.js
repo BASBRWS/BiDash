@@ -185,15 +185,15 @@ function detectPeriod(text){
   }
 
   if(!ranges.length&&year){
-    if(/\b(eerste helft|1e helft|h1)\b/.test(text)){ranges=[[year,year+.5]];label='eerste helft '+year;}
-    else if(/\b(tweede helft|2e helft|h2)\b/.test(text)){ranges=[[year+.5,year+1]];label='tweede helft '+year;}
+    if(/\b(eerste helft|1e helft|eerste halfjaar|1e halfjaar|h1)\b/.test(text)){ranges=[[year,year+.5]];label='eerste helft '+year;}
+    else if(/\b(tweede helft|2e helft|tweede halfjaar|2e halfjaar|laatste halfjaar|h2)\b/.test(text)){ranges=[[year+.5,year+1]];label='tweede helft '+year;}
     else if(/\b(voorjaar|lente)\b/.test(text)){ranges=[[decimalMonth(year,2),decimalMonth(year,5)]];label='voorjaar '+year;}
     else if(/\bzomer\b/.test(text)){ranges=[[decimalMonth(year,5),decimalMonth(year,8)]];label='zomer '+year;}
     else if(/\b(najaar|herfst)\b/.test(text)){ranges=[[decimalMonth(year,8),decimalMonth(year,11)]];label='najaar '+year;}
     else if(/\bwinter\b/.test(text)){ranges=[[decimalMonth(year,11),decimalMonth(year+1,2)]];label='winter '+year+'/'+(year+1);}
-    else if(/\b(begin|begin van|start|start van)\s+(?:het\s+jaar\s+)?20\d{2}\b/.test(text)){ranges=[[year,year+.25]];label='begin '+year;}
-    else if(/\b(midden|midden van)\s+(?:het\s+jaar\s+)?20\d{2}\b/.test(text)){ranges=[[year+.25,year+.75]];label='midden '+year;}
-    else if(/\b(eind|einde|eind van|einde van)\s+(?:het\s+jaar\s+)?20\d{2}\b/.test(text)){ranges=[[year+.75,year+1]];label='eind '+year;}
+    else if(/\b(?:begin|start)(?:\s+van)?\s+(?:(?:het\s+)?jaar\s+)?20\d{2}\b|\b(?:begin|start)(?:\s+van)?\s+(?:dit|volgend|komend)\s+jaar\b/.test(text)){ranges=[[year,year+.25]];label='begin '+year;}
+    else if(/\bmidden(?:\s+van)?\s+(?:(?:het\s+)?jaar\s+)?20\d{2}\b|\bmidden(?:\s+van)?\s+(?:dit|volgend|komend)\s+jaar\b/.test(text)){ranges=[[year+.25,year+.75]];label='midden '+year;}
+    else if(/\b(?:eind|einde)(?:\s+van)?\s+(?:(?:het\s+)?jaar\s+)?20\d{2}\b|\b(?:eind|einde)(?:\s+van)?\s+(?:dit|volgend|komend)\s+jaar\b/.test(text)){ranges=[[year+.75,year+1]];label='eind '+year;}
   }
 
   if(!ranges.length&&year&&quarters.length){
