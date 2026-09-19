@@ -49,3 +49,8 @@ Nieuwe regressietests controleren onder meer:
 - capaciteitsoverschrijding;
 - planningafhankelijkheden;
 - contextbehoud bij vervolgvragen.
+
+
+### Breder periodebegrip
+
+De lokale parser herkent naast jaar en kwartaal ook maandranges, meerdere kwartalen, halfjaren, seizoenen, jaarfasen, meerjarige bereiken en relatieve periodes zoals komende N maanden/kwartalen/jaren. De gekozen interpretatie wordt als contextlabel teruggegeven. Nieuwe expliciete onderwerpen zoals `projecten` verbreken oude dienst-/storingscontext, zodat een niet-herkende nieuwe vraag niet langer stilzwijgend het vorige antwoordspad herhaalt.
