@@ -311,3 +311,20 @@ Periodevragen hoeven niet exact als één datum of kwartaal te worden geformulee
 - `2027 en 2028` en `tot eind 2027`.
 
 Brede termen hebben een vaste betekenis: voorjaar = maart-mei, zomer = juni-augustus, najaar/herfst = september-november en winter = december-februari. **Komende N kwartalen** betekent de eerstvolgende N volledige kwartalen. De geïnterpreteerde periode wordt als contextlabel bij het antwoord getoond.
+
+
+#### Terminologie uit de planning zelf
+
+Vraag BiDash gebruikt de geladen planning ook als dynamische woordenlijst. Een term hoeft dus niet vooraf in de chatcode te zijn opgenomen.
+
+BiDash doorzoekt hiervoor de planningactiviteitnaam, activiteitcode, WBS/blok, volledig WBS-pad, dienst en het type activiteit/mijlpaal. Daardoor kunnen vragen werken als:
+
+- `Wanneer is de eerstvolgende IFAT?`
+- `Wanneer is VAL-77?`
+- `Wanneer is WBS-900?`
+- `Wanneer is Gate-Z?`
+- `Toon alle activiteiten met <term uit de planning>`
+
+Als een onbekende term daadwerkelijk in de geladen planning voorkomt, wordt de vraag als planningvraag behandeld en niet als vervolg op een eerder gespreksonderwerp. Bij `wanneer`, `eerstvolgende` en `meest recente` sorteert BiDash de gevonden planningmatches op de effectieve planningdatum.
+
+De planning blijft daarmee zelf de bron van de terminologie. Nieuwe projectnamen, testfasen, afkortingen, codes of WBS-termen hoeven niet apart aan een vaste woordenlijst te worden toegevoegd.
