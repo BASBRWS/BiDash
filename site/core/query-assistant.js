@@ -257,6 +257,153 @@ function serviceResult(parsed,data){
   return result(rows.length?`${rows.length===1?'De geselecteerde dienst heeft':'Er zijn '+fmt(rows.length)+' diensten met'} actuele dienstverleningsinformatie. ${under.length?fmt(under.length)+' dienst(en) zitten onder de ingestelde norm.':'Geen doorgerekende dienst zit in deze selectie onder de norm.'}`:'Ik vind geen dienstverlening voor deze selectie.',parsed.context,{title:'Dienstverlening',metrics:[{label:'Diensten',value:fmt(rows.length)},{label:'Onder norm',value:fmt(under.length)}],columns:[['naam','Dienst'],['beschikbaar','Beschikbaarheid'],['normLabel','Norm']],rows:rows.slice(0,20).map(r=>({...r,beschikbaar:r.besch==null?`${fmt(r.lo,2)}–${fmt(r.hi,2)}%`:`${fmt(r.besch,2)}%`,normLabel:`${fmt(r.norm,2)}%`}))});
 }
 
+
+function planningBounds(filters={}){
+  const year=Number(filters.year),quarter=Number(filters.quarter);
+  if(!Number.isFinite(year))return null;
+  if(Number.isFinite(quarter)&&quarter>=1&&quarter<=4)return [year+(quarter-1)/4,year+quarter/4];
+  return [year,year+1];
+}
+function planningRows(data,context={}){
+  let rows=(data.planning?.activities||[]).slice(),f=context.filters||{};
+  if(f.road)rows=planningForRoad(data,f.road);
+  if(context.planningDienst)rows=rows.filter(r=>upper(r.dienst)===upper(context.planningDienst));
+  const bounds=planningBounds(f);
+  if(bounds)rows=rows.filter(r=>Number(r.t0)<bounds[1]&&Number(r.t1)>=bounds[0]);
+  return rows;
+}
+function planningResult(parsed,data){
+  const planning=data.planning;
+  if(!planning)return result('Er is geen planningmodel geladen in BiDash.',parsed.context,{title:'Planning',metrics:[{label:'Planning',value:'Niet geladen'}]});
+  const rows=planningRows(data,parsed.context).sort((a,b)=>(Number(a.t0)||0)-(Number(b.t0)||0));
+  const milestones=rows.filter(r=>r.kind==='mile').length,bars=rows.length-milestones;
+  const text=rows.length
+    ? `Ik vind ${fmt(rows.length)} planningactiviteiten binnen deze selectie. Daarvan zijn ${fmt(bars)} activiteiten en ${fmt(milestones)} mijlpalen. De effectieve datums uit het huidige planningmodel worden gebruikt.`
+    : 'Ik vind geen planningactiviteiten binnen deze selectie.';
+  return result(text,parsed.context,{
+    title:'Planning',
+    metrics:[
+      {label:'Activiteiten',value:fmt(rows.length)},
+      {label:'Relaties',value:fmt(planning.nRel||planning.relations?.length||0)},
+      {label:'Cross-dienst',value:fmt(planning.nCross||0)},
+      {label:'Shift',value:(Number(planning.shift)||0)+' mnd'}
+    ],
+    columns:[['naam','Activiteit'],['dienst','Dienst'],['blok','WBS'],['periode','Periode'],['roads','Corridor']],
+    rows:rows.slice(0,30).map(r=>({...r,roads:(r.roads||[]).join(', ')})),
+    note:rows.length>30?'Eerste 30 activiteiten getoond; de telling gebruikt de volledige selectie.':''
+  });
+}
+function capacityResult(parsed,data){
+  const cap=data.capacity;
+  if(!cap||!cap.geconfig)return result('Er is geen bruikbare capaciteitsvraag uit de planning beschikbaar. Laad een planning met FTE-configuratie of P6-capaciteit.',parsed.context,{title:'Planning & capaciteit',metrics:[{label:'Capaciteit',value:'Niet beschikbaar'}]});
+  const f=parsed.context.filters||{},bounds=planningBounds(f);
+  let quarters=(cap.quarters||[]).slice();
+  if(bounds)quarters=quarters.filter(q=>q.jaar>bounds[0]&&q.jaar<bounds[1]||q.jaar===Math.floor(bounds[0])&&(!f.quarter||q.q===Number(f.quarter)));
+  if(f.year)quarters=quarters.filter(q=>Number(q.jaar)===Number(f.year));
+  if(f.quarter)quarters=quarters.filter(q=>Number(q.q)===Number(f.quarter));
+  const services=Object.entries(cap.perDienst||{}).filter(([name])=>!parsed.context.planningDienst||upper(name)===upper(parsed.context.planningDienst));
+  const overs=services.filter(([,i])=>Number(i.grens)>0&&Number(i.piek)>Number(i.grens));
+  if(/overschrijd|tekort|boven.*grens/.test(parsed.text)){
+    const rows=overs.map(([dienst,i])=>({dienst,piek:fmt(i.piek,2),grens:fmt(i.grens,2),kwartaal:i.piekKw,over:i.overKw}));
+    return result(rows.length?`Er zijn ${fmt(rows.length)} planningsdiensten waarvan de piekvraag boven de ingestelde capaciteitsgrens komt.`:'Geen planningsdienst overschrijdt de ingestelde capaciteitsgrens.',parsed.context,{title:'Capaciteitsoverschrijdingen',metrics:[{label:'Overschrijdingen',value:fmt(rows.length)},{label:'Taken met FTE',value:fmt(cap.nMetFte)}],columns:[['dienst','Dienst'],['piek','Piek FTE'],['grens','Grens FTE'],['kwartaal','Piek'],['over','Kwartalen boven grens']],rows});
+  }
+  const qRows=quarters.map(q=>{
+    const selected=parsed.context.planningDienst?Number(q.per?.[parsed.context.planningDienst]||0):Number(q.tot||0);
+    return {kwartaal:q.label,fte:fmt(selected,2),detail:parsed.context.planningDienst?parsed.context.planningDienst:Object.entries(q.per||{}).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([k,v])=>k+' '+fmt(v,1)).join(' · ')};
+  });
+  const peak=qRows.reduce((best,r)=>Number(String(r.fte).replace(',','.'))>Number(String(best?.fte||0).replace(',','.'))?r:best,null);
+  return result(`De planning bevat FTE-vraag voor ${fmt(cap.nMetFte)} van ${fmt(cap.nTaken)} taken. ${overs.length?fmt(overs.length)+' planningsdienst(en) overschrijden ergens de ingestelde grens.':'De ingestelde capaciteitsgrenzen worden niet overschreden.'}`,parsed.context,{title:'Planning & capaciteit',metrics:[{label:'Taken met FTE',value:fmt(cap.nMetFte)},{label:'Totale taak-FTE',value:fmt(cap.totFte,2)},{label:'Diensten boven grens',value:fmt(overs.length)},{label:'Piek selectie',value:peak?peak.fte+' FTE':'–'}],columns:[['kwartaal','Kwartaal'],['fte','FTE-vraag'],['detail','Verdeling']],rows:qRows.slice(0,24)});
+}
+function workDateBounds(filters={}){
+  const y=Number(filters.year),q=Number(filters.quarter);if(!Number.isFinite(y))return null;
+  const startMonth=Number.isFinite(q)&&q>=1&&q<=4?(q-1)*3:0,endMonth=Number.isFinite(q)&&q>=1&&q<=4?q*3:12;
+  return [new Date(y,startMonth,1).getTime(),new Date(y,endMonth,1).getTime()];
+}
+function workRows(data,context={}){
+  let rows=(data.works||[]).slice(),f=context.filters||{};
+  if(f.road)rows=rows.filter(w=>upper(w.weg)===upper(f.road));
+  const bounds=workDateBounds(f);if(bounds)rows=rows.filter(w=>(w.startMs??-Infinity)<bounds[1]&&(w.eindMs??Infinity)>=bounds[0]);
+  return rows;
+}
+function worksResult(parsed,data){
+  const rows=workRows(data,parsed.context).sort((a,b)=>(Number(a.startMs)||0)-(Number(b.startMs)||0));
+  if(!data.sources?.find(s=>s.id==='werkzaamheden')?.loaded&&!rows.length)return result('De bron Werkzaamheden is niet geladen.',parsed.context,{title:'Werkzaamheden',metrics:[{label:'Bron',value:'Niet geladen'}]});
+  return result(rows.length?`Ik vind ${fmt(rows.length)} werkzaamheden binnen deze selectie. Koppelingen naar assets en U-routes komen uit de bestaande DVM-context.`:'Ik vind geen werkzaamheden binnen deze selectie.',parsed.context,{title:'Werkzaamheden',metrics:[{label:'Werkvakken',value:fmt(rows.length)},{label:'Met assets',value:fmt(rows.filter(w=>w.assetKeys?.length).length)},{label:'Met U-route',value:fmt(rows.filter(w=>w.routeRefs?.length||w.routeMatches?.length).length)}],columns:[['id','Werk'],['weg','Weg'],['periode','Periode'],['hinder','Hinder'],['omschrijving','Werkzaamheden'],['routeLabel','U-route']],rows:rows.slice(0,30).map(w=>({...w,routeLabel:[...(w.routeRefs||[]),...(w.routeMatches||[])].filter(Boolean).join(', ')}))});
+}
+function urouteResult(parsed,data){
+  let rows=(data.uroutes||[]).slice(),f=parsed.context.filters||{};
+  if(f.road)rows=rows.filter(r=>upper(r.weg)===upper(f.road));
+  if(!data.sources?.find(s=>s.id==='uRoutes')?.loaded&&!rows.length)return result('De bron U-routes is niet geladen.',parsed.context,{title:'U-routes',metrics:[{label:'Bron',value:'Niet geladen'}]});
+  return result(rows.length?`Ik vind ${fmt(rows.length)} U-routes binnen deze selectie.`:'Ik vind geen U-routes binnen deze selectie.',parsed.context,{title:'U-routes',metrics:[{label:'Routes',value:fmt(rows.length)},{label:'Met assets',value:fmt(rows.filter(r=>r.assetKeys?.length).length)}],columns:[['ref','U-route'],['naam','Naam'],['weg','Hoofdweg'],['statusPct','Status %'],['assetsLabel','Assets'],['worksLabel','Werkzaamheden']],rows:rows.slice(0,30).map(r=>({...r,assetsLabel:fmt(r.assetKeys?.length||0),worksLabel:(r.werkRefs||[]).join(', ')}))});
+}
+function historyResult(parsed,data){
+  const sources=[...(data.historySources||[])],drip=(data.dripHistory?.sources||[]).map(s=>({...s,doel:'DRIP Monte Carlo'}));
+  const rows=[...sources,...drip].map(s=>({naam:s.naam||s.key,count:fmt(s.count||0),doel:s.doel||'prognose',peildatum:s.peildatum?new Date(s.peildatum).toLocaleDateString('nl-NL'):'–'}));
+  const total=[...sources,...drip].reduce((sum,s)=>sum+Number(s.count||0),0);
+  return result(rows.length?`Er zijn ${fmt(rows.length)} historische bronstromen geladen met samen ${fmt(total)} bronrecords/incidenten. Historie voedt in DVM de prognoseketen en wordt niet als actuele storing geteld.`:'Er is geen storingshistorie geladen.',parsed.context,{title:'Storingshistorie',metrics:[{label:'Bronstromen',value:fmt(rows.length)},{label:'Records',value:fmt(total)}],columns:[['naam','Bron'],['count','Records'],['doel','Gebruik'],['peildatum','Peildatum']],rows});
+}
+function assetEolValue(a){
+  for(const v of [a.eol,a.eolJaar,a.eolYear,a.endOfLife,a.raw?.eol,a.raw?.eol_jaar,a.raw?.['eol jaar']]){const n=Number(v);if(Number.isFinite(n)&&n>1900)return n;}
+  return null;
+}
+function eolResult(parsed,data){
+  const source=data.eol||{},current=new Date().getFullYear(),f=parsed.context.filters||{};
+  let assets=(data.assets||[]).map(a=>({...a,_eol:assetEolValue(a)})).filter(a=>a._eol!=null);
+  if(f.road)assets=assets.filter(a=>upper(a.weg).includes(upper(f.road)));
+  if(f.typeId)assets=assets.filter(a=>upper(a.tp||a.assetType)===upper(f.typeId));
+  if(/verouder|einde levensduur|over eol|voorbij/.test(parsed.text))assets=assets.filter(a=>a._eol<=current);
+  assets.sort((a,b)=>a._eol-b._eol);
+  const text=source.loaded
+    ? `De EOL-referentie is geladen met ${fmt(source.count||0)} levensduurregels. Voor ${fmt(assets.length)} assets in de huidige context is ook een concreet EOL-jaar beschikbaar in de ontsloten assetdata.`
+    : 'Er is geen aparte EOL-referentie geladen; generieke levensduurregels kunnen nog steeds door DVM worden gebruikt.';
+  return result(text,parsed.context,{title:'EOL / levensduur',metrics:[{label:'EOL-regels',value:fmt(source.count||0)},{label:'Assets met EOL-jaar',value:fmt(assets.length)},{label:'Reeds bereikt',value:fmt(assets.filter(a=>a._eol<=current).length)}],columns:[['naam','Asset'],['tp','Type'],['weg','Locatie'],['_eol','EOL-jaar']],rows:assets.slice(0,30)});
+}
+function serviceFaultRelation(parsed,data){
+  const service=(data.services||[]).find(s=>String(s.id)===String(parsed.context.serviceId));
+  if(!service)return result('Noem een concrete dienstverlening om het verband met storingen te verklaren.',parsed.context,{title:'Samenhang dienstverlening'});
+  let faults=faultsForService(data,service.id);faults=filterFaults(faults,parsed.context.filters);
+  faults.sort((a,b)=>(Number(b.gewogenVerlies)||0)-(Number(a.gewogenVerlies)||0)||Number(b.impact||0)-Number(a.impact||0));
+  const subs=(data.subprocesses||[]).filter(sp=>String(sp.serviceId)===String(service.id));
+  const typeLinks=(data.serviceTypeLinks||[]).filter(l=>String(l.serviceId)===String(service.id));
+  const rows=faults.slice(0,25).map(f=>{
+    const paths=(f.serviceLinks||[]).flatMap(l=>l.subprocesses||[]).map(x=>x.naam);
+    return {...f,pad:[...new Set(paths)].join(' · '),gewogen:fmt(f.gewogenVerlies,2)};
+  });
+  const availability=service.besch==null?`${fmt(service.lo,2)}–${fmt(service.hi,2)}%`:`${fmt(service.besch,2)}%`;
+  const below=service.besch!=null&&Number(service.besch)<Number(service.norm);
+  return result(`${service.naam} staat op ${availability} bij een norm van ${fmt(service.norm,2)}%. BiDash koppelt ${fmt(faults.length)} open meldingen via ${fmt(subs.length)} subprocessen en ${fmt(typeLinks.length)} assettype-afhankelijkheden aan deze dienst. ${below?'De dienst ligt onder de ingestelde norm.':'De dienst ligt niet onder de ingestelde norm of de dekking is niet exact.'}`,parsed.context,{title:'Storing → subprocess → dienstverlening',metrics:[{label:'Open gekoppelde meldingen',value:fmt(faults.length)},{label:'Subprocessen',value:fmt(subs.length)},{label:'Beschikbaarheid',value:availability},{label:'Norm',value:fmt(service.norm,2)+'%'}],columns:[['naam','Storing / asset'],['typeId','Type'],['code','Foutcode'],['weg','Weg'],['impact','Assetimpact %'],['pad','Via subprocess'],['gewogen','Gewogen verlies']],rows,note:'De relatie volgt de ingestelde subprocess- en assettype-afhankelijkheden. De gewogen verliesbijdrage is geschikt voor rangschikking, maar is geen zelfstandig optelbaar dienstpercentage.'});
+}
+function planningFaultRelation(parsed,data){
+  const selected=filterFaults(data.faults||[],parsed.context.filters),activities=planningForFaults(data,selected);
+  const byRoad=new Map();for(const f of selected){const k=upper(f.weg);if(k)byRoad.set(k,(byRoad.get(k)||0)+1);}
+  const rows=activities.map(a=>({...a,roadsLabel:(a.roads||[]).join(', '),faults:(a.roads||[]).reduce((s,r)=>s+(byRoad.get(upper(r))||0),0)})).sort((a,b)=>b.faults-a.faults);
+  return result(rows.length?`Ik vind ${fmt(rows.length)} planningactiviteiten op corridors waar binnen de huidige selectie open storingen staan. Dit verband is corridor-gebaseerd; een planningactiviteit is daarmee niet automatisch de oorzaak van een storing.`:'Ik vind geen planningactiviteiten die via een herkenbare corridor samenvallen met de geselecteerde open storingen.',parsed.context,{title:'Planning ↔ open storingen',metrics:[{label:'Open storingen',value:fmt(selected.length)},{label:'Raakvlakken planning',value:fmt(rows.length)},{label:'Corridors met storing',value:fmt(byRoad.size)}],columns:[['naam','Planningactiviteit'],['dienst','Planningsdienst'],['periode','Periode'],['roadsLabel','Corridor'],['faults','Open storingen corridor']],rows:rows.slice(0,30),note:'Koppeling op corridor-token (bijv. A15/N57) uit de planningnaam/code en de weg van de storing.'});
+}
+function workFaultRelation(parsed,data){
+  const selected=filterFaults(data.faults||[],parsed.context.filters),works=worksForFaults(data,selected);
+  const keys=new Set(selected.map(f=>String(f.assetKey||'')).filter(Boolean)),roads=new Set(selected.map(f=>upper(f.weg)).filter(Boolean));
+  const rows=works.map(w=>({...w,matchAssets:(w.assetKeys||[]).filter(k=>keys.has(String(k))).length,matchRoad:roads.has(upper(w.weg))?'ja':'nee'})).sort((a,b)=>b.matchAssets-a.matchAssets);
+  return result(rows.length?`Ik vind ${fmt(rows.length)} werkzaamheden die via gekoppelde assets of dezelfde weg samenhangen met de geselecteerde open storingen.`:'Ik vind geen werkzaamheden die aan de geselecteerde open storingen gekoppeld zijn.',parsed.context,{title:'Werkzaamheden ↔ open storingen',metrics:[{label:'Open storingen',value:fmt(selected.length)},{label:'Werkzaamheden',value:fmt(rows.length)},{label:'Exacte assetmatches',value:fmt(rows.reduce((s,r)=>s+r.matchAssets,0))}],columns:[['id','Werk'],['weg','Weg'],['periode','Periode'],['matchAssets','Geraakte storingsassets'],['hinder','Hinder'],['omschrijving','Werkzaamheden']],rows:rows.slice(0,30)});
+}
+function serviceCapacityRelation(parsed,data){
+  const service=(data.services||[]).find(s=>String(s.id)===String(parsed.context.serviceId));
+  if(!service)return result('Noem een concrete dienstverlening om de koppeling met formatie te tonen.',parsed.context,{title:'Dienstverlening ↔ formatie'});
+  const links=(data.serviceFunctionLinks||[]).filter(l=>String(l.serviceId)===String(service.id));
+  const functions=links.map(l=>{const f=(data.functions||[]).find(x=>String(x.id)===String(l.functionId));return f?{...f,eigenaar:l.eigenaar}:null;}).filter(Boolean);
+  const rows=functions.map(f=>({...f,tekort:fmt(Math.max(0,Number(f.benodigd||0)-Number(f.actueel||0)),2),actueelLabel:fmt(f.actueel,2),benodigdLabel:fmt(f.benodigd,2)}));
+  return result(rows.length?`${service.naam} heeft ${fmt(rows.length)} expliciete koppeling(en) met bedrijfsfuncties. De tabel gebruikt de bestaande BI-formatiegetallen; er wordt geen FTE-effect uit storingen verzonnen.`:`Voor ${service.naam} zijn geen expliciete dienst↔bedrijfsfunctiekoppelingen vastgelegd.`,parsed.context,{title:'Dienstverlening ↔ formatie',metrics:[{label:'Gekoppelde functies',value:fmt(rows.length)},{label:'Functies met tekort',value:fmt(rows.filter(r=>Number(r.actueel)<Number(r.benodigd)).length)}],columns:[['naam','Bedrijfsfunctie'],['actueelLabel','Actueel FTE'],['benodigdLabel','Benodigd FTE'],['tekort','Tekort FTE'],['eigenaar','Eigenaar']],rows});
+}
+function relationResult(parsed,data){
+  const t=parsed.text;
+  if(parsed.context.serviceId&&/\b(formatie|capaciteit|fte|personeel)\b/.test(t))return serviceCapacityRelation(parsed,data);
+  if(parsed.context.serviceId)return serviceFaultRelation(parsed,data);
+  if(/\b(planning|activiteit|activiteiten|mijlpaal|projectplanning)\b/.test(t)&&/\b(storing|storingen|melding|meldingen|impact)\b/.test(t))return planningFaultRelation(parsed,data);
+  if(/\b(werkzaamheid|werkzaamheden|werkvak|werkvakken|hinder|afsluiting)\b/.test(t)&&/\b(storing|storingen|melding|meldingen|impact)\b/.test(t))return workFaultRelation(parsed,data);
+  const under=(data.services||[]).filter(s=>s.besch!=null&&Number(s.besch)<Number(s.norm)).sort((a,b)=>Number(a.besch)-Number(b.besch));
+  if(under.length){const next={...parsed,context:{...parsed.context,serviceId:under[0].id}};return serviceFaultRelation(next,data);}
+  return result('Ik kan samenhang leggen via storing → assettype → subprocess → dienstverlening, via expliciete dienst↔bedrijfsfunctiekoppelingen, en via corridor/assetkoppelingen naar planning en werkzaamheden. Noem een dienst, weg of planningonderwerp om de relatie te beperken.',parsed.context,{title:'Samenhang in BiDash',metrics:[{label:'Dienst↔type relaties',value:fmt(data.serviceTypeLinks?.length||0)},{label:'Dienst↔functie links',value:fmt(data.serviceFunctionLinks?.length||0)},{label:'Planningactiviteiten',value:fmt(data.planning?.activities?.length||0)},{label:'Werkzaamheden',value:fmt(data.works?.length||0)}]});
+}
+
 export function answerQuestion(question,{data={},previousContext={},screenContext={},mode='all'}={}){
   const parsed=parseQuestion(question,{data,previousContext,screenContext,mode});
   if(parsed.dataset==='faults')return faultResult(parsed,data);
