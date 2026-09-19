@@ -41,6 +41,14 @@
   },
   planning(){const w=iplWin();return w?.IPL_RAW_XML?{name:w.IPL_RAW_FILENAME,xml:w.IPL_RAW_XML,state:w.app_collectState()}:null;},
   summary(){const p=activeParams(),model=bridgeModel();return {simulation:simActive(),peildatum:DB.meta?.peildatum||null,functies:DB.functies.map(f=>({id:f.id,naam:f.naam,benodigd:Number(f.benodigdFte)*(1+p.verzuim/100),actueel:Number(f.actueelFte)*(1+p.ftePct/100)})),triggers:evalTriggers(p),planning:model?{naam:model.bestand,regels:model.regels.length,van:model.t0,tot:model.t1}:null,legacyDvmAssets:DB.legacyDvmAssets?.length||0};},
+  context(){const p=activeParams(),model=bridgeModel(),capacity=bridgeCapaciteit();return {
+   peildatum:DB.meta?.peildatum||null,planning:model,capacity,
+   functions:DB.functies.map(f=>({
+    id:f.id,naam:f.naam,benodigd:Number(f.benodigdFte)*(1+p.verzuim/100),actueel:Number(f.actueelFte)*(1+p.ftePct/100),
+    assets:[...(f.assets||[])],richtlijnen:[...(f.richtlijnen||[])],bedrijfsfunctie:f.bedrijfsfunctie||'',onderhoudEur:Number(f.onderhoudEur||0)
+   })),
+   triggers:evalTriggers(p),simulation:simActive(),capgrens:{...(DB.capgrens||{})}
+  };},
   assets(){return (DB.assets||[]).map(a=>({...a,source:'BI',key:String(a.id),naam:a.naam,assetType:a.type,vc:a.vc||'',weg:a.locatie||'',status:a.besch==null?'Onbekend':a.besch+'% beschikbaar'}));},
   open(tab){if(tab==='vwm'||tab==='civ'){goto('rules');civRuleTab(tab);}else goto(tab);}
  };

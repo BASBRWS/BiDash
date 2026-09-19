@@ -20,21 +20,65 @@
  async function runForecast(){if(FORECAST_RUNNING)return;const host=document.getElementById('tab-prognose'),controls=host?.querySelector('#hubForecastControls');if(controls)setCfgFromForm(controls);const assets=(ASSET_REGISTER_STATE?.assets||[]);if(!assets.some(a=>a.tp==='MSI'&&a.prognoseActief!==false)){alert('Laad eerst All Assets met signaalgevers.');return;}FORECAST_RUNNING=true;FORECAST_CANCEL=false;FORECAST_RESULT=null;FORECAST_SUMMARY=null;FORECAST_TRIGGERS=[];await renderForecastPage();try{const lib=await forecastLib,r=await forecastRules();FORECAST_RESULT=await lib.simulateSignalForecast(assets,r,{isCancelled:()=>FORECAST_CANCEL,onProgress:p=>{const pct=document.getElementById('hubForecastPct'),bar=document.getElementById('hubForecastBar'),detail=document.getElementById('hubForecastDetail');if(pct)pct.textContent=n(p.pct,0)+'%';if(bar)bar.style.width=Math.max(0,Math.min(100,p.pct))+'%';if(detail)detail.textContent=`Weg ${p.roadIndex} van ${p.roadCount}: ${p.weg} ${p.richting||''}`;}});FORECAST_SUMMARY=lib.summarizeSignalForecast(FORECAST_RESULT);FORECAST_TRIGGERS=lib.buildForecastTriggers(FORECAST_RESULT,r);notify();}catch(e){if(e?.message!=='BEREKENING_GESTOPT')console.error(e);}finally{FORECAST_RUNNING=false;FORECAST_CANCEL=false;await renderForecastPage();}}
  function exportForecastCsv(){if(!FORECAST_RESULT)return;const r=FORECAST_RESULT,rows=[['Type','Weg','Richting','VC','Jaar','Signaalgevers','Trajectlengte km','Extra geraakte km sinds referentie','Verwacht geraakt','Areaaluitval %','Permanent uit','Permanent %','Extra WIS FTE','Totale WIS formatie','Groei FTE','WIS kosten EUR']];for(const road of r.roads)for(const y of road.years)rows.push(['WEG',road.weg,road.richting,road.vc,y.year,road.n,road.routeKm,y.affectedKm,y.modelAffected,y.modelPct,y.permanent,y.permanentPct,y.fte,r.rules.baseFte+y.fte,'',y.cost]);for(const y of r.annual)rows.push(['TOTAAL','','','',y.year,r.assetCount,'',y.affectedKm,y.modelAffected,'',y.permanent,y.permanentPct,y.extraFte,y.totalFte,y.growthFte,y.annualCost]);const text='\ufeff'+rows.map(row=>row.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(';')).join('\r\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/csv'}));a.download='bidash-signaalgeverprognose-wis.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
  function resetForecast(){FORECAST_RESULT=null;FORECAST_SUMMARY=null;FORECAST_TRIGGERS=[];}
+
+ function hubDienstContext(){
+  const model=v68LandelijkModel();
+  return {
+   assets:model.assets,
+   types:Object.fromEntries(Object.entries(model.typen||{}).map(([tp,b])=>[tp,{
+    tp,n:b.n,events:b.events,inBron:b.inBron,nietDoorgerekend:b.nietDoorgerekend,
+    compleet:b.compleet===true,aangeleverd:b.aangeleverd===true,besch:b.besch,prestatie:b.prestatie,status:b.status||''
+   }])),
+   services:model.diensten.map(r=>({
+    id:r.d.id,naam:String(r.d.naam||r.d.label||r.d.id).replace(/&amp;/g,'&'),norm:r.d.norm,
+    besch:r.besch,prestatie:r.prestatie,lo:r.loB,hi:r.hiB,dekking:r.dekking,exact:r.exact===true,
+    subprocessen:(r.detail||[]).map(sp=>({
+     naam:sp.naam,aandeelDienst:sp.w,gewicht:sp.gewicht,exact:sp.exact===true,
+     loB:sp.loB,hiB:sp.hiB,loP:sp.loP,hiP:sp.hiP,bekend:sp.bekend,
+     bronnen:(sp.bronnen||[]).map(b=>({obj:b.obj,typeId:b.tp,gewicht:b.w,status:b.status||''}))
+    }))
+   }))
+  };
+ }
+ function hubContext(){
+  const dienst=hubDienstContext();
+  const works=(WERK_STATE?.werken||[]).map(w=>({
+   id:w.id,weg:w.weg||'',richting:w.richting||'',startMs:w.startMs??null,eindMs:w.eindMs??null,
+   hinder:w.hinder||'',afsluiting:w.afsluiting||'',extraMin:w.extraMin??null,omschrijving:w.omschrijving||'',
+   status:w.status||'',vanHm:w.vanHm??null,totHm:w.totHm??null,assetKeys:[...(w.assetKeys||[])],
+   routeRefs:[...(w.uRoutes||[])],routeMatches:(w.routeMatches||[]).map(r=>r.uRoute||r.relationId||r.id).filter(Boolean)
+  }));
+  const uroutes=(U_ROUTE_STATE?.routes||[]).map(r=>({
+   id:r.id||r.relationId||'',ref:r.uRoute||r.relationId||r.id||'',naam:r.routeNaam||r.naam||'',
+   weg:r.weg||r.hoofdweg||'',richting:r.richting||'',vanHm:r.vanHm??null,totHm:r.totHm??null,
+   statusPct:r.statusPct??null,volledig:r.volledig||'',relationUrl:r.relationUrl||'',
+   assetKeys:[...(r.assetKeys||[])],werkRefs:works.filter(w=>w.routeMatches.includes(r.uRoute||r.relationId||r.id)).map(w=>w.id)
+  }));
+  return {
+   peildatum:STATE?.peildatum||null,services:dienst.services,types:dienst.types,works,uroutes,
+   eol:{loaded:EOL_REF.length>0,bestand:EOL_BRON_NAAM||'',count:EOL_REF.length},
+   historySources:(STORINGSBRONNEN||[]).map(b=>({key:b.key,naam:b.naam||b.key,count:(b.rijen||[]).length,peildatum:b.peildatum||null,doel:b.doel||'prognose'})),
+   dripHistory:DRIP_HIST_STATE?{loaded:true,sources:(DRIP_HIST_STATE.sources||[]).map(b=>({key:b.key,naam:b.name||b.key,count:(b.incidenten||[]).length,dekkingDatums:(b.dekkingDatums||[]).slice()}))}:null,
+   triggers:FORECAST_TRIGGERS||[]
+  };
+ }
  window.HUB={
   async import(bundle){const b=structuredClone(bundle);if(b.formaat!=='DVM-dienstimpact-totaal')throw Error('Geen DVM-totaalbestand.');if(!b.assetregister?.rijen?.length)throw Error('Een DVM-berekening vereist een assetregister. Importeer een volledige dataset of combineer de selectie met het bestaande register.');STATE=null; HISTORIE_STATE=null; STORINGSBRONNEN=[]; LIVE_STORINGSBRONNEN=[]; DRIP_HIST_STATE=null; U_ROUTE_STATE=null; WERK_STATE=null; EOL_REF=[];resetForecast();await totaalImportJson(new File([JSON.stringify(b)],'dvm-lokaal.json',{type:'application/json'}),'vervang');if(!ASSET_REGISTER_STATE)throw Error('Het assetregister is niet verwerkt.');revealForecastTab();return this.summary();},
   export(){return totaalExportBundle(Object.fromEntries(totaalExportOpties().map(o=>[o.id,true])),{autosaveLean:true});},
-  summary(){const model=v68LandelijkModel();const roads=kostenDagRows().map(w=>{const c=kostenDagResultaat(w);return {id:w.key,naam:w.naam||w.wegdeel||w.key,vc:w.vc||'',kosten:c.kosten,vvu:c.vvu,status:c.status,bron:c.bron};});return {peildatum:STATE?.peildatum||null,assets:model.assets,roads,diensten:model.diensten.map(r=>({id:r.d.id,naam:String(r.d.naam||r.d.label||r.d.id).replace(/&amp;/g,'&'),norm:r.d.norm,besch:r.besch,prestatie:r.prestatie,lo:r.loB,hi:r.hiB,dekking:r.dekking})),liveBronnen:LIVE_STORINGSBRONNEN.length,stats:STATE?.stats||null,nietDoorgerekend:(STATE?.nietDoorgerekend||[]).length,forecast:FORECAST_SUMMARY,triggers:FORECAST_TRIGGERS};},
+  summary(){const dienst=hubDienstContext();const roads=kostenDagRows().map(w=>{const c=kostenDagResultaat(w);return {id:w.key,naam:w.naam||w.wegdeel||w.key,vc:w.vc||'',kosten:c.kosten,vvu:c.vvu,status:c.status,bron:c.bron};});return {peildatum:STATE?.peildatum||null,assets:dienst.assets,roads,diensten:dienst.services,types:dienst.types,liveBronnen:LIVE_STORINGSBRONNEN.length,stats:STATE?.stats||null,nietDoorgerekend:(STATE?.nietDoorgerekend||[]).length,forecast:FORECAST_SUMMARY,triggers:FORECAST_TRIGGERS};},
   assets(){return ASSET_REGISTER_STATE?.assets||[];},
   faults(){return [...(STATE?.meldingen||[]),...(STATE?.nietDoorgerekend||[])].map((m,i)=>({
     id:m.eventId||i,eventId:m.eventId||'',assetKey:m.assetKey||'',naam:m.assetNaam||m.osid||m.asset||'',
     typeId:m.typeId,weg:m.weg||'',richting:m.richting||'',vc:m.vc||'',rd:m.rd||'',district:m.district||'',hm:m.hm,
     code:m.code||m.foutcode||'',impact:m.avail??null,prestatie:m.perf??null,
+    bijdrageAvail:m.trace?.bijdrageAvail??null,bijdragePerf:m.trace?.bijdragePerf??null,
     omschrijving:m.rekenStatus?[m.melding,m.rekenStatus].filter(Boolean).join(' · '):m.melding||m.omschrijving||'',
     wegKey:m.wegKey||'',start:m.tVan??null,einde:m.tTot??null,duurUren:m.duurUren??null,
     duurBetrouwbaar:m.duurBetrouwbaar!==false,bron:m.bron||m.bronBestand||'',bronPeildatum:m.bronPeildatum,
     rekenStatus:m.rekenStatus||'Doorgerekend',assetMatchStatus:m.assetMatchStatus,afgeleidUitHistorie:!!m.afgeleidUitHistorie
   }));},
   detail(key){return {asset:(ASSET_REGISTER_STATE?.assets||[]).find(a=>a.key===key),faults:this.faults().filter(m=>m.assetKey===key)};},
+  context(){return hubContext();},
   async open(tab){if(tab==='prognose'){revealForecastTab();await renderForecastPage();toonTab('prognose');return;}const renderers={overzicht:renderOverzicht,wegdelen:renderWegdelen,storingen:renderStoringen,berekening:renderBerekening,wegdeelverslag:renderWegdeelverslag,gebied:renderGebied,rapport:renderRapport,drips:renderDrips,datasets:renderDatasetBeheer,regels:renderRegels};if(tabToegestaan(tab)&&renderers[tab])renderers[tab]();toonTab(tab);if(tab==='regels')await enhanceRules();if(tab==='datasets'){const host=document.getElementById('tab-datasets');if(host){host.querySelector('.hub-source-tools')?.remove();const bar=document.createElement('div');bar.className='hub-source-tools';for(const [label,id] of [['Assetlijst','dripInput'],['EOL-referentie','eolInputTop'],['Storingshistorie','autoLogInput'],['Open storingen','liveLogInput'],['U-routes','uRouteInput'],['Werkzaamheden','werkInput']]){const b=document.createElement('button');b.textContent=label+' laden';b.onclick=()=>document.getElementById(id).click();bar.append(b);}host.prepend(bar);}}},
   async scenario(kind){if(kind==='current')tmc70Open();else await this.open('prognose');},
   openCosts(key){kostenOpenWeg(encodeURIComponent(key));},

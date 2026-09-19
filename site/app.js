@@ -5,6 +5,7 @@ import {toonVersies} from './core/versie.js';
 import {runQualityAudit,QUALITY_CATEGORIES} from './core/quality-audit.js';
 import {applyQuery,operatorsFor} from './core/query-filter.js';
 import {installQueryAssistant} from './core/query-assistant.js';
+import {buildBiDashContext} from './core/context-api.js';
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=1)=>Number.isFinite(n)?n.toLocaleString('nl-NL',{maximumFractionDigits:d}):'Onbekend';
 const money=n=>Number.isFinite(n)?n.toLocaleString('nl-NL',{style:'currency',currency:'EUR'}):'Onbekend';
@@ -212,16 +213,16 @@ $('#assetSearch').oninput=()=>{assetPage=0;renderAssets();};for(const id of ['as
 installQueryBuilder('assets');installQueryBuilder('faults');
 
 function assistantAllData(){
- const faults=allFaults();
- return {
+ const faults=allFaults(),dvmApi=sourceApi('dvm'),biApi=sourceApi('bi');
+ const dvmContext=dvmApi?.context?.()||{},biContext=biApi?.context?.()||{};
+ const functions=biContext.functions?.length?biContext.functions:(summaries.bi?.functies||[]);
+ return buildBiDashContext({
   faults:queryFaults(faults),
   assets:queryAssets(catalogue(),faults),
   roads:(summaries.dvm?.roads||[]).slice(),
-  services:(summaries.dvm?.diensten||[]).slice(),
-  functions:(summaries.bi?.functies||[]).slice(),
-  planning:summaries.bi?.planning||null,
-  peildatum:summaries.dvm?.peildatum||null
- };
+  services:dvmContext.services?.length?dvmContext.services:(summaries.dvm?.diensten||[]),
+  functions,dvm:dvmContext,bi:biContext,links:state.links||[],state
+ });
 }
 function assistantData(mode='all'){
  const data=assistantAllData();if(mode!=='screen')return data;
@@ -241,6 +242,8 @@ function assistantScreenContext(){
  if(view==='faults'){if($('#faultVc').value)filters.vc=$('#faultVc').value;if($('#faultSearch').value)filters.search=$('#faultSearch').value;return {dataset:'faults',filters};}
  if(view==='assets'){if($('#assetVc').value)filters.vc=$('#assetVc').value;if($('#assetSource').value)filters.source=$('#assetSource').value;if($('#assetSearch').value)filters.search=$('#assetSearch').value;return {dataset:'assets',filters};}
  if(view==='costs'){if($('#costVc').value)filters.vc=$('#costVc').value;return {dataset:'roads',filters};}
+ if(view==='planning')return {dataset:'planning',filters};
+ if(view==='organisation')return {dataset:'capacity',filters};
  if(['roads'].includes(view))return {dataset:'roads',filters};
  if(['services','area','region','calculation','memos'].includes(view))return {dataset:'services',filters};
  if(['lifecycle','signalForecast','chains'].includes(view))return {dataset:'assets',filters};
@@ -264,7 +267,10 @@ async function assistantApplyContext(context={}){
   $('#assetVc').value=f.vc||'';$('#assetSource').value=f.source||'';$('#assetSearch').value=f.search||'';renderQueryBuilder('assets');renderAssets();return;
  }
  if(context.dataset==='roads'){await show('costs');if(f.vc){$('#costVc').value=f.vc;renderCosts();}return;}
- if(context.dataset==='services')await show('services');
+ if(context.dataset==='planning'){await show('planning');return;}
+ if(context.dataset==='capacity'){await show('organisation');return;}
+ if(context.dataset==='services'||context.dataset==='relations'){await show('services');return;}
+ if(context.dataset==='works'||context.dataset==='uroutes'||context.dataset==='history'||context.dataset==='eol'){await show('data');return;}
 }
 
 installQueryAssistant({
