@@ -295,3 +295,19 @@ Vanaf BiDash 2.18 kan **Vraag BiDash** ook verbanden over meerdere domeinen volg
 Een antwoord over samenloop is niet automatisch een oorzaakanalyse. Als een storing en planningactiviteit dezelfde corridor raken, meldt BiDash een raakvlak. De chat zegt niet dat de activiteit de storing heeft veroorzaakt.
 
 Historische storingsregels worden niet allemaal voor iedere chatvraag in het geheugen geladen. De chat kan in deze versie wel de geladen historiebronnen en aantallen tonen. Detailvragen over individuele historische incidenten worden later via dezelfde Context API uitgebreid wanneer de nieuwe gescheiden datalaag beschikbaar is.
+
+
+#### Periodes in gewone taal
+
+Periodevragen hoeven niet exact als één datum of kwartaal te worden geformuleerd. Vraag BiDash herkent onder meer:
+
+- `Q3 en Q4 2027`, `eerste kwartaal 2028`;
+- `eerste halfjaar 2027`, `tweede helft 2027`, `H1` en `H2`;
+- `voorjaar 2027`, `zomer 2027`, `najaar 2027` en `winter 2027`;
+- `april 2027` en `van april tot oktober 2027`;
+- `begin 2027`, `midden 2027` en `eind 2027`;
+- `dit kwartaal`, `volgend kwartaal`, `dit jaar` en `volgend jaar`;
+- `komende 6 maanden`, `komende 2 kwartalen` en `komende 2 jaar`;
+- `2027 en 2028` en `tot eind 2027`.
+
+Brede termen hebben een vaste betekenis: voorjaar = maart-mei, zomer = juni-augustus, najaar/herfst = september-november en winter = december-februari. **Komende N kwartalen** betekent de eerstvolgende N volledige kwartalen. De geïnterpreteerde periode wordt als contextlabel bij het antwoord getoond.
