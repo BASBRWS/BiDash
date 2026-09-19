@@ -72,5 +72,5 @@ test('de DVM-module meldt alleen haar eigen versie aan de schil',()=>{
 test('het versienummer van de schil staat op precies één plek',()=>{
   const bestanden=['site/app.js','site/index.html','site/engines/dvm-source-manager.js','site/engines/dvm-adapter.js'];
   for(const bestand of bestanden)assert.doesNotMatch(read(bestand),/2\.14/,bestand+' bevat een tweede versienummer');
-  assert.match(read('site/core/versie.js'),/BIDASH_VERSIE='2\.18'/);
+  assert.match(read('site/core/versie.js'),/BIDASH_VERSIE='2\.19'/);
 });

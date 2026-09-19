@@ -577,7 +577,7 @@ function bridgeModel(){
     const topOf=r=>(r.wbsPath&&r.wbsPath.length?r.wbsPath[0]:'')||r.wbs||'';
     const dnst=blokId=>{const map=W.IPL_WBS_DIENST||{};return map[blokId]||'GPO'};
     const regels=(M.regels||[]).map(r=>{const e=eff(r);const blok=topOf(r);
-      return {id:r.id,naam:r.naam,code:r.code,t0:e.t0,t1:e.t1,kind:r.kind,blok,dienst:dnst(blok)}});
+      return {id:r.id,naam:r.naam,code:r.code,t0:e.t0,t1:e.t1,kind:r.kind,blok,dienst:dnst(blok),wbs:r.wbs||'',wbsPath:[...(r.wbsPath||[])]}});
     const byId={};(M.regels||[]).forEach(r=>byId[r.id]=r);
     let nRel=0,nCross=0;
     (M.relaties||[]).forEach(rl=>{const a=byId[rl.from],b=byId[rl.to];if(!a||!b)return;nRel++;
