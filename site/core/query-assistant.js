@@ -160,7 +160,7 @@ function contextLabels(context={}){
 
 function suggestionsFor(context){
   if(context.dataset==='faults')return ['Welke foutcodes komen het meest voor?','Welke hebben de hoogste impact?','Toon deze storingen'];
-  if(context.dataset==='assets')return ['Hoeveel hebben een open storing?','Toon de assets','En alleen MSI?'];
+  if(context.dataset==='assets')return ['Toon de assets','En alleen MSI?','En alleen detectielussen?'];
   if(context.dataset==='roads')return ['Wat zijn de kosten?','Welke wegdelen hebben de hoogste kosten?','En alleen in deze VC?'];
   if(context.dataset==='services')return ['Welke dienst zit onder de norm?','Toon alle diensten','Wat is de huidige beschikbaarheid?'];
   return ['Hoeveel open storingen zijn er?','Welke foutcodes komen het meest voor?','Wat is de huidige dienstverlening?'];
@@ -177,7 +177,7 @@ function faultResult(parsed,data){
   }
   if(parsed.intent==='topImpact'){
     const sorted=rows.filter(r=>Number.isFinite(Number(r.impact))).sort((a,b)=>Number(b.impact)-Number(a.impact)).slice(0,15);
-    const unknown=rows.length-sorted.length;
+    const unknown=rows.filter(r=>r.impact==null).length;
     return result(sorted.length?`De hoogste berekende impact${scope} is ${fmt(sorted[0].impact,1)}%. Impactpercentages worden niet bij elkaar opgeteld.`:`Ik vind geen doorgerekende storingen${scope}.`,parsed.context,{title:'Hoogste impact',columns:[['naam','Asset / melding'],['code','Foutcode'],['weg','Weg'],['vc','VC'],['impact','Impact %']],rows:sorted,metrics:[{label:'Selectie',value:fmt(rows.length)},{label:'Niet doorgerekend',value:fmt(rows.filter(r=>r.impact==null).length)}],note:unknown?'Niet-doorgerekende meldingen blijven buiten de impactrangschikking.':''});
   }
   if(parsed.intent==='list'){
@@ -204,6 +204,7 @@ function serviceResult(parsed,data){
   let rows=(data.services||[]).slice();
   if(parsed.context.serviceId)rows=rows.filter(row=>String(row.id)===String(parsed.context.serviceId));
   rows.sort((a,b)=>(Number(a.besch??a.lo)||Infinity)-(Number(b.besch??b.lo)||Infinity));
+  if(/onder de norm/.test(parsed.text))rows=rows.filter(r=>Number.isFinite(Number(r.besch))&&Number.isFinite(Number(r.norm))&&Number(r.besch)<Number(r.norm));
   const under=rows.filter(r=>Number.isFinite(Number(r.besch))&&Number.isFinite(Number(r.norm))&&Number(r.besch)<Number(r.norm));
   return result(rows.length?`${rows.length===1?'De geselecteerde dienst heeft':'Er zijn '+fmt(rows.length)+' diensten met'} actuele dienstverleningsinformatie. ${under.length?fmt(under.length)+' dienst(en) zitten onder de ingestelde norm.':'Geen doorgerekende dienst zit in deze selectie onder de norm.'}`:'Ik vind geen dienstverlening voor deze selectie.',parsed.context,{title:'Dienstverlening',metrics:[{label:'Diensten',value:fmt(rows.length)},{label:'Onder norm',value:fmt(under.length)}],columns:[['naam','Dienst'],['beschikbaar','Beschikbaarheid'],['normLabel','Norm']],rows:rows.slice(0,20).map(r=>({...r,beschikbaar:r.besch==null?`${fmt(r.lo,2)}–${fmt(r.hi,2)}%`:`${fmt(r.besch,2)}%`,normLabel:`${fmt(r.norm,2)}%`}))});
 }
