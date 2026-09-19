@@ -71,7 +71,7 @@ function flattenSubprocesses(services=[]){
         serviceId:String(service.id),serviceName:String(service.naam||service.id),naam:String(sp.naam||''),
         aandeelDienst:num(sp.aandeelDienst??sp.w??sp.gewicht)||0,exact:sp.exact===true,
         beschikbaarheid:sp.besch??sp.loB??null,lo:sp.loB??null,hi:sp.hiB??null,
-        bronnen:(sp.bronnen||[]).map(b=>({obj:String(b.obj||''),typeId:String(b.tp||''),gewicht:num(b.w)||0,status:String(b.status||'')}))
+        bronnen:(sp.bronnen||[]).map(b=>({obj:String(b.obj||''),typeId:String(b.typeId||b.tp||''),gewicht:num(b.gewicht??b.w)||0,status:String(b.status||'')}))
       });
     }
   }
