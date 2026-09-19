@@ -583,7 +583,8 @@ function bridgeModel(){
     (M.relaties||[]).forEach(rl=>{const a=byId[rl.from],b=byId[rl.to];if(!a||!b)return;nRel++;
       if(topOf(a)!==topOf(b))nCross++});
     const ts=[];regels.forEach(r=>{ts.push(r.t0,r.t1)});
-    return {bestand:W.IPL_RAW_FILENAME||'geladen planning',regels,nRel,nCross,
+    const relaties=(M.relaties||[]).map(rl=>({from:rl.from,to:rl.to,type:rl.type||rl.rel||''}));
+    return {bestand:W.IPL_RAW_FILENAME||'geladen planning',regels,relaties,nRel,nCross,
       t0:ts.length?Math.floor(Math.min(...ts)):0,t1:ts.length?Math.ceil(Math.max(...ts)):0,
       shift:W.IPL_SHIFT||0};
   }catch(e){return null}
