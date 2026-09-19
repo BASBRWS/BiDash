@@ -145,7 +145,7 @@ export function parseQuestion(question,{previousContext={},screenContext={},data
   const period=detectPeriod(text);if(period.year)filters.year=period.year;if(period.quarter)filters.quarter=period.quarter;
   const service=detectService(text,data);
   let finalDataset=dataset;
-  if(service&&/\b(waarom|oorzaak|storing|storingen|impact|drukt|beinvloed|verband|samenhang)\b/.test(text))finalDataset='relations';
+  if(service&&/\b(waarom|oorzaak|storing|storingen|impact|drukt|beinvloed|verband|samenhang|formatie|capaciteit|fte|personeel|gekoppeld)\b/.test(text))finalDataset='relations';
   const planningDienst=detectPlanningDienst(text,data)||base.planningDienst||null;
   const context={dataset:finalDataset,filters,serviceId:service?.id||base.serviceId||null,planningDienst};
   return {raw,text,dataset:finalDataset,intent:inferIntent(text,finalDataset),context,follow};
