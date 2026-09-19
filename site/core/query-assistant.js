@@ -88,3 +88,84 @@ function cleanContext(previous={}){
     serviceId:previous.serviceId||null
   };
 }
+export function parseQuestion(question,{previousContext={},screenContext={},data={},mode='all'}={}){
+  const raw=String(question||'').trim();
+  const text=normalizeQuestion(raw);
+  const follow=FOLLOW_WORDS.some(word=>text.includes(word));
+  const explicit=explicitDataset(text);
+  const previous=cleanContext(previousContext),screen=cleanContext(mode==='screen'?screenContext:{});
+  const inheritPrevious=!!previous.dataset&&(!explicit||explicit===previous.dataset||follow);
+  const base=inheritPrevious?previous:screen;
+  const dataset=explicit||base.dataset||'overview';
+  const filters={...(base.filters||{})};
+  if(/\b(landelijk|heel nederland|alle centrales)\b/.test(text)){delete filters.vc;delete filters.road;}
+  if(/\b(alle wegen|alle wegdelen)\b/.test(text))delete filters.road;
+  if(/\b(alle types|alle assettypes)\b/.test(text))delete filters.typeId;
+  const typeId=detectType(text);if(typeId)filters.typeId=typeId;
+  const road=detectRoad(raw);if(road)filters.road=road;
+  const vc=detectVc(raw,data);if(vc)filters.vc=vc;
+  const code=detectCode(raw);if(code)filters.code=code;
+  if(/\b(niet doorgerekend|zonder impact|onbekende impact)\b/.test(text))filters.rekenStatus='niet doorgerekend';
+  if(/\b(doorgerekend|met impact)\b/.test(text)&&!/niet doorgerekend/.test(text))filters.rekenStatus='doorgerekend';
+  const service=detectService(text,data);
+  const context={dataset,filters,serviceId:service?.id||base.serviceId||null};
+  return {raw,text,dataset,intent:inferIntent(text,dataset),context,follow};
+}
+
+function sameText(a,b){return fold(a)===fold(b);}
+function includesText(value,needle){return fold(value).includes(fold(needle));}
+
+export function filterFaults(rows=[],filters={}){
+  return rows.filter(row=>{
+    if(filters.typeId&&upper(row.typeId)!==upper(filters.typeId))return false;
+    if(filters.road&&upper(row.weg)!==upper(filters.road))return false;
+    if(filters.vc&&upper(row.vc)!==upper(filters.vc))return false;
+    if(filters.code&&!sameText(row.code,filters.code))return false;
+    if(filters.rekenStatus==='niet doorgerekend'&&row.impact!=null)return false;
+    if(filters.rekenStatus==='doorgerekend'&&row.impact==null)return false;
+    if(filters.search&&!includesText(textValue(row,['naam','assetKey','omschrijving','code','weg','richting','vc']),filters.search))return false;
+    return true;
+  });
+}
+
+export function filterAssets(rows=[],filters={}){
+  return rows.filter(row=>{
+    if(filters.typeId&&upper(row.tp||row.assetType)!==upper(filters.typeId))return false;
+    if(filters.road&&![row.weg,row.raw?.weg].some(v=>upper(v).includes(upper(filters.road))))return false;
+    if(filters.vc&&upper(row.vc)!==upper(filters.vc))return false;
+    if(filters.source&&upper(row.source)!==upper(filters.source))return false;
+    if(filters.search&&!includesText(textValue(row,['naam','key','tp','assetType','vc','weg','status']),filters.search))return false;
+    return true;
+  });
+}
+
+export function filterRoads(rows=[],filters={}){
+  return rows.filter(row=>{
+    const hay=upper(textValue(row,['naam','weg','id']));
+    if(filters.road&&!hay.includes(upper(filters.road)))return false;
+    if(filters.vc&&upper(row.vc)!==upper(filters.vc))return false;
+    return true;
+  });
+}
+
+function contextLabels(context={}){
+  const f=context.filters||{},out=[];
+  if(f.vc)out.push(`VC ${f.vc}`);
+  if(f.road)out.push(f.road);
+  if(f.typeId)out.push(f.typeId==='LUS'?'Detectielus':f.typeId);
+  if(f.code)out.push(`foutcode ${f.code}`);
+  if(f.rekenStatus)out.push(f.rekenStatus);
+  return out;
+}
+
+function suggestionsFor(context){
+  if(context.dataset==='faults')return ['Welke foutcodes komen het meest voor?','Welke hebben de hoogste impact?','Toon deze storingen'];
+  if(context.dataset==='assets')return ['Hoeveel hebben een open storing?','Toon de assets','En alleen MSI?'];
+  if(context.dataset==='roads')return ['Wat zijn de kosten?','Welke wegdelen hebben de hoogste kosten?','En alleen in deze VC?'];
+  if(context.dataset==='services')return ['Welke dienst zit onder de norm?','Toon alle diensten','Wat is de huidige beschikbaarheid?'];
+  return ['Hoeveel open storingen zijn er?','Welke foutcodes komen het meest voor?','Wat is de huidige dienstverlening?'];
+}
+
+function result(text,context,extra={}){return {text,context,labels:contextLabels(context),suggestions:suggestionsFor(context),...extra};}
+
+function faultResult(parsed,data){
