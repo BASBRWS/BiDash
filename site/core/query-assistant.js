@@ -197,3 +197,42 @@ function assetResult(parsed,data){
 function roadResult(parsed,data){
   const rows=filterRoads(data.roads||[],parsed.context.filters),known=rows.filter(r=>Number.isFinite(Number(r.kosten))),knownVvu=rows.filter(r=>Number.isFinite(Number(r.vvu))),cost=known.reduce((s,r)=>s+Number(r.kosten),0),vvu=knownVvu.reduce((s,r)=>s+Number(r.vvu),0);
   const ordered=rows.slice().sort((a,b)=>(Number(b.kosten)||-Infinity)-(Number(a.kosten)||-Infinity));
+  return result(rows.length?`Voor ${fmt(known.length)} van ${fmt(rows.length)} geselecteerde wegdelen zijn verkeerskosten berekenbaar. De som is een bekend subtotaal; controleer overlap tussen verkeersstromen.`:'Ik vind geen wegdelen voor deze selectie.',parsed.context,{title:'Verkeerskosten',metrics:[{label:'Bekend subtotaal',value:known.length?euro(cost):'Onbekend'},{label:'VVU / brondag',value:knownVvu.length?fmt(vvu,1):'Onbekend'},{label:'Berekenbaar',value:`${known.length} / ${rows.length}`}],columns:[['naam','Wegdeel'],['vc','VC'],['vvu','VVU'],['kosten','Kosten']],rows:ordered.slice(0,20).map(r=>({...r,kosten:Number.isFinite(Number(r.kosten))?euro(Number(r.kosten)):'Onbekend',vvu:Number.isFinite(Number(r.vvu))?fmt(Number(r.vvu),1):'Onbekend'})),note:'Assetverliesuren zijn niet hetzelfde als voertuigverliesuren.'});
+}
+
+function serviceResult(parsed,data){
+  let rows=(data.services||[]).slice();
+  if(parsed.context.serviceId)rows=rows.filter(row=>String(row.id)===String(parsed.context.serviceId));
+  rows.sort((a,b)=>(Number(a.besch??a.lo)||Infinity)-(Number(b.besch??b.lo)||Infinity));
+  const under=rows.filter(r=>Number.isFinite(Number(r.besch))&&Number.isFinite(Number(r.norm))&&Number(r.besch)<Number(r.norm));
+  return result(rows.length?`${rows.length===1?'De geselecteerde dienst heeft':'Er zijn '+fmt(rows.length)+' diensten met'} actuele dienstverleningsinformatie. ${under.length?fmt(under.length)+' dienst(en) zitten onder de ingestelde norm.':'Geen doorgerekende dienst zit in deze selectie onder de norm.'}`:'Ik vind geen dienstverlening voor deze selectie.',parsed.context,{title:'Dienstverlening',metrics:[{label:'Diensten',value:fmt(rows.length)},{label:'Onder norm',value:fmt(under.length)}],columns:[['naam','Dienst'],['beschikbaar','Beschikbaarheid'],['normLabel','Norm']],rows:rows.slice(0,20).map(r=>({...r,beschikbaar:r.besch==null?`${fmt(r.lo,2)}–${fmt(r.hi,2)}%`:`${fmt(r.besch,2)}%`,normLabel:`${fmt(r.norm,2)}%`}))});
+}
+
+export function answerQuestion(question,{data={},previousContext={},screenContext={},mode='all'}={}){
+  const parsed=parseQuestion(question,{data,previousContext,screenContext,mode});
+  if(parsed.dataset==='faults')return faultResult(parsed,data);
+  if(parsed.dataset==='assets')return assetResult(parsed,data);
+  if(parsed.dataset==='roads')return roadResult(parsed,data);
+  if(parsed.dataset==='services')return serviceResult(parsed,data);
+  const faults=data.faults||[],assets=data.assets||[],services=data.services||[];
+  return result(`De geladen BiDash-context bevat ${fmt(assets.length)} assets, ${fmt(faults.length)} open storingen en ${fmt(services.length)} diensten. Stel een vervolgvraag over storingen, assets, foutcodes, dienstverlening of verkeerskosten.`,parsed.context,{title:'BiDash-context',metrics:[{label:'Assets',value:fmt(assets.length)},{label:'Open storingen',value:fmt(faults.length)},{label:'Diensten',value:fmt(services.length)}]});
+}
+
+function buildTable(result){
+  if(!result.columns?.length||!result.rows?.length)return '';
+  const cols=result.columns;
+  const body=result.rows.map(row=>'<tr>'+cols.map(([key])=>`<td>${escapeHtml(row?.[key]??'')}</td>`).join('')+'</tr>').join('');
+  return `<div class="qa-table-scroll"><table><thead><tr>${cols.map(([,label])=>`<th>${escapeHtml(label)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+function buildAssistantMessage(result){
+  const metrics=result.metrics?.length?`<div class="qa-metrics">${result.metrics.map(m=>`<div><span>${escapeHtml(m.label)}</span><strong>${escapeHtml(m.value)}</strong></div>`).join('')}</div>`:'';
+  const labels=result.labels?.length?`<div class="qa-context-tags">${result.labels.map(label=>`<span>${escapeHtml(label)}</span>`).join('')}</div>`:'';
+  const note=result.note?`<p class="qa-note">${escapeHtml(result.note)}</p>`:'';
+  return `<article class="qa-message qa-assistant-message"><div class="qa-avatar" aria-hidden="true">B</div><div class="qa-bubble"><strong>${escapeHtml(result.title||'Antwoord')}</strong><p>${escapeHtml(result.text)}</p>${metrics}${buildTable(result)}${note}${labels}</div></article>`;
+}
+
+function buildUserMessage(text){return `<article class="qa-message qa-user-message"><div class="qa-bubble"><p>${escapeHtml(text)}</p></div></article>`;}
+
+export function installQueryAssistant({document:doc=globalThis.document,getData=()=>({}),getScreenContext=()=>({}),onApplyContext=()=>{},onOpenRoute=()=>{}}={}){
+  if(!doc)return null;
