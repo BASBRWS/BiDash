@@ -136,3 +136,46 @@ test('planningafhankelijkheden komen uit het planningmodel',()=>{
   assert.equal(answer.rows[0].from,'A15 vervanging');
   assert.equal(answer.rows[0].to,'A12 onderhoud');
 });
+
+
+test('projectvraag verbreekt oude dienstcontext en herkent meerdere kwartalen',()=>{
+  const previous={dataset:'relations',filters:{vc:'ZWN',typeId:'DRIP'},serviceId:'im'};
+  const parsed=parseQuestion('Welke projecten spelen er in Q3 en Q4 in 2027?',{data:context,previousContext:previous});
+  assert.equal(parsed.context.dataset,'planning');
+  assert.equal(parsed.context.serviceId,null);
+  assert.equal(parsed.context.filters.vc,undefined);
+  assert.equal(parsed.context.filters.typeId,undefined);
+  assert.deepEqual(parsed.context.filters.quarters,[3,4]);
+  assert.equal(parsed.context.filters.periodLabel,'Q3 + Q4 2027');
+});
+
+test('brede periodetermen worden deterministisch vertaald',()=>{
+  const cases=[
+    ['Welke projecten lopen in de tweede helft van 2027?','tweede helft 2027'],
+    ['Wat staat er gepland in het najaar van 2027?','najaar 2027'],
+    ['Welke projecten lopen van april tot oktober 2027?','apr–okt 2027'],
+    ['Welke projecten lopen in 2027 en 2028?','2027–2028'],
+    ['Welke projecten lopen tot eind 2027?','tot eind 2027']
+  ];
+  for(const [question,label] of cases){
+    const parsed=parseQuestion(question,{data:context});
+    assert.equal(parsed.context.dataset,'planning',question);
+    assert.equal(parsed.context.filters.periodLabel,label,question);
+    assert.ok(parsed.context.filters.periodRanges?.length,question);
+  }
+});
+
+test('relatieve periode ondersteunt komende maanden, kwartalen en jaren',()=>{
+  for(const question of ['Welke projecten lopen in de komende 6 maanden?','Welke projecten lopen in de komende 2 kwartalen?','Welke projecten lopen in de komende 2 jaar?']){
+    const parsed=parseQuestion(question,{data:context});
+    assert.equal(parsed.context.dataset,'planning');
+    assert.ok(parsed.context.filters.periodRanges?.length);
+  }
+});
+
+test('nieuwe onbekende vraag neemt niet stilzwijgend vorige dienstcontext over',()=>{
+  const previous={dataset:'relations',filters:{vc:'ZWN'},serviceId:'im'};
+  const parsed=parseQuestion('Hoe zit het met contractmanagement?',{data:context,previousContext:previous});
+  assert.notEqual(parsed.context.dataset,'relations');
+  assert.equal(parsed.context.serviceId,null);
+});
