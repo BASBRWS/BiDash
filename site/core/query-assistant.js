@@ -258,8 +258,8 @@ export function installQueryAssistant({document:doc=globalThis.document,getData=
   dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();});
   form.addEventListener('submit',event=>{event.preventDefault();ask(input.value);});
   suggestions?.addEventListener('click',event=>{const b=event.target.closest('[data-qa-suggestion]');if(!b)return;let items=[];try{items=JSON.parse(suggestions.dataset.items||'[]');}catch{}ask(items[Number(b.dataset.qaSuggestion)]||b.textContent);});
-  doc.getElementById('queryAssistantApply')?.addEventListener('click',()=>{if(lastResult?.context)onApplyContext(lastResult.context);});
-  doc.getElementById('queryAssistantOpenData')?.addEventListener('click',()=>onOpenRoute(lastResult?.context?.dataset==='roads'?'costs':lastResult?.context?.dataset==='assets'?'assets':lastResult?.context?.dataset==='services'?'services':'faults'));
+  doc.getElementById('queryAssistantApply')?.addEventListener('click',()=>{if(lastResult?.context){dialog.close();onApplyContext(lastResult.context);}});
+  doc.getElementById('queryAssistantOpenData')?.addEventListener('click',()=>{dialog.close();onOpenRoute(lastResult?.context?.dataset==='roads'?'costs':lastResult?.context?.dataset==='assets'?'assets':lastResult?.context?.dataset==='services'?'services':'faults');});
   modeInputs.forEach(el=>el.addEventListener('change',()=>{previousContext={};renderSuggestions(mode()==='screen'?['Wat zie ik hier?','Hoeveel resultaten zijn er?','Welke foutcodes komen het meest voor?']:['Hoeveel open storingen zijn er?','Welke foutcodes komen het meest voor?','Wat is de huidige dienstverlening?']);}));
   welcome();
   return {ask,clear:welcome,open:()=>open.click(),get context(){return previousContext;}};
