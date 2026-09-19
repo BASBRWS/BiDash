@@ -169,3 +169,31 @@ function suggestionsFor(context){
 function result(text,context,extra={}){return {text,context,labels:contextLabels(context),suggestions:suggestionsFor(context),...extra};}
 
 function faultResult(parsed,data){
+  const rows=filterFaults(data.faults||[],parsed.context.filters),labels=contextLabels(parsed.context),scope=labels.length?' binnen '+labels.join(' · '):'';
+  if(parsed.intent==='groupCodes'){
+    const counts=new Map();for(const row of rows){const code=String(row.code||'Onbekend');counts.set(code,(counts.get(code)||0)+1);}
+    const grouped=[...counts.entries()].sort((a,b)=>b[1]-a[1]).slice(0,10).map(([code,aantal])=>({code,aantal}));
+    return result(rows.length?`Binnen deze selectie komen ${grouped.length} foutcodes het meest voor. De lijst hieronder is gesorteerd op aantal.`:`Ik vind geen open storingen${scope}.`,parsed.context,{title:'Foutcodes',columns:[['code','Foutcode'],['aantal','Aantal']],rows:grouped,metrics:[{label:'Open storingen',value:fmt(rows.length)}]});
+  }
+  if(parsed.intent==='topImpact'){
+    const sorted=rows.filter(r=>Number.isFinite(Number(r.impact))).sort((a,b)=>Number(b.impact)-Number(a.impact)).slice(0,15);
+    const unknown=rows.length-sorted.length;
+    return result(sorted.length?`De hoogste berekende impact${scope} is ${fmt(sorted[0].impact,1)}%. Impactpercentages worden niet bij elkaar opgeteld.`:`Ik vind geen doorgerekende storingen${scope}.`,parsed.context,{title:'Hoogste impact',columns:[['naam','Asset / melding'],['code','Foutcode'],['weg','Weg'],['vc','VC'],['impact','Impact %']],rows:sorted,metrics:[{label:'Selectie',value:fmt(rows.length)},{label:'Niet doorgerekend',value:fmt(rows.filter(r=>r.impact==null).length)}],note:unknown?'Niet-doorgerekende meldingen blijven buiten de impactrangschikking.':''});
+  }
+  if(parsed.intent==='list'){
+    return result(rows.length?`Ik heb ${fmt(rows.length)} open storingen gevonden${scope}. Ik toon maximaal 25 regels; de selectie zelf blijft volledig.`:`Ik vind geen open storingen${scope}.`,parsed.context,{title:'Open storingen',columns:[['naam','Asset / melding'],['typeId','Type'],['weg','Weg'],['richting','Richting'],['vc','VC'],['code','Foutcode'],['impact','Impact %']],rows:rows.slice(0,25),metrics:[{label:'Aantal',value:fmt(rows.length)}]});
+  }
+  const typeCounts=new Map();for(const row of rows){const key=row.typeId||'Onbekend';typeCounts.set(key,(typeCounts.get(key)||0)+1);}
+  const breakdown=[...typeCounts.entries()].sort((a,b)=>b[1]-a[1]).map(([type,aantal])=>({type:type==='LUS'?'Detectielus':type,aantal}));
+  return result(`Er ${rows.length===1?'is':'zijn'} ${fmt(rows.length)} open ${rows.length===1?'storing':'storingen'}${scope}.`,parsed.context,{title:'Open storingen',metrics:[{label:'Aantal',value:fmt(rows.length)},{label:'Niet doorgerekend',value:fmt(rows.filter(r=>r.impact==null).length)}],columns:breakdown.length?[['type','Type'],['aantal','Aantal']]:[],rows:breakdown});
+}
+
+function assetResult(parsed,data){
+  const rows=filterAssets(data.assets||[],parsed.context.filters),labels=contextLabels(parsed.context),scope=labels.length?' binnen '+labels.join(' · '):'';
+  if(parsed.intent==='list')return result(rows.length?`Ik heb ${fmt(rows.length)} assets gevonden${scope}.`:`Ik vind geen assets${scope}.`,parsed.context,{title:'Assets',metrics:[{label:'Aantal',value:fmt(rows.length)}],columns:[['naam','Asset'],['tp','Type'],['vc','VC'],['weg','Locatie'],['status','Status']],rows:rows.slice(0,25)});
+  return result(`Er ${rows.length===1?'is':'zijn'} ${fmt(rows.length)} ${rows.length===1?'asset':'assets'}${scope}.`,parsed.context,{title:'Assets',metrics:[{label:'Aantal',value:fmt(rows.length)}]});
+}
+
+function roadResult(parsed,data){
+  const rows=filterRoads(data.roads||[],parsed.context.filters),known=rows.filter(r=>Number.isFinite(Number(r.kosten))),knownVvu=rows.filter(r=>Number.isFinite(Number(r.vvu))),cost=known.reduce((s,r)=>s+Number(r.kosten),0),vvu=knownVvu.reduce((s,r)=>s+Number(r.vvu),0);
+  const ordered=rows.slice().sort((a,b)=>(Number(b.kosten)||-Infinity)-(Number(a.kosten)||-Infinity));
