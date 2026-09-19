@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.18 en DVM 102, bijgewerkt op 19 september 2026 voor de integrale BiDash Context API en de relationele Vraag BiDash-queryassistent, naast de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina, zichtbare voortgang bij gegevensimport en CSP-veilige dynamische bediening.
+Status: beschrijving van BiDash 2.19 en DVM 102, bijgewerkt op 19 september 2026 voor de integrale BiDash Context API en de relationele Vraag BiDash-queryassistent, naast de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina, zichtbare voortgang bij gegevensimport en CSP-veilige dynamische bediening.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -586,3 +586,12 @@ Een gewogen verliesbijdrage in de chat is uitsluitend bedoeld om storingen binne
 Historische storingen blijven in de huidige versie primair prognosebron. De Context API meldt welke historische bronstromen zijn geladen en hoeveel records zij bevatten; zij materialiseert niet bij elke chatvraag alle ruwe historische regels in het geheugen. Dit voorkomt dat de queryinterface de performancewinst van gescheiden historische data ongedaan maakt.
 
 De queryassistent blijft volledig lokaal. Er is geen AI-call of netwerkendpoint toegevoegd; de Content Security Policy `connect-src 'none'` blijft leidend.
+
+
+### Planning als dynamisch vocabulaire
+
+Vanaf BiDash 2.19 heeft de queryassistent geen statische lijst nodig met planningafkortingen. De Context API bewaart per planningregel naast naam en code ook WBS, WBS-pad, blok, dienst en activiteitstype. De queryassistent gebruikt deze velden als lokaal zoekvocabulaire.
+
+Wanneer een vraag geen bekend domeinwoord bevat maar wel een term die in de geladen planning voorkomt, wordt die term als planningreferentie gebruikt. Dit is een expliciete domeinherkenning en verbreekt daarom een eerdere niet-planningcontext. Voor `wanneer`-, `eerstvolgende`- en `meest recente`-vragen worden matches op de effectieve planningdatums gerangschikt.
+
+De terminologie blijft daarmee data-gedreven: een nieuwe afkorting, projectnaam, mijlpaalcode of WBS-term wordt bevraagbaar zodra deze in het planningmodel is geladen, zonder wijziging van de queryparser.
