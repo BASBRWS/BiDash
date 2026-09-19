@@ -97,18 +97,95 @@ function inferIntent(text,dataset){
   return 'summary';
 }
 
+const MONTH_TERMS=[
+  ['januari','jan'],['februari','feb'],['maart','mrt'],['april','apr'],['mei'],['juni','jun'],
+  ['juli','jul'],['augustus','aug'],['september','sep'],['oktober','okt'],['november','nov'],['december','dec']
+];
+function monthFromText(value){
+  const text=fold(value);
+  for(let i=0;i<MONTH_TERMS.length;i++)if(MONTH_TERMS[i].some(term=>containsTerm(text,term)))return i;
+  return null;
+}
+function decimalMonth(year,month){return Number(year)+Number(month)/12;}
+function rangeLabel(start,end){
+  const sy=Math.floor(start),sm=Math.max(0,Math.min(11,Math.round((start-sy)*12)));
+  const ey=Math.floor(end-1e-9),em=Math.max(0,Math.min(11,Math.round((end-ey)*12)-1));
+  const short=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  return sy===ey?short[sm]+'–'+short[Math.max(sm,em)]+' '+sy:short[sm]+' '+sy+'–'+short[Math.max(0,em)]+' '+ey;
+}
 function detectPeriod(text){
-  const yearMatch=text.match(/\b(20\d{2})\b/);
-  let year=yearMatch?Number(yearMatch[1]):null,quarter=null,quarters=[];
+  const now=new Date(),currentYear=now.getFullYear(),currentMonth=now.getMonth();
+  const yearMatches=[...text.matchAll(/\b(20\d{2})\b/g)].map(m=>Number(m[1]));
+  let year=yearMatches[0]||null,quarter=null,quarters=[],ranges=[],label='';
+
   for(const match of text.matchAll(/\bq([1-4])\b|\b([1-4])e\s+kwartaal\b/g)){
     const q=Number(match[1]||match[2]);if(q&&!quarters.includes(q))quarters.push(q);
   }
   quarters.sort((a,b)=>a-b);
-  if(quarters.length===1)quarter=quarters[0];
-  if(/\bdit jaar\b/.test(text))year=new Date().getFullYear();
-  if(/\bvolgend jaar\b/.test(text))year=new Date().getFullYear()+1;
-  if(/\bdit kwartaal\b/.test(text)){const d=new Date();year=d.getFullYear();quarter=Math.floor(d.getMonth()/3)+1;quarters=[quarter];}
-  return {year,quarter,quarters};
+
+  if(/\bdit jaar\b/.test(text))year=currentYear;
+  if(/\b(volgend|komend) jaar\b/.test(text))year=currentYear+1;
+  if(/\bvorig jaar\b/.test(text))year=currentYear-1;
+
+  if(/\bdit kwartaal\b/.test(text)){year=currentYear;quarter=Math.floor(currentMonth/3)+1;quarters=[quarter];}
+  if(/\b(volgend|komend) kwartaal\b/.test(text)){
+    const q=Math.floor(currentMonth/3)+2;year=currentYear+(q>4?1:0);quarter=((q-1)%4)+1;quarters=[quarter];
+  }
+  if(/\bvorig kwartaal\b/.test(text)){
+    const q=Math.floor(currentMonth/3);year=currentYear+(q<1?-1:0);quarter=q<1?4:q;quarters=[quarter];
+  }
+
+  const relative=text.match(/\b(?:de\s+)?(?:komende|volgende)\s+(\d{1,2})\s+maand(?:en)?\b/);
+  if(relative){
+    const n=Math.max(1,Math.min(36,Number(relative[1])));
+    const start=decimalMonth(currentYear,currentMonth),end=decimalMonth(currentYear,currentMonth+n);
+    ranges=[[start,end]];label='komende '+n+' maanden';
+  }else if(/\b(?:komend|volgend) halfjaar\b/.test(text)){
+    ranges=[[decimalMonth(currentYear,currentMonth),decimalMonth(currentYear,currentMonth+6)]];label='komend halfjaar';
+  }else if(/\b(?:komend|volgend) jaar vanaf nu\b|\bkomende 12 maanden\b/.test(text)){
+    ranges=[[decimalMonth(currentYear,currentMonth),decimalMonth(currentYear,currentMonth+12)]];label='komende 12 maanden';
+  }
+
+  if(!ranges.length&&year){
+    const monthRange=text.match(/\b(?:van|vanaf|tussen)\s+([a-z]+)\s+(?:tot|t\/m|en|tm)\s+([a-z]+)(?:\s+(20\d{2}))?/);
+    if(monthRange){
+      const m0=monthFromText(monthRange[1]),m1=monthFromText(monthRange[2]),y=Number(monthRange[3]||year);
+      if(m0!=null&&m1!=null){const endYear=y+(m1<m0?1:0);ranges=[[decimalMonth(y,m0),decimalMonth(endYear,m1+1)]];label=rangeLabel(ranges[0][0],ranges[0][1]);}
+    }
+  }
+
+  if(!ranges.length&&year){
+    const monthHits=[];
+    for(let i=0;i<MONTH_TERMS.length;i++)if(MONTH_TERMS[i].some(term=>containsTerm(text,term)))monthHits.push(i);
+    if(monthHits.length===1){
+      ranges=[[decimalMonth(year,monthHits[0]),decimalMonth(year,monthHits[0]+1)]];
+      label=MONTH_TERMS[monthHits[0]][0]+' '+year;
+    }
+  }
+
+  if(!ranges.length&&year){
+    if(/\b(eerste helft|1e helft|h1)\b/.test(text)){ranges=[[year,year+.5]];label='eerste helft '+year;}
+    else if(/\b(tweede helft|2e helft|h2)\b/.test(text)){ranges=[[year+.5,year+1]];label='tweede helft '+year;}
+    else if(/\b(voorjaar|lente)\b/.test(text)){ranges=[[decimalMonth(year,2),decimalMonth(year,5)]];label='voorjaar '+year;}
+    else if(/\bzomer\b/.test(text)){ranges=[[decimalMonth(year,5),decimalMonth(year,8)]];label='zomer '+year;}
+    else if(/\b(najaar|herfst)\b/.test(text)){ranges=[[decimalMonth(year,8),decimalMonth(year,11)]];label='najaar '+year;}
+    else if(/\bwinter\b/.test(text)){ranges=[[decimalMonth(year,11),decimalMonth(year+1,2)]];label='winter '+year+'/'+(year+1);}
+    else if(/\b(begin|begin van|start|start van)\s+(?:het\s+jaar\s+)?20\d{2}\b/.test(text)){ranges=[[year,year+.25]];label='begin '+year;}
+    else if(/\b(midden|midden van)\s+(?:het\s+jaar\s+)?20\d{2}\b/.test(text)){ranges=[[year+.25,year+.75]];label='midden '+year;}
+    else if(/\b(eind|einde|eind van|einde van)\s+(?:het\s+jaar\s+)?20\d{2}\b/.test(text)){ranges=[[year+.75,year+1]];label='eind '+year;}
+  }
+
+  if(!ranges.length&&year&&quarters.length){
+    ranges=quarters.map(q=>[year+(q-1)/4,year+q/4]);
+    quarter=quarters.length===1?quarters[0]:null;
+    label=quarters.map(q=>'Q'+q).join(' + ')+' '+year;
+  }else if(!ranges.length&&year&&quarter){
+    ranges=[[year+(quarter-1)/4,year+quarter/4]];label='Q'+quarter+' '+year;
+  }else if(!ranges.length&&year){
+    ranges=[[year,year+1]];label=String(year);
+  }
+
+  return {year,quarter,quarters,ranges,label};
 }
 function detectPlanningDienst(text,data){
   const candidates=new Set([
@@ -146,9 +223,14 @@ export function parseQuestion(question,{previousContext={},screenContext={},data
   if(/\b(niet doorgerekend|zonder impact|onbekende impact)\b/.test(text))filters.rekenStatus='niet doorgerekend';
   if(/\b(doorgerekend|met impact)\b/.test(text)&&!/niet doorgerekend/.test(text))filters.rekenStatus='doorgerekend';
   const period=detectPeriod(text);
-  if(period.year)filters.year=period.year;
-  if(period.quarters?.length>1){filters.quarters=period.quarters.slice();delete filters.quarter;}
-  else if(period.quarter){filters.quarter=period.quarter;delete filters.quarters;}
+  if(period.ranges?.length){
+    filters.periodRanges=period.ranges.map(r=>r.slice());
+    filters.periodLabel=period.label||'periode';
+    if(period.year)filters.year=period.year;else delete filters.year;
+    if(period.quarters?.length>1){filters.quarters=period.quarters.slice();delete filters.quarter;}
+    else if(period.quarter){filters.quarter=period.quarter;delete filters.quarters;}
+    else{delete filters.quarter;delete filters.quarters;}
+  }
   const service=detectService(text,data);
   let finalDataset=dataset;
   if(service&&/\b(waarom|oorzaak|storing|storingen|impact|drukt|beinvloed|verband|samenhang|formatie|capaciteit|fte|personeel|gekoppeld)\b/.test(text))finalDataset='relations';
@@ -200,9 +282,8 @@ function contextLabels(context={}){
   if(f.typeId)out.push(f.typeId==='LUS'?'Detectielus':f.typeId);
   if(f.code)out.push(`foutcode ${f.code}`);
   if(f.rekenStatus)out.push(f.rekenStatus);
-  if(f.year)out.push(String(f.year));
-  if(Array.isArray(f.quarters)&&f.quarters.length)out.push(f.quarters.map(q=>'Q'+q).join(' + '));
-  else if(f.quarter)out.push('Q'+f.quarter);
+  if(f.periodLabel)out.push(f.periodLabel);
+  else if(f.year)out.push(String(f.year));
   if(context.planningDienst)out.push(String(context.planningDienst));
   return out;
 }
@@ -270,6 +351,7 @@ function serviceResult(parsed,data){
 
 
 function planningRanges(filters={}){
+  if(Array.isArray(filters.periodRanges)&&filters.periodRanges.length)return filters.periodRanges.filter(r=>Array.isArray(r)&&r.length===2&&Number.isFinite(Number(r[0]))&&Number.isFinite(Number(r[1]))).map(r=>[Number(r[0]),Number(r[1])]);
   const year=Number(filters.year),quarter=Number(filters.quarter),quarters=Array.isArray(filters.quarters)?filters.quarters.map(Number).filter(q=>q>=1&&q<=4):[];
   if(!Number.isFinite(year))return null;
   if(quarters.length)return quarters.map(q=>[year+(q-1)/4,year+q/4]);
@@ -317,9 +399,7 @@ function capacityResult(parsed,data){
   if(!cap||!cap.geconfig)return result('Er is geen bruikbare capaciteitsvraag uit de planning beschikbaar. Laad een planning met FTE-configuratie of P6-capaciteit.',parsed.context,{title:'Planning & capaciteit',metrics:[{label:'Capaciteit',value:'Niet beschikbaar'}]});
   const f=parsed.context.filters||{},ranges=planningRanges(f);
   let quarters=(cap.quarters||[]).slice();
-  if(f.year)quarters=quarters.filter(q=>Number(q.jaar)===Number(f.year));
-  if(Array.isArray(f.quarters)&&f.quarters.length)quarters=quarters.filter(q=>f.quarters.map(Number).includes(Number(q.q)));
-  else if(f.quarter)quarters=quarters.filter(q=>Number(q.q)===Number(f.quarter));
+  if(ranges)quarters=quarters.filter(q=>{const from=Number(q.jaar)+(Number(q.q)-1)/4,to=Number(q.jaar)+Number(q.q)/4;return ranges.some(([a,b])=>from<b&&to>a);});
   const services=Object.entries(cap.perDienst||{}).filter(([name])=>!parsed.context.planningDienst||upper(name)===upper(parsed.context.planningDienst));
   const overs=services.filter(([,i])=>Number(i.grens)>0&&Number(i.piek)>Number(i.grens));
   if(/overschrijd|overschreden|overschrijding|tekort|boven.*grens/.test(parsed.text)){
@@ -333,15 +413,17 @@ function capacityResult(parsed,data){
   const peak=qRows.reduce((best,r)=>Number(String(r.fte).replace(',','.'))>Number(String(best?.fte||0).replace(',','.'))?r:best,null);
   return result(`De planning bevat FTE-vraag voor ${fmt(cap.nMetFte)} van ${fmt(cap.nTaken)} taken. ${overs.length?fmt(overs.length)+' planningsdienst(en) overschrijden ergens de ingestelde grens.':'De ingestelde capaciteitsgrenzen worden niet overschreden.'}`,parsed.context,{title:'Planning & capaciteit',metrics:[{label:'Taken met FTE',value:fmt(cap.nMetFte)},{label:'Totale taak-FTE',value:fmt(cap.totFte,2)},{label:'Diensten boven grens',value:fmt(overs.length)},{label:'Piek selectie',value:peak?peak.fte+' FTE':'–'}],columns:[['kwartaal','Kwartaal'],['fte','FTE-vraag'],['detail','Verdeling']],rows:qRows.slice(0,24)});
 }
-function workDateBounds(filters={}){
-  const y=Number(filters.year),q=Number(filters.quarter);if(!Number.isFinite(y))return null;
-  const startMonth=Number.isFinite(q)&&q>=1&&q<=4?(q-1)*3:0,endMonth=Number.isFinite(q)&&q>=1&&q<=4?q*3:12;
-  return [new Date(y,startMonth,1).getTime(),new Date(y,endMonth,1).getTime()];
+function decimalToMs(value){
+  const year=Math.floor(Number(value)),month=Math.max(0,Math.min(12,Math.round((Number(value)-year)*12)));
+  return new Date(year,month,1).getTime();
+}
+function workDateRanges(filters={}){
+  const ranges=planningRanges(filters);return ranges?.map(([a,b])=>[decimalToMs(a),decimalToMs(b)])||null;
 }
 function workRows(data,context={}){
   let rows=(data.works||[]).slice(),f=context.filters||{};
   if(f.road)rows=rows.filter(w=>upper(w.weg)===upper(f.road));
-  const bounds=workDateBounds(f);if(bounds)rows=rows.filter(w=>(w.startMs??-Infinity)<bounds[1]&&(w.eindMs??Infinity)>=bounds[0]);
+  const ranges=workDateRanges(f);if(ranges)rows=rows.filter(w=>ranges.some(([a,b])=>(w.startMs??-Infinity)<b&&(w.eindMs??Infinity)>=a));
   return rows;
 }
 function worksResult(parsed,data){
