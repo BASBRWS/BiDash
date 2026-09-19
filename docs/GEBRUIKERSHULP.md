@@ -278,3 +278,20 @@ Kies **Dit scherm en de huidige filters** wanneer je wilt vragen over wat je op 
 Voorbeelden zijn “Hoeveel open MSI-storingen zijn er op de A15 in ZWN?”, “Welke foutcodes komen het meest voor?”, “Welke storingen hebben de hoogste berekende impact?”, “Wat is de huidige dienstverlening?” en “Wat zijn de verkeerskosten op A15?”. De assistent toont alleen waarden die al uit de bestaande BiDash-query- en rekenketen komen. Een onbekende impact wordt niet zelf ingevuld.
 
 Met **Gebruik als filter** kun je een ondersteunde selectie terugzetten op het assetregister of de open-storingenweergave. Met **Open bijbehorende data** ga je naar de normale BiDash-weergave achter het antwoord. De chat is daarmee een snellere bediening van dezelfde data, geen aparte analyse-engine.
+
+
+### Integrale vragen vanaf BiDash 2.18
+
+Vanaf BiDash 2.18 kan **Vraag BiDash** ook verbanden over meerdere domeinen volgen. De chat gebruikt daarvoor dezelfde relaties die de gewone schermen gebruiken. Voorbeelden:
+
+- `Waarom is Incidentmanagement onder de norm?` toont welke open meldingen via welk subprocess en assettype aan die dienst gekoppeld zijn.
+- `Welke planning raakt Incidentmanagement?` volgt eerst de dienst naar de relevante open storingen en zoekt daarna planningactiviteiten op dezelfde corridors.
+- `Welke werkzaamheden raken de storingen op de A15?` gebruikt de bestaande assetkoppelingen en wegcontext van de werkzaamheden.
+- `Wat staat er gepland op de A15 in Q4 2026?` gebruikt de effectieve planningdatums.
+- `Waar wordt de capaciteit overschreden?` gebruikt de bestaande FTE-vraag en capaciteitsgrenzen uit de planning/BI-keten.
+- `Welke afhankelijkheden zijn er in de planning?` toont de relaties uit het geladen planningmodel.
+- Vragen over U-routes, EOL en welke historische bronstromen zijn geladen zijn eveneens mogelijk.
+
+Een antwoord over samenloop is niet automatisch een oorzaakanalyse. Als een storing en planningactiviteit dezelfde corridor raken, meldt BiDash een raakvlak. De chat zegt niet dat de activiteit de storing heeft veroorzaakt.
+
+Historische storingsregels worden niet allemaal voor iedere chatvraag in het geheugen geladen. De chat kan in deze versie wel de geladen historiebronnen en aantallen tonen. Detailvragen over individuele historische incidenten worden later via dezelfde Context API uitgebreid wanneer de nieuwe gescheiden datalaag beschikbaar is.
