@@ -64,7 +64,7 @@ function detectService(text,data){
 function explicitDataset(text){
   const fault=/\b(storing|storingen|melding|meldingen|foutcode|foutcodes|impact|msi|drip|drips|detectie|detectielus|detectielussen|lus|lussen|camera|cameras)\b/.test(text);
   const service=/\b(dienstverlening|dienst|diensten|beschikbaarheid|subproces|subprocessen)\b/.test(text);
-  const planning=/\b(planning|planningactiviteit|planningactiviteiten|activiteit|activiteiten|mijlpaal|mijlpalen|projectplanning|gepland|plannen|planwerk|afhankelijkheid|afhankelijkheden)\b/.test(text);
+  const planning=/\b(planning|planningactiviteit|planningactiviteiten|activiteit|activiteiten|mijlpaal|mijlpalen|project|projecten|projectplanning|projectplanningen|gepland|plannen|planwerk|afhankelijkheid|afhankelijkheden)\b/.test(text);
   const work=/\b(werkzaamheid|werkzaamheden|werkvak|werkvakken|afsluiting|hinder)\b/.test(text);
   const capacity=/\b(formatie|capaciteit|fte|bezetting|personeel|capaciteitstekort|capaciteitsoverschrijding)\b/.test(text);
   const relation=/\b(verband|samenhang|oorzaak|verklaar|waarom|raakt|raken|beinvloed|beinvloeden|drukt|effect op|gekoppeld|horen bij|valt samen|vallen samen)\b/.test(text);
@@ -99,13 +99,16 @@ function inferIntent(text,dataset){
 
 function detectPeriod(text){
   const yearMatch=text.match(/\b(20\d{2})\b/);
-  let year=yearMatch?Number(yearMatch[1]):null,quarter=null;
-  const qMatch=text.match(/\bq([1-4])\b|\b([1-4])e\s+kwartaal\b/);
-  if(qMatch)quarter=Number(qMatch[1]||qMatch[2]);
+  let year=yearMatch?Number(yearMatch[1]):null,quarter=null,quarters=[];
+  for(const match of text.matchAll(/\bq([1-4])\b|\b([1-4])e\s+kwartaal\b/g)){
+    const q=Number(match[1]||match[2]);if(q&&!quarters.includes(q))quarters.push(q);
+  }
+  quarters.sort((a,b)=>a-b);
+  if(quarters.length===1)quarter=quarters[0];
   if(/\bdit jaar\b/.test(text))year=new Date().getFullYear();
   if(/\bvolgend jaar\b/.test(text))year=new Date().getFullYear()+1;
-  if(/\bdit kwartaal\b/.test(text)){const d=new Date();year=d.getFullYear();quarter=Math.floor(d.getMonth()/3)+1;}
-  return {year,quarter};
+  if(/\bdit kwartaal\b/.test(text)){const d=new Date();year=d.getFullYear();quarter=Math.floor(d.getMonth()/3)+1;quarters=[quarter];}
+  return {year,quarter,quarters};
 }
 function detectPlanningDienst(text,data){
   const candidates=new Set([
@@ -142,7 +145,10 @@ export function parseQuestion(question,{previousContext={},screenContext={},data
   const code=detectCode(raw);if(code)filters.code=code;
   if(/\b(niet doorgerekend|zonder impact|onbekende impact)\b/.test(text))filters.rekenStatus='niet doorgerekend';
   if(/\b(doorgerekend|met impact)\b/.test(text)&&!/niet doorgerekend/.test(text))filters.rekenStatus='doorgerekend';
-  const period=detectPeriod(text);if(period.year)filters.year=period.year;if(period.quarter)filters.quarter=period.quarter;
+  const period=detectPeriod(text);
+  if(period.year)filters.year=period.year;
+  if(period.quarters?.length>1){filters.quarters=period.quarters.slice();delete filters.quarter;}
+  else if(period.quarter){filters.quarter=period.quarter;delete filters.quarters;}
   const service=detectService(text,data);
   let finalDataset=dataset;
   if(service&&/\b(waarom|oorzaak|storing|storingen|impact|drukt|beinvloed|verband|samenhang|formatie|capaciteit|fte|personeel|gekoppeld)\b/.test(text))finalDataset='relations';
@@ -195,7 +201,8 @@ function contextLabels(context={}){
   if(f.code)out.push(`foutcode ${f.code}`);
   if(f.rekenStatus)out.push(f.rekenStatus);
   if(f.year)out.push(String(f.year));
-  if(f.quarter)out.push('Q'+f.quarter);
+  if(Array.isArray(f.quarters)&&f.quarters.length)out.push(f.quarters.map(q=>'Q'+q).join(' + '));
+  else if(f.quarter)out.push('Q'+f.quarter);
   if(context.planningDienst)out.push(String(context.planningDienst));
   return out;
 }
@@ -262,18 +269,19 @@ function serviceResult(parsed,data){
 }
 
 
-function planningBounds(filters={}){
-  const year=Number(filters.year),quarter=Number(filters.quarter);
+function planningRanges(filters={}){
+  const year=Number(filters.year),quarter=Number(filters.quarter),quarters=Array.isArray(filters.quarters)?filters.quarters.map(Number).filter(q=>q>=1&&q<=4):[];
   if(!Number.isFinite(year))return null;
-  if(Number.isFinite(quarter)&&quarter>=1&&quarter<=4)return [year+(quarter-1)/4,year+quarter/4];
-  return [year,year+1];
+  if(quarters.length)return quarters.map(q=>[year+(q-1)/4,year+q/4]);
+  if(Number.isFinite(quarter)&&quarter>=1&&quarter<=4)return [[year+(quarter-1)/4,year+quarter/4]];
+  return [[year,year+1]];
 }
 function planningRows(data,context={}){
   let rows=(data.planning?.activities||[]).slice(),f=context.filters||{};
   if(f.road)rows=planningForRoad(data,f.road);
   if(context.planningDienst)rows=rows.filter(r=>upper(r.dienst)===upper(context.planningDienst));
-  const bounds=planningBounds(f);
-  if(bounds)rows=rows.filter(r=>Number(r.t0)<bounds[1]&&Number(r.t1)>=bounds[0]);
+  const ranges=planningRanges(f);
+  if(ranges)rows=rows.filter(r=>ranges.some(([from,to])=>Number(r.t0)<to&&Number(r.t1)>=from));
   return rows;
 }
 function planningResult(parsed,data){
@@ -307,11 +315,11 @@ function planningResult(parsed,data){
 function capacityResult(parsed,data){
   const cap=data.capacity;
   if(!cap||!cap.geconfig)return result('Er is geen bruikbare capaciteitsvraag uit de planning beschikbaar. Laad een planning met FTE-configuratie of P6-capaciteit.',parsed.context,{title:'Planning & capaciteit',metrics:[{label:'Capaciteit',value:'Niet beschikbaar'}]});
-  const f=parsed.context.filters||{},bounds=planningBounds(f);
+  const f=parsed.context.filters||{},ranges=planningRanges(f);
   let quarters=(cap.quarters||[]).slice();
-  if(bounds)quarters=quarters.filter(q=>q.jaar>bounds[0]&&q.jaar<bounds[1]||q.jaar===Math.floor(bounds[0])&&(!f.quarter||q.q===Number(f.quarter)));
   if(f.year)quarters=quarters.filter(q=>Number(q.jaar)===Number(f.year));
-  if(f.quarter)quarters=quarters.filter(q=>Number(q.q)===Number(f.quarter));
+  if(Array.isArray(f.quarters)&&f.quarters.length)quarters=quarters.filter(q=>f.quarters.map(Number).includes(Number(q.q)));
+  else if(f.quarter)quarters=quarters.filter(q=>Number(q.q)===Number(f.quarter));
   const services=Object.entries(cap.perDienst||{}).filter(([name])=>!parsed.context.planningDienst||upper(name)===upper(parsed.context.planningDienst));
   const overs=services.filter(([,i])=>Number(i.grens)>0&&Number(i.piek)>Number(i.grens));
   if(/overschrijd|overschreden|overschrijding|tekort|boven.*grens/.test(parsed.text)){
