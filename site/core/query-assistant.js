@@ -236,3 +236,31 @@ function buildUserMessage(text){return `<article class="qa-message qa-user-messa
 
 export function installQueryAssistant({document:doc=globalThis.document,getData=()=>({}),getScreenContext=()=>({}),onApplyContext=()=>{},onOpenRoute=()=>{}}={}){
   if(!doc)return null;
+  const dialog=doc.getElementById('queryAssistantDialog'),open=doc.getElementById('queryAssistantOpen'),close=doc.getElementById('queryAssistantClose'),clear=doc.getElementById('queryAssistantClear'),messages=doc.getElementById('queryAssistantMessages'),form=doc.getElementById('queryAssistantForm'),input=doc.getElementById('queryAssistantInput'),modeInputs=[...doc.querySelectorAll('[name="queryAssistantMode"]')],suggestions=doc.getElementById('queryAssistantSuggestions');
+  if(!dialog||!open||!messages||!form||!input)return null;
+  let previousContext={},lastResult=null;
+  const mode=()=>modeInputs.find(el=>el.checked)?.value||'screen';
+  const scroll=()=>{messages.scrollTop=messages.scrollHeight;};
+  function renderSuggestions(items){suggestions.innerHTML=(items||[]).slice(0,4).map((item,index)=>`<button type="button" data-qa-suggestion="${index}">${escapeHtml(item)}</button>`).join('');suggestions.dataset.items=JSON.stringify((items||[]).slice(0,4));}
+  function welcome(){messages.innerHTML='<article class="qa-message qa-assistant-message"><div class="qa-avatar" aria-hidden="true">B</div><div class="qa-bubble"><strong>Vraag BiDash</strong><p>Stel een vraag over de geladen gegevens. Ik gebruik geen AI: antwoorden komen uit vaste queryregels en de bestaande BiDash-data. Je kunt doorvragen op dezelfde selectie.</p></div></article>';previousContext={};lastResult=null;renderSuggestions(['Hoeveel open storingen zijn er?','Welke foutcodes komen het meest voor?','Wat is de huidige dienstverlening?','Wat zijn de verkeerskosten?']);}
+  function ask(text){
+    const question=String(text||'').trim();if(!question)return;
+    messages.insertAdjacentHTML('beforeend',buildUserMessage(question));
+    const currentMode=mode(),data=getData(currentMode)||{},screenContext=currentMode==='screen'?(getScreenContext()||{}):{};
+    const answer=answerQuestion(question,{data,previousContext,screenContext,mode:currentMode});
+    previousContext=answer.context||previousContext;lastResult=answer;
+    messages.insertAdjacentHTML('beforeend',buildAssistantMessage(answer));
+    renderSuggestions(answer.suggestions);input.value='';scroll();
+  }
+  open.addEventListener('click',()=>{if(!messages.children.length)welcome();dialog.showModal();setTimeout(()=>input.focus(),0);});
+  close?.addEventListener('click',()=>dialog.close());
+  clear?.addEventListener('click',welcome);
+  dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();});
+  form.addEventListener('submit',event=>{event.preventDefault();ask(input.value);});
+  suggestions?.addEventListener('click',event=>{const b=event.target.closest('[data-qa-suggestion]');if(!b)return;let items=[];try{items=JSON.parse(suggestions.dataset.items||'[]');}catch{}ask(items[Number(b.dataset.qaSuggestion)]||b.textContent);});
+  doc.getElementById('queryAssistantApply')?.addEventListener('click',()=>{if(lastResult?.context)onApplyContext(lastResult.context);});
+  doc.getElementById('queryAssistantOpenData')?.addEventListener('click',()=>onOpenRoute(lastResult?.context?.dataset==='roads'?'costs':lastResult?.context?.dataset==='assets'?'assets':lastResult?.context?.dataset==='services'?'services':'faults'));
+  modeInputs.forEach(el=>el.addEventListener('change',()=>{previousContext={};renderSuggestions(mode()==='screen'?['Wat zie ik hier?','Hoeveel resultaten zijn er?','Welke foutcodes komen het meest voor?']:['Hoeveel open storingen zijn er?','Welke foutcodes komen het meest voor?','Wat is de huidige dienstverlening?']);}));
+  welcome();
+  return {ask,clear:welcome,open:()=>open.click(),get context(){return previousContext;}};
+}
