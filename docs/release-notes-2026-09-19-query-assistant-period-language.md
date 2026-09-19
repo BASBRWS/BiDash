@@ -62,3 +62,18 @@ Regressietests dekken:
 - meerjarig bereik;
 - relatieve perioden;
 - contextreset bij een nieuw, onbekend onderwerp.
+
+
+## Planningterminologie is data-gedreven
+
+De geladen planning fungeert nu zelf als woordenlijst voor Vraag BiDash. De assistent indexeert:
+- activiteit- en mijlpaalnamen;
+- activiteitcodes;
+- WBS/blok;
+- volledig WBS-pad;
+- planningsdienst;
+- activiteitstype.
+
+Hierdoor hoeft bijvoorbeeld `IFAT` niet in de broncode te staan. Als IFAT in een activiteitnaam, code of WBS-pad voorkomt, begrijpt de assistent `Wanneer is de eerst volgende IFAT?` als planningvraag en toont hij de eerstvolgende effectieve planningmatch.
+
+Deze herkenning verbreekt oude gesprekcontext uit een ander domein. Planningcodes en WBS-termen worden op dezelfde manier behandeld.
