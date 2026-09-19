@@ -595,3 +595,12 @@ De lokale queryparser begrijpt periodevragen niet alleen als exact jaar of kwart
 Brede termen hebben vaste semantiek: voorjaar = maart-mei, zomer = juni-augustus, najaar/herfst = september-november en winter = december-februari. Eerste/tweede halfjaar betekent respectievelijk januari-juni en juli-december; begin/eind van een jaar volgt Q1/Q4. **Komende N kwartalen** betekent de eerstvolgende N volledige kwartalen, niet het reeds lopende kwartaal.
 
 Een nieuw expliciet onderwerp, bijvoorbeeld projecten/planning, verbreekt oude dienst- of storingscontext. Niet-herkende nieuwe vragen erven evenmin automatisch het vorige domein. Alleen herkenbare vervolgconstructies of een explicietzelfde domein mogen de gesprekcontext voortzetten. Dit voorkomt dat een nieuwe vraag het vorige antwoordspad herhaalt.
+
+
+### Planning als dynamisch vocabulaire
+
+De queryassistent heeft geen statische lijst nodig met planningafkortingen zoals IFAT. De Context API bewaart per planningregel naast naam en code ook WBS, WBS-pad, blok, dienst en activiteitstype. De queryassistent bouwt hieruit tijdens het gesprek een lokaal zoekvocabulaire.
+
+Wanneer een vraag geen bekend domeinwoord bevat maar wel een term die in de geladen planning voorkomt, wordt die term als planningreferentie gebruikt. Dit is een expliciete domeinherkenning en verbreekt daarom een eerdere niet-planningcontext. Voor `wanneer`-/`eerstvolgende`-/`meest recente`-vragen wordt de match op de effectieve planningdatums gerangschikt.
+
+De terminologie blijft daarmee data-gedreven: een nieuwe afkorting, projectnaam, mijlpaalcode of WBS-term wordt bevraagbaar zodra deze in het planningmodel is geladen, zonder wijziging van de queryparser.
