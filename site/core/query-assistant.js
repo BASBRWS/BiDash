@@ -1,3 +1,4 @@
+import {faultsForService,planningForRoad,worksForFaults,planningForFaults,planningPeriodLabel} from './context-api.js';
 const fold=value=>String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
 const upper=value=>String(value??'').trim().toUpperCase();
 const textValue=(row,keys)=>keys.map(key=>row?.[key]).filter(v=>v!==undefined&&v!==null).join(' ');
@@ -193,15 +194,24 @@ function contextLabels(context={}){
   if(f.typeId)out.push(f.typeId==='LUS'?'Detectielus':f.typeId);
   if(f.code)out.push(`foutcode ${f.code}`);
   if(f.rekenStatus)out.push(f.rekenStatus);
+  if(f.year)out.push(String(f.year));
+  if(f.quarter)out.push('Q'+f.quarter);
+  if(context.planningDienst)out.push(String(context.planningDienst));
   return out;
 }
 
 function suggestionsFor(context){
-  if(context.dataset==='faults')return ['Welke foutcodes komen het meest voor?','Welke hebben de hoogste impact?','Toon deze storingen'];
-  if(context.dataset==='assets')return ['Toon de assets','En alleen MSI?','En alleen detectielussen?'];
-  if(context.dataset==='roads')return ['Wat zijn de kosten?','Welke wegdelen hebben de hoogste kosten?','En alleen in deze VC?'];
-  if(context.dataset==='services')return ['Welke dienst zit onder de norm?','Toon alle diensten','Wat is de huidige beschikbaarheid?'];
-  return ['Hoeveel open storingen zijn er?','Welke foutcodes komen het meest voor?','Wat is de huidige dienstverlening?'];
+  if(context.dataset==='faults')return ['Welke foutcodes komen het meest voor?','Welke hebben de hoogste impact?','Welke dienstverlening raakt dit?'];
+  if(context.dataset==='assets')return ['Toon de assets','En alleen MSI?','Welke open storingen horen hierbij?'];
+  if(context.dataset==='roads')return ['Wat zijn de kosten?','Welke wegdelen hebben de hoogste kosten?','Welke werkzaamheden lopen hier?'];
+  if(context.dataset==='services')return ['Waarom is deze dienst lager?','Welke subprocessen bepalen dit?','Welke storingen raken deze dienst?'];
+  if(context.dataset==='planning')return ['Welke activiteiten lopen op A15?','Waar piekt de capaciteit?','Welke planning valt samen met storingen?'];
+  if(context.dataset==='capacity')return ['Waar wordt de capaciteitsgrens overschreden?','In welk kwartaal is de piek?','Welke planning veroorzaakt die piek?'];
+  if(context.dataset==='works')return ['Welke open storingen liggen bij deze werkzaamheden?','Welke U-routes zijn gekoppeld?','Toon werkzaamheden op A15'];
+  if(context.dataset==='uroutes')return ['Welke werkzaamheden gebruiken deze U-routes?','Welke assets liggen op deze routes?','Toon U-routes op A15'];
+  if(context.dataset==='history')return ['Welke historiebronnen zijn geladen?','Hoeveel historische regels zijn er?','Is DRIP-historie geladen?'];
+  if(context.dataset==='relations')return ['Welke storingen dragen het meest bij?','Welke subprocessen leggen dit verband?','Welke planning valt hiermee samen?'];
+  return ['Welke storingen drukken op de dienstverlening?','Wat staat er gepland op de A15?','Waar zijn capaciteitstekorten?','Welke werkzaamheden vallen samen met storingen?'];
 }
 
 function result(text,context,extra={}){return {text,context,labels:contextLabels(context),suggestions:suggestionsFor(context),...extra};}
