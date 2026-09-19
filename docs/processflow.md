@@ -201,15 +201,22 @@ koppelteken. RIA4 en windwaarschuwing blijven afzonderlijke kenmerken.
 
 ## Vraag BiDash in de processflow
 
-De lokale chatinterface zit na de adapters en vóór de presentatie. Zij leest alleen de reeds beschikbare DVM- en BI-uitkomsten en de native filters van de hoofdschil:
+De lokale chatinterface zit na de adapters en vóór de presentatie. Sinds BiDash 2.18 loopt zij via één read-only Context API die de reeds berekende domeinuitkomsten en expliciete relaties samenbrengt:
 
 ```text
 vraag gebruiker
   -> vaste taal-/queryparser
   -> gesprekcontext + schermcontext
-  -> bestaande assets / open storingen / dienstverlening / wegdeelkosten
-  -> filteren, groeperen of tonen
+  -> BiDash Context API
+       -> DVM: storingen / assets / subprocessen / diensten / werkzaamheden / U-routes / EOL
+       -> BI: bedrijfsfuncties / formatie / planning / capaciteit
+       -> hoofdschil: expliciete dienst-functiekoppelingen
+  -> relatie- of domeinquery
   -> antwoord + vervolgvraag
 ```
 
-De parser bewaart de selectie voor vervolgvragen, maar bewaart geen tweede kopie van de rekenregels. Dienstimpact, beschikbaarheid, VVU en kosten worden niet in de chat opnieuw berekend. De functie gebruikt geen netwerkverbinding en valt onder dezelfde lokale gegevensgrens als de rest van BiDash.
+De parser bewaart de selectie voor vervolgvragen, maar bewaart geen tweede kopie van de rekenregels. Dienstimpact, beschikbaarheid, VVU, kosten en FTE-vraag worden niet in de chat opnieuw berekend. Een relatie als storing → dienst gebruikt de bestaande DVM-subprocessafhankelijkheden; een dienst → bedrijfsfunctie-relatie bestaat alleen wanneer die expliciet in de hoofdschil is vastgelegd.
+
+Planning en open storingen mogen op corridor worden samengebracht om samenloop zichtbaar te maken. Zo'n corridor-match is geen oorzakelijk bewijs. Werkzaamheden gebruiken waar beschikbaar de al door DVM gelegde asset- en routekoppelingen.
+
+De functie gebruikt geen netwerkverbinding en valt onder dezelfde lokale gegevensgrens als de rest van BiDash. Grote historische detailbronnen worden niet standaard volledig in de chatcontext gematerialiseerd.
