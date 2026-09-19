@@ -15,7 +15,7 @@ const TYPE_SYNONYMS=[
   {type:'COMM',terms:['communicatie','comm']}
 ];
 
-const FOLLOW_WORDS=['daarvan','daarin','die','deze','zelfde','zelfde selectie','en hoeveel','en welke','en wat','hoe zit het met'];
+const FOLLOW_WORDS=['daarvan','daarin','die','deze','zelfde','zelfde selectie','en hoeveel','en welke','en wat'];
 
 export function normalizeQuestion(value){return fold(value).replace(/\s+/g,' ');}
 
