@@ -113,3 +113,26 @@ test('parser onthoudt planningcontext bij doorvragen',()=>{
   assert.equal(next.context.filters.quarter,4);
   assert.equal(next.context.planningDienst,'VWM');
 });
+
+
+test('dienststoringen worden doorgekoppeld naar planning',()=>{
+  const answer=answerQuestion('Welke planning raakt Incidentmanagement?',{data:context});
+  assert.equal(answer.context.dataset,'relations');
+  assert.equal(answer.title,'Dienstverlening ↔ storingen ↔ planning');
+  assert.ok(answer.rows.some(r=>r.naam==='A15 vervanging'));
+});
+
+test('dienststoringen worden doorgekoppeld naar werkzaamheden',()=>{
+  const answer=answerQuestion('Welke werkzaamheden raken Incidentmanagement?',{data:context});
+  assert.equal(answer.context.dataset,'relations');
+  assert.equal(answer.title,'Dienstverlening ↔ storingen ↔ werkzaamheden');
+  assert.equal(answer.rows[0].id,'w1');
+});
+
+test('planningafhankelijkheden komen uit het planningmodel',()=>{
+  const answer=answerQuestion('Welke afhankelijkheden zijn er in de planning?',{data:context});
+  assert.equal(answer.context.dataset,'planning');
+  assert.equal(answer.title,'Planningafhankelijkheden');
+  assert.equal(answer.rows[0].from,'A15 vervanging');
+  assert.equal(answer.rows[0].to,'A12 onderhoud');
+});
