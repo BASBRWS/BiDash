@@ -64,7 +64,7 @@ function detectService(text,data){
 function explicitDataset(text){
   const fault=/\b(storing|storingen|melding|meldingen|foutcode|foutcodes|impact|msi|drip|drips|detectie|detectielus|detectielussen|lus|lussen|camera|cameras)\b/.test(text);
   const service=/\b(dienstverlening|dienst|diensten|beschikbaarheid|subproces|subprocessen)\b/.test(text);
-  const planning=/\b(planning|planningactiviteit|planningactiviteiten|activiteit|activiteiten|mijlpaal|mijlpalen|projectplanning)\b/.test(text);
+  const planning=/\b(planning|planningactiviteit|planningactiviteiten|activiteit|activiteiten|mijlpaal|mijlpalen|projectplanning|gepland|plannen|planwerk)\b/.test(text);
   const work=/\b(werkzaamheid|werkzaamheden|werkvak|werkvakken|afsluiting|hinder)\b/.test(text);
   const capacity=/\b(formatie|capaciteit|fte|bezetting|personeel|capaciteitstekort|capaciteitsoverschrijding)\b/.test(text);
   const relation=/\b(verband|samenhang|oorzaak|verklaar|waarom|raakt|raken|beinvloed|beinvloeden|drukt|effect op)\b/.test(text);
@@ -307,7 +307,7 @@ function capacityResult(parsed,data){
   if(f.quarter)quarters=quarters.filter(q=>Number(q.q)===Number(f.quarter));
   const services=Object.entries(cap.perDienst||{}).filter(([name])=>!parsed.context.planningDienst||upper(name)===upper(parsed.context.planningDienst));
   const overs=services.filter(([,i])=>Number(i.grens)>0&&Number(i.piek)>Number(i.grens));
-  if(/overschrijd|tekort|boven.*grens/.test(parsed.text)){
+  if(/overschrijd|overschreden|overschrijding|tekort|boven.*grens/.test(parsed.text)){
     const rows=overs.map(([dienst,i])=>({dienst,piek:fmt(i.piek,2),grens:fmt(i.grens,2),kwartaal:i.piekKw,over:i.overKw}));
     return result(rows.length?`Er zijn ${fmt(rows.length)} planningsdiensten waarvan de piekvraag boven de ingestelde capaciteitsgrens komt.`:'Geen planningsdienst overschrijdt de ingestelde capaciteitsgrens.',parsed.context,{title:'Capaciteitsoverschrijdingen',metrics:[{label:'Overschrijdingen',value:fmt(rows.length)},{label:'Taken met FTE',value:fmt(cap.nMetFte)}],columns:[['dienst','Dienst'],['piek','Piek FTE'],['grens','Grens FTE'],['kwartaal','Piek'],['over','Kwartalen boven grens']],rows});
   }
