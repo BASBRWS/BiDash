@@ -28,3 +28,28 @@ body.planning-fullscreen{overflow:hidden}body.planning-fullscreen #engine-planni
 .quality-height-30{height:30%}.quality-height-35{height:35%}.quality-height-40{height:40%}.quality-height-45{height:45%}.quality-height-50{height:50%}
 .quality-height-55{height:55%}.quality-height-60{height:60%}.quality-height-65{height:65%}.quality-height-70{height:70%}.quality-height-75{height:75%}
 .quality-height-80{height:80%}.quality-height-85{height:85%}.quality-height-90{height:90%}.quality-height-95{height:95%}.quality-height-100{height:100%}
+
+
+/* Vraag BiDash: lokale, deterministische chatlaag boven de bestaande query- en rekenuitkomsten. */
+.qa-open-button{font-weight:650;border-color:#b9cad8;background:#f7fafc}
+.query-assistant-dialog{width:min(860px,96vw);height:min(820px,92vh);padding:0;overflow:hidden}
+.query-assistant-dialog::backdrop{background:#102e4985}
+.qa-shell{height:100%;display:grid;grid-template-rows:auto auto minmax(180px,1fr) auto auto auto auto;background:#f7f9fb}
+.qa-header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:20px 22px 14px;background:#fff;border-bottom:1px solid var(--border)}
+.qa-header h2{font-size:21px;margin:2px 0 4px}.qa-header p{font-size:12px;color:var(--muted);margin:0}.qa-header-actions{display:flex;gap:8px;flex-wrap:wrap}.qa-header-actions button{font-size:11px;padding:7px 10px}
+.qa-mode{display:flex;gap:10px;align-items:center;margin:0;padding:10px 22px;border:0;border-bottom:1px solid var(--border);border-radius:0;background:#fff}
+.qa-mode legend{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.qa-mode label{flex-direction:row;align-items:center;margin:0;padding:8px 11px;border:1px solid #d7e1e9;border-radius:18px;background:#f7f9fb;font-size:11px;color:#46647c}.qa-mode input{margin:0;padding:0}
+.qa-messages{overflow:auto;padding:18px 22px;display:flex;flex-direction:column;gap:14px;min-height:0}
+.qa-message{display:flex;gap:9px;max-width:94%}.qa-user-message{align-self:flex-end;justify-content:flex-end}.qa-assistant-message{align-self:flex-start}
+.qa-avatar{width:30px;height:30px;border-radius:50%;background:#173f64;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:0 0 30px}
+.qa-bubble{background:#fff;border:1px solid #dbe4eb;border-radius:10px;padding:12px 14px;min-width:0;box-shadow:0 2px 8px #153a5510}.qa-user-message .qa-bubble{background:#e7f0f8;border-color:#c5d9e8}
+.qa-bubble>strong{display:block;color:#173b57;font-size:13px;margin-bottom:5px}.qa-bubble p{font-size:12px;margin:4px 0;line-height:1.55}
+.qa-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:7px;margin:10px 0}.qa-metrics div{background:#f4f7fa;border:1px solid #e1e8ee;border-radius:7px;padding:8px}.qa-metrics span{display:block;font-size:9px;color:#708597;text-transform:uppercase;letter-spacing:.04em}.qa-metrics strong{display:block;font-size:16px;color:#173f64;margin-top:4px}
+.qa-table-scroll{overflow:auto;max-height:280px;margin-top:10px;border:1px solid #e2e9ef;border-radius:7px}.qa-table-scroll table{font-size:11px}.qa-table-scroll th,.qa-table-scroll td{padding:8px}
+.qa-context-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.qa-context-tags span{font-size:9px;padding:4px 7px;border-radius:12px;background:#edf3f7;color:#47677f}.qa-note{font-size:10px!important;color:#6d8192!important;border-left:3px solid #e0b24a;padding-left:8px}
+.qa-result-actions{display:flex;gap:8px;padding:8px 22px 0;background:#fff}.qa-result-actions button{font-size:10px;padding:7px 10px}
+.qa-suggestions{display:flex;gap:7px;flex-wrap:wrap;padding:10px 22px;background:#fff}.qa-suggestions button{font-size:10px;padding:6px 9px;border-radius:16px;background:#f5f8fa}
+.qa-form{padding:8px 22px 12px;background:#fff;border-top:1px solid var(--border)}.qa-form>label{margin:0 0 5px}.qa-input-row{display:grid;grid-template-columns:1fr auto;gap:8px}.qa-input-row input{width:100%}.qa-input-row button{min-width:76px}
+.qa-disclaimer{margin:0;padding:0 22px 15px;background:#fff;color:#82919e;font-size:9px}
+@media(max-width:720px){.query-assistant-dialog{width:100vw;height:100vh;max-width:none;max-height:none;border-radius:0;border:0}.qa-header{padding:14px}.qa-header-actions{flex-direction:column}.qa-mode,.qa-messages,.qa-result-actions,.qa-suggestions,.qa-form,.qa-disclaimer{padding-left:14px;padding-right:14px}.qa-message{max-width:100%}.qa-result-actions{flex-wrap:wrap}}

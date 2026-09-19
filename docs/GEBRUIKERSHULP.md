@@ -267,3 +267,14 @@ bewust onbekend en krijgt geen verzonnen impact.
 De gebruikte percentages zijn een instelbaar model, geen door RWS vastgesteld getal.
 Ze maken de DRIP-dienstverlening bespreekbaar; na toetsing met RWS kunnen de waarden
 worden bijgesteld zonder dat de werkwijze verandert.
+
+
+## Vragen stellen aan BiDash zonder AI
+
+Rechtsboven staat vanaf BiDash 2.17 de knop **Vraag BiDash**. Daarmee open je een gesprek bovenop de gegevens die al in jouw lokale werkruimte zijn geladen. Er wordt geen AI gebruikt en er gaat voor deze functie geen vraag of brondata naar een externe dienst.
+
+Kies **Dit scherm en de huidige filters** wanneer je wilt vragen over wat je op dat moment bekijkt. Kies **Alle beschikbare data** wanneer de vraag niet beperkt moet zijn tot de huidige selectie. Je kunt doorvragen: BiDash onthoudt binnen het gesprek de laatst gebruikte selectie, zoals VC, weg, assettype en foutcode.
+
+Voorbeelden zijn “Hoeveel open MSI-storingen zijn er op de A15 in ZWN?”, “Welke foutcodes komen het meest voor?”, “Welke storingen hebben de hoogste berekende impact?”, “Wat is de huidige dienstverlening?” en “Wat zijn de verkeerskosten op A15?”. De assistent toont alleen waarden die al uit de bestaande BiDash-query- en rekenketen komen. Een onbekende impact wordt niet zelf ingevuld.
+
+Met **Gebruik als filter** kun je een ondersteunde selectie terugzetten op het assetregister of de open-storingenweergave. Met **Open bijbehorende data** ga je naar de normale BiDash-weergave achter het antwoord. De chat is daarmee een snellere bediening van dezelfde data, geen aparte analyse-engine.

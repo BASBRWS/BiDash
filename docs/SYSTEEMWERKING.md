@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.16 en DVM 102, bijgewerkt op 18 september 2026 voor de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina, zichtbare voortgang bij gegevensimport en CSP-veilige dynamische bediening.
+Status: beschrijving van BiDash 2.17 en DVM 102, bijgewerkt op 19 september 2026 voor de lokale Vraag BiDash-queryassistent, naast de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina, zichtbare voortgang bij gegevensimport en CSP-veilige dynamische bediening.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -543,3 +543,12 @@ DRIP-dienstverlening bespreekbaar en toetsbaar; validatie met RWS kan de waarden
 bijstellen zonder de structuur te wijzigen. `tests/drip-foutregel.test.js` legt zowel
 de percentages als de leidende toestand vast en voert daarvoor de verzonden
 implementatie uit `dvm-1.js` en `dvm-2.js` uit.
+
+
+## Vraag BiDash: lokale chat boven bestaande data
+
+BiDash 2.17 bevat in de hoofdschil een popup met een deterministische queryassistent. De assistent gebruikt geen AI en maakt geen externe verbinding. Vragen worden lokaal vertaald naar vaste filters en aggregaties op reeds door de adapters aangeboden data. De assistent rekent geen nieuwe dienstimpact of verkeerskosten uit: impact, beschikbaarheid en kosten komen uit de bestaande DVM-uitkomsten.
+
+De gebruiker kan kiezen tussen **Dit scherm en de huidige filters** en **Alle beschikbare data**. Een vervolgvraag erft de context van de vorige vraag, zodat bijvoorbeeld na “Hoeveel MSI-storingen zijn er op de A15 in ZWN?” kan worden gevraagd “Welke foutcodes komen het meest voor?”. De eerste versie ondersteunt actuele storingen, assets, foutcodes, bestaande dienstverleningsuitkomsten en bestaande wegdeelkosten/VVU.
+
+De actie **Gebruik als filter** zet ondersteunde storings- en assetcontext terug in de bestaande native filters/querybouwer. **Open bijbehorende data** navigeert naar de bestaande BiDash-weergave. De chat creëert daarmee geen tweede datamodel of tweede rekenketen.

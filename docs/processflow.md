@@ -197,3 +197,19 @@ alias. Een conflicterende alias blijft opgeslagen voor controle maar wordt niet
 gebruikt om de bronlocatie te vervangen. Bij classificatie wordt de oorspronkelijke
 Dynac-locatie uit oudere exports herkend, inclusief underscores en hectometer met
 koppelteken. RIA4 en windwaarschuwing blijven afzonderlijke kenmerken.
+
+
+## Vraag BiDash in de processflow
+
+De lokale chatinterface zit na de adapters en vóór de presentatie. Zij leest alleen de reeds beschikbare DVM- en BI-uitkomsten en de native filters van de hoofdschil:
+
+```text
+vraag gebruiker
+  -> vaste taal-/queryparser
+  -> gesprekcontext + schermcontext
+  -> bestaande assets / open storingen / dienstverlening / wegdeelkosten
+  -> filteren, groeperen of tonen
+  -> antwoord + vervolgvraag
+```
+
+De parser bewaart de selectie voor vervolgvragen, maar bewaart geen tweede kopie van de rekenregels. Dienstimpact, beschikbaarheid, VVU en kosten worden niet in de chat opnieuw berekend. De functie gebruikt geen netwerkverbinding en valt onder dezelfde lokale gegevensgrens als de rest van BiDash.
