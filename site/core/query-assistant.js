@@ -251,6 +251,10 @@ function roadResult(parsed,data){
 function serviceResult(parsed,data){
   let rows=(data.services||[]).slice();
   if(parsed.context.serviceId)rows=rows.filter(row=>String(row.id)===String(parsed.context.serviceId));
+  if(/subproces|subprocessen/.test(parsed.text)){
+    const subs=(data.subprocesses||[]).filter(sp=>!parsed.context.serviceId||String(sp.serviceId)===String(parsed.context.serviceId));
+    return result(subs.length?`Ik vind ${fmt(subs.length)} subprocessen binnen deze dienstverleningselectie. Per subproces toon ik op welke assettypen de ingestelde afhankelijkheid rust.`:'Ik vind geen subprocessen binnen deze selectie.',parsed.context,{title:'Subprocessen',metrics:[{label:'Subprocessen',value:fmt(subs.length)}],columns:[['serviceName','Dienst'],['naam','Subproces'],['aandeelLabel','Aandeel dienst'],['bronnenLabel','Assetafhankelijkheden'],['dekkingLabel','Dekking']],rows:subs.map(sp=>({...sp,aandeelLabel:fmt(Number(sp.aandeelDienst||0)*100,1)+'%',bronnenLabel:(sp.bronnen||[]).map(b=>`${b.typeId} ${fmt(Number(b.gewicht||0)*100,1)}%`).join(' · '),dekkingLabel:sp.exact?'volledig':'onvolledig'}))});
+  }
   rows.sort((a,b)=>(Number(a.besch??a.lo)||Infinity)-(Number(b.besch??b.lo)||Infinity));
   if(/onder de norm/.test(parsed.text))rows=rows.filter(r=>Number.isFinite(Number(r.besch))&&Number.isFinite(Number(r.norm))&&Number(r.besch)<Number(r.norm));
   const under=rows.filter(r=>Number.isFinite(Number(r.besch))&&Number.isFinite(Number(r.norm))&&Number(r.besch)<Number(r.norm));
@@ -406,12 +410,22 @@ function relationResult(parsed,data){
 
 export function answerQuestion(question,{data={},previousContext={},screenContext={},mode='all'}={}){
   const parsed=parseQuestion(question,{data,previousContext,screenContext,mode});
+  if(parsed.dataset==='relations')return relationResult(parsed,data);
+  if(parsed.dataset==='planning')return planningResult(parsed,data);
+  if(parsed.dataset==='capacity')return capacityResult(parsed,data);
+  if(parsed.dataset==='works')return worksResult(parsed,data);
+  if(parsed.dataset==='uroutes')return urouteResult(parsed,data);
+  if(parsed.dataset==='history')return historyResult(parsed,data);
+  if(parsed.dataset==='eol')return eolResult(parsed,data);
   if(parsed.dataset==='faults')return faultResult(parsed,data);
   if(parsed.dataset==='assets')return assetResult(parsed,data);
   if(parsed.dataset==='roads')return roadResult(parsed,data);
   if(parsed.dataset==='services')return serviceResult(parsed,data);
-  const faults=data.faults||[],assets=data.assets||[],services=data.services||[];
-  return result(`De geladen BiDash-context bevat ${fmt(assets.length)} assets, ${fmt(faults.length)} open storingen en ${fmt(services.length)} diensten. Stel een vervolgvraag over storingen, assets, foutcodes, dienstverlening of verkeerskosten.`,parsed.context,{title:'BiDash-context',metrics:[{label:'Assets',value:fmt(assets.length)},{label:'Open storingen',value:fmt(faults.length)},{label:'Diensten',value:fmt(services.length)}]});
+  const faults=data.faults||[],assets=data.assets||[],services=data.services||[],sources=data.sources||[];
+  if(/\b(bron|bronnen|databron|databronnen|welke data|geladen data)\b/.test(parsed.text)){
+    return result('Dit zijn de domeinbronnen die de huidige BiDash-werkruimte aan de Context API meldt.',parsed.context,{title:'Beschikbare databronnen',metrics:[{label:'Geladen',value:fmt(sources.filter(x=>x.loaded).length)},{label:'Niet geladen',value:fmt(sources.filter(x=>!x.loaded).length)}],columns:[['id','Bron'],['statusLabel','Status'],['count','Records / items']],rows:sources.map(x=>({...x,statusLabel:x.loaded?'geladen':'niet geladen',count:fmt(x.count||0)}))});
+  }
+  return result(`De geladen BiDash-context bevat ${fmt(assets.length)} assets, ${fmt(faults.length)} open storingen, ${fmt(services.length)} diensten, ${fmt(data.planning?.activities?.length||0)} planningactiviteiten en ${fmt(data.works?.length||0)} werkzaamheden. Je kunt ook vragen naar verbanden tussen deze domeinen.`,parsed.context,{title:'BiDash-context',metrics:[{label:'Assets',value:fmt(assets.length)},{label:'Open storingen',value:fmt(faults.length)},{label:'Diensten',value:fmt(services.length)},{label:'Planning',value:fmt(data.planning?.activities?.length||0)},{label:'Werkzaamheden',value:fmt(data.works?.length||0)}]});
 }
 
 function buildTable(result){
@@ -438,7 +452,7 @@ export function installQueryAssistant({document:doc=globalThis.document,getData=
   const mode=()=>modeInputs.find(el=>el.checked)?.value||'screen';
   const scroll=()=>{messages.scrollTop=messages.scrollHeight;};
   function renderSuggestions(items){suggestions.innerHTML=(items||[]).slice(0,4).map((item,index)=>`<button type="button" data-qa-suggestion="${index}">${escapeHtml(item)}</button>`).join('');suggestions.dataset.items=JSON.stringify((items||[]).slice(0,4));}
-  function welcome(){messages.innerHTML='<article class="qa-message qa-assistant-message"><div class="qa-avatar" aria-hidden="true">B</div><div class="qa-bubble"><strong>Vraag BiDash</strong><p>Stel een vraag over de geladen gegevens. Ik gebruik geen AI: antwoorden komen uit vaste queryregels en de bestaande BiDash-data. Je kunt doorvragen op dezelfde selectie.</p></div></article>';previousContext={};lastResult=null;renderSuggestions(['Hoeveel open storingen zijn er?','Welke foutcodes komen het meest voor?','Wat is de huidige dienstverlening?','Wat zijn de verkeerskosten?']);}
+  function welcome(){messages.innerHTML='<article class="qa-message qa-assistant-message"><div class="qa-avatar" aria-hidden="true">B</div><div class="qa-bubble"><strong>Vraag BiDash</strong><p>Stel een vraag over storingen, dienstverlening, planning, werkzaamheden, U-routes, EOL of formatie. Ik gebruik geen AI: antwoorden komen uit vaste queryregels en de bestaande BiDash-context. Je kunt doorvragen en verbanden laten tonen.</p></div></article>';previousContext={};lastResult=null;renderSuggestions(['Welke storingen drukken op de dienstverlening?','Wat staat er gepland op de A15?','Waar zijn capaciteitstekorten?','Welke werkzaamheden vallen samen met storingen?']);}
   function ask(text){
     const question=String(text||'').trim();if(!question)return;
     messages.insertAdjacentHTML('beforeend',buildUserMessage(question));
@@ -455,7 +469,7 @@ export function installQueryAssistant({document:doc=globalThis.document,getData=
   form.addEventListener('submit',event=>{event.preventDefault();ask(input.value);});
   suggestions?.addEventListener('click',event=>{const b=event.target.closest('[data-qa-suggestion]');if(!b)return;let items=[];try{items=JSON.parse(suggestions.dataset.items||'[]');}catch{}ask(items[Number(b.dataset.qaSuggestion)]||b.textContent);});
   doc.getElementById('queryAssistantApply')?.addEventListener('click',()=>{if(lastResult?.context){dialog.close();onApplyContext(lastResult.context);}});
-  doc.getElementById('queryAssistantOpenData')?.addEventListener('click',()=>{dialog.close();onOpenRoute(lastResult?.context?.dataset==='roads'?'costs':lastResult?.context?.dataset==='assets'?'assets':lastResult?.context?.dataset==='services'?'services':'faults');});
+  doc.getElementById('queryAssistantOpenData')?.addEventListener('click',()=>{dialog.close();const d=lastResult?.context?.dataset;onOpenRoute(d==='roads'?'costs':d==='assets'?'assets':d==='planning'?'planning':d==='capacity'?'organisation':d==='services'||d==='relations'?'services':d==='works'||d==='uroutes'||d==='history'||d==='eol'?'data':'faults');});
   modeInputs.forEach(el=>el.addEventListener('change',()=>{previousContext={};renderSuggestions(mode()==='screen'?['Wat zie ik hier?','Hoeveel resultaten zijn er?','Welke foutcodes komen het meest voor?']:['Hoeveel open storingen zijn er?','Welke foutcodes komen het meest voor?','Wat is de huidige dienstverlening?']);}));
   welcome();
   return {ask,clear:welcome,open:()=>open.click(),get context(){return previousContext;}};
