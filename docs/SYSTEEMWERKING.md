@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.17 en DVM 102, bijgewerkt op 19 september 2026 voor de lokale Vraag BiDash-queryassistent, naast de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina, zichtbare voortgang bij gegevensimport en CSP-veilige dynamische bediening.
+Status: beschrijving van BiDash 2.18 en DVM 102, bijgewerkt op 19 september 2026 voor de integrale BiDash Context API en de relationele Vraag BiDash-queryassistent, naast de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina, zichtbare voortgang bij gegevensimport en CSP-veilige dynamische bediening.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -552,3 +552,37 @@ BiDash 2.17 bevat in de hoofdschil een popup met een deterministische queryassis
 De gebruiker kan kiezen tussen **Dit scherm en de huidige filters** en **Alle beschikbare data**. Een vervolgvraag erft de context van de vorige vraag, zodat bijvoorbeeld na “Hoeveel MSI-storingen zijn er op de A15 in ZWN?” kan worden gevraagd “Welke foutcodes komen het meest voor?”. De eerste versie ondersteunt actuele storingen, assets, foutcodes, bestaande dienstverleningsuitkomsten en bestaande wegdeelkosten/VVU.
 
 De actie **Gebruik als filter** zet ondersteunde storings- en assetcontext terug in de bestaande native filters/querybouwer. **Open bijbehorende data** navigeert naar de bestaande BiDash-weergave. De chat creëert daarmee geen tweede datamodel of tweede rekenketen.
+
+
+## Integrale Context API en Vraag BiDash 2.18
+
+`site/core/context-api.js` vormt een read-only contextlaag boven de bestaande adapters. De contextlaag rekent geen dienstimpact, beschikbaarheid, verkeerskosten of FTE opnieuw uit. DVM blijft eigenaar van open storingen, assetimpact, subprocessen, dienstverlening, werkzaamheden, U-routes en EOL-context; BI blijft eigenaar van bedrijfsfuncties, formatie, planning en planningscapaciteit.
+
+De DVM-adapter levert voor de contextlaag de bestaande tracebijdrage per storing, de landelijke dienstuitkomst en per dienst de reeds geconfigureerde subprocess- en assettype-afhankelijkheden. De BI-adapter levert het effectieve planningmodel, afhankelijkheidsrelaties en de bestaande capaciteitsvraag per kwartaal en planningsdienst. De hoofdschil combineert deze read-only contracten met expliciete dienst-functiekoppelingen uit `state.links`.
+
+De lokale queryassistent kan daardoor onder meer de volgende paden tonen:
+
+```text
+open storing
+  -> assettype
+  -> geconfigureerde bronafhankelijkheid van een subproces
+  -> aandeel van dat subproces in de dienst
+  -> bestaande dienstuitkomst
+```
+
+en:
+
+```text
+dienst
+  -> dienstgekoppelde open storingen
+  -> weg/corridor of gekoppeld asset
+  -> planningactiviteit / werkzaamheid / U-route
+```
+
+Voor planning gebruikt de assistent de effectieve datums uit het live planningmodel, inclusief actieve shifts. Capaciteitsvragen gebruiken uitsluitend `bridgeCapaciteit()` en de ingestelde capaciteitsgrenzen. Een samenloop van planning en storing op dezelfde corridor is een raakvlak, geen bewijs dat de planning de storing veroorzaakt. De chat benoemt dit onderscheid expliciet.
+
+Een gewogen verliesbijdrage in de chat is uitsluitend bedoeld om storingen binnen een dienst te rangschikken. Zij wordt afgeleid uit de bestaande tracebijdrage en de reeds ingestelde subprocess-/assettypeweging. Deze waarde mag niet als zelfstandig optelbaar dienstpercentage worden gepresenteerd.
+
+Historische storingen blijven in de huidige versie primair prognosebron. De Context API meldt welke historische bronstromen zijn geladen en hoeveel records zij bevatten; zij materialiseert niet bij elke chatvraag alle ruwe historische regels in het geheugen. Dit voorkomt dat de queryinterface de performancewinst van gescheiden historische data ongedaan maakt.
+
+De queryassistent blijft volledig lokaal. Er is geen AI-call of netwerkendpoint toegevoegd; de Content Security Policy `connect-src 'none'` blijft leidend.
