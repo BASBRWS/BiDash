@@ -64,10 +64,10 @@ function detectService(text,data){
 function explicitDataset(text){
   const fault=/\b(storing|storingen|melding|meldingen|foutcode|foutcodes|impact|msi|drip|drips|detectie|detectielus|detectielussen|lus|lussen|camera|cameras)\b/.test(text);
   const service=/\b(dienstverlening|dienst|diensten|beschikbaarheid|subproces|subprocessen)\b/.test(text);
-  const planning=/\b(planning|planningactiviteit|planningactiviteiten|activiteit|activiteiten|mijlpaal|mijlpalen|projectplanning|gepland|plannen|planwerk)\b/.test(text);
+  const planning=/\b(planning|planningactiviteit|planningactiviteiten|activiteit|activiteiten|mijlpaal|mijlpalen|projectplanning|gepland|plannen|planwerk|afhankelijkheid|afhankelijkheden)\b/.test(text);
   const work=/\b(werkzaamheid|werkzaamheden|werkvak|werkvakken|afsluiting|hinder)\b/.test(text);
   const capacity=/\b(formatie|capaciteit|fte|bezetting|personeel|capaciteitstekort|capaciteitsoverschrijding)\b/.test(text);
-  const relation=/\b(verband|samenhang|oorzaak|verklaar|waarom|raakt|raken|beinvloed|beinvloeden|drukt|effect op)\b/.test(text);
+  const relation=/\b(verband|samenhang|oorzaak|verklaar|waarom|raakt|raken|beinvloed|beinvloeden|drukt|effect op|gekoppeld|horen bij|valt samen|vallen samen)\b/.test(text);
   if((fault&&(service||planning||work))||(service&&capacity)||relation&&(fault||service||planning||work||capacity))return 'relations';
   if(planning)return 'planning';
   if(capacity)return 'capacity';
@@ -279,7 +279,14 @@ function planningRows(data,context={}){
 function planningResult(parsed,data){
   const planning=data.planning;
   if(!planning)return result('Er is geen planningmodel geladen in BiDash.',parsed.context,{title:'Planning',metrics:[{label:'Planning',value:'Niet geladen'}]});
-  const rows=planningRows(data,parsed.context).sort((a,b)=>(Number(a.t0)||0)-(Number(b.t0)||0));
+  const selected=planningRows(data,parsed.context).sort((a,b)=>(Number(a.t0)||0)-(Number(b.t0)||0));
+  if(/afhankelijk|relatie/.test(parsed.text)){
+    const ids=new Set(selected.map(r=>String(r.id))),byId=new Map((planning.activities||[]).map(r=>[String(r.id),r]));
+    let rels=(planning.relations||[]).filter(r=>!ids.size||ids.has(String(r.from))||ids.has(String(r.to)));
+    const rows=rels.map(r=>({from:byId.get(String(r.from))?.naam||r.from,to:byId.get(String(r.to))?.naam||r.to,type:r.type||'–'}));
+    return result(rows.length?`Ik vind ${fmt(rows.length)} planningafhankelijkheden die de huidige selectie raken. De namen en relatietypen komen uit het geladen planningmodel.`:'Ik vind geen planningafhankelijkheden binnen deze selectie.',parsed.context,{title:'Planningafhankelijkheden',metrics:[{label:'Relaties',value:fmt(rows.length)},{label:'Cross-dienst',value:fmt(planning.nCross||0)}],columns:[['from','Van'],['to','Naar'],['type','Relatie']],rows:rows.slice(0,40)});
+  }
+  const rows=selected;
   const milestones=rows.filter(r=>r.kind==='mile').length,bars=rows.length-milestones;
   const text=rows.length
     ? `Ik vind ${fmt(rows.length)} planningactiviteiten binnen deze selectie. Daarvan zijn ${fmt(bars)} activiteiten en ${fmt(milestones)} mijlpalen. De effectieve datums uit het huidige planningmodel worden gebruikt.`
@@ -397,11 +404,29 @@ function serviceCapacityRelation(parsed,data){
   const rows=functions.map(f=>({...f,tekort:fmt(Math.max(0,Number(f.benodigd||0)-Number(f.actueel||0)),2),actueelLabel:fmt(f.actueel,2),benodigdLabel:fmt(f.benodigd,2)}));
   return result(rows.length?`${service.naam} heeft ${fmt(rows.length)} expliciete koppeling(en) met bedrijfsfuncties. De tabel gebruikt de bestaande BI-formatiegetallen; er wordt geen FTE-effect uit storingen verzonnen.`:`Voor ${service.naam} zijn geen expliciete dienst↔bedrijfsfunctiekoppelingen vastgelegd.`,parsed.context,{title:'Dienstverlening ↔ formatie',metrics:[{label:'Gekoppelde functies',value:fmt(rows.length)},{label:'Functies met tekort',value:fmt(rows.filter(r=>Number(r.actueel)<Number(r.benodigd)).length)}],columns:[['naam','Bedrijfsfunctie'],['actueelLabel','Actueel FTE'],['benodigdLabel','Benodigd FTE'],['tekort','Tekort FTE'],['eigenaar','Eigenaar']],rows});
 }
+function serviceOperationalRelation(parsed,data,kind){
+  const service=(data.services||[]).find(s=>String(s.id)===String(parsed.context.serviceId));
+  if(!service)return result('Noem een concrete dienstverlening om de operationele samenhang te tonen.',parsed.context,{title:'Operationele samenhang'});
+  let faults=faultsForService(data,service.id);faults=filterFaults(faults,parsed.context.filters);
+  if(kind==='planning'){
+    const activities=planningForFaults(data,faults);
+    const byRoad=new Map();for(const fault of faults){const key=upper(fault.weg);if(key)byRoad.set(key,(byRoad.get(key)||0)+1);}
+    const rows=activities.map(a=>({...a,roadsLabel:(a.roads||[]).join(', '),faults:(a.roads||[]).reduce((sum,r)=>sum+(byRoad.get(upper(r))||0),0)})).sort((a,b)=>b.faults-a.faults);
+    return result(rows.length?`Voor ${service.naam} vind ik ${fmt(rows.length)} planningactiviteiten op corridors met open meldingen die via de ingestelde subprocess-afhankelijkheden aan deze dienst zijn gekoppeld.`:`Ik vind geen planningactiviteiten op corridors met open meldingen die aan ${service.naam} zijn gekoppeld.`,parsed.context,{title:'Dienstverlening ↔ storingen ↔ planning',metrics:[{label:'Dienstgekoppelde storingen',value:fmt(faults.length)},{label:'Planningraakvlakken',value:fmt(rows.length)}],columns:[['naam','Planningactiviteit'],['dienst','Planningsdienst'],['periode','Periode'],['roadsLabel','Corridor'],['faults','Dienstgekoppelde storingen']],rows:rows.slice(0,30),note:'Planning en storing zijn hier op corridor gekoppeld. Dit toont samenloop, niet automatisch causaliteit.'});
+  }
+  const works=worksForFaults(data,faults);
+  const faultKeys=new Set(faults.map(f=>String(f.assetKey||'')).filter(Boolean));
+  const rows=works.map(w=>({...w,matchAssets:(w.assetKeys||[]).filter(k=>faultKeys.has(String(k))).length,routeLabel:[...(w.routeRefs||[]),...(w.routeMatches||[])].filter(Boolean).join(', ')})).sort((a,b)=>b.matchAssets-a.matchAssets);
+  return result(rows.length?`Voor ${service.naam} vind ik ${fmt(rows.length)} werkzaamheden die via dezelfde weg of gekoppelde assets samenlopen met open meldingen die deze dienst raken.`:`Ik vind geen werkzaamheden die samenlopen met de open meldingen die ${service.naam} raken.`,parsed.context,{title:'Dienstverlening ↔ storingen ↔ werkzaamheden',metrics:[{label:'Dienstgekoppelde storingen',value:fmt(faults.length)},{label:'Werkzaamheden',value:fmt(rows.length)},{label:'Exacte assetmatches',value:fmt(rows.reduce((sum,r)=>sum+r.matchAssets,0))}],columns:[['id','Werk'],['weg','Weg'],['periode','Periode'],['matchAssets','Dienststoringsassets'],['hinder','Hinder'],['routeLabel','U-route']],rows:rows.slice(0,30)});
+}
+
 function relationResult(parsed,data){
   const t=parsed.text;
   if(parsed.context.serviceId&&/\b(formatie|capaciteit|fte|personeel)\b/.test(t))return serviceCapacityRelation(parsed,data);
+  if(parsed.context.serviceId&&/\b(planning|gepland|activiteit|activiteiten|mijlpaal|projectplanning)\b/.test(t))return serviceOperationalRelation(parsed,data,'planning');
+  if(parsed.context.serviceId&&/\b(werkzaamheid|werkzaamheden|werkvak|werkvakken|hinder|afsluiting|u[- ]?route|u[- ]?routes)\b/.test(t))return serviceOperationalRelation(parsed,data,'works');
   if(parsed.context.serviceId)return serviceFaultRelation(parsed,data);
-  if(/\b(planning|activiteit|activiteiten|mijlpaal|projectplanning)\b/.test(t)&&/\b(storing|storingen|melding|meldingen|impact)\b/.test(t))return planningFaultRelation(parsed,data);
+  if(/\b(planning|gepland|activiteit|activiteiten|mijlpaal|projectplanning)\b/.test(t)&&/\b(storing|storingen|melding|meldingen|impact)\b/.test(t))return planningFaultRelation(parsed,data);
   if(/\b(werkzaamheid|werkzaamheden|werkvak|werkvakken|hinder|afsluiting)\b/.test(t)&&/\b(storing|storingen|melding|meldingen|impact)\b/.test(t))return workFaultRelation(parsed,data);
   const under=(data.services||[]).filter(s=>s.besch!=null&&Number(s.besch)<Number(s.norm)).sort((a,b)=>Number(a.besch)-Number(b.besch));
   if(under.length){const next={...parsed,context:{...parsed.context,serviceId:under[0].id}};return serviceFaultRelation(next,data);}
