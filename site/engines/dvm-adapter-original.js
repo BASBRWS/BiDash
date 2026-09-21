@@ -63,7 +63,7 @@
  }
  window.HUB={
   async import(bundle){const b=structuredClone(bundle);if(b.formaat!=='DVM-dienstimpact-totaal')throw Error('Geen DVM-totaalbestand.');if(!b.assetregister?.rijen?.length)throw Error('Een DVM-berekening vereist een assetregister. Importeer een volledige dataset of combineer de selectie met het bestaande register.');STATE=null; HISTORIE_STATE=null; STORINGSBRONNEN=[]; LIVE_STORINGSBRONNEN=[]; DRIP_HIST_STATE=null; U_ROUTE_STATE=null; WERK_STATE=null;resetForecast();await totaalImportJson(new File([JSON.stringify(b)],'dvm-lokaal.json',{type:'application/json'}),'vervang');if(!ASSET_REGISTER_STATE)throw Error('Het assetregister is niet verwerkt.');revealForecastTab();return this.summary();},
-  export(){return totaalExportBundle(Object.fromEntries(totaalExportOpties().map(o=>[o.id,true])),{autosaveLean:true});},
+  export(options={}){return totaalExportBundle(Object.fromEntries(totaalExportOpties().map(o=>[o.id,true])),{autosaveLean:options.fullSources!==true});},
   summary(){const dienst=hubDienstContext();const roads=kostenDagRows().map(w=>{const c=kostenDagResultaat(w);return {id:w.key,naam:w.naam||w.wegdeel||w.key,vc:w.vc||'',kosten:c.kosten,vvu:c.vvu,status:c.status,bron:c.bron};});return {peildatum:STATE?.peildatum||null,assets:dienst.assets,roads,diensten:dienst.services,types:dienst.types,liveBronnen:LIVE_STORINGSBRONNEN.length,stats:STATE?.stats||null,nietDoorgerekend:(STATE?.nietDoorgerekend||[]).length,forecast:FORECAST_SUMMARY,triggers:FORECAST_TRIGGERS};},
   assets(){return ASSET_REGISTER_STATE?.assets||[];},
   faults(){return [...(STATE?.meldingen||[]),...(STATE?.nietDoorgerekend||[])].map((m,i)=>({
