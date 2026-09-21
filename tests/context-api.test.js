@@ -20,7 +20,6 @@ const dvm={
   services,
   works:[{id:'w1',weg:'A15',startMs:Date.UTC(2026,9,1),eindMs:Date.UTC(2026,9,20),assetKeys:['A1'],uRoutes:['U12'],omschrijving:'asfaltwerk'}],
   uroutes:[{id:'u1',uRoute:'U12',weg:'A15',assetKeys:['A1']}],
-  eol:{loaded:true,count:12,bestand:'eol.xlsx'},
   historySources:[{key:'h1',naam:'historie 2026',count:100,doel:'prognose'}]
 };
 const bi={
@@ -40,7 +39,7 @@ const bi={
   functions,
   triggers:[]
 };
-const state={dvm:{assetregister:{rijen:[{}]},liveStoringen:[{rijen:[{},{},{}]}],werkzaamheden:{rijen:[{}]},uRoutes:{rijen:[{}]},eol:{regels:new Array(12)}},bi:{},planning:{xml:'<x/>'},links:[{dienst:'im',functie:'f1',eigenaar:'VWM'}],history:[]};
+const state={dvm:{assetregister:{rijen:[{}]},liveStoringen:[{rijen:[{},{},{}]}],werkzaamheden:{rijen:[{}]},uRoutes:{rijen:[{}]}},bi:{},planning:{xml:'<x/>'},links:[{dienst:'im',functie:'f1',eigenaar:'VWM'}],history:[]};
 const context=buildBiDashContext({faults,assets:[],roads:[],services,functions,dvm,bi,links:state.links,state});
 
 test('Context API legt storing via assettype aan dienstverlening',()=>{
@@ -211,4 +210,48 @@ test('planningcode en WBS-pad zijn dynamisch bevraagbaar',()=>{
     assert.equal(answer.context.dataset,'planning',question);
     assert.equal(answer.rows[0].naam,'Validatie bediening',question);
   }
+});
+
+
+test('oudste asset gebruikt installatiedatum uit All Assets',()=>{
+  const local={assets:[
+    {key:'a1',source:'DVM',naam:'MSI oud',tp:'MSI',vc:'ZWN',weg:'A15',installationDate:'15-03-2001',installationYear:2001,eolYear:2026},
+    {key:'a2',source:'DVM',naam:'MSI ouder',tp:'MSI',vc:'ZWN',weg:'A15',installationDate:'02-01-2001',installationYear:2001,eolYear:2025},
+    {key:'a3',source:'DVM',naam:'MSI nieuw',tp:'MSI',vc:'ZWN',weg:'A15',installationDate:'10-06-2019',installationYear:2019,eolYear:2039}
+  ],faults:[],roads:[],services:[]};
+  const answer=answerQuestion('Wat is de oudste asset?',{data:local});
+  assert.equal(answer.context.dataset,'assets');
+  assert.equal(answer.title,'Oudste asset uit All Assets');
+  assert.equal(answer.rows[0].naam,'MSI ouder');
+  assert.equal(answer.rows[0]._installLabel,'2-1-2001');
+});
+
+test('oudste asset respecteert type en VC filters',()=>{
+  const local={assets:[
+    {key:'a1',source:'DVM',naam:'MSI ZWN 2005',tp:'MSI',vc:'ZWN',weg:'A15',installationYear:2005},
+    {key:'a2',source:'DVM',naam:'MSI NWN 1998',tp:'MSI',vc:'NWN',weg:'A12',installationYear:1998},
+    {key:'a3',source:'DVM',naam:'LUS ZWN 1999',tp:'LUS',vc:'ZWN',weg:'A15',installationYear:1999}
+  ],faults:[],roads:[],services:[]};
+  const answer=answerQuestion('Wat is de oudste MSI asset in ZWN?',{data:local});
+  assert.equal(answer.rows.length,1);
+  assert.equal(answer.rows[0].naam,'MSI ZWN 2005');
+});
+
+test('EOL-vraag gebruikt alleen EOL-waarden uit All Assets',()=>{
+  const local={assets:[
+    {key:'a1',source:'DVM',naam:'Asset 1',tp:'MSI',vc:'ZWN',weg:'A15',installationYear:2000,eolYear:2025},
+    {key:'a2',source:'DVM',naam:'Asset 2',tp:'MSI',vc:'ZWN',weg:'A15',installationYear:2020,eolYear:2040},
+    {key:'b1',source:'BI',naam:'BI asset',tp:'MSI',vc:'ZWN',weg:'A15',installationYear:1990,eolYear:2000}
+  ],faults:[],roads:[],services:[]};
+  const answer=answerQuestion('Welke assets zijn voorbij EOL?',{data:local});
+  assert.equal(answer.title,'EOL / levensduur uit All Assets');
+  assert.equal(answer.rows.length,1);
+  assert.equal(answer.rows[0].naam,'Asset 1');
+  assert.equal(answer.metrics.find(x=>x.label==='Bron').value,'All Assets');
+});
+
+test('Context API heeft geen aparte EOL-bron meer',()=>{
+  const local=buildBiDashContext({assets:[],faults:[],roads:[],services:[],functions:[],dvm:{eol:{source:'assetregister',loaded:true,count:3}},bi:{},state:{dvm:{assetregister:{rijen:[{},{},{}]}}}});
+  assert.equal(local.sources.some(x=>x.id==='eol'),false);
+  assert.equal(local.eol.source,'assetregister');
 });
