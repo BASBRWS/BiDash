@@ -596,7 +596,7 @@ function eolResult(parsed,data){
   if(f.typeId)assets=assets.filter(a=>upper(a.tp||a.assetType)===upper(f.typeId));
   if(/verouder|einde levensduur|over eol|voorbij/.test(parsed.text))assets=assets.filter(a=>a._eol<=current);
   assets.sort((a,b)=>a._eol-b._eol);
-  return result(assets.length?`All Assets bevat voor ${fmt(assets.length)} assets in deze selectie een concreet EOL-jaar. De chat gebruikt geen aparte EOL-referentie meer.`:'Ik vind in All Assets geen concreet EOL-jaar binnen deze selectie.',parsed.context,{title:'EOL uit All Assets',metrics:[{label:'Assets met EOL-jaar',value:fmt(assets.length)},{label:'Reeds bereikt',value:fmt(assets.filter(a=>a._eol<=current).length)}],columns:[['naam','Asset'],['tp','Type'],['weg','Locatie'],['_eol','EOL-jaar']],rows:assets.slice(0,30)});
+  return result(assets.length?`All Assets bevat voor ${fmt(assets.length)} ${assets.length===1?'asset':'assets'} in deze selectie een concreet EOL-jaar. De chat gebruikt geen aparte EOL-referentie meer.`:'Ik vind in All Assets geen concreet EOL-jaar binnen deze selectie.',parsed.context,{title:'EOL uit All Assets',metrics:[{label:'Assets met EOL-jaar',value:fmt(assets.length)},{label:'Reeds bereikt',value:fmt(assets.filter(a=>a._eol<=current).length)}],columns:[['naam','Asset'],['tp','Type'],['weg','Locatie'],['_eol','EOL-jaar']],rows:assets.slice(0,30)});
 }
 function serviceFaultRelation(parsed,data){
   const service=(data.services||[]).find(s=>String(s.id)===String(parsed.context.serviceId));
