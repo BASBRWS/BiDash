@@ -2,9 +2,9 @@ import './import-known-json-fastpath.js';
 import './universal-importer.js';
 import './asset-register-special-filter.js';
 
-export const DVM_PARTS=['assetregister','eol','storingshistorie','liveStoringen','dripHistorie','uRoutes','werkzaamheden','parameters','dripSelectie'];
+export const DVM_PARTS=['assetregister','storingshistorie','liveStoringen','dripHistorie','uRoutes','werkzaamheden','parameters','dripSelectie'];
 export const BI_RULE_KEYS=['config','configBron','richtlijnen','amRegels','impact','capgrens'];
-export const LABELS={dvm:'DVM volledig',assetregister:'Assetregister',eol:'EOL / levensduur',storingshistorie:'Storingshistorie',liveStoringen:'Open storingen',dripHistorie:'DRIP-historie',uRoutes:'U-routes',werkzaamheden:'Werkzaamheden',parameters:'DVM-regels, verkeersmodel en simulaties',dripSelectie:'DRIP-selectie',biData:'BI-data: formatie, contracten en assets',biRules:'BI-rekenregels en normen',planning:'Planning: originele XML en instellingen',links:'Dienstkoppelingen',history:'Gezamenlijke dagstanden',quality:'Kwaliteitsaudit en scorehistorie'};
+export const LABELS={dvm:'DVM volledig',assetregister:'Assetregister',storingshistorie:'Storingshistorie',liveStoringen:'Open storingen',dripHistorie:'DRIP-historie',uRoutes:'U-routes',werkzaamheden:'Werkzaamheden',parameters:'DVM-regels, verkeersmodel en simulaties',dripSelectie:'DRIP-selectie',biData:'BI-data: formatie, contracten en assets',biRules:'BI-rekenregels en normen',planning:'Planning: originele XML en instellingen',links:'Dienstkoppelingen',history:'Gezamenlijke dagstanden',quality:'Kwaliteitsaudit en scorehistorie'};
 export const DEFAULT_STATE=()=>({schema:1,dvm:null,bi:null,planning:null,links:[],history:[],qualityAudit:null,qualityHistory:[]});
 const VALIDATED_ROOTS=new WeakSet();
 export function validate(value,depth=0){
@@ -17,7 +17,7 @@ export function validate(value,depth=0){
 export function makeExport(state,selection){
  const parts={};
  const dvmKeys=DVM_PARTS.filter(k=>selection.has(k));
- if(state.dvm&&dvmKeys.length)parts.dvm={formaat:'DVM-dienstimpact-totaal',versie:54,exportSelectie:Object.fromEntries(DVM_PARTS.map(k=>[k,selection.has(k)])),...Object.fromEntries(dvmKeys.map(k=>[k,state.dvm[k]]))};
+ if(state.dvm&&dvmKeys.length)parts.dvm={formaat:'DVM-dienstimpact-totaal',versie:55,exportSelectie:Object.fromEntries(DVM_PARTS.map(k=>[k,selection.has(k)])),...Object.fromEntries(dvmKeys.map(k=>[k,state.dvm[k]]))};
  if(state.bi&&(selection.has('biData')||selection.has('biRules'))){parts.bi={};for(const [k,v] of Object.entries(state.bi))if(selection.has(BI_RULE_KEYS.includes(k)?'biRules':'biData'))parts.bi[k]=v;}
  for(const k of ['planning','links','history'])if(selection.has(k))parts[k]=state[k];
  if(selection.has('quality')){parts.qualityAudit=state.qualityAudit||null;parts.qualityHistory=Array.isArray(state.qualityHistory)?state.qualityHistory:[];}
