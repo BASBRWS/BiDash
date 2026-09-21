@@ -401,26 +401,39 @@ function faultResult(parsed,data){
   return result(`Er ${rows.length===1?'is':'zijn'} ${fmt(rows.length)} open ${rows.length===1?'storing':'storingen'}${scope}.`,parsed.context,{title:'Open storingen',metrics:[{label:'Aantal',value:fmt(rows.length)},{label:'Niet doorgerekend',value:fmt(rows.filter(r=>r.impact==null).length)}],columns:breakdown.length?[['type','Type'],['aantal','Aantal']]:[],rows:breakdown});
 }
 
-function assetInstallYear(a){
-  for(const v of [a.installationYear,a.bouwjaar,a.raw?.bouwjaar,a.raw?.ingebruikname,a.raw?.installatiejaar,a.raw?.stichtingsjaar]){
-    const n=Number(v);if(Number.isFinite(n)&&n>=1900&&n<=2100)return Math.trunc(n);
-    const m=String(v??'').match(/\b(19\d{2}|20\d{2}|2100)\b/);if(m)return Number(m[1]);
+function assetInstallMoment(a){
+  const values=[a.installationDate,a.raw?.ingebruikname,a.raw?.installatiedatum,a.raw?.stichtingsdatum,a.installationYear,a.bouwjaar,a.raw?.bouwjaar,a.raw?.installatiejaar,a.raw?.stichtingsjaar];
+  for(const value of values){
+    if(value==null||value==='')continue;
+    if(value instanceof Date&&!isNaN(value.getTime()))return {sort:value.getTime(),year:value.getFullYear(),label:value.toLocaleDateString('nl-NL')};
+    const text=String(value).trim();
+    const dmy=text.match(/\b(\d{1,2})[-/.](\d{1,2})[-/.](19\d{2}|20\d{2}|2100)\b/);
+    if(dmy){const d=new Date(Number(dmy[3]),Number(dmy[2])-1,Number(dmy[1]));return {sort:d.getTime(),year:Number(dmy[3]),label:d.toLocaleDateString('nl-NL')};}
+    const iso=text.match(/\b(19\d{2}|20\d{2}|2100)[-/.](\d{1,2})[-/.](\d{1,2})\b/);
+    if(iso){const d=new Date(Number(iso[1]),Number(iso[2])-1,Number(iso[3]));return {sort:d.getTime(),year:Number(iso[1]),label:d.toLocaleDateString('nl-NL')};}
+    const n=Number(value);
+    if(Number.isFinite(n)&&n>=1900&&n<=2100){const year=Math.trunc(n);return {sort:new Date(year,0,1).getTime(),year,label:String(year)};}
+    const y=text.match(/\b(19\d{2}|20\d{2}|2100)\b/);
+    if(y){const year=Number(y[1]);return {sort:new Date(year,0,1).getTime(),year,label:String(year)};}
+    const parsed=Date.parse(text);
+    if(Number.isFinite(parsed)){const d=new Date(parsed);return {sort:parsed,year:d.getFullYear(),label:d.toLocaleDateString('nl-NL')};}
   }
   return null;
 }
+function assetInstallYear(a){return assetInstallMoment(a)?.year??null;}
 function assetResult(parsed,data){
   const rows=filterAssets(data.assets||[],parsed.context.filters),labels=contextLabels(parsed.context),scope=labels.length?' binnen '+labels.join(' · '):'';
   if(parsed.intent==='oldest'||parsed.intent==='newest'){
     const allAssets=rows.filter(a=>upper(a.source)==='DVM'||!a.source);
-    const known=allAssets.map(a=>({...a,_installYear:assetInstallYear(a)})).filter(a=>a._installYear!=null);
+    const known=allAssets.map(a=>{const install=assetInstallMoment(a);return install?{...a,_installSort:install.sort,_installYear:install.year,_installLabel:install.label}:null;}).filter(Boolean);
     const ascending=parsed.intent==='oldest';
-    known.sort((a,b)=>ascending?a._installYear-b._installYear:b._installYear-a._installYear);
-    if(!known.length)return result(`Ik vind geen bruikbare installatie- of stichtingsdatum in All Assets${scope}.`,parsed.context,{title:ascending?'Oudste asset':'Nieuwste asset',metrics:[{label:'Assets in selectie',value:fmt(allAssets.length)},{label:'Met installatiejaar',value:'0'}]});
-    const target=known[0]._installYear,ties=known.filter(a=>a._installYear===target);
-    return result(`${ascending?'De oudste':'De nieuwste'} bekende asset${ties.length>1?'s':''}${scope} ${ties.length>1?'hebben':'heeft'} installatie-/stichtingsjaar ${target}. Ik gebruik hiervoor het installatieveld uit All Assets; assets zonder bruikbare installatiedatum tellen niet mee in deze rangschikking.`,parsed.context,{
+    known.sort((a,b)=>ascending?a._installSort-b._installSort:b._installSort-a._installSort);
+    if(!known.length)return result(`Ik vind geen bruikbare installatie- of stichtingsdatum in All Assets${scope}.`,parsed.context,{title:ascending?'Oudste asset':'Nieuwste asset',metrics:[{label:'Assets in selectie',value:fmt(allAssets.length)},{label:'Met installatiedatum',value:'0'}]});
+    const target=known[0]._installSort,ties=known.filter(a=>a._installSort===target),label=known[0]._installLabel;
+    return result(`${ascending?'De oudste':'De nieuwste'} bekende asset${ties.length>1?'s':''}${scope} ${ties.length>1?'hebben':'heeft'} installatie-/stichtingsdatum ${label}. Ik gebruik hiervoor de installatiedatum uit All Assets; als alleen een jaar beschikbaar is gebruik ik 1 januari van dat jaar voor de rangschikking. Assets zonder bruikbare installatiedatum tellen niet mee.`,parsed.context,{
       title:ascending?'Oudste asset uit All Assets':'Nieuwste asset uit All Assets',
-      metrics:[{label:ascending?'Oudste jaar':'Nieuwste jaar',value:String(target)},{label:'Met installatiejaar',value:fmt(known.length)},{label:'Zonder installatiejaar',value:fmt(Math.max(0,allAssets.length-known.length))}],
-      columns:[['naam','Asset'],['tp','Type'],['weg','Locatie'],['vc','VC'],['_installYear','Installatiejaar'],['eolYear','EOL-jaar']],
+      metrics:[{label:ascending?'Oudste datum':'Nieuwste datum',value:label},{label:'Met installatiedatum',value:fmt(known.length)},{label:'Zonder installatiedatum',value:fmt(Math.max(0,allAssets.length-known.length))}],
+      columns:[['naam','Asset'],['tp','Type'],['weg','Locatie'],['vc','VC'],['_installLabel','Installatiedatum'],['eolYear','EOL-jaar']],
       rows:ties.slice(0,25)
     });
   }
