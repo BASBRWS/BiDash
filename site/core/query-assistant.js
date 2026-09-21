@@ -417,6 +417,10 @@ function assetInstallMoment(a){
     const iso=text.match(/\b(19\d{2}|20\d{2}|2100)[-/.](\d{1,2})[-/.](\d{1,2})\b/);
     if(iso){const d=new Date(Number(iso[1]),Number(iso[2])-1,Number(iso[3]));return {sort:d.getTime(),year:Number(iso[1]),label:d.toLocaleDateString('nl-NL')};}
     const n=Number(value);
+    if(Number.isFinite(n)&&n>20000&&n<80000){
+      const d=new Date(Date.UTC(1899,11,30)+Math.round(n)*86400000);
+      return {sort:d.getTime(),year:d.getUTCFullYear(),label:d.toLocaleDateString('nl-NL',{timeZone:'UTC'})};
+    }
     if(Number.isFinite(n)&&n>=1900&&n<=2100){const year=Math.trunc(n);return {sort:new Date(year,0,1).getTime(),year,label:String(year)};}
     const y=text.match(/\b(19\d{2}|20\d{2}|2100)\b/);
     if(y){const year=Number(y[1]);return {sort:new Date(year,0,1).getTime(),year,label:String(year)};}
