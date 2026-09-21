@@ -174,8 +174,15 @@ test('de automatische opslag laat de zware signaalgeverbronnen weg',()=>{
   // De autosave (adapter.export) mag de tienduizenden ruwe signaalgeverrijen niet
   // meeserialiseren; de handmatige export bevat ze wel.
   const adapter=read('site/engines/dvm-adapter-original.js');
-  assert.match(adapter,/export\(\)\{return totaalExportBundle\(.*\{autosaveLean:true\}\);\},/);
+  assert.match(adapter,/export\(options=\{\}\)\{return totaalExportBundle\(.*\{autosaveLean:options\.fullSources!==true\}\);\},/);
   assert.match(dvm3,/autosaveLean&&b&&b\._signaalgeverTotaal/);
+});
+
+test('de centrale handmatige export vraagt expliciet alle mapbronnen op',()=>{
+  const app=read('site/app.js');
+  assert.match(app,/d\.export\(\{fullSources:true\}\)/);
+  assert.match(app,/const snapshot=await exportSnapshot\(\)/);
+  assert.match(app,/makeExport\(snapshot,sel\)/);
 });
 
 test('de maplezer is als eigen bron met directory-invoer geregistreerd',()=>{
