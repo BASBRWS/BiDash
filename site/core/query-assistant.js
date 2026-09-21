@@ -64,8 +64,10 @@ function detectService(text,data){
 function explicitDataset(text){
   const faultEvent=/\b(storing|storingen|melding|meldingen|foutcode|foutcodes|impact)\b/.test(text);
   const fault=faultEvent||/\b(msi|drip|drips|detectie|detectielus|detectielussen|lus|lussen|camera|cameras)\b/.test(text);
+  const eolDomain=/\b(eol|end of life|einde levensduur|levensduur|veroudering|verouderd)\b/.test(text);
   const assetWord=/\b(asset|assets|areaal|register)\b/.test(text);
   const assetAge=/\b(oudste|oudst|nieuwste|jongste|recentste|langst in gebruik|vroegst geplaatst|vroegste installatie|eerste geplaatst|meest recent geplaatst|laatst geplaatst)\b/.test(text);
+  if(eolDomain)return 'eol';
   if((assetWord||assetAge)&&!faultEvent)return 'assets';
   const service=/\b(dienstverlening|dienst|diensten|beschikbaarheid|subproces|subprocessen)\b/.test(text);
   const planning=/\b(planning|planningactiviteit|planningactiviteiten|activiteit|activiteiten|mijlpaal|mijlpalen|project|projecten|projectplanning|projectplanningen|gepland|plannen|planwerk|afhankelijkheid|afhankelijkheden)\b/.test(text);
@@ -78,7 +80,6 @@ function explicitDataset(text){
   if(work)return 'works';
   if(/\b(u[- ]?route|u[- ]?routes|omleidingsroute|omleidingsroutes)\b/.test(text))return 'uroutes';
   if(/\b(historie|historisch|historische|storingshistorie|verleden)\b/.test(text))return 'history';
-  if(/\b(eol|end of life|einde levensduur|levensduur|veroudering|verouderd)\b/.test(text))return 'eol';
   if(/\b(kosten|verkeerskosten|vvu|voertuigverlies|voertuigverliesuren|wegdeel|wegdelen)\b/.test(text))return 'roads';
   if(service)return 'services';
   if(assetWord&&!faultEvent)return 'assets';
