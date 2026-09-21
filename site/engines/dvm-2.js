@@ -41,8 +41,6 @@ let ASSET_INDEX=null;
 let ASSET_MATCH_STATE=null;
 let ASSET_CONFIG_VERSIE=0;
 let ASSET_CFG_UI={subtab:'regels',query:'',type:'',pendingLogId:'',focusKey:''};
-let EOL_BRON_NAAM='';
-let EOL_VERSIE=0;
 let ANALYSE_SIGNATURE='';
 let MC_HISTORIE_LIVE=null;
 // De historie-doorrekening is zwaar bij grote signaalgeverbestanden. Ze wordt
@@ -438,33 +436,21 @@ function analyseerAssetRegister(rijen,bestand){
 
 function herberekenRegisterDekking(){
   if(!ASSET_REGISTER_STATE)return;
-  if(ASSET_REGISTER_STATE._eolVersie===EOL_VERSIE&&ASSET_REGISTER_STATE._assetConfigVersie===ASSET_CONFIG_VERSIE&&ASSET_REGISTER_STATE.perType&&Object.keys(ASSET_REGISTER_STATE.perType).length)return;
+  if(ASSET_REGISTER_STATE._assetConfigVersie===ASSET_CONFIG_VERSIE&&ASSET_REGISTER_STATE.perType&&Object.keys(ASSET_REGISTER_STATE.perType).length)return;
   const per={},lifeByType={},betaByType={};
-  const refCache=new Map();
   ASSET_REGISTER_STATE.assets.forEach(a=>{
-    const rk=[a.tp,a.fabrikant,a.model].join('|').toLowerCase();
-    if(!refCache.has(rk))refCache.set(rk,eolRegelVoor(a.fabrikant,a.model,a.tp));
-    const ref=refCache.get(rk);
-    a.eolRef=ref&&((ref.life_median!=null&&ref.life_median>0)||ref.eol_date)?ref:null;
     const ov=assetOverrideVoor(a.key),at=assetTypeRec(a.tp)||{};
     const comboOv=a.tp==='DRIP'?RULES.drip.levensduurOverride[dripComboKey(a.fabrikant,a.type)]:null;
-    let registerLife=a.eol&&a.eol.levensduur>0?+a.eol.levensduur:null,registerBron=registerLife?'assetregister (levensduur)':null;
-    if(registerLife==null&&a.eol&&a.eol.jaar&&a.bouwjaar&&a.eol.jaar>a.bouwjaar){registerLife=a.eol.jaar-a.bouwjaar;registerBron='assetregister (EOL-jaar minus installatiedatum)';}
-    let refLife=a.eolRef&&a.eolRef.life_median>0?+a.eolRef.life_median:null,refBron=refLife?'EOL-referentie':null;
-    if(refLife==null&&a.eolRef&&a.eolRef.eol_date&&a.bouwjaar){
-      const refEolJaar=parseBouwjaar(a.eolRef.eol_date);
-      if(refEolJaar&&refEolJaar>a.bouwjaar){refLife=refEolJaar-a.bouwjaar;refBron='EOL-referentie (EOL-jaar)';}
-    }
-    const eolLife=registerLife!=null?registerLife:refLife,eolBron=registerLife!=null?registerBron:refBron;
-    const eolLifeBruikbaar=eolLife!=null&&eolLife>=1&&eolLife<=100;
-    if(eolLifeBruikbaar){a.eolLevensduur=eolLife;a.eolLevensduurBron=eolBron;}
-    else{a.eolLevensduur=null;a.eolLevensduurBron=null;}
-
+    let registerLife=a.eol&&a.eol.levensduur>0?+a.eol.levensduur:null;
+    let registerBron=registerLife?'All Assets (levensduur)':null;
+    if(registerLife==null&&a.eol&&a.eol.jaar&&a.bouwjaar&&a.eol.jaar>a.bouwjaar){registerLife=a.eol.jaar-a.bouwjaar;registerBron='All Assets (EOL-jaar minus installatiedatum)';}
+    const eolLifeBruikbaar=registerLife!=null&&registerLife>=1&&registerLife<=100;
+    if(eolLifeBruikbaar){a.eolLevensduur=registerLife;a.eolLevensduurBron=registerBron;}else{a.eolLevensduur=null;a.eolLevensduurBron=null;}
+    delete a.eolRef;delete a._eolRef;
     let life=null,lifeBron=null,lifeSoort=null;
     if(ov&&+ov.levensduur>0){life=+ov.levensduur;lifeBron='assetconfiguratie';lifeSoort='individueel';}
     else if(comboOv!=null&&!isNaN(comboOv)&&+comboOv>0){life=+comboOv;lifeBron='handmatig (fabrikant×type)';lifeSoort='fabrikant';}
     else if(registerLife!=null){life=registerLife;lifeBron=registerBron;lifeSoort='register';}
-    else if(refLife!=null){life=refLife;lifeBron=refBron;lifeSoort='referentie';}
     else if(at.levensduur!=null&&+at.levensduur>0){life=+at.levensduur;lifeBron='assettype';lifeSoort='generiek';}
     else if(a.tp==='DRIP'&&RULES.drip.standaardLevensduur!=null&&+RULES.drip.standaardLevensduur>0){life=+RULES.drip.standaardLevensduur;lifeBron='standaard-terugval';lifeSoort='generiek';}
     const lifeBruikbaar=life!=null&&life>=1&&life<=100;
@@ -472,36 +458,14 @@ function herberekenRegisterDekking(){
     if(!a.prognoseActief)return;
     if(lifeBruikbaar)(lifeByType[a.tp]||(lifeByType[a.tp]=[])).push({life,bron:lifeBron});
     (betaByType[a.tp]||(betaByType[a.tp]=[])).push(ov&&+ov.beta>0?+ov.beta:(at.beta||3));
-    const g=per[a.tp]||(per[a.tp]={typeId:a.tp,actief:0,metBouwjaar:0,metExplicieteEol:0,metReferentieMatch:0,metRegisterLevensduur:0,metReferentieLevensduur:0,metIndividueleConfig:0,metFabrikantOverride:0,metGeneriekeLevensduur:0,metEffectieveLevensduur:0});
-    g.actief++;if(a.bouwjaar)g.metBouwjaar++;if(a.eol&&a.eol.expliciet)g.metExplicieteEol++;if(a.eolRef)g.metReferentieMatch++;
-    if(lifeBruikbaar){
-      g.metEffectieveLevensduur++;
-      if(lifeSoort==='register')g.metRegisterLevensduur++;
-      else if(lifeSoort==='referentie')g.metReferentieLevensduur++;
-      else if(lifeSoort==='individueel')g.metIndividueleConfig++;
-      else if(lifeSoort==='fabrikant')g.metFabrikantOverride++;
-      else if(lifeSoort==='generiek')g.metGeneriekeLevensduur++;
-    }
-    g.generiekeLevensduur=at.levensduur!=null?+at.levensduur:(a.tp==='DRIP'?+RULES.drip.standaardLevensduur:null);
-    g.generiekeBeta=at.beta||3;
+    const g=per[a.tp]||(per[a.tp]={typeId:a.tp,actief:0,metBouwjaar:0,metExplicieteEol:0,metRegisterLevensduur:0,metIndividueleConfig:0,metFabrikantOverride:0,metGeneriekeLevensduur:0,metEffectieveLevensduur:0});
+    g.actief++;if(a.bouwjaar)g.metBouwjaar++;if(a.eol&&a.eol.expliciet)g.metExplicieteEol++;
+    if(lifeBruikbaar){g.metEffectieveLevensduur++;if(lifeSoort==='register')g.metRegisterLevensduur++;else if(lifeSoort==='individueel')g.metIndividueleConfig++;else if(lifeSoort==='fabrikant')g.metFabrikantOverride++;else if(lifeSoort==='generiek')g.metGeneriekeLevensduur++;}
+    g.generiekeLevensduur=at.levensduur!=null?+at.levensduur:(a.tp==='DRIP'?+RULES.drip.standaardLevensduur:null);g.generiekeBeta=at.beta||3;
   });
-  Object.values(per).forEach(g=>{
-    g.eolGedekt=g.metRegisterLevensduur+g.metReferentieLevensduur;
-    g.bouwjaarPct=g.actief?g.metBouwjaar/g.actief:0;
-    g.eolPct=g.actief?g.eolGedekt/g.actief:0;
-    g.modelPct=g.actief?g.metEffectieveLevensduur/g.actief:0;
-    g.generiekPct=g.actief?g.metGeneriekeLevensduur/g.actief:0;
-  });
-  ASSET_REGISTER_STATE.perType=per;
-  ASSET_REGISTER_STATE.reliabilityByType={};
-  Object.entries(lifeByType).forEach(([tp,vals])=>{
-    const s=vals.map(x=>x.life).sort((a,b)=>a-b),m=Math.floor(s.length/2);
-    const lifeMedian=s.length%2?s[m]:(s[m-1]+s[m])/2;
-    const bronnen={};vals.forEach(x=>{bronnen[x.bron]=(bronnen[x.bron]||0)+1;});
-    const bs=(betaByType[tp]||[]).sort((a,b)=>a-b),bm=Math.floor(bs.length/2),betaMedian=bs.length?(bs.length%2?bs[bm]:(bs[bm-1]+bs[bm])/2):null;
-    ASSET_REGISTER_STATE.reliabilityByType[tp]={lifeMedian,betaMedian,n:s.length,bronnen};
-  });
-  ASSET_REGISTER_STATE._eolVersie=EOL_VERSIE;
+  Object.values(per).forEach(g=>{g.eolGedekt=g.metRegisterLevensduur;g.bouwjaarPct=g.actief?g.metBouwjaar/g.actief:0;g.eolPct=g.actief?g.eolGedekt/g.actief:0;g.modelPct=g.actief?g.metEffectieveLevensduur/g.actief:0;g.generiekPct=g.actief?g.metGeneriekeLevensduur/g.actief:0;});
+  ASSET_REGISTER_STATE.perType=per;ASSET_REGISTER_STATE.reliabilityByType={};
+  Object.entries(lifeByType).forEach(([tp,vals])=>{const ss=vals.map(x=>x.life).sort((a,b)=>a-b),m=Math.floor(ss.length/2),lifeMedian=ss.length%2?ss[m]:(ss[m-1]+ss[m])/2;const bronnen={};vals.forEach(x=>{bronnen[x.bron]=(bronnen[x.bron]||0)+1;});const bs=(betaByType[tp]||[]).sort((a,b)=>a-b),bm=Math.floor(bs.length/2),betaMedian=bs.length?(bs.length%2?bs[bm]:(bs[bm-1]+bs[bm])/2):null;ASSET_REGISTER_STATE.reliabilityByType[tp]={lifeMedian,betaMedian,n:ss.length,bronnen};});
   ASSET_REGISTER_STATE._assetConfigVersie=ASSET_CONFIG_VERSIE;
 }
 
@@ -644,7 +608,7 @@ function renderDataGereedheid(){
   const districtDetail=ds?` District: ${ds.bron.toLocaleString('nl-NL')} bron, ${ds.afgeleid.toLocaleString('nl-NL')} afgeleid, ${(ds.ontbreekt+ds.dubbelzinnig).toLocaleString('nl-NL')} onbekend of niet eenduidig.`:'';
   const assetDetail=ASSET_REGISTER_STATE?`${esc(ASSET_REGISTER_STATE.bestand)} · ${(ASSET_REGISTER_STATE.actiefN||0).toLocaleString('nl-NL')} actieve en ${ASSET_REGISTER_STATE.assets.length.toLocaleString('nl-NL')} herkenbare assets. Stamregister voor identiteit, locatie, areaal en bouwjaar; nooit een storingsbron.${districtDetail}`:'Laad eerst All Assets. Alle andere importknoppen worden daarna vrijgegeven.';
   const levensduurRegels=(reg.details||[]).map(d=>`<div style="margin-top:5px"><b>${esc(ASSET_LABEL[d.typeId]||d.typeId)}</b>: bouwjaar ${pct0(d.bouwjaarPct)}, effectieve levensduur ${pct0(d.modelPct)}, expliciete EOL ${pct0(d.eolPct)}. Terugval: ${d.generiekeLevensduur!=null?fmt(d.generiekeLevensduur,1)+' jaar':'niet ingesteld'}, β ${fmt(d.generiekeBeta,2)}.</div>`).join('');
-  const eolDetail=ASSET_REGISTER_STATE?(reg.model?`${reg.eol?'Expliciete EOL-dekking is voldoende.':'Modelgereed: ontbrekende expliciete EOL wordt zichtbaar aangevuld met de generieke assettypewaarde.'}${EOL_BRON_NAAM?' Referentie: '+esc(EOL_BRON_NAAM)+'.':''}${levensduurRegels}`:`Levensduurmodel nog niet compleet. Stel voor elk relevant assettype een mediane levensduur en β in.${levensduurRegels}`):'Wordt na de assetlijst beoordeeld.';
+  const eolDetail=ASSET_REGISTER_STATE?(reg.model?`${reg.eol?'Expliciete EOL-dekking uit All Assets is voldoende.':'Modelgereed: ontbrekende expliciete EOL in All Assets wordt zichtbaar aangevuld met de generieke assettypewaarde.'}${levensduurRegels}`:`Levensduurmodel nog niet compleet. Vul EOL/levensduur in All Assets aan of stel voor elk relevant assettype een mediane levensduur en β in.${levensduurRegels}`):'Wordt na de assetlijst beoordeeld.';
 
   const histTypes=[];if(STORINGS_INSPECTIE)Object.keys(STORINGS_INSPECTIE.typen).forEach(tp=>histTypes.push(ASSET_LABEL[tp]||tp));if(p.dr.geladen)histTypes.push('DRIP');
   const histNamen=[...STORINGSBRONNEN.map(b=>b.naam),...(((typeof DRIP_HIST_STATE!=='undefined'&&DRIP_HIST_STATE&&DRIP_HIST_STATE.sources)||[]).map(b=>b.name))];
@@ -666,7 +630,7 @@ function renderDataGereedheid(){
 
   host.innerHTML=`<div class="data-gate-kop"><div><h3>Datagereedheid en gescheiden gegevensstromen, versie 72</h3><p>Vaste basis: assetregister en levensduur, daarna historische storingen voor prognoses en de lijst met open storingen voor het actuele dashboard. U-routes en werkzaamheden zijn aanvullende operationele context. Historie kalibreert alleen prognoses. De open lijst voedt alleen het prestatiedashboard. Werkzaamheden verhogen niet de technische faalkans; ze bepalen de operationele blootstelling. Een exact effect is alleen toegestaan bij een controleerbare ruimtelijke koppeling.</p></div><span class="pill ${analyseOpen?'groen':ASSET_REGISTER_STATE?'geel':'rood'}">${analyseOpen?'Analyse beschikbaar':ASSET_REGISTER_STATE?'Vervolgstappen nodig':'Nog niet gestart'}</span></div>${progress}<div class="data-gate-grid">${statusStap(1,'Assetlijst',ASSET_REGISTER_STATE?'ok':'stop',ASSET_REGISTER_STATE?'gereed':'wacht',assetDetail)}${statusStap(2,'Levensduur & EOL',ASSET_REGISTER_STATE?(reg.model?'ok':'warn'):'stop',ASSET_REGISTER_STATE?(reg.model?'modelgereed':'aanvullen'):'wacht',eolDetail)}${statusStap(3,'Storingshistorie',histOk?(match&&match.nietGekoppeld?'warn':'ok'):'stop',histOk?'prognosebron':'wacht',histDetail)}${statusStap(4,'Prognosedata',p.ietsGenoeg?'ok':histOk?'warn':'stop',p.ietsGenoeg?'gereed':histOk?'onvoldoende':'wacht',progDetail)}${statusStap(5,'U-routes',ur?(ur.ruimtelijkN?'ok':'warn'):'warn',ur?(ur.ruimtelijkN?'ruimtelijk':'inventarisatie'):'optioneel',urDetail)}${statusStap(6,'Werkzaamheden',ws?(ws.exactN?'ok':'warn'):'warn',ws?(ws.exactN?'2 km actief':'wegcontext'):'optioneel',werkDetail)}${statusStap(7,'Open storingen',liveOk?'ok':'stop',liveOk?'dashboardbron':'wacht',liveDetail)}${statusStap(8,'Analyses',analyseOpen?'ok':ASSET_REGISTER_STATE?'warn':'stop',analyseOpen?'open':'geblokkeerd',analyseDetail)}</div><div class="data-missing"><b>${kernMiss.length?'Nog nodig:':'Controle:'}</b> ${kernMiss.length?kernMiss.map(esc).join(' · '):'De kernanalyse is beschikbaar. Historie, U-routes en werkzaamheden blijven per onderdeel als bronstatus zichtbaar.'}${contextMiss.length?`<br><b>Context aanvullen:</b> ${contextMiss.map(esc).join(' · ')}`:''}</div>${details}`;
   const zetKnoppen=(ids,uit)=>ids.forEach(id=>{const b=document.getElementById(id);if(b)b.disabled=uit;});
-  zetKnoppen(['btnEol','btnLogs','landingEolBtn','landingLogsBtn'],!ASSET_REGISTER_STATE);
+  zetKnoppen(['btnLogs','landingLogsBtn'],!ASSET_REGISTER_STATE);
   zetKnoppen(['btnURoutes','landingURoutesBtn'],!ASSET_REGISTER_STATE);
   zetKnoppen(['btnWerk','landingWerkBtn'],!ASSET_REGISTER_STATE);
   zetKnoppen(['btnLive','landingLiveBtn'],!ASSET_REGISTER_STATE);
@@ -677,7 +641,7 @@ function renderDataGereedheid(){
 }
 
 function heeftDatasetData(){
-  return !!(ASSET_REGISTER_STATE||EOL_REF.length||STORINGSBRONNEN.length||LIVE_STORINGSBRONNEN.length||DRIP_HIST_STATE||U_ROUTE_STATE||WERK_STATE);
+  return !!(ASSET_REGISTER_STATE||STORINGSBRONNEN.length||LIVE_STORINGSBRONNEN.length||DRIP_HIST_STATE||U_ROUTE_STATE||WERK_STATE);
 }
 function datasetAantalBron(bron){
   if(Array.isArray(bron?.rijen))return bron.rijen.length;
@@ -697,7 +661,6 @@ function datasetItemCard(item){
 function datasetItems(){
   const items=[];
   items.push({type:'assetregister',key:'',titel:'Assetregister / All Assets',aanwezig:!!ASSET_REGISTER_STATE,meta:ASSET_REGISTER_STATE?`${esc(ASSET_REGISTER_STATE.bestand)}<br>${(ASSET_REGISTER_STATE.actiefN||0).toLocaleString('nl-NL')} actieve assets, ${(ASSET_REGISTER_STATE.assets||[]).length.toLocaleString('nl-NL')} herkenbaar.`:'Nog niet geladen.'});
-  items.push({type:'eol',key:'',titel:'EOL-referentie',aanwezig:!!EOL_REF.length,zacht:true,meta:EOL_REF.length?`${esc(EOL_BRON_NAAM||'EOL-bron')}<br>${EOL_REF.length.toLocaleString('nl-NL')} levensduurregels.`:'Niet geladen; generieke levensduur blijft mogelijk.'});
   STORINGSBRONNEN.forEach(b=>items.push({type:'storingshistorie',key:b.key,titel:'Storingshistorie',aanwezig:true,meta:`${esc(b.naam||b.key)}<br>${datasetAantalBron(b).toLocaleString('nl-NL')} bronregels. Voedt alleen prognoses.`}));
   LIVE_STORINGSBRONNEN.forEach(b=>items.push({type:'liveStoringen',key:b.key,titel:'Open storingen',aanwezig:true,meta:`${esc(b.naam||b.key)}<br>${datasetAantalBron(b).toLocaleString('nl-NL')} bronregels. Voedt alleen actueel dashboard.${b.peildatum?'<br>Peildatum '+new Date(b.peildatum).toLocaleDateString('nl-NL'):''}`}));
   ((DRIP_HIST_STATE&&DRIP_HIST_STATE.sources)||[]).forEach(s=>items.push({type:'dripHistorie',key:s.key,titel:'DRIP-storingshistorie',aanwezig:true,meta:`${esc(s.name||s.key)}<br>${datasetAantalBron(s).toLocaleString('nl-NL')} incidenten. Voedt DRIP Monte Carlo.`}));
@@ -726,7 +689,6 @@ async function datasetAfgeleidenOngeldig(){
   else{ASSET_INDEX=null;DVM_LEEFTIJD_STATE=null;DRIP_STATE=null;}
   STORINGS_INSPECTIE=ASSET_INDEX?inspecteerStoringsRijen(gecombineerdeStoringsRijen()):null;
   LIVE_STORINGS_INSPECTIE=ASSET_INDEX?inspecteerStoringsRijen(gecombineerdeLiveStoringsRijen()):null;
-  if(DRIP_STATE&&EOL_REF.length)DRIP_STATE.drips.forEach(d=>{d._eolRef=eolRegelVoor(d.fabrikant,d.model||d.type,'DRIP');d._rel=null;});
   if(DRIP_HIST_STATE&&DRIP_STATE)koppelDripHistorieAanAreaal();
   if(WERK_STATE){
     zetImportVoortgang('Datasetbeheer',65,'Werkzaamheden en U-routes opnieuw koppelen',{direct:true});
@@ -748,11 +710,10 @@ async function datasetNaMutatie(bericht){
 }
 async function verwijderDataset(type,keyEnc){
   const key=decodeURIComponent(keyEnc||'');
-  const namen={assetregister:'het assetregister',eol:'de EOL-referentie',storingshistorie:'deze storingshistorie',liveStoringen:'deze open-storingenlijst',dripHistorie:'deze DRIP-historie',uRoutes:'de U-routes',werkzaamheden:'de werkzaamheden'};
+  const namen={assetregister:'het assetregister',storingshistorie:'deze storingshistorie',liveStoringen:'deze open-storingenlijst',dripHistorie:'deze DRIP-historie',uRoutes:'de U-routes',werkzaamheden:'de werkzaamheden'};
   const extra=type==='assetregister'?' Zonder assetregister worden dashboard, rapport en prognoses geblokkeerd totdat je opnieuw All Assets laadt.':' Afhankelijke berekeningen worden opnieuw opgebouwd met de resterende data.';
   if(!confirm(`Weet je zeker dat je ${namen[type]||'deze dataset'} wilt verwijderen?${extra}`))return;
   if(type==='assetregister'){ASSET_REGISTER_STATE=null;ASSET_INDEX=null;DVM_LEEFTIJD_STATE=null;DRIP_STATE=null;}
-  else if(type==='eol'){EOL_REF=[];EOL_BRON_NAAM='';EOL_VERSIE++;}
   else if(type==='storingshistorie'){STORINGSBRONNEN=STORINGSBRONNEN.filter(b=>b.key!==key);}
   else if(type==='liveStoringen'){LIVE_STORINGSBRONNEN=LIVE_STORINGSBRONNEN.filter(b=>b.key!==key);LIVE_PEILDATUM=Math.max(0,...LIVE_STORINGSBRONNEN.map(b=>b.peildatum||0))||null;}
   else if(type==='dripHistorie'){const rest=((DRIP_HIST_STATE&&DRIP_HIST_STATE.sources)||[]).filter(s=>s.key!==key);DRIP_HIST_STATE=rest.length?{sources:rest}:null;if(DRIP_HIST_STATE)herbouwDripHistorie();}
@@ -762,13 +723,13 @@ async function verwijderDataset(type,keyEnc){
 }
 async function verwijderAlleDatasets(){
   if(!confirm('Alle ingeladen datasets verwijderen? Parameters en handmatige rule-engine instellingen blijven staan.'))return;
-  ASSET_REGISTER_STATE=null;ASSET_INDEX=null;DVM_LEEFTIJD_STATE=null;DRIP_STATE=null;EOL_REF=[];EOL_BRON_NAAM='';EOL_VERSIE++;
+  ASSET_REGISTER_STATE=null;ASSET_INDEX=null;DVM_LEEFTIJD_STATE=null;DRIP_STATE=null;
   STORINGSBRONNEN=[];STORINGS_INSPECTIE=null;LIVE_STORINGSBRONNEN=[];LIVE_STORINGS_INSPECTIE=null;LIVE_PEILDATUM=null;DRIP_HIST_STATE=null;U_ROUTE_STATE=null;WERK_STATE=null;
   await datasetNaMutatie('Alle datasets verwijderd. Laad opnieuw All Assets om verder te rekenen.');
 }
 
 function analyseSignatuur(){
-  return [STORINGSBRONNEN.map(b=>b.key+':'+b.rijen.length).sort().join(','),LIVE_STORINGSBRONNEN.map(b=>b.key+':'+b.rijen.length).sort().join(','),ASSET_REGISTER_STATE?ASSET_REGISTER_STATE.bestand+':'+ASSET_REGISTER_STATE.assets.length:'',EOL_BRON_NAAM,EOL_REF.length,U_ROUTE_STATE?U_ROUTE_STATE.bestand+':'+U_ROUTE_STATE.totaal:'',WERK_STATE?WERK_STATE.bestand+':'+WERK_STATE.totaal:'',ASSET_CONFIG_VERSIE].join('|');
+  return [STORINGSBRONNEN.map(b=>b.key+':'+b.rijen.length).sort().join(','),LIVE_STORINGSBRONNEN.map(b=>b.key+':'+b.rijen.length).sort().join(','),ASSET_REGISTER_STATE?ASSET_REGISTER_STATE.bestand+':'+ASSET_REGISTER_STATE.assets.length:'',U_ROUTE_STATE?U_ROUTE_STATE.bestand+':'+U_ROUTE_STATE.totaal:'',WERK_STATE?WERK_STATE.bestand+':'+WERK_STATE.totaal:'',ASSET_CONFIG_VERSIE].join('|');
 }
 
 function probeerAnalyseActiveren(voorkeur,opties){
