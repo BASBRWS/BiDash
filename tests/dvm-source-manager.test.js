@@ -10,7 +10,6 @@ test('DVM-bronbeheer heeft voor elke bronsoort een eigen uploadroute',()=>{
     assetregister:['dripInput','leesDripBestand'],
     windDrips:['windDripListInput','special:wind'],
     ria4Drips:['ria4DripListInput','special:ria4'],
-    eol:['eolInputTop','leesEolReferentie'],
     storingshistorie:['autoLogInput','leesStoringsBestanden'],
     uRoutes:['uRouteInput','leesURouteBestand'],
     werkzaamheden:['werkInput','leesWerkBestand'],
@@ -23,6 +22,12 @@ test('DVM-bronbeheer heeft voor elke bronsoort een eigen uploadroute',()=>{
   for(const [type,[input,handler]] of Object.entries(expected)){
     assert.match(source,new RegExp(`${type}:\\{input:'${input}'.*handler:'${handler}'`),type);
   }
+});
+
+
+test('EOL is geen losse bron meer; All Assets draagt EOL en levensduur',()=>{
+  assert.doesNotMatch(source,/eolInputTop|leesEolReferentie|EOL-referentie/);
+  assert.doesNotMatch(source,/\beol:\{input:/);
 });
 
 test('de losse DRIP-storingshistorie-upload is vervangen door DRIP totaal en DRIP uit map',()=>{
