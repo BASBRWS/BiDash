@@ -4942,58 +4942,6 @@ function leesDripFlagBestand(file){
   rd.readAsArrayBuffer(file);
 }
 
-/* Laad de EOL-referentie (fabrikant-factsheets) pas na All Assets. */
-async function leesEolReferentie(file){
-  if(!ASSET_REGISTER_STATE){alert('Laad eerst All Assets. De EOL-referentie is stap 2 en wordt tegen de geladen assets getoetst.');renderDataGereedheid();return;}
-  const isCsv=/\.csv$/i.test(file.name);
-  try{
-    zetImportVoortgang(file.name,0,'EOL-referentie controleren',{direct:true});await uiPauze();
-    let csvFs=';',buffer;
-    if(isCsv){
-      const kopTekst=(await file.slice(0,65536).text()).replace(/^\uFEFF/,'');
-      const kop=(kopTekst.split(/\r?\n/,1)[0]||'');csvFs=csvScheidingLicht(kop);
-      const kolommen=kop.split(csvFs).map(x=>x.replace(/^"|"$/g,'').trim().toLowerCase());
-      const isRef=kolommen.includes('rule_id')&&kolommen.some(x=>['life_median_years','public_eol_date','manufacturer_regex','model_regex'].includes(x));
-      if(!isRef){
-        if(kolommen.includes('asset')&&kolommen.includes('ci-type'))throw new Error('dit is een assetlijst en geen EOL-referentie. Laad dit bestand bij stap 1 via All Assets');
-        throw new Error('vereiste EOL-kolommen ontbreken, waaronder rule_id en life_median_years of public_eol_date');
-      }
-    }
-    zetImportVoortgang(file.name,25,'EOL-bestand lezen',{direct:true});await uiPauze();buffer=await file.arrayBuffer();
-    let rijen;
-    if(isCsv){
-      const txt=new TextDecoder('utf-8').decode(new Uint8Array(buffer)).replace(/^\uFEFF/,'');
-      const wb=XLSX.read(txt,{type:'string',FS:csvFs,raw:true});
-      rijen=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
-    }else{
-      const wb=XLSX.read(buffer,{type:'array'});
-      rijen=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
-    }
-    zetImportVoortgang(file.name,55,'EOL-regels valideren',{direct:true});await uiPauze();
-    const regels=rijen.map(r=>{
-      const g=k=>{ for(const kk of Object.keys(r)){ if(kk.toLowerCase().trim()===k) return r[kk]; } return ''; };
-      const mkRe=s=>{ s=String(s||'').trim(); if(!s||s==='.*') return s==='.*'?/.*/i:null; try{return new RegExp(s,'i');}catch(e){return null;} };
-      const lm=parseFloat(g('life_median_years'));
-      const lmin=parseFloat(g('life_min_years')),lmax=parseFloat(g('life_max_years'));
-      return {rule_id:g('rule_id'),fabRe:mkRe(g('manufacturer_regex')),modRe:mkRe(g('model_regex')),
-        klassen:String(g('asset_classes')||'').split('|').map(x=>x.trim().toUpperCase()).filter(Boolean),family:g('product_family'),
-        status:g('public_status'),eol_date:g('public_eol_date'),life_min:isNaN(lmin)?null:lmin,life_max:isNaN(lmax)?null:lmax,
-        life_median:isNaN(lm)?null:lm,evidence:g('evidence_level'),confidence:g('confidence'),source_url:g('source_url'),source_note:g('source_note')};
-    }).filter(r=>r.rule_id);
-    if(!regels.length)throw new Error('geen geldige EOL-referentieregels gevonden');
-    EOL_REF=regels;EOL_BRON_NAAM=file.name;EOL_VERSIE++;
-    zetImportVoortgang(file.name,72,'EOL-regels aan het assetregister koppelen',{direct:true});await uiPauze();
-    const D=(STATE&&STATE.drips)||DRIP_STATE;
-    if(D){D.drips.forEach(d=>{d._eolRef=eolRegelVoor(d.fabrikant,d.model||d.type,'DRIP');d._rel=null;});}
-    herberekenRegisterDekking();ANALYSE_SIGNATURE='';MC_RESULT=null;DRIP_MC=null;
-    zetImportVoortgang(file.name,94,'Levensduurbronnen en analysepoorten bijwerken',{direct:true});await uiPauze();
-    probeerAnalyseActiveren(D&&D.drips&&D.drips.length?'drips':'overzicht',{inspectieAlGereed:true,matchAlGereed:true});
-    const st=document.getElementById('eolStatus'),metJaar=EOL_REF.filter(r=>r.life_median!=null).length;
-    if(st){st.textContent=`✓ ${EOL_REF.length} EOL-regels geladen (${metJaar} met levensduur)`;st.className='re-status ok';}
-    importKlaar(file.name,`${EOL_REF.length} EOL-regels gekoppeld aan het stamregister.`);
-  }catch(err){importMislukt(file.name,err.message);alert('Kon de EOL-referentie niet verwerken: '+err.message);console.error(err);}
-}
-
 function toonRuleSubtab(tab){
   ASSET_CFG_UI.subtab=tab==='assets'?'assets':'regels';
   const rp=document.getElementById('rulePaneRules'),ap=document.getElementById('rulePaneAssets');
@@ -5170,7 +5118,7 @@ function renderAssetConfigPane(){
   const aliases=Object.entries(cfg.aliases).map(([lk,key])=>{const a=ASSET_INDEX&&ASSET_INDEX.byKey.get(key);return `<span class="asset-alias">${esc(cfg.aliasLabels[lk]||lk)} → ${esc(a?a.naam:key)} <button title="Koppeling verwijderen" onclick="assetConfigVerwijderAlias('${encodeURIComponent(lk)}')">×</button></span>`;}).join('');
   const uitgesloten=Object.keys(cfg.uitgeslotenLogIds).map(lk=>`<span class="asset-alias">${esc(cfg.uitgeslotenLabels[lk]||lk)} · buiten areaal <button title="Uitsluiting verwijderen" onclick="assetConfigVerwijderUitsluiting('${encodeURIComponent(lk)}')">×</button></span>`).join('');
   return `<div class="card"><h3>Assetconfiguratie — koppeling, zwaarte en betrouwbaarheid ${tip('Hier koppel je logidentiteiten aan het canonieke All Assets-areaal en stel je alleen waar nodig waarden per individueel asset in. Individuele waarden hebben voorrang op fabrikant-, type- en standaardregels en worden meegenomen in impact, EOL/Weibull en MTTR.')}</h3>
-    <p class="muted" style="margin:-6px 0 8px;font-size:12px">All Assets blijft de bron voor identiteit, areaal, locatie en bouwjaar. De levensduur komt bij voorkeur uit expliciete assetvelden, een aanvullende EOL-referentie of een bewuste assetconfiguratie. Als die ontbreken, gebruikt het model zichtbaar de generieke waarde van het assettype. Een storingslog wordt niet automatisch een nieuw asset.</p>
+    <p class="muted" style="margin:-6px 0 8px;font-size:12px">All Assets blijft de bron voor identiteit, areaal, locatie, installatie-/ingebruiknamedatum en EOL. De levensduur komt uit expliciete assetvelden of een bewuste assetconfiguratie. Als die ontbreken, gebruikt het model zichtbaar de generieke waarde van het assettype. Een storingslog wordt niet automatisch een nieuw asset.</p>
     <div class="asset-config-grid"><div class="asset-config-kpi"><div class="v">${(ASSET_REGISTER_STATE.actiefN||0).toLocaleString('nl-NL')}</div><div class="l">Actief prognoseareaal</div></div><div class="asset-config-kpi"><div class="v">${ASSET_REGISTER_STATE.assets.length.toLocaleString('nl-NL')}</div><div class="l">Historische referenties</div></div><div class="asset-config-kpi"><div class="v" style="color:var(--groen)">${M.gekoppeld.toLocaleString('nl-NL')}</div><div class="l">Incidenten gekoppeld</div></div><div class="asset-config-kpi"><div class="v" style="color:${M.nietGekoppeld?'var(--oranje)':'var(--groen)'}">${M.nietGekoppeld.toLocaleString('nl-NL')}</div><div class="l">Niet gekoppeld</div></div><div class="asset-config-kpi"><div class="v">${ovN}</div><div class="l">Individueel ingesteld</div></div></div>
     <div class="re-toolbar" style="margin-top:10px"><button class="tb-btn primary" onclick="parametersToepassen()">✓ Toepassen &amp; herberekenen</button>${bestN?`<button class="tb-btn" onclick="assetConfigKoppelBesteAlle()">Koppel beste kandidaten (${bestN})</button>`:''}<button class="tb-btn re-sec" onclick="assetConfigExport()">⭳ Assetconfiguratie</button><button class="tb-btn re-sec" onclick="document.getElementById('assetConfigImportInput').click()">⭱ Assetconfiguratie</button><input type="file" id="assetConfigImportInput" accept=".json,application/json" class="hidden" onchange="assetConfigImport(this.files[0]);this.value=''"> <label style="font-size:11.5px;color:var(--sub)">Automatische hm-tolerantie <input class="re-in" type="number" min="0.01" max="5" step="0.05" value="${cfg.hmTolerantieKm}" onchange="assetConfigTolerantie(this)" style="width:75px"> km</label><span id="assetCfgStatus" class="re-status"></span></div>
     <div class="asset-config-note">De bulkactie koppelt uitsluitend foutgroepen waarvoor hieronder ook een concrete beste kandidaat kan worden getoond. Groepen zonder kandidaat blijven handmatig. Gekoppelde logregels gebruiken daarna de canonieke assetlocatie; ongekoppelde regels blijven zichtbaar, maar tellen niet mee voor asset-specifieke Monte Carlo-kalibratie of EOL-toerekening.</div>
@@ -5292,7 +5240,7 @@ function renderRegels(){
 
   // ── DRIP-regels: functie-gewicht ──
   const dr=RULES.drip;
-  h+=`<details class="rule"><summary>7 · DRIP — functie &amp; EOL-referentie ${tip('DRIP telt als volwaardig assettype mee in de dienstverlening (sectie 1: gewicht, levensduur, β; sectie 5: dienstafhankelijkheden). Hier staan de functieclassificatie en optionele, herleidbare levensduurreferenties per fabrikant/model.')}</summary><div class="rb">
+  h+=`<details class="rule"><summary>7 · DRIP — functie &amp; levensduur ${tip('DRIP telt als volwaardig assettype mee in de dienstverlening (sectie 1: gewicht, levensduur, β; sectie 5: dienstafhankelijkheden). Hier staan de functieclassificatie en eventuele handmatige levensduuroverrides; asset-EOL komt uit All Assets.')}</summary><div class="rb">
     <div class="re-lab">Functie-classificatie (BKN) — gewicht in de keten</div>
     <table class="tbl re-tbl"><thead><tr><th>Code</th><th>Label</th><th class="num">Gewicht</th><th>Dienst</th></tr></thead><tbody>`;
   dr.functies.forEach((f,i)=>{
