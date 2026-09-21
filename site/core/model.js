@@ -17,7 +17,12 @@ export function validate(value,depth=0){
 export function makeExport(state,selection){
  const parts={};
  const dvmKeys=DVM_PARTS.filter(k=>selection.has(k));
- if(state.dvm&&dvmKeys.length)parts.dvm={formaat:'DVM-dienstimpact-totaal',versie:54,exportSelectie:Object.fromEntries(DVM_PARTS.map(k=>[k,selection.has(k)])),...Object.fromEntries(dvmKeys.map(k=>[k,state.dvm[k]]))};
+ if(state.dvm&&dvmKeys.length){
+  const beheer=state.dvm.bronbeheer||{},bronbeheer={};
+  if(selection.has('storingshistorie')&&selection.has('liveStoringen')&&beheer.signaalgeverTotaal)bronbeheer.signaalgeverTotaal=beheer.signaalgeverTotaal;
+  if(selection.has('dripHistorie')&&beheer.dripTotaal)bronbeheer.dripTotaal=beheer.dripTotaal;
+  parts.dvm={formaat:'DVM-dienstimpact-totaal',versie:54,exportSelectie:Object.fromEntries(DVM_PARTS.map(k=>[k,selection.has(k)])),...Object.fromEntries(dvmKeys.map(k=>[k,state.dvm[k]])),...(Object.keys(bronbeheer).length?{bronbeheer}:{})};
+ }
  if(state.bi&&(selection.has('biData')||selection.has('biRules'))){parts.bi={};for(const [k,v] of Object.entries(state.bi))if(selection.has(BI_RULE_KEYS.includes(k)?'biRules':'biData'))parts.bi[k]=v;}
  for(const k of ['planning','links','history'])if(selection.has(k))parts[k]=state[k];
  if(selection.has('quality')){parts.qualityAudit=state.qualityAudit||null;parts.qualityHistory=Array.isArray(state.qualityHistory)?state.qualityHistory:[];}
@@ -34,6 +39,7 @@ export function mergeImport(current,bundle){
  if(p.dvm){
   next.dvm={...(current?.dvm||{formaat:'DVM-dienstimpact-totaal',versie:54})};
   for(const k of DVM_PARTS)if(Object.hasOwn(p.dvm,k)&&p.dvm.exportSelectie?.[k]!==false)next.dvm[k]=p.dvm[k];
+  if(Object.hasOwn(p.dvm,'bronbeheer'))next.dvm.bronbeheer=p.dvm.bronbeheer;
   next.dvm.exportSelectie=Object.fromEntries(DVM_PARTS.map(k=>[k,true]));
  }
  if(p.bi)next.bi={...(current?.bi||{}),...p.bi};
