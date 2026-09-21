@@ -222,7 +222,7 @@ function dripBeschikbaarheid(weg, richting){
    • Geprogrammeerde vervanging = "as good as new": leeftijd → 0 op
      het vervangingsjaar (renewal-reward).
    Parameters: L (mediane levensduur, jaren) en β per assettype
-   (RULES.assetTypen) of per fabrikant/model (EOL-referentie).
+   (RULES.assetTypen), met per-asset waarden uit All Assets waar aanwezig.
    ══════════════════════════════════════════════════════════════ */
 
 /* Assettype-record voor een asset-id (MSI/CAM/LUS/DRIP…). */
@@ -236,8 +236,7 @@ function dripComboKey(fabrikant, type){ return (String(fabrikant||'').trim().toL
      1. individuele assetconfiguratie
      2. handmatige override per fabrikant×type (rule engine)
      3. expliciete levensduur/EOL uit het geladen assetregister
-     4. EOL-referentie (fabrikant/model factsheet)
-     5. assettype-levensduur en standaard-terugval  */
+     4. assettype-levensduur en standaard-terugval  */
 function assetReliability(asset){
   const at = assetTypeRec(asset.assetType||'DRIP') || {beta:3.0, levensduur:15};
   const individueel=assetOverrideVoor(asset._assetKey||asset.assetKey||asset.key);
