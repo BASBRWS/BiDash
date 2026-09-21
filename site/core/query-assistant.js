@@ -129,6 +129,8 @@ function detectPlanningReference(text,data){
 function inferDataset(text,previous={},screen={}){return explicitDataset(text)||previous.dataset||screen.dataset||'overview';}
 
 function inferIntent(text,dataset){
+  if(dataset==='assets'&&/\b(oudste|oudst|langst in gebruik|eerste geplaatst|vroegst geplaatst|vroegste installatie)\b/.test(text))return 'oldest';
+  if(dataset==='assets'&&/\b(nieuwste|nieuwst|jongste|jongst|meest recent geplaatst|laatst geplaatst|recentste installatie)\b/.test(text))return 'newest';
   if(dataset==='planning'&&/\b(wanneer|eerstvolgende|eerst volgende|volgende keer|volgende)\b/.test(text))return /\b(eerstvolgende|eerst volgende|volgende keer|volgende)\b/.test(text)?'next':'when';
   if(dataset==='planning'&&/\b(vorige|laatste keer|meest recente)\b/.test(text))return 'previous';
   if(/\b(meest voorkomende|vaakst|top\s*\d*\s*fout|welke foutcodes|foutcodes komen)\b/.test(text))return 'groupCodes';
@@ -399,8 +401,34 @@ function faultResult(parsed,data){
   return result(`Er ${rows.length===1?'is':'zijn'} ${fmt(rows.length)} open ${rows.length===1?'storing':'storingen'}${scope}.`,parsed.context,{title:'Open storingen',metrics:[{label:'Aantal',value:fmt(rows.length)},{label:'Niet doorgerekend',value:fmt(rows.filter(r=>r.impact==null).length)}],columns:breakdown.length?[['type','Type'],['aantal','Aantal']]:[],rows:breakdown});
 }
 
+function assetInstallYear(asset){
+  const direct=Number(asset?.bouwjaar??asset?.raw?.bouwjaar);
+  if(Number.isFinite(direct)&&direct>=1900&&direct<=2200)return direct;
+  const values=[asset?.ingebruikname,asset?.raw?.ingebruikname,asset?.raw?.ingebruikDatum,asset?.raw?.installatiedatum,asset?.raw?.installatiejaar];
+  for(const value of values){
+    if(value==null||value==='')continue;
+    const m=String(value).match(/\b(19|20|21)\d{2}\b/);if(m)return Number(m[0]);
+    const d=new Date(value);if(Number.isFinite(d.getTime()))return d.getFullYear();
+  }
+  return null;
+}
+function assetInstallLabel(asset){
+  const raw=asset?.ingebruikname??asset?.raw?.ingebruikname??asset?.raw?.ingebruikDatum??'';
+  if(raw instanceof Date&&!isNaN(raw))return raw.toLocaleDateString('nl-NL');
+  if(raw){const d=new Date(raw);if(Number.isFinite(d.getTime())&&!/^\d{4}$/.test(String(raw).trim()))return d.toLocaleDateString('nl-NL');}
+  const y=assetInstallYear(asset);return y?String(y):'onbekend';
+}
 function assetResult(parsed,data){
   const rows=filterAssets(data.assets||[],parsed.context.filters),labels=contextLabels(parsed.context),scope=labels.length?' binnen '+labels.join(' · '):'';
+  if(parsed.intent==='oldest'||parsed.intent==='newest'){
+    const withAge=rows.map(a=>({...a,_installYear:assetInstallYear(a),_installLabel:assetInstallLabel(a)})).filter(a=>a._installYear!=null);
+    withAge.sort((a,b)=>parsed.intent==='oldest'?a._installYear-b._installYear:b._installYear-a._installYear);
+    const top=withAge[0];
+    if(!top)return result(`Ik vind ${fmt(rows.length)} assets${scope}, maar geen bruikbare installatie-/ingebruiknamedatum in All Assets voor deze selectie.`,parsed.context,{title:'Assetleeftijd',metrics:[{label:'Assets',value:fmt(rows.length)},{label:'Met installatiedatum',value:'0'}]});
+    const same=withAge.filter(a=>a._installYear===top._installYear).slice(0,25);
+    const woord=parsed.intent==='oldest'?'oudste':'nieuwste';
+    return result(`De ${woord} bekende installatie${scope} dateert uit ${top._installLabel}. Ik baseer dit uitsluitend op installatie-/ingebruiknamevelden uit All Assets; ontbrekende datums tel ik niet mee.`,parsed.context,{title:(parsed.intent==='oldest'?'Oudste':'Nieuwste')+' asset',metrics:[{label:'Installatie',value:top._installLabel},{label:'Assets met zelfde jaar',value:fmt(same.length)},{label:'Met installatiedatum',value:fmt(withAge.length)}],columns:[['naam','Asset'],['tp','Type'],['vc','VC'],['weg','Locatie'],['_installLabel','In gebruik / installatie'],['eolLabel','EOL']],rows:same.map(a=>({...a,eolLabel:a.eolJaar??a.raw?.eol?.jaar??'–'}))});
+  }
   if(parsed.intent==='list')return result(rows.length?`Ik heb ${fmt(rows.length)} assets gevonden${scope}.`:`Ik vind geen assets${scope}.`,parsed.context,{title:'Assets',metrics:[{label:'Aantal',value:fmt(rows.length)}],columns:[['naam','Asset'],['tp','Type'],['vc','VC'],['weg','Locatie'],['status','Status']],rows:rows.slice(0,25)});
   return result(`Er ${rows.length===1?'is':'zijn'} ${fmt(rows.length)} ${rows.length===1?'asset':'assets'}${scope}.`,parsed.context,{title:'Assets',metrics:[{label:'Aantal',value:fmt(rows.length)}]});
 }
@@ -553,16 +581,13 @@ function assetEolValue(a){
   return null;
 }
 function eolResult(parsed,data){
-  const source=data.eol||{},current=new Date().getFullYear(),f=parsed.context.filters||{};
+  const current=new Date().getFullYear(),f=parsed.context.filters||{};
   let assets=(data.assets||[]).map(a=>({...a,_eol:assetEolValue(a)})).filter(a=>a._eol!=null);
   if(f.road)assets=assets.filter(a=>upper(a.weg).includes(upper(f.road)));
   if(f.typeId)assets=assets.filter(a=>upper(a.tp||a.assetType)===upper(f.typeId));
   if(/verouder|einde levensduur|over eol|voorbij/.test(parsed.text))assets=assets.filter(a=>a._eol<=current);
   assets.sort((a,b)=>a._eol-b._eol);
-  const text=source.loaded
-    ? `De EOL-referentie is geladen met ${fmt(source.count||0)} levensduurregels. Voor ${fmt(assets.length)} assets in de huidige context is ook een concreet EOL-jaar beschikbaar in de ontsloten assetdata.`
-    : 'Er is geen aparte EOL-referentie geladen; generieke levensduurregels kunnen nog steeds door DVM worden gebruikt.';
-  return result(text,parsed.context,{title:'EOL / levensduur',metrics:[{label:'EOL-regels',value:fmt(source.count||0)},{label:'Assets met EOL-jaar',value:fmt(assets.length)},{label:'Reeds bereikt',value:fmt(assets.filter(a=>a._eol<=current).length)}],columns:[['naam','Asset'],['tp','Type'],['weg','Locatie'],['_eol','EOL-jaar']],rows:assets.slice(0,30)});
+  return result(assets.length?`All Assets bevat voor ${fmt(assets.length)} assets in deze selectie een concreet EOL-jaar. De chat gebruikt geen aparte EOL-referentie meer.`:'Ik vind in All Assets geen concreet EOL-jaar binnen deze selectie.',parsed.context,{title:'EOL uit All Assets',metrics:[{label:'Assets met EOL-jaar',value:fmt(assets.length)},{label:'Reeds bereikt',value:fmt(assets.filter(a=>a._eol<=current).length)}],columns:[['naam','Asset'],['tp','Type'],['weg','Locatie'],['_eol','EOL-jaar']],rows:assets.slice(0,30)});
 }
 function serviceFaultRelation(parsed,data){
   const service=(data.services||[]).find(s=>String(s.id)===String(parsed.context.serviceId));
