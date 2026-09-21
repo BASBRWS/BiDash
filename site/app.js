@@ -18,6 +18,7 @@ const ASSET_QUERY_FIELDS=[
  {key:'naam',label:'Assetnaam'},{key:'key',label:'Asset-ID'},{key:'tp',label:'Assettype'},{key:'source',label:'Bron'},
  {key:'vc',label:'Verkeerscentrale'},{key:'weg',label:'Locatie of weg'},{key:'status',label:'Status'},
  {key:'contract',label:'Contract'},{key:'aannemer',label:'Aannemer'},{key:'leverancier',label:'Leverancier'},
+ {key:'installationYear',label:'Installatie-/stichtingsjaar',type:'number'},{key:'eolYear',label:'EOL-jaar',type:'number'},{key:'lifeYears',label:'Levensduur (jaar)',type:'number'},
  {key:'openFaults',label:'Aantal open storingen',type:'number'},{key:'assetFaultCodes',label:'Asset heeft foutcode'}
 ];
 const FAULT_QUERY_FIELDS=[
@@ -163,9 +164,20 @@ function allFaults(){return sourceApi('dvm')?.faults()||[];}
 function faultCodesByAsset(faults=allFaults()){
  const map=new Map();for(const fault of faults){if(!fault.assetKey||!fault.code)continue;const codes=map.get(fault.assetKey)||new Set();codes.add(String(fault.code));map.set(fault.assetKey,codes);}return map;
 }
+function assetYearValue(value){
+ const n=Number(value);if(Number.isFinite(n)&&n>=1900&&n<=2100)return Math.trunc(n);
+ const m=String(value??'').match(/\b(19\d{2}|20\d{2}|2100)\b/);return m?Number(m[1]):null;
+}
 function queryAssets(rows,faults){
  const codes=faultCodesByAsset(faults),counts=new Map();for(const fault of faults)if(fault.assetKey)counts.set(fault.assetKey,(counts.get(fault.assetKey)||0)+1);
- return rows.map(asset=>({...asset,contract:asset.raw?.contract,aannemer:asset.raw?.aannemer,leverancier:asset.raw?.leverancier,openFaults:counts.get(asset.key)||0,assetFaultCodes:[...(codes.get(asset.key)||[])]}));
+ return rows.map(asset=>{
+  const raw=asset.raw||{},installationYear=assetYearValue(raw.bouwjaar??raw.ingebruikname),eolYear=assetYearValue(raw.eol?.jaar??raw.eolJaar??raw.eolYear);
+  const life=Number(raw.eol?.levensduur??raw.eolLevensduur??raw.modelLevensduur);
+  return {...asset,contract:raw.contract,aannemer:raw.aannemer,leverancier:raw.leverancier,
+   installationYear,installationDate:raw.ingebruikname??'',installationSource:raw.bouwjaarBron||'',
+   eolYear,lifeYears:Number.isFinite(life)&&life>0?life:null,
+   openFaults:counts.get(asset.key)||0,assetFaultCodes:[...(codes.get(asset.key)||[])]};
+ });
 }
 function queryFaults(rows){
  const codes=faultCodesByAsset(rows);
