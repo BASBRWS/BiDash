@@ -52,13 +52,12 @@ dan laad je het opnieuw.
 
 ## Aanbevolen laadvolgorde
 
-1. Laad All Assets als technisch stamregister.
-2. Laad de EOL-referentie als die beschikbaar is.
-3. Laad historische storingsbestanden voor historie en prognosekalibratie.
-4. Laad U-routes en geplande werkzaamheden als operationele context.
-5. Laad als laatste de actuele open storingslijst voor het live dashboard.
-6. Stel desgewenst in Datasetbeheer het filter in voor de open storingen die in het actuele overzicht mogen meetellen.
-7. Laad BI-gegevens en planning voor formatie, contracten en uitvoerbaarheid.
+1. Laad All Assets als technisch stamregister. Installatie-/ingebruiknamedatum, EOL en eventuele expliciete levensduur komen uit ditzelfde bestand.
+2. Laad historische storingsbestanden voor historie en prognosekalibratie.
+3. Laad U-routes en geplande werkzaamheden als operationele context.
+4. Laad als laatste de actuele open storingslijst voor het live dashboard.
+5. Stel desgewenst in Datasetbeheer het filter in voor de open storingen die in het actuele overzicht mogen meetellen.
+6. Laad BI-gegevens en planning voor formatie, contracten en uitvoerbaarheid.
 
 Historische storingen en actuele open storingen zijn twee verschillende gegevensstromen. Historische meldingen mogen het live dashboard niet beïnvloeden. Bij DRIP-historie leidt BiDash alleen incidenten af die aantoonbaar aan het actuele einde van hun eigen bron nog open staan. Oude gecensureerde incidenten worden niet als huidige storing meegenomen.
 
@@ -97,7 +96,7 @@ Herkent BiDash in een referentielijst géén markerkolom, dan krijgt elke regel 
 
 Bij het kiezen van bestanden verschijnt onder de statusregel van BiDash een voortgangsbalk. Voor bestanden die via **Data & export** worden gelezen toont de balk de leesvoortgang op basis van werkelijk gelezen bytes. Zodra het bestand volledig is gelezen verandert de fase naar inhoud controleren; tijdens JSON- of XML-verwerking kan het percentage daardoor kort stilstaan terwijl de browser de inhoud parseert.
 
-Ook specialistische DVM-bronnen, zoals All Assets, EOL, open storingen, storingshistorie, U-routes en werkzaamheden, sturen hun bestaande importfasen naar dezelfde voortgangsbalk in de hoofdapp. Daardoor blijft zichtbaar welk bestand en welke verwerkingsstap bezig is, ook wanneer een grote bron tijdelijk veel rekentijd vraagt.
+Ook specialistische DVM-bronnen, zoals All Assets, open storingen, storingshistorie, U-routes en werkzaamheden, sturen hun bestaande importfasen naar dezelfde voortgangsbalk in de hoofdapp. Daardoor blijft zichtbaar welk bestand en welke verwerkingsstap bezig is, ook wanneer een grote bron tijdelijk veel rekentijd vraagt.
 
 De balk onderscheidt lezen, controleren/verwerken, toepassen in de rekenmodules en afronden/opslag. Bij een fout blijft de laatste fase met een waarschuwingsmarkering zichtbaar. Bij een geslaagde import wordt 100% getoond en verdwijnt de melding na enkele seconden.
 
@@ -327,3 +326,12 @@ BiDash doorzoekt hiervoor de planningactiviteitnaam, activiteitcode, WBS/blok, v
 Als een term daadwerkelijk in de geladen planning voorkomt, wordt de vraag als planningvraag behandeld en niet als vervolg op een eerder gespreksonderwerp. Bij `wanneer`, `eerstvolgende` en `meest recente` sorteert BiDash de gevonden matches op de effectieve planningdatum.
 
 De planning blijft daarmee zelf de bron van de terminologie. Nieuwe projectnamen, testfasen, afkortingen, codes of WBS-termen hoeven niet apart aan een vaste woordenlijst te worden toegevoegd.
+
+
+### Assetleeftijd en EOL
+
+**All Assets is de enige expliciete bron voor assetleeftijd en EOL.** Een aparte EOL-referentie wordt niet meer geladen of opgeslagen.
+
+Vraag BiDash gebruikt bij vragen als `Wat is het oudste asset?`, `Welke assets zijn het oudst?` en `Wat is het nieuwste asset?` de installatie-/ingebruiknamedatum uit All Assets. Als alleen een bruikbaar jaar beschikbaar is, gebruikt de chat dat jaar. Assets zonder bruikbare installatiedatum worden bij zo'n rangschikking niet stilzwijgend als oud of nieuw behandeld, maar buiten de rangschikking gehouden.
+
+Voor levensduur/prognose geldt de bronvolgorde: bewuste individuele of fabrikant×type-override, expliciete levensduur/EOL uit All Assets, daarna de zichtbare generieke assettypewaarde. Het EOL-jaar uit All Assets kan samen met het installatiejaar worden gebruikt om een levensduur af te leiden.
