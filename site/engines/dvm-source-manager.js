@@ -10,7 +10,6 @@
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
     windDrips:{input:'windDripListInput',label:'Windwaarschuwing DRIP’s laden',multiple:false,requiresAsset:true,handler:'special:wind',accept:SPECIAL_ACCEPT},
     ria4Drips:{input:'ria4DripListInput',label:'RIA4 DRIP’s laden',multiple:false,requiresAsset:true,handler:'special:ria4',accept:SPECIAL_ACCEPT},
-    eol:{input:'eolInputTop',label:'EOL-referentie laden',multiple:false,requiresAsset:true,handler:'leesEolReferentie'},
     storingshistorie:{input:'autoLogInput',label:'Storingshistorie toevoegen',multiple:true,requiresAsset:true,handler:'leesStoringsBestanden'},
     uRoutes:{input:'uRouteInput',label:'U-routes laden',multiple:false,requiresAsset:true,handler:'leesURouteBestand'},
     werkzaamheden:{input:'werkInput',label:'Werkzaamheden laden',multiple:false,requiresAsset:true,handler:'leesWerkBestand'},
@@ -20,12 +19,11 @@
     dripTotaal:{input:'dripTotaalInput',label:'DRIP totaal (JSON) laden',multiple:false,requiresAsset:true,handler:'leesDripTotaal',accept:'.json'},
     dripMap:{input:'dripMapInput',label:'DRIP uit map lezen (CDMS)',multiple:true,directory:true,requiresAsset:true,handler:'leesDripMap'}
   });
-  const SOURCE_ORDER=['assetregister','windDrips','ria4Drips','eol','storingshistorie','uRoutes','werkzaamheden','liveStoringen','signaalgeverTotaal','signaalgeverMap','dripTotaal','dripMap'];
+  const SOURCE_ORDER=['assetregister','windDrips','ria4Drips','storingshistorie','uRoutes','werkzaamheden','liveStoringen','signaalgeverTotaal','signaalgeverMap','dripTotaal','dripMap'];
   const PLACEHOLDERS={
     assetregister:{titel:'Assetregister / All Assets',meta:'Nog niet geladen. Laad dit stamregister als eerste.'},
     windDrips:{titel:'Windwaarschuwing DRIP’s',meta:'Nog geen referentielijst geladen. Deze bron markeert welke DRIP-assets bij windwaarschuwing horen.'},
     ria4Drips:{titel:'RIA4 DRIP’s',meta:'Nog geen referentielijst geladen. Deze bron markeert welke DRIP-assets bij RIA4 horen.'},
-    eol:{titel:'EOL-referentie',meta:'Niet geladen; generieke levensduur blijft mogelijk.'},
     storingshistorie:{titel:'Storingshistorie',meta:'Nog geen historische DVM-storingsbron geladen. Deze bron voedt alleen prognoses.'},
     uRoutes:{titel:'U-routes',meta:'Niet geladen. U-routes zijn operationele routecontext.'},
     werkzaamheden:{titel:'Werkzaamheden',meta:'Niet geladen. Werkzaamheden zijn operationele context.'},
@@ -251,7 +249,6 @@
     let result;
     switch(c.handler){
       case 'leesDripBestand': result=await leesDripBestand(files[0]);break;
-      case 'leesEolReferentie': result=await leesEolReferentie(files[0]);break;
       case 'leesStoringsBestanden': result=await leesStoringsBestanden(files);break;
       case 'leesURouteBestand': result=await leesURouteBestand(files[0]);break;
       case 'leesWerkBestand': result=await leesWerkBestand(files[0]);break;
