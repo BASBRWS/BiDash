@@ -165,7 +165,14 @@ function faultCodesByAsset(faults=allFaults()){
 }
 function queryAssets(rows,faults){
  const codes=faultCodesByAsset(faults),counts=new Map();for(const fault of faults)if(fault.assetKey)counts.set(fault.assetKey,(counts.get(fault.assetKey)||0)+1);
- return rows.map(asset=>({...asset,contract:asset.raw?.contract,aannemer:asset.raw?.aannemer,leverancier:asset.raw?.leverancier,openFaults:counts.get(asset.key)||0,assetFaultCodes:[...(codes.get(asset.key)||[])]}));
+ return rows.map(asset=>({...asset,
+   contract:asset.raw?.contract,aannemer:asset.raw?.aannemer,leverancier:asset.raw?.leverancier,
+   ingebruikname:asset.raw?.ingebruikname??asset.raw?.ingebruikDatum??null,
+   bouwjaar:asset.raw?.bouwjaar??null,bouwjaarBron:asset.raw?.bouwjaarBron||'',
+   eolJaar:asset.raw?.eol?.jaar??asset.raw?._eolYear??null,
+   eolLevensduur:asset.raw?.eol?.levensduur??asset.raw?._eolLife??null,
+   openFaults:counts.get(asset.key)||0,assetFaultCodes:[...(codes.get(asset.key)||[])]
+ }));
 }
 function queryFaults(rows){
  const codes=faultCodesByAsset(rows);

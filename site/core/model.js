@@ -2,9 +2,9 @@ import './import-known-json-fastpath.js';
 import './universal-importer.js';
 import './asset-register-special-filter.js';
 
-export const DVM_PARTS=['assetregister','eol','storingshistorie','liveStoringen','dripHistorie','uRoutes','werkzaamheden','parameters','dripSelectie'];
+export const DVM_PARTS=['assetregister','storingshistorie','liveStoringen','dripHistorie','uRoutes','werkzaamheden','parameters','dripSelectie'];
 export const BI_RULE_KEYS=['config','configBron','richtlijnen','amRegels','impact','capgrens'];
-export const LABELS={dvm:'DVM volledig',assetregister:'Assetregister',eol:'EOL / levensduur',storingshistorie:'Storingshistorie',liveStoringen:'Open storingen',dripHistorie:'DRIP-historie',uRoutes:'U-routes',werkzaamheden:'Werkzaamheden',parameters:'DVM-regels, verkeersmodel en simulaties',dripSelectie:'DRIP-selectie',biData:'BI-data: formatie, contracten en assets',biRules:'BI-rekenregels en normen',planning:'Planning: originele XML en instellingen',links:'Dienstkoppelingen',history:'Gezamenlijke dagstanden',quality:'Kwaliteitsaudit en scorehistorie'};
+export const LABELS={dvm:'DVM volledig',assetregister:'Assetregister',storingshistorie:'Storingshistorie',liveStoringen:'Open storingen',dripHistorie:'DRIP-historie',uRoutes:'U-routes',werkzaamheden:'Werkzaamheden',parameters:'DVM-regels, verkeersmodel en simulaties',dripSelectie:'DRIP-selectie',biData:'BI-data: formatie, contracten en assets',biRules:'BI-rekenregels en normen',planning:'Planning: originele XML en instellingen',links:'Dienstkoppelingen',history:'Gezamenlijke dagstanden',quality:'Kwaliteitsaudit en scorehistorie'};
 export const DEFAULT_STATE=()=>({schema:1,dvm:null,bi:null,planning:null,links:[],history:[],qualityAudit:null,qualityHistory:[]});
 const VALIDATED_ROOTS=new WeakSet();
 export function validate(value,depth=0){

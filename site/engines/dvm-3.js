@@ -2091,8 +2091,6 @@ function leesDripBestand(file){
         actief:DVM_LEEFTIJD_STATE.actief, metJaar:DVM_LEEFTIJD_STATE.metJaar,
         pct:DVM_LEEFTIJD_STATE.actief?DVM_LEEFTIJD_STATE.metJaar/DVM_LEEFTIJD_STATE.actief:0
       };
-      // koppel EOL-referentie indien geladen
-      if(EOL_REF.length) DRIP_STATE.drips.forEach(d=>{ d._eolRef=eolRegelVoor(d.fabrikant,d.model||d.type,'DRIP'); d._rel=null; });
       rijen=null;
       zetImportVoortgang(file.name,90,'Geladen DRIP-historie aan het nieuwe stamregister koppelen',{direct:true});await uiPauze();
       if(DRIP_HIST_STATE)koppelDripHistorieAanAreaal({slaMatchBeeldOver:true});
@@ -2114,7 +2112,6 @@ function leesDripBestand(file){
 document.getElementById('xlsInput').addEventListener('change',async e=>{const invoer=e.currentTarget,f=[...invoer.files];if(!f.length)return;try{await laadStoringsBestandenAutomatisch(f);}finally{invoer.value='';}});
 document.addEventListener('DOMContentLoaded',()=>{ const di=document.getElementById('dripInput'); if(di) di.addEventListener('change',async e=>{const invoer=e.currentTarget,f=invoer.files[0];if(!f)return;try{await leesDripBestand(f);}finally{invoer.value='';}}); });
 document.addEventListener('DOMContentLoaded',()=>{ const ai=document.getElementById('autoLogInput'); if(ai) ai.addEventListener('change',async e=>{const invoer=e.currentTarget,f=[...invoer.files];if(!f.length)return;try{await laadStoringsBestandenAutomatisch(f);}finally{invoer.value='';}}); });
-document.addEventListener('DOMContentLoaded',()=>{ const ei=document.getElementById('eolInputTop'); if(ei) ei.addEventListener('change',async e=>{const invoer=e.currentTarget,f=invoer.files[0];if(!f)return;try{await leesEolReferentie(f);}finally{invoer.value='';}}); });
 document.addEventListener('DOMContentLoaded',()=>{ const ui=document.getElementById('uRouteInput'); if(ui) ui.addEventListener('change',async e=>{const invoer=e.currentTarget,f=invoer.files[0];if(!f)return;try{await leesURouteBestand(f);}finally{invoer.value='';}}); });
 document.addEventListener('DOMContentLoaded',()=>{ const wi=document.getElementById('werkInput'); if(wi) wi.addEventListener('change',async e=>{const invoer=e.currentTarget,f=invoer.files[0];if(!f)return;try{await leesWerkBestand(f);}finally{invoer.value='';}}); });
 document.addEventListener('DOMContentLoaded',()=>{ const li=document.getElementById('liveLogInput'); if(li) li.addEventListener('change',async e=>{const invoer=e.currentTarget,f=[...invoer.files];if(!f.length)return;try{await leesLiveStoringsBestanden(f);}finally{invoer.value='';}}); });
@@ -4945,58 +4942,6 @@ function leesDripFlagBestand(file){
   rd.readAsArrayBuffer(file);
 }
 
-/* Laad de EOL-referentie (fabrikant-factsheets) pas na All Assets. */
-async function leesEolReferentie(file){
-  if(!ASSET_REGISTER_STATE){alert('Laad eerst All Assets. De EOL-referentie is stap 2 en wordt tegen de geladen assets getoetst.');renderDataGereedheid();return;}
-  const isCsv=/\.csv$/i.test(file.name);
-  try{
-    zetImportVoortgang(file.name,0,'EOL-referentie controleren',{direct:true});await uiPauze();
-    let csvFs=';',buffer;
-    if(isCsv){
-      const kopTekst=(await file.slice(0,65536).text()).replace(/^\uFEFF/,'');
-      const kop=(kopTekst.split(/\r?\n/,1)[0]||'');csvFs=csvScheidingLicht(kop);
-      const kolommen=kop.split(csvFs).map(x=>x.replace(/^"|"$/g,'').trim().toLowerCase());
-      const isRef=kolommen.includes('rule_id')&&kolommen.some(x=>['life_median_years','public_eol_date','manufacturer_regex','model_regex'].includes(x));
-      if(!isRef){
-        if(kolommen.includes('asset')&&kolommen.includes('ci-type'))throw new Error('dit is een assetlijst en geen EOL-referentie. Laad dit bestand bij stap 1 via All Assets');
-        throw new Error('vereiste EOL-kolommen ontbreken, waaronder rule_id en life_median_years of public_eol_date');
-      }
-    }
-    zetImportVoortgang(file.name,25,'EOL-bestand lezen',{direct:true});await uiPauze();buffer=await file.arrayBuffer();
-    let rijen;
-    if(isCsv){
-      const txt=new TextDecoder('utf-8').decode(new Uint8Array(buffer)).replace(/^\uFEFF/,'');
-      const wb=XLSX.read(txt,{type:'string',FS:csvFs,raw:true});
-      rijen=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
-    }else{
-      const wb=XLSX.read(buffer,{type:'array'});
-      rijen=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
-    }
-    zetImportVoortgang(file.name,55,'EOL-regels valideren',{direct:true});await uiPauze();
-    const regels=rijen.map(r=>{
-      const g=k=>{ for(const kk of Object.keys(r)){ if(kk.toLowerCase().trim()===k) return r[kk]; } return ''; };
-      const mkRe=s=>{ s=String(s||'').trim(); if(!s||s==='.*') return s==='.*'?/.*/i:null; try{return new RegExp(s,'i');}catch(e){return null;} };
-      const lm=parseFloat(g('life_median_years'));
-      const lmin=parseFloat(g('life_min_years')),lmax=parseFloat(g('life_max_years'));
-      return {rule_id:g('rule_id'),fabRe:mkRe(g('manufacturer_regex')),modRe:mkRe(g('model_regex')),
-        klassen:String(g('asset_classes')||'').split('|').map(x=>x.trim().toUpperCase()).filter(Boolean),family:g('product_family'),
-        status:g('public_status'),eol_date:g('public_eol_date'),life_min:isNaN(lmin)?null:lmin,life_max:isNaN(lmax)?null:lmax,
-        life_median:isNaN(lm)?null:lm,evidence:g('evidence_level'),confidence:g('confidence'),source_url:g('source_url'),source_note:g('source_note')};
-    }).filter(r=>r.rule_id);
-    if(!regels.length)throw new Error('geen geldige EOL-referentieregels gevonden');
-    EOL_REF=regels;EOL_BRON_NAAM=file.name;EOL_VERSIE++;
-    zetImportVoortgang(file.name,72,'EOL-regels aan het assetregister koppelen',{direct:true});await uiPauze();
-    const D=(STATE&&STATE.drips)||DRIP_STATE;
-    if(D){D.drips.forEach(d=>{d._eolRef=eolRegelVoor(d.fabrikant,d.model||d.type,'DRIP');d._rel=null;});}
-    herberekenRegisterDekking();ANALYSE_SIGNATURE='';MC_RESULT=null;DRIP_MC=null;
-    zetImportVoortgang(file.name,94,'Levensduurbronnen en analysepoorten bijwerken',{direct:true});await uiPauze();
-    probeerAnalyseActiveren(D&&D.drips&&D.drips.length?'drips':'overzicht',{inspectieAlGereed:true,matchAlGereed:true});
-    const st=document.getElementById('eolStatus'),metJaar=EOL_REF.filter(r=>r.life_median!=null).length;
-    if(st){st.textContent=`✓ ${EOL_REF.length} EOL-regels geladen (${metJaar} met levensduur)`;st.className='re-status ok';}
-    importKlaar(file.name,`${EOL_REF.length} EOL-regels gekoppeld aan het stamregister.`);
-  }catch(err){importMislukt(file.name,err.message);alert('Kon de EOL-referentie niet verwerken: '+err.message);console.error(err);}
-}
-
 function toonRuleSubtab(tab){
   ASSET_CFG_UI.subtab=tab==='assets'?'assets':'regels';
   const rp=document.getElementById('rulePaneRules'),ap=document.getElementById('rulePaneAssets');
@@ -5173,7 +5118,7 @@ function renderAssetConfigPane(){
   const aliases=Object.entries(cfg.aliases).map(([lk,key])=>{const a=ASSET_INDEX&&ASSET_INDEX.byKey.get(key);return `<span class="asset-alias">${esc(cfg.aliasLabels[lk]||lk)} → ${esc(a?a.naam:key)} <button title="Koppeling verwijderen" onclick="assetConfigVerwijderAlias('${encodeURIComponent(lk)}')">×</button></span>`;}).join('');
   const uitgesloten=Object.keys(cfg.uitgeslotenLogIds).map(lk=>`<span class="asset-alias">${esc(cfg.uitgeslotenLabels[lk]||lk)} · buiten areaal <button title="Uitsluiting verwijderen" onclick="assetConfigVerwijderUitsluiting('${encodeURIComponent(lk)}')">×</button></span>`).join('');
   return `<div class="card"><h3>Assetconfiguratie — koppeling, zwaarte en betrouwbaarheid ${tip('Hier koppel je logidentiteiten aan het canonieke All Assets-areaal en stel je alleen waar nodig waarden per individueel asset in. Individuele waarden hebben voorrang op fabrikant-, type- en standaardregels en worden meegenomen in impact, EOL/Weibull en MTTR.')}</h3>
-    <p class="muted" style="margin:-6px 0 8px;font-size:12px">All Assets blijft de bron voor identiteit, areaal, locatie en bouwjaar. De levensduur komt bij voorkeur uit expliciete assetvelden, een aanvullende EOL-referentie of een bewuste assetconfiguratie. Als die ontbreken, gebruikt het model zichtbaar de generieke waarde van het assettype. Een storingslog wordt niet automatisch een nieuw asset.</p>
+    <p class="muted" style="margin:-6px 0 8px;font-size:12px">All Assets blijft de bron voor identiteit, areaal, locatie, installatie-/ingebruiknamedatum en EOL. De levensduur komt uit expliciete assetvelden of een bewuste assetconfiguratie. Als die ontbreken, gebruikt het model zichtbaar de generieke waarde van het assettype. Een storingslog wordt niet automatisch een nieuw asset.</p>
     <div class="asset-config-grid"><div class="asset-config-kpi"><div class="v">${(ASSET_REGISTER_STATE.actiefN||0).toLocaleString('nl-NL')}</div><div class="l">Actief prognoseareaal</div></div><div class="asset-config-kpi"><div class="v">${ASSET_REGISTER_STATE.assets.length.toLocaleString('nl-NL')}</div><div class="l">Historische referenties</div></div><div class="asset-config-kpi"><div class="v" style="color:var(--groen)">${M.gekoppeld.toLocaleString('nl-NL')}</div><div class="l">Incidenten gekoppeld</div></div><div class="asset-config-kpi"><div class="v" style="color:${M.nietGekoppeld?'var(--oranje)':'var(--groen)'}">${M.nietGekoppeld.toLocaleString('nl-NL')}</div><div class="l">Niet gekoppeld</div></div><div class="asset-config-kpi"><div class="v">${ovN}</div><div class="l">Individueel ingesteld</div></div></div>
     <div class="re-toolbar" style="margin-top:10px"><button class="tb-btn primary" onclick="parametersToepassen()">✓ Toepassen &amp; herberekenen</button>${bestN?`<button class="tb-btn" onclick="assetConfigKoppelBesteAlle()">Koppel beste kandidaten (${bestN})</button>`:''}<button class="tb-btn re-sec" onclick="assetConfigExport()">⭳ Assetconfiguratie</button><button class="tb-btn re-sec" onclick="document.getElementById('assetConfigImportInput').click()">⭱ Assetconfiguratie</button><input type="file" id="assetConfigImportInput" accept=".json,application/json" class="hidden" onchange="assetConfigImport(this.files[0]);this.value=''"> <label style="font-size:11.5px;color:var(--sub)">Automatische hm-tolerantie <input class="re-in" type="number" min="0.01" max="5" step="0.05" value="${cfg.hmTolerantieKm}" onchange="assetConfigTolerantie(this)" style="width:75px"> km</label><span id="assetCfgStatus" class="re-status"></span></div>
     <div class="asset-config-note">De bulkactie koppelt uitsluitend foutgroepen waarvoor hieronder ook een concrete beste kandidaat kan worden getoond. Groepen zonder kandidaat blijven handmatig. Gekoppelde logregels gebruiken daarna de canonieke assetlocatie; ongekoppelde regels blijven zichtbaar, maar tellen niet mee voor asset-specifieke Monte Carlo-kalibratie of EOL-toerekening.</div>
@@ -5295,7 +5240,7 @@ function renderRegels(){
 
   // ── DRIP-regels: functie-gewicht ──
   const dr=RULES.drip;
-  h+=`<details class="rule"><summary>7 · DRIP — functie &amp; EOL-referentie ${tip('DRIP telt als volwaardig assettype mee in de dienstverlening (sectie 1: gewicht, levensduur, β; sectie 5: dienstafhankelijkheden). Hier staan de functieclassificatie en optionele, herleidbare levensduurreferenties per fabrikant/model.')}</summary><div class="rb">
+  h+=`<details class="rule"><summary>7 · DRIP — functie &amp; levensduur ${tip('DRIP telt als volwaardig assettype mee in de dienstverlening (sectie 1: gewicht, levensduur, β; sectie 5: dienstafhankelijkheden). Hier staan de functieclassificatie en eventuele handmatige levensduuroverrides; asset-EOL komt uit All Assets.')}</summary><div class="rb">
     <div class="re-lab">Functie-classificatie (BKN) — gewicht in de keten</div>
     <table class="tbl re-tbl"><thead><tr><th>Code</th><th>Label</th><th class="num">Gewicht</th><th>Dienst</th></tr></thead><tbody>`;
   dr.functies.forEach((f,i)=>{
@@ -5303,25 +5248,7 @@ function renderRegels(){
       <td class="num"><input class="re-in" type="number" step="0.1" min="0" max="1" value="${f.gewicht}" data-p="dripFunctie" data-i="${i}" data-k="gewicht"></td>
       <td>${esc(f.dienst||'–')}</td></tr>`;
   });
-  h+=`</tbody></table>
-    <div class="re-lab" style="margin-top:16px">EOL-referentie (fabrikant-factsheets)</div>
-    <p class="muted" style="font-size:11.5px;margin:2px 0 8px">Laad een EOL-referentie-CSV (kolommen o.a. manufacturer_regex, model_regex, asset_classes, life_median_years, public_status, source_url). De tool matcht elke asset op fabrikant + model en gebruikt de mediane levensduur (B50) als bron voor de faalkans — herleidbaar met bronlink.</p>
-    <button class="tb-btn" onclick="document.getElementById('eolInput').click()">⭱ EOL-referentie laden (.csv)</button>
-    <input type="file" id="eolInput" accept=".csv,.xlsx,.xls" class="hidden">
-    <span id="eolStatus" class="re-status"></span>`;
-  if(EOL_REF.length){
-    h+=`<div class="tbl-scroll" style="margin-top:10px"><table class="tbl re-tbl klein"><thead><tr><th>Regel</th><th>Merk / model</th><th>Klassen</th><th class="num">Levensduur (B50)</th><th>Status</th><th>Zeker.</th><th>Bron</th></tr></thead><tbody>`;
-    EOL_REF.forEach(r=>{
-      h+=`<tr><td class="mono">${esc(r.rule_id)}</td>
-        <td>${esc(r.family||'')}</td>
-        <td>${esc(r.klassen.join(', '))}</td>
-        <td class="num">${r.life_median!=null?r.life_median+' jr':(r.life_min!=null?`${r.life_min}–${r.life_max}`:'—')}</td>
-        <td>${esc(r.status||'')}</td>
-        <td>${esc(r.confidence||'')}</td>
-        <td>${r.source_url?`<a href="${esc(r.source_url)}" target="_blank" rel="noopener" style="color:var(--rws-blauw-mid)">link</a>`:'—'}</td></tr>`;
-    });
-    h+=`</tbody></table></div>`;
-  }
+  h+=`</tbody></table>`;
 
   // ── Levensduur per fabrikant × type (instelbaar) ──
   h+=`<div class="re-lab" style="margin-top:18px">Levensduur per fabrikant × type (B50, jaren)</div>
@@ -5333,7 +5260,7 @@ function renderRegels(){
     const combos={};
     Ddata.drips.forEach(d=>{ const k=dripComboKey(d.fabrikant,d.type); if(!combos[k]) combos[k]={fab:d.fabrikant||'(leeg)',type:d.type||'(leeg)',n:0,d}; combos[k].n++; });
     const rijen=Object.entries(combos).sort((a,b)=>b[1].n-a[1].n);
-    h+=`<p class="muted" style="font-size:11px;margin:2px 0 6px">${rijen.length} combinaties in het geladen register. Leeg veld = gebruik een expliciete levensduurreferentie en anders de levensduur van assettype DRIP uit sectie 1. Een ingevulde waarde krijgt voorrang (bron toont dan “handmatig”).</p>
+    h+=`<p class="muted" style="font-size:11px;margin:2px 0 6px">${rijen.length} combinaties in het geladen register. Leeg veld = gebruik levensduur/EOL uit All Assets en anders de levensduur van assettype DRIP uit sectie 1. Een ingevulde waarde krijgt voorrang (bron toont dan “handmatig”).</p>
     <div class="tbl-scroll" style="max-height:340px;overflow:auto"><table class="tbl re-tbl klein"><thead><tr><th>Fabrikant</th><th>Type</th><th class="num">Aantal</th><th class="num">Levensduur</th><th>Herkomst</th></tr></thead><tbody>`;
     rijen.forEach(([k,c])=>{
       const rel=assetReliability(c.d);
@@ -5355,8 +5282,6 @@ function renderRegels(){
   const dekkingKaart=STATE?`<div class="card"><h3>Live brondekking voor landelijke percentages</h3><p>Bevestig een bron alleen als deze voor het volledige geladen areaal en de bronpeildatum alle open storingen bevat. Niet bevestigde bronnen blijven onbekend en worden niet stilzwijgend als 100% beschikbaar behandeld.</p>${v68BronnenHtml(v68LandelijkModel())}</div>`:'';
   document.getElementById('tab-regels').innerHTML=h+dekkingKaart+kostenInstellingenHtml();
   benoemRegelvelden(document.getElementById('tab-regels'));
-  const eolI=document.getElementById('eolInput');
-  if(eolI) eolI.addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)leesEolReferentie(f);});
   document.getElementById('paramImport').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)parametersImport(f);});
   document.querySelectorAll('#tab-regels [data-p="subprocesGewicht"]').forEach(el=>el.addEventListener('change',()=>verdeelSubprocesAandeel(el)));
 }
@@ -5559,7 +5484,6 @@ function totaalExportOpties(){
   const dripSources=(DRIP_HIST_STATE&&DRIP_HIST_STATE.sources)||[];
   return [
     {id:'assetregister',label:'Assetregister / All Assets',aanwezig:!!(ASSET_REGISTER_STATE&&ASSET_REGISTER_STATE.ruweRegisterRijen),detail:ASSET_REGISTER_STATE?ASSET_REGISTER_STATE.bestand:'niet geladen'},
-    {id:'eol',label:'EOL-referentie',aanwezig:!!EOL_REF.length,detail:EOL_REF.length?`${EOL_REF.length} regels`:'niet geladen'},
     {id:'storingshistorie',label:'Storingshistorie',aanwezig:!!STORINGSBRONNEN.length,detail:`${STORINGSBRONNEN.length} bronbestand(en), prognosebron`},
     {id:'liveStoringen',label:'Open storingen',aanwezig:!!LIVE_STORINGSBRONNEN.length,detail:`${LIVE_STORINGSBRONNEN.length} momentopnamebestand(en), dashboardbron`},
     {id:'dripHistorie',label:'DRIP-storingshistorie',aanwezig:!!dripSources.length,detail:`${dripSources.length} bronbestand(en), DRIP Monte Carlo`},
@@ -5608,7 +5532,6 @@ function totaalExportBundle(selectie,opties){
     exportSelectie: selectie,
     assetregister: neem('assetregister')&&ASSET_REGISTER_STATE&&ASSET_REGISTER_STATE.ruweRegisterRijen
       ? {bestand:ASSET_REGISTER_STATE.bestand,rijen:ASSET_REGISTER_STATE.ruweRegisterRijen} : null,
-    eol: neem('eol')&&EOL_REF.length ? {bestand:EOL_BRON_NAAM||'',regels:EOL_REF} : null,
     storingshistorie: neem('storingshistorie') ? bron(STORINGSBRONNEN) : [],
     liveStoringen: neem('liveStoringen') ? bron(LIVE_STORINGSBRONNEN) : [],
     dripHistorie: neem('dripHistorie')&&(DRIP_HIST_STATE&&DRIP_HIST_STATE.sources)
@@ -5682,14 +5605,7 @@ async function totaalImportJson(file, hubModus){
       RULES.kosten=v68MigreerKosten(b.kosten);
     }
 
-    // 2) EOL-referentie
-    if(magImporteren('eol')&&bundle.eol&&Array.isArray(bundle.eol.regels)){
-      EOL_REF = modus==='vervang' ? bundle.eol.regels.slice()
-        : [...EOL_REF.filter(r=>!bundle.eol.regels.some(n=>JSON.stringify(n)===JSON.stringify(r))), ...bundle.eol.regels];
-      EOL_BRON_NAAM=bundle.eol.bestand||EOL_BRON_NAAM; EOL_VERSIE++;
-    } else if(magImporteren('eol')&&modus==='vervang'){ EOL_REF=[]; EOL_BRON_NAAM=''; }
-
-    // 3) Assetregister (stamregister). Bij merge met een bestaand register kiest
+    // 2) Assetregister (stamregister). EOL en levensduur komen uit All Assets.
     //    de gebruiker expliciet of het register vervangen wordt.
     if(assetregisterActie==='laden'){
       zetImportVoortgang(file.name,20,'Assetregister opbouwen',{direct:true});await uiPauze();
@@ -5700,12 +5616,8 @@ async function totaalImportJson(file, hubModus){
       DRIP_STATE=verwerkDrips(rijen);
       DRIP_STATE.bestand=bundle.assetregister.bestand||file.name;
       if(DVM_LEEFTIJD_STATE) DRIP_STATE.leeftijdsdekking={actief:DVM_LEEFTIJD_STATE.actief,metJaar:DVM_LEEFTIJD_STATE.metJaar,pct:DVM_LEEFTIJD_STATE.actief?DVM_LEEFTIJD_STATE.metJaar/DVM_LEEFTIJD_STATE.actief:0};
-      if(EOL_REF.length) DRIP_STATE.drips.forEach(d=>{ d._eolRef=eolRegelVoor(d.fabrikant,d.model||d.type,'DRIP'); d._rel=null; });
     }
     if(!ASSET_REGISTER_STATE){ importMislukt(file.name,'Totaalbestand bevat geen assetregister.'); alert('Dit totaalbestand bevat geen assetregister. Laad eerst een assetlijst en probeer daarna opnieuw, of gebruik een totaalexport waarin het register is opgenomen.'); return; }
-
-    // Herkoppel EOL indien nu aanwezig
-    if(EOL_REF.length&&DRIP_STATE) DRIP_STATE.drips.forEach(d=>{ d._eolRef=eolRegelVoor(d.fabrikant,d.model||d.type,'DRIP'); d._rel=null; });
 
     // 4) Storingshistorie (prognosebron)
     if(magImporteren('storingshistorie')&&Array.isArray(bundle.storingshistorie)&&bundle.storingshistorie.length){

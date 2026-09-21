@@ -10,7 +10,6 @@ test('DVM-bronbeheer heeft voor elke bronsoort een eigen uploadroute',()=>{
     assetregister:['dripInput','leesDripBestand'],
     windDrips:['windDripListInput','special:wind'],
     ria4Drips:['ria4DripListInput','special:ria4'],
-    eol:['eolInputTop','leesEolReferentie'],
     storingshistorie:['autoLogInput','leesStoringsBestanden'],
     uRoutes:['uRouteInput','leesURouteBestand'],
     werkzaamheden:['werkInput','leesWerkBestand'],
@@ -64,4 +63,11 @@ test('adapter laadt classificatielijsten vóór bronbeheer',()=>{
   const special=adapter.indexOf('dvm-special-drip-lists.js');
   const manager=adapter.indexOf('dvm-source-manager.js');
   assert.ok(original>=0&&special>original&&manager>special);
+});
+
+
+test('EOL is geen losse bron meer; All Assets is de EOL-bron',()=>{
+  assert.doesNotMatch(source,/eolInputTop/);
+  assert.doesNotMatch(source,/leesEolReferentie/);
+  assert.doesNotMatch(source,/EOL-referentie laden/);
 });

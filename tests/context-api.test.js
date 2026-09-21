@@ -20,7 +20,6 @@ const dvm={
   services,
   works:[{id:'w1',weg:'A15',startMs:Date.UTC(2026,9,1),eindMs:Date.UTC(2026,9,20),assetKeys:['A1'],uRoutes:['U12'],omschrijving:'asfaltwerk'}],
   uroutes:[{id:'u1',uRoute:'U12',weg:'A15',assetKeys:['A1']}],
-  eol:{loaded:true,count:12,bestand:'eol.xlsx'},
   historySources:[{key:'h1',naam:'historie 2026',count:100,doel:'prognose'}]
 };
 const bi={
@@ -40,7 +39,7 @@ const bi={
   functions,
   triggers:[]
 };
-const state={dvm:{assetregister:{rijen:[{}]},liveStoringen:[{rijen:[{},{},{}]}],werkzaamheden:{rijen:[{}]},uRoutes:{rijen:[{}]},eol:{regels:new Array(12)}},bi:{},planning:{xml:'<x/>'},links:[{dienst:'im',functie:'f1',eigenaar:'VWM'}],history:[]};
+const state={dvm:{assetregister:{rijen:[{}]},liveStoringen:[{rijen:[{},{},{}]}],werkzaamheden:{rijen:[{}]},uRoutes:{rijen:[{}]}},bi:{},planning:{xml:'<x/>'},links:[{dienst:'im',functie:'f1',eigenaar:'VWM'}],history:[]};
 const context=buildBiDashContext({faults,assets:[],roads:[],services,functions,dvm,bi,links:state.links,state});
 
 test('Context API legt storing via assettype aan dienstverlening',()=>{

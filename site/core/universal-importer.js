@@ -1,5 +1,5 @@
-const DVM_PARTS=['assetregister','eol','storingshistorie','liveStoringen','dripHistorie','uRoutes','werkzaamheden','parameters','dripSelectie'];
-const PART_LABELS={assetregister:'Assetregister',eol:'EOL / levensduur',storingshistorie:'Storingshistorie',liveStoringen:'Open storingen',dripHistorie:'DRIP-historie',uRoutes:'U-routes',werkzaamheden:'Werkzaamheden'};
+const DVM_PARTS=['assetregister','storingshistorie','liveStoringen','dripHistorie','uRoutes','werkzaamheden','parameters','dripSelectie'];
+const PART_LABELS={assetregister:'Assetregister',storingshistorie:'Storingshistorie',liveStoringen:'Open storingen',dripHistorie:'DRIP-historie',uRoutes:'U-routes',werkzaamheden:'Werkzaamheden'};
 
 export function normHeader(value){
   return String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/&/g,' en ').replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
@@ -69,9 +69,6 @@ export function classifyTable(rows,{fileName='',sheetName='',hint='auto'}={}){
   if(has(h,'id')){s+=3;r.push('asset-id');} if(has(h,'asset')){s+=3;r.push('assetnaam');} if(has(h,'type'))s+=3; if(has(h,'road'))s+=2; if(has(h,'hm'))s+=2; if(has(h,'status'))s+=1; if(has(h,'inService')||has(h,'eol')||has(h,'life'))s+=2; if(has(h,'rdX')&&has(h,'rdY'))s+=2; if(named(name,'asset','all assets','areaal','cmdb'))s+=3; push('assetregister',s,r);
 
   s=0;r=[];
-  if(has(h,'manufacturerRegex')){s+=5;r.push('manufacturer_regex');} if(has(h,'modelRegex'))s+=5; if(has(h,'life'))s+=4; if(has(h,'assetClasses'))s+=2; if(has(h,'evidence')||has(h,'confidence'))s+=2; if(named(name,'eol','levensduur','lifetime'))s+=3; push('eol',s,r);
-
-  s=0;r=[];
   if(has(h,'workId')){s+=5;r.push('werk-id');} if(has(h,'work'))s+=4; if(has(h,'start')&&has(h,'end'))s+=3; if(has(h,'closure'))s+=3; if(has(h,'detour'))s+=2; if(has(h,'delay'))s+=2; if(has(h,'fromHm')||has(h,'toHm'))s+=2; if(named(name,'werkzaamheden','werkplanning','road works','roadworks'))s+=4; push('werkzaamheden',s,r);
 
   s=0;r=[];
@@ -119,8 +116,6 @@ export function normalizeRows(rows,part){
       put(out,'Werk_ID',value(raw,'workId'));put(out,'Weg',value(raw,'road'));put(out,'Richting',value(raw,'direction'));put(out,'Start',value(raw,'start'));put(out,'Einde',value(raw,'end'));put(out,'Afsluiting',value(raw,'closure'));put(out,'Extra_reistijd_min',value(raw,'delay'));put(out,'Omleiding',value(raw,'detour'));put(out,'Werkzaamheden',value(raw,'work'));put(out,'van_hm',value(raw,'fromHm')||value(raw,'hm'));put(out,'tot_hm',value(raw,'toHm'));put(out,'RD_X',value(raw,'rdX'));put(out,'RD_Y',value(raw,'rdY'));
     }else if(part==='uRoutes'){
       put(out,'Route_ID',value(raw,'routeId'));put(out,'Provincie',value(raw,'province'));put(out,'Regio',value(raw,'vc'));put(out,'U_route',value(raw,'uRoute'));put(out,'OSM_relation_id',value(raw,'osmId'));put(out,'OSM_relation_URL',value(raw,'osmUrl'));put(out,'Bron_URL',value(raw,'source'));
-    }else if(part==='eol'){
-      put(out,'manufacturer_regex',value(raw,'manufacturerRegex')||value(raw,'manufacturer'));put(out,'model_regex',value(raw,'modelRegex')||value(raw,'model'));put(out,'asset_classes',value(raw,'assetClasses')||value(raw,'type'));put(out,'life_median_years',value(raw,'life'));put(out,'evidence_level',value(raw,'evidence'));put(out,'confidence',value(raw,'confidence'));put(out,'source_url',value(raw,'source'));
     }
     return out;
   });
@@ -136,7 +131,6 @@ export function makeDvmPartBundle(part,rows,{fileName='bron',sheetName=''}={}){
   const name=sourceName(fileName,sheetName),norm=normalizeRows(rows,part),exportSelectie=Object.fromEntries(DVM_PARTS.map(k=>[k,k===part]));
   let payload;
   if(part==='assetregister'||part==='uRoutes'||part==='werkzaamheden')payload={bestand:name,rijen:norm};
-  else if(part==='eol')payload={bestand:name,rijen:norm};
   else if(part==='storingshistorie')payload=[{key:slug(name),naam:name,rijen:norm,peildatum:peildatum(norm),doel:'historie'}];
   else if(part==='liveStoringen')payload=[{key:slug(name),naam:name,rijen:norm,peildatum:peildatum(norm),doel:'live'}];
   else if(part==='dripHistorie')payload={sources:[{key:slug(name),name,rijen:norm}]};
