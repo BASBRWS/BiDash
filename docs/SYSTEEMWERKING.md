@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.19 en DVM 102, bijgewerkt op 19 september 2026 voor de integrale BiDash Context API en de relationele Vraag BiDash-queryassistent, naast de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina, zichtbare voortgang bij gegevensimport en CSP-veilige dynamische bediening.
+Status: beschrijving van BiDash 2.20 en DVM 103, bijgewerkt op 19 september 2026 voor de integrale BiDash Context API en de relationele Vraag BiDash-queryassistent, naast de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina, zichtbare voortgang bij gegevensimport en CSP-veilige dynamische bediening.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -130,7 +130,7 @@ Ondersteund zijn de bestaande DVM-totaal-JSON, BI-dataset-JSON en planning-XML
 blijft via bronbeheer beschikbaar. ZIP is geen beloofd hub-importformaat: pak een
 planningarchief uit en laad de XML, tenzij ZIP-ondersteuning apart is geïmplementeerd.
 
-De aanbevolen DVM-volgorde is All Assets, EOL, historische storingen, U-routes, werkzaamheden en als laatste de actuele open storingslijst. De actuele storingslijst is de volledige momentopname voor het live dashboard. Daarna kan de gebruiker in Datasetbeheer instellen welke open meldingen in de actuele doorrekening meetellen. Historische storingen zijn een aparte gegevensstroom voor historie en prognose en worden door dat live filter niet gewijzigd.
+De aanbevolen DVM-volgorde is All Assets, historische storingen, U-routes, werkzaamheden en als laatste de actuele open storingslijst. Installatie-/stichtingsdatum, EOL en expliciete levensduur zijn velden van All Assets en vormen geen aparte bron meer. De actuele storingslijst is de volledige momentopname voor het live dashboard. Daarna kan de gebruiker in Datasetbeheer instellen welke open meldingen in de actuele doorrekening meetellen. Historische storingen zijn een aparte gegevensstroom voor historie en prognose en worden door dat live filter niet gewijzigd.
 
 Naast de losse Open storingen- en Storingshistorie-uploads is er een gecombineerde bron **Signaalgevers totaal (JSON)**. Dat is één exportbestand (`datasets.mtm`) met zowel de open alarmen als de historische storingen. `signaalgeverTotaalBronnen()` in `dvm-3.js` zet de records om naar rijen die `normRij()` al kent: `alarm_episodes` met `eindstatus: "open_aan_einde"` (en `meenemen !== false`) worden de open-storingenstroom, `storingen` worden de historie. Elke open alarmregel draagt haar omschrijving als `melding`, aangevuld met `categorie` en signaalgever (`unit`). `canoniekAssetType()` en `signaalgeverAssetType()` houden daarbij MSI- en detectorregels uit elkaar: lus, lussen, detectie, detector, detectielus, meetlus en inductielus worden intern `LUS`; de overige MTM-signaalgeverregels worden `MSI`. `registerAssetType()` past dezelfde normalisatie toe op All Assets en laat een specifiek bouwdeel of type voorgaan op de bredere CI-familie. `OBJ_BRON.detectie = 'LUS'` koppelt dit technische type aan de schakel detectie in subprocessen en dienstverlening. Bekende foutcodes matchen eerst op de code en daarna op de omschrijving, zodat een andere omschrijving bij code 1006, 1007 of 5004 de impactregel niet blokkeert. Een historische storing zonder omschrijving krijgt `signaalgever + impactklasse` als melding met hetzelfde doel. Een detectorcode zonder passende LUS-regel blijft zichtbaar maar niet-doorgerekend; er wordt geen impact verzonnen. De bron is bewust een óf/óf-keuze: bij het laden vervangt ze de losse Open storingen- en Storingshistorie-bronnen (vervang-modus), zodat oud bestandsformaat nooit met de JSON mengt. De oude uploadknoppen blijven bestaan voor de bestaande werkwijze. De bronnen dragen een `_signaalgeverTotaal`-vlag zodat Datasetbeheer ze onder de eigen kaart "Signaalgevers totaal" toont in plaats van onder Open storingen en Storingshistorie (die dan leeg blijven); de doorrekening gebruikt onverminderd `STORINGSBRONNEN` en `LIVE_STORINGSBRONNEN`. Verwijderen op die kaart wist beide stores in één keer.
 
@@ -222,7 +222,7 @@ Actueel en prognose zijn gescheiden:
 - RIA4 en Windwaarschuwing zijn onafhankelijke DRIP-classificaties. Een gecombineerd bronbestand wordt per gemarkeerde regel gesplitst. De koppeling gebruikt een identifier met locatiecontrole en anders VC, weg, richting en hectometer. Een hergebruikte DRIP-code in een ander gebied mag daardoor geen classificatie overnemen.
 - Een classificatie draagt haar eigen herkomst. `classifiedRows()` levert `herkomst` (`markering` of `aanname`), `markerKolommen` en `rijenBron`. Naast de vaste kopteksten gelden samenstellingen als `RIA-4 DRIP` en `Windwaarschuwing DRIP` als markering; windmeetkolommen (`richting`, `snelheid`, `kracht`, `meting`, `sensor`, `graden`) nadrukkelijk niet, want die beschrijven het weer en niet de soort DRIP. Wordt geen markerkolom herkend, dan is de soort een aanname van de gebruiker over het hele bestand. Die aanname moet zichtbaar zijn in de laadmelding en op de bronkaart, en gaat mee in de totaalexport zodat een herstelde bundel haar niet stilzwijgend tot vaststelling maakt.
 - De brondag is niet automatisch vandaag. NDW-meetmoment, exportdatum en prognoseperiode zijn afzonderlijke datums en moeten herkenbaar blijven.
-- Assetregister en EOL bepalen populatie, kenmerken en levensduurgegevens.
+- All Assets bepaalt populatie, kenmerken, installatie-/stichtingsdatum, EOL en expliciete levensduurgegevens.
 - U-routes en werkzaamheden zijn context voor bestaande analyses, geen automatische vermenigvuldigers voor alle kosten.
 
 Rekenketen: volledige open momentopname → gebruikersfilter voor actuele doorrekening → asset-/objectimpact → subprocessen → dienstverlening.
@@ -595,3 +595,22 @@ Vanaf BiDash 2.19 heeft de queryassistent geen statische lijst nodig met plannin
 Wanneer een vraag geen bekend domeinwoord bevat maar wel een term die in de geladen planning voorkomt, wordt die term als planningreferentie gebruikt. Dit is een expliciete domeinherkenning en verbreekt daarom een eerdere niet-planningcontext. Voor `wanneer`-, `eerstvolgende`- en `meest recente`-vragen worden matches op de effectieve planningdatums gerangschikt.
 
 De terminologie blijft daarmee data-gedreven: een nieuwe afkorting, projectnaam, mijlpaalcode of WBS-term wordt bevraagbaar zodra deze in het planningmodel is geladen, zonder wijziging van de queryparser.
+
+
+## BiDash 2.20 / DVM 103 — All Assets als levenscyclusbron
+
+De aparte EOL-referentiebron is uit de runtime, bronmanager, import/export en universele bronherkenning verwijderd. All Assets is voortaan de enige operationele bron voor installatie-/stichtingsdatum, expliciet EOL-jaar en expliciete levensduur.
+
+De betrouwbaarheidsketen gebruikt de volgende prioriteit:
+
+```text
+individuele assetconfiguratie
+  -> fabrikant×type-override
+  -> expliciete levensduur/EOL uit All Assets
+  -> generieke levensduur van het assettype
+  -> standaard-terugval
+```
+
+Een oude DVM-totaalexport met een los `eol`-blok blijft importeerbaar, maar dat legacy-blok wordt vanaf totaalformaat 55 bewust genegeerd. Er worden geen EOL-regels meer buiten All Assets aan assets gekoppeld.
+
+Vraag BiDash ontvangt installatiejaar/-datum en EOL als assetvelden. De intenties `oudste` en `nieuwste` sorteren op de bruikbare installatiedatum uit All Assets; alleen wanneer geen volledige datum beschikbaar is wordt het installatie-/stichtingsjaar gebruikt.
