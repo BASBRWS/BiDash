@@ -112,10 +112,10 @@ const RULES = {
       {code:'0', label:'vervalt / geen functie', gewicht:0.0, dienst:''}
     ],
     // instelbare levensduur (jaren, B50) per fabrikant×type-combinatie.
-    // sleutel = "fabrikant|type" (kleine letters). Leeg = gebruik factsheet
-    // of de standaard-terugval.
+    // sleutel = "fabrikant|type" (kleine letters). Leeg = gebruik All Assets
+    // en daarna de generieke assettype-/standaard-terugval.
     levensduurOverride:{},
-    // terugval-levensduur als er geen factsheet en geen override is
+    // terugval-levensduur als All Assets geen expliciete levensduur bevat en er geen override is
     standaardLevensduur:15
   },
   /* Individuele assetconfiguratie. Automatische koppelingen blijven
