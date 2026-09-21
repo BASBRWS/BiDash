@@ -5250,7 +5250,9 @@ function renderRegels(){
   });
   h+=`</tbody></table>
     <div class="re-lab" style="margin-top:16px">EOL en levensduur uit All Assets</div>
-    <p class="muted" style="font-size:11.5px;margin:2px 0 8px">Installatiejaar, expliciet EOL-jaar en levensduur worden rechtstreeks uit het geladen All Assets-stamregister gelezen. Ontbrekende expliciete levensduur valt terug op assetconfiguratie, fabrikant×type-override en daarna de assettype-levensduur.</p>
+    <p class="muted" style="font-size:11.5px;margin:2px 0 8px">Installatiejaar, expliciet EOL-jaar en levensduur worden rechtstreeks uit het geladen All Assets-stamregister gelezen. Ontbrekende expliciete levensduur valt terug op assetconfiguratie, fabrikant×type-override en daarna de assettype-levensduur.</p>`;
+
+  // ── Levensduur per fabrikant × type (instelbaar) ──
   h+=`<div class="re-lab" style="margin-top:18px">Levensduur per fabrikant × type (B50, jaren)</div>
     <div style="margin:2px 0 8px"><label style="font-size:11.5px;color:var(--sub)">Laatste terugval als ook de assettype-levensduur leeg is:
       <input class="re-in" type="number" step="1" min="1" max="40" value="${RULES.drip.standaardLevensduur}" data-p="dripStandaard" style="width:70px"> jaar</label></div>`;
