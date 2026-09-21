@@ -4,7 +4,7 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='102';
+  const DVM_VERSION='103';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
