@@ -201,3 +201,14 @@ test('de geladen JSON wordt onder de eigen kaart getoond, niet onder Open storin
   assert.match(manager,/STORINGSBRONNEN=STORINGSBRONNEN\.filter\(b=>!b\._signaalgeverTotaal\)/);
   assert.match(manager,/LIVE_STORINGSBRONNEN=LIVE_STORINGSBRONNEN\.filter\(b=>!b\._signaalgeverTotaal\)/);
 });
+
+test('handmatige totaalexport bewaart bronidentiteit en Bronbeheerstatus',()=>{
+  const compleet=read('site/engines/dvm-source-export-completeness.js');
+  assert.match(compleet,/bron\._signaalgeverTotaal=true/);
+  assert.match(compleet,/bron\._signaalgeverBestand=status\?\.bestand\|\|null/);
+  assert.match(compleet,/bundle\.bronbeheer=\{/);
+  assert.match(compleet,/signaalgeverTotaal:lean\?null:clone\(status\)/);
+  assert.match(compleet,/window\.__BIDASH_SIGNAALGEVER_TOTAAL__=\{/);
+  assert.match(compleet,/const beheer=bundle\.bronbeheer\|\|\{\}/);
+  assert.match(read('site/engines/dvm-adapter.js'),/dvm-source-export-completeness\.js/);
+});
