@@ -104,7 +104,7 @@ const RULES = {
   /* ── DRIP-specifieke classificatie. DRIP is een volwaardig assettype
      (zie assetTypen); hier alleen de functie-indeling die het ketengewicht
      bepaalt. Levensduur/β staan per assettype in assetTypen; per fabrikant/
-     model komt de levensduur uit de EOL-referentie (EOL_REF). ── */
+     model komt de levensduur uit All Assets of, als die ontbreekt, uit de assettype-default. ── */
   drip:{
     functies:[
       {code:'6', label:'sturen', gewicht:1.0, dienst:'vm'},
@@ -129,32 +129,6 @@ const RULES = {
     overrides:{}
   }
 };
-
-/* ── EOL-referentie (fabrikant-factsheets) ──────────────────────────
-   Regels die op fabrikant + model matchen en een levensduur (mediaan,
-   B50) of EOL-status leveren. Wordt gevuld door een EOL-referentie-CSV
-   te laden (kolommen: manufacturer_regex, model_regex, asset_classes,
-   life_median_years, public_status, evidence_level, confidence,
-   source_url…). Marktconform: de mediane levensduur is het B50-punt. */
-let EOL_REF = [];
-/* Zoek de best passende EOL-regel voor een asset (fabrikant + model/type). */
-function eolRegelVoor(fabrikant, model, assetKlasse){
-  if(!EOL_REF.length) return null;
-  const fab=(fabrikant||'').toLowerCase(), mod=(model||'').toLowerCase();
-  let beste=null;
-  for(const r of EOL_REF){
-    if(r.klassen && r.klassen.length && assetKlasse && !r.klassen.includes(String(assetKlasse).toUpperCase())) continue;
-    let fabOk=true, modOk=true;
-    if(r.fabRe){ fabOk=r.fabRe.test(fab); }
-    if(r.modRe){ modOk=r.modRe.test(mod); }
-    if(fabOk && modOk){
-      // specifiekere match (met model-regex) wint van generieke
-      const score=(r.modRe?2:0)+(r.fabRe?1:0);
-      if(!beste || score>beste._score){ beste={...r,_score:score}; }
-    }
-  }
-  return beste;
-}
 
 /* ── DIENSTEN (ketens) uit de rule engine + taakanalyse IV WVL ──
    Elke dienst is een keten van objecttypen (schakelTypes). De weging
@@ -284,17 +258,7 @@ function assetReliability(asset){
   if(L==null && registerEolJaar && asset.bouwjaar && registerEolJaar>asset.bouwjaar){
     L=registerEolJaar-asset.bouwjaar; bron='assetregister (EOL-jaar minus installatiedatum)';
   }
-  // 4. EOL-factsheet
-  let ref = asset._eolRef || null;
-  if(L==null){
-    if(!ref && EOL_REF.length) ref = eolRegelVoor(asset.fabrikant, asset.model||asset.type||asset.asset, asset.assetType);
-    if(ref && ref.life_median!=null){ L=ref.life_median; bron='EOL-factsheet'; }
-    else if(ref&&ref.eol_date&&asset.bouwjaar){
-      const eolJaar=parseBouwjaar(ref.eol_date);
-      if(eolJaar&&eolJaar>asset.bouwjaar){L=eolJaar-asset.bouwjaar;bron='EOL-factsheet (EOL-jaar minus bouwjaar)';}
-    }
-  }
-  // 5. assettype-levensduur. Voor DRIP is dit de primaire generieke regel;
+  // 4. assettype-levensduur. Voor DRIP is dit de primaire generieke regel;
   // de sectie-7-terugval mag deze niet stilzwijgend overschrijven.
   if(L==null && at.levensduur!=null && +at.levensduur>0){ L=+at.levensduur; bron='assettype'; }
   // 5. instelbare standaard-terugval als het assettype geen levensduur heeft
@@ -302,7 +266,7 @@ function assetReliability(asset){
   // 6. laatste terugval
   if(L==null){ L=RULES.drip.standaardLevensduur||15; bron='standaard'; }
   const eta = L / Math.pow(Math.log(2), 1/beta);   // B50 → η
-  return { beta, L, eta, bron, ref };
+  return { beta, L, eta, bron, ref:null };
 }
 
 /* Weibull-CDF. */
