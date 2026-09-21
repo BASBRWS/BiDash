@@ -341,8 +341,7 @@ function dripEolJaar(d){ if(!d.bouwjaar) return null; return d.bouwjaar + Math.r
 function dripFaalkans(d, horizonJr){ return assetFaalkans({...d, assetType:'DRIP', _rel:assetReliability({...d,assetType:'DRIP'})}, horizonJr||0); }
 function levensduurBronTag(bron){
   const b=String(bron||'').toLowerCase();
-  if(b.includes('assetregister'))return '<span class="tag g">assetregister</span>';
-  if(b.includes('eol-factsheet')||b.includes('referentie'))return '<span class="tag g">levensduurref.</span>';
+  if(b.includes('all assets')||b.includes('assetregister'))return '<span class="tag g">All Assets</span>';
   if(b.includes('handmatig')||b.includes('assetconfiguratie'))return '<span class="tag g">handmatig</span>';
   return '<span class="tag gy">assettype</span>';
 }
