@@ -85,7 +85,8 @@ test('bronbeheer toont regio-updates onder elkaar met vetgedrukte regio',()=>{
   assert.match(source,/function regioUpdatesHtml/);
   assert.match(source,/dataset-region-list/);
   assert.match(source,/dataset-region-row/);
-  assert.match(source,/<b>'\+e\(String\(v\)\.toUpperCase\(\)\)\+'<\\\/b>/);
+  assert.match(source,/dataset-region-row"><b>/);
+  assert.match(source,/<\/b><span>Laatste update /);
   assert.match(source,/Laatste update /);
   const html=read('site/engines/dvm.html');
   assert.match(html,/\.dataset-region-list\{/);
