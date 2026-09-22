@@ -4,7 +4,7 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='105';
+  const DVM_VERSION='106';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
@@ -30,7 +30,7 @@
     liveStoringen:{titel:'Open storingen',meta:'Nog geen actuele signaalgever-momentopname geladen. Open DRIP-incidenten kunnen daarnaast uit de DRIP-historie worden afgeleid.'},
     signaalgeverTotaal:{titel:'Signaalgevers totaal (JSON)',meta:'Nog niet geladen. Eén gecombineerd JSON-bestand (datasets.mtm) met open alarmen én historische storingen. Alternatief voor de losse Open storingen- en Storingshistorie-uploads; bij het laden vervangt het die twee bronnen zodat oud en nieuw niet mengen.'},
     signaalgeverMap:{titel:'Signaalgevers uit map (MTM)',meta:'Nog niet geladen. Kies de X-hoofdmap of de mtm-map; BiDash leest de ruwe storinglijsten onder mtm/<vc>/storinglijst/<jaar>/<maand>/<dag>, bouwt daaruit de open storingen en historie en bewaart alleen wat nodig is. Vult dezelfde bron als Signaalgevers totaal en vervangt de losse Open storingen en Storingshistorie. Werkt in Edge en Chrome.'},
-    dripTotaal:{titel:'DRIP totaal (JSON)',meta:'Nog niet geladen. Eén JSON-bestand (datasets.drip) met DRIP-episodes en geclassificeerde storingen. Vervangt de losse DRIP-storingshistorie-upload; voedt de DRIP Monte Carlo en de open DRIP-incidenten via dezelfde koppeling aan het DRIP-areaal.'},
+    dripTotaal:{titel:'DRIP totaal (JSON)',meta:'Nog niet geladen. Eén JSON-bestand (datasets.drip) met DRIP-episodes en geclassificeerde storingen. Na de eerste bron kun je met Voeg JSON toe aanvullende bestanden complementair toevoegen; Bron vervangen wist de bestaande DRIP-historie. Voedt de DRIP Monte Carlo en open DRIP-incidenten.'},
     dripMap:{titel:'DRIP uit map (CDMS)',meta:'Nog niet geladen. Kies de X-hoofdmap of de cdms-map; BiDash leest de ruwe DRIP-logs onder cdms/<vc>/log/<jaar>/<maand>/<dag>, reconstrueert de episodes en storingen en koppelt ze aan het DRIP-areaal. Vult dezelfde bron als DRIP totaal. Werkt in Edge en Chrome.'}
   };
 
@@ -100,6 +100,30 @@
     if(type==='dripMap'&&typeof openDripMapDialog==='function'){openDripMapDialog();return true;}
     const input=ensureInput(type,c);input.click();return true;
   };
+  window.openDripTotaalToevoegen=function(){
+    const c=config('dripTotaal');if(!c)return false;
+    if(bronGeblokkeerd('dripTotaal')){alert('Laad eerst Assetregister / All Assets. Daarna kun je aanvullende DRIP JSON-bestanden toevoegen.');return false;}
+    let input=document.getElementById('dripTotaalAddInput');
+    if(!input){
+      input=document.createElement('input');input.type='file';input.id='dripTotaalAddInput';input.hidden=true;input.accept='.json';
+      input.addEventListener('change',async event=>{
+        const el=event.currentTarget,files=[...(el.files||[])];if(!files.length)return;el.disabled=true;
+        try{
+          await leesDripTotaalBestand(files[0],'toevoegen');
+          if(typeof window.applyDripSpecialLists==='function')window.applyDripSpecialLists();
+          meldWijzigingAanSchil('dripTotaal',files);
+        }catch(error){
+          console.error(error);if(typeof importMislukt==='function')importMislukt(files[0]?.name||'DRIP JSON',error.message||String(error));
+        }finally{
+          el.value='';el.disabled=false;
+          if(typeof renderDatasetBeheer==='function'&&document.getElementById('tab-datasets')&&!document.getElementById('tab-datasets').classList.contains('hidden'))renderDatasetBeheer();
+        }
+      });
+      document.body.appendChild(input);
+    }
+    input.value='';input.click();return true;
+  };
+
   window.clearSpecialDripSource=function(type){
     const k=specialKind(type);if(!k||typeof window.clearDripSpecialList!=='function')return false;
     if(!confirm(`Classificatiebron ${k==='wind'?'Windwaarschuwing':'RIA4'} wissen?`))return false;
@@ -150,7 +174,7 @@
     const perVc=s.laatstePerVc&&Object.keys(s.laatstePerVc).length
       ? '<br>Laatste entry per regio: '+Object.entries(s.laatstePerVc).sort().map(([v,t])=>v.toUpperCase()+' '+dat(t)).join(', ')
       : '';
-    return `${esctekst(s.bestand)}<br>${(s.incidenten||0).toLocaleString('nl-NL')} incidenten (${(s.gekoppeldeIncidenten||0).toLocaleString('nl-NL')} gekoppeld aan het DRIP-areaal${s.nietGekoppeld?`, ${(s.nietGekoppeld||0).toLocaleString('nl-NL')} niet`:''}).${laatste?'<br>Laatste entry '+laatste:''}${perVc}<br>Voedt de DRIP Monte Carlo en de open DRIP-incidenten; vervangt de losse DRIP-storingshistorie.`;
+    return `${esctekst(s.bestand)}<br>${(s.incidenten||0).toLocaleString('nl-NL')} incidenten uit ${(s.bronnen||1).toLocaleString('nl-NL')} bron${(s.bronnen||1)===1?'':'nen'} (${(s.gekoppeldeIncidenten||0).toLocaleString('nl-NL')} gekoppeld aan het DRIP-areaal${s.nietGekoppeld?`, ${(s.nietGekoppeld||0).toLocaleString('nl-NL')} niet`:''}).${laatste?'<br>Laatste entry '+laatste:''}${perVc}<br><b>Bron vervangen</b> wist de huidige DRIP-historie; <b>Voeg JSON toe</b> vult de huidige DRIP-bronnen complementair aan.`;
   }
 
   if(typeof datasetItems==='function'){
@@ -214,6 +238,7 @@
       let html=originalDatasetItemCard(item);const c=config(item.type);if(!c)return html;
       const disabled=bronGeblokkeerd(item.type),title=disabled?'Laad eerst Assetregister / All Assets.':'Deze knop gebruikt rechtstreeks de bron-specifieke DVM-parser.';
       let upload=`<button class="tb-btn primary dataset-upload" onclick="openDatasetUpload('${item.type}')" ${disabled?'disabled':''} title="${title}">⭱ ${knopTekst(item)}</button>`;
+      if(item.type==='dripTotaal'&&item.aanwezig)upload+=`<button class="tb-btn dataset-upload" onclick="openDripTotaalToevoegen()" ${disabled?'disabled':''} title="Voeg een extra DRIP totaal JSON complementair toe; bestaande DRIP-bronnen blijven staan.">＋ Voeg JSON toe</button>`;
       if(isSpecial(item.type)&&item.aanwezig)upload+=`<button class="tb-btn" onclick="clearSpecialDripSource('${item.type}')">Wissen</button>`;
       html=html.replace('<div class="dataset-actions">','<div class="dataset-actions">'+upload);return html;
     };

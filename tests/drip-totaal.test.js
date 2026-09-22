@@ -40,7 +40,7 @@ for(const naam of ['sbGroupBy','sbVcAlias','sbGeldigeDatum','sbClassificeer','sb
   vm.runInContext(haalFunctie(bundelaar,naam),ctx,{filename:naam});
 for(const naam of ['num','parseDatum'])
   vm.runInContext(haalFunctie(dvm2,naam),ctx,{filename:naam});
-for(const naam of ['normDripCode','normDripHistRegio','parseDripHistorieLocatie','parseDripHistorieDatum','dripTotaalIncidentUitRij','dripDatasetNaarBron','dripTotaalBronnen'])
+for(const naam of ['normDripCode','normDripHistRegio','parseDripHistorieLocatie','parseDripHistorieDatum','dripTotaalIncidentUitRij','dripDatasetNaarBron','dripTotaalBronnen','dripIncidentSleutel','dripTotaalBronKey','mergeDripBronnen'])
   vm.runInContext(haalFunctie(dvm3,naam),ctx,{filename:naam});
 
 const call=(naam,...args)=>vm.runInContext(naam,ctx)(...args);
@@ -142,4 +142,21 @@ test('F. de DRIP-map leest begrensd parallel en meldt echte voortgang',async()=>
   assert.deepEqual(gereed.sort((a,b)=>a-b),[1,2,3,4,5,6,7,8]);
   assert.deepEqual(voortgang.at(-1),[8,8]);
   assert.equal(call('sbDuurTekst',125000),'2 min 5 sec');
+});
+
+
+test('G. Voeg JSON toe houdt bestaande DRIP-bronnen en ontdubbelt overlap',()=>{
+  const bestaand={key:'drip-totaal',name:'basis.json',incidenten:[
+    {code:'D80',start:100,einde:200,classificatie:'LANGDURIG',hardUit:false}
+  ],dekkingDatums:['2026-08-16'],assetCodes:['D80']};
+  const extra={key:call('dripTotaalBronKey','extra.json'),name:'extra.json',incidenten:[
+    {code:'D80',start:100,einde:200,classificatie:'LANGDURIG',hardUit:false},
+    {code:'D81',start:300,einde:400,classificatie:'STORING',hardUit:false}
+  ],dekkingDatums:['2026-08-17'],assetCodes:['D80','D81']};
+  const bronnen=call('mergeDripBronnen',[bestaand],extra);
+  assert.equal(bronnen.length,2);
+  assert.equal(bronnen[0].incidenten.length,1);
+  assert.equal(bronnen[1].incidenten.length,1,'overlap D80 wordt niet dubbel toegevoegd');
+  assert.equal(bronnen[1].incidenten[0].code,'D81');
+  assert.match(bronnen[1].key,/^drip-json:extra\.json$/);
 });
