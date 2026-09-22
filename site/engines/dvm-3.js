@@ -815,9 +815,10 @@ function dripTotaalBronnen(json){
    Dubbele incidenten over verschillende bronnen worden daarbij exact
    ontdubbeld op asset, tijdvenster en classificatie. */
 function dripIncidentSleutel(x){
-  return [String(x&&x.code||x&&x.asset||'').trim().toUpperCase(),Number(x&&x.start)||0,
-    Number(x&&x.einde)||0,String(x&&x.classificatie||'').trim().toUpperCase(),
-    x&&x.hardUit?'1':'0'].join('|');
+  return [String(x&&x.code||x&&x.asset||'').trim().toUpperCase(),String(x&&x.vc||'').trim().toUpperCase(),
+    String(x&&x.weg||'').trim().toUpperCase(),String(x&&x.richting||'').trim().toUpperCase(),
+    Number(x&&x.hm)||0,Number(x&&x.start)||0,Number(x&&x.einde)||0,
+    String(x&&x.classificatie||'').trim().toUpperCase(),x&&x.hardUit?'1':'0'].join('|');
 }
 function dripTotaalBronKey(bestandsnaam){
   const naam=String(bestandsnaam||'drip.json').trim().toLowerCase().replace(/[^a-z0-9._-]+/g,'-');
