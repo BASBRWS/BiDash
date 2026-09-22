@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.21 en DVM 104, bijgewerkt op 21 september 2026 voor een volledige, herstelbare DVM-totaalexport van alle bronnen uit Bronbeheer.
+Status: beschrijving van BiDash 2.22 en DVM 105, bijgewerkt op 21 september 2026 voor een volledige rondrit van mapbronnen via de handmatige DVM- en integrale totaalexport.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -138,6 +138,17 @@ samenvattingen van Signaalgevers totaal en DRIP totaal. Bij herstel gebruikt de
 doorrekening nog steeds de bestaande storingssecties, terwijl Bronbeheer dezelfde
 gecombineerde bronkaarten terugtoont. Oude totaalexports zonder manifest blijven
 bruikbaar; vaste signaalgeverbronsleutels worden bij import alsnog herkend.
+
+Automatische lokale opslag en handmatige export zijn bewust twee verschillende
+paden. `HUB.export()` levert standaard een compacte snapshot voor IndexedDB en
+laat zware, uit een map opgebouwde signaalgeverrijen weg. Alleen een expliciete
+`HUB.export({fullSources:true})` levert de volledige handmatige back-up. De
+hoofdapp gebruikt die volledige variant voor zowel DVM-totaal-JSON als de
+integrale BiDash-export, zonder de compacte lokale werkruimte ermee te vervangen.
+De integrale export neemt daarnaast het bij de geselecteerde storingsdelen horende
+`bronbeheer`-manifest mee. Daardoor blijven bijgewerkte MTM- en CDMS-mapgegevens,
+U-routes, werkzaamheden, classificatielijsten en hun bronstatus na export en
+herimport beschikbaar.
 
 De aanbevolen DVM-volgorde is All Assets, historische storingen, U-routes, werkzaamheden en als laatste de actuele open storingslijst. Installatie-/ingebruiknamedatum, EOL en expliciete levensduur worden uit All Assets gelezen. De actuele storingslijst is de volledige momentopname voor het live dashboard. Daarna kan de gebruiker in Datasetbeheer instellen welke open meldingen in de actuele doorrekening meetellen. Historische storingen zijn een aparte gegevensstroom voor historie en prognose en worden door dat live filter niet gewijzigd.
 
