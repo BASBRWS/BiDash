@@ -71,3 +71,11 @@ test('EOL is geen losse bron meer; All Assets is de EOL-bron',()=>{
   assert.doesNotMatch(source,/leesEolReferentie/);
   assert.doesNotMatch(source,/EOL-referentie laden/);
 });
+
+
+test('DRIP totaal biedt naast vervangen ook een complementaire Voeg JSON toe-route',()=>{
+  assert.match(source,/openDripTotaalToevoegen/);
+  assert.match(source,/dripTotaalAddInput/);
+  assert.match(source,/Voeg JSON toe/);
+  assert.match(source,/leesDripTotaalBestand\(files\[0\],'toevoegen'\)/);
+});
