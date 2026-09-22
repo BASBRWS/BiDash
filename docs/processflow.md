@@ -81,6 +81,12 @@ De trigger engine beoordeelt vervolgens wanneer een berekende toestand aandacht 
 
 Rule engine en trigger engine zijn dus verschillend: de eerste bepaalt betekenis en doorwerking, de tweede bepaalt wanneer die uitkomst een signaal wordt.
 
+### Expertduiding vóór regelwijziging
+
+Onder **Regels & signalen / Expertinvoer** kan een inhoudelijk expert per dienstverlening de bestaande keten controleren. Het scherm toont de door DVM geleverde norm, uitkomst, subprocessen en assetafhankelijkheden, maar rekent die niet opnieuw uit. De expert legt doel en scope, procesverloop, rollen, informatie, afhankelijkheden, faalwijzen, herstel, meting en bewijs vast. Relaties die nog niet in de bestaande keten voorkomen krijgen een eigen bron, relatietype, doel, belang en onderbouwing.
+
+Regels worden als toetsbare ALS-DAN-voorstellen vastgelegd en signalen als conditie met ernst, actiehouder, actie, reactietijd en escalatie. De invoer loopt via Concept naar Ter beoordeling en Vastgesteld. Deze status verandert geen actieve DVM- of BI-configuratie. Pas na afzonderlijke beoordeling implementeert de bevoegde domeineigenaar een voorstel in de bestaande rule- of trigger-engine. Zo blijft expertkennis traceerbaar zonder een tweede rekenmodel te introduceren.
+
 ## 7. De engines rekenen binnen hun eigenaarschap
 
 De oorspronkelijke applicaties draaien technisch nog elk in een eigen sandboxed `iframe`. Ze praten met de schil via `window.HUB`. De schil kent hun binnenwerk niet en herrekent domeinregels niet zelf.
@@ -101,7 +107,7 @@ BI-signalen worden ongewijzigd doorgegeven. Een technische dienstimpact onder no
 
 ## 9. Lokaal bewaren, zelf samenstellen wat je meeneemt
 
-Zodra een engine iets wijzigt stuurt die een bericht naar de schil. Na ongeveer anderhalve seconde rust schrijft de schil de volledige staat naar IndexedDB, onder de naam `bidash-integraal`. Bij het herladen wordt diezelfde staat teruggeduwd in de engines, inclusief de planning-XML.
+Zodra een engine iets wijzigt stuurt die een bericht naar de schil. Na ongeveer anderhalve seconde rust schrijft de schil de volledige staat naar IndexedDB, onder de naam `bidash-integraal`. Bij het herladen wordt diezelfde staat teruggeduwd in de engines, inclusief de planning-XML. Opgeslagen expertduidingen staan als eigen verzameling in dezelfde werkruimte en kunnen afzonderlijk in de integrale export worden geselecteerd.
 
 De telregels voor actuele storingen zijn onderdeel van de DVM-parameters en reizen mee met een parameter- of totaalexport. De bronlijst zelf blijft als aparte actuele gegevensstroom bewaard.
 
