@@ -220,3 +220,24 @@ De parser bewaart de selectie voor vervolgvragen, maar bewaart geen tweede kopie
 Planning en open storingen mogen op corridor worden samengebracht om samenloop zichtbaar te maken. Zo'n corridor-match is geen oorzakelijk bewijs. Werkzaamheden gebruiken waar beschikbaar de al door DVM gelegde asset- en routekoppelingen.
 
 De functie gebruikt geen netwerkverbinding en valt onder dezelfde lokale gegevensgrens als de rest van BiDash. Grote historische detailbronnen worden niet standaard volledig in de chatcontext gematerialiseerd.
+
+
+## DRIP totaal: bron vervangen of JSON toevoegen
+
+In **Data & export → DVM-bronbeheer → DRIP totaal (JSON)** zijn twee verschillende handelingen beschikbaar zodra een DRIP-bron aanwezig is:
+
+```text
+Bron vervangen
+  -> bestaande DRIP-historie wissen
+  -> gekozen datasets.drip laden
+  -> koppeling en DRIP-analyse opnieuw opbouwen
+
+Voeg JSON toe
+  -> bestaande DRIP-bronnen behouden
+  -> gekozen datasets.drip als extra bron toevoegen
+  -> exact overlappende incidenten ontdubbelen
+  -> gezamenlijk DRIP_HIST_STATE herbouwen
+  -> dezelfde koppeling, open-DRIP-afleiding en Monte Carlo gebruiken
+```
+
+De knop **Voeg JSON toe** is bedoeld voor losse aanvullende DRIP-totaalbestanden. Een bestand met dezelfde bronnaam vervangt zijn eerdere bronvariant; overlap met andere bronnen wordt niet dubbel geteld. De bestaande knop **Bron vervangen** blijft de expliciete manier om opnieuw vanaf één DRIP-bron te beginnen.
