@@ -4,7 +4,7 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='106';
+  const DVM_VERSION='107';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
@@ -137,14 +137,33 @@
   function isSignaalgeverTotaalItem(item){
     return (item.type==='liveStoringen'||item.type==='storingshistorie')&&String(item.key||'').indexOf('signaalgever-totaal-')===0;
   }
+  function datumTekst(t){
+    if(!t)return '';
+    const d=new Date(t);return Number.isNaN(d.getTime())?String(t):d.toLocaleDateString('nl-NL');
+  }
+  function bronBestandenHtml(bestand){
+    const e=typeof esc==='function'?esc:(v=>String(v==null?'':v));
+    const namen=String(bestand||'').split(/\s+\+\s+/).map(x=>x.trim()).filter(Boolean);
+    if(!namen.length)return '';
+    return '<div class="dataset-meta-section"><div class="dataset-meta-label">Bestand'+(namen.length===1?'':'en')+'</div>'+
+      namen.map(n=>'<div class="dataset-file">'+e(n)+'</div>').join('')+'</div>';
+  }
+  function regioUpdatesHtml(perVc){
+    const e=typeof esc==='function'?esc:(v=>String(v==null?'':v));
+    const entries=Object.entries(perVc||{}).filter(([,t])=>t).sort(([a],[b])=>a.localeCompare(b));
+    if(!entries.length)return '';
+    return '<div class="dataset-meta-section"><div class="dataset-meta-label">Laatste update per regio</div><div class="dataset-region-list">'+
+      entries.map(([v,t])=>'<div class="dataset-region-row"><b>'+e(String(v).toUpperCase())+'</b><span>Laatste update '+e(datumTekst(t))+'</span></div>').join('')+
+      '</div></div>';
+  }
   function signaalgeverTotaalMeta(s){
-    const esctekst=typeof esc==='function'?esc:(v=>String(v==null?'':v));
-    const dat=t=>t?new Date(t).toLocaleDateString('nl-NL'):'';
-    const d=dat(s.peildatum),laatste=dat(s.laatsteEntry);
-    const perVc=s.laatstePerVc&&Object.keys(s.laatstePerVc).length
-      ? '<br>Laatste entry per regio: '+Object.entries(s.laatstePerVc).sort().map(([v,t])=>v.toUpperCase()+' '+dat(t)).join(', ')
-      : '';
-    return `${esctekst(s.bestand)}<br>${(s.open||0).toLocaleString('nl-NL')} open (${(s.herkendOpen||0).toLocaleString('nl-NL')} herkend), ${(s.historie||0).toLocaleString('nl-NL')} historisch (${(s.herkendHist||0).toLocaleString('nl-NL')} herkend).${laatste?'<br>Laatste entry '+laatste:''}${d?' · peildatum open '+d:''}${perVc}<br>Voedt zowel het actuele dashboard als de prognose; vervangt de losse Open storingen en Storingshistorie.`;
+    const laatste=datumTekst(s.laatsteEntry),peil=datumTekst(s.peildatum);
+    const samenvatting='<div class="dataset-meta-section"><div class="dataset-meta-label">Inhoud</div>'+
+      '<div>'+(s.open||0).toLocaleString('nl-NL')+' open ('+(s.herkendOpen||0).toLocaleString('nl-NL')+' herkend)</div>'+
+      '<div>'+(s.historie||0).toLocaleString('nl-NL')+' historisch ('+(s.herkendHist||0).toLocaleString('nl-NL')+' herkend)</div>'+
+      (laatste?'<div>Laatste entry '+laatste+'</div>':'')+(peil?'<div>Peildatum open '+peil+'</div>':'')+'</div>';
+    return bronBestandenHtml(s.bestand)+samenvatting+regioUpdatesHtml(s.laatstePerVc)+
+      '<div class="dataset-meta-note">Voedt zowel het actuele dashboard als de prognose; vervangt de losse Open storingen en Storingshistorie.</div>';
   }
 
   /* De DRIP-totaalkaart toont de actuele DRIP-storingshistorie. Na een JSON- of
@@ -168,13 +187,14 @@
      (uit DRIP_HIST_STATE.sources) worden daarom onder deze kaart getoond. */
   function isDripTotaalItem(item){return item.type==='dripHistorie';}
   function dripTotaalMeta(s){
-    const esctekst=typeof esc==='function'?esc:(v=>String(v==null?'':v));
-    const dat=t=>t?new Date(t).toLocaleDateString('nl-NL'):'';
-    const laatste=dat(s.laatsteEntry);
-    const perVc=s.laatstePerVc&&Object.keys(s.laatstePerVc).length
-      ? '<br>Laatste entry per regio: '+Object.entries(s.laatstePerVc).sort().map(([v,t])=>v.toUpperCase()+' '+dat(t)).join(', ')
-      : '';
-    return `${esctekst(s.bestand)}<br>${(s.incidenten||0).toLocaleString('nl-NL')} incidenten uit ${(s.bronnen||1).toLocaleString('nl-NL')} bron${(s.bronnen||1)===1?'':'nen'} (${(s.gekoppeldeIncidenten||0).toLocaleString('nl-NL')} gekoppeld aan het DRIP-areaal${s.nietGekoppeld?`, ${(s.nietGekoppeld||0).toLocaleString('nl-NL')} niet`:''}).${laatste?'<br>Laatste entry '+laatste:''}${perVc}<br><b>Bron vervangen</b> wist de huidige DRIP-historie; <b>Voeg JSON toe</b> vult de huidige DRIP-bronnen complementair aan.`;
+    const laatste=datumTekst(s.laatsteEntry),bronnen=Number(s.bronnen||1);
+    const samenvatting='<div class="dataset-meta-section"><div class="dataset-meta-label">Inhoud</div>'+
+      '<div>'+(s.incidenten||0).toLocaleString('nl-NL')+' incidenten uit '+bronnen.toLocaleString('nl-NL')+' bron'+(bronnen===1?'':'nen')+'</div>'+
+      '<div>'+(s.gekoppeldeIncidenten||0).toLocaleString('nl-NL')+' gekoppeld aan het DRIP-areaal'+
+      (s.nietGekoppeld?' · '+(s.nietGekoppeld||0).toLocaleString('nl-NL')+' niet gekoppeld':'')+'</div>'+
+      (laatste?'<div>Laatste entry '+laatste+'</div>':'')+'</div>';
+    return bronBestandenHtml(s.bestand)+samenvatting+regioUpdatesHtml(s.laatstePerVc)+
+      '<div class="dataset-meta-note"><b>Bron vervangen</b> wist de huidige DRIP-historie.<br><b>Voeg JSON toe</b> vult de huidige DRIP-bronnen complementair aan.</div>';
   }
 
   if(typeof datasetItems==='function'){
