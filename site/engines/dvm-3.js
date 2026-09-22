@@ -809,41 +809,74 @@ function dripTotaalBronnen(json){
   const drip=(json&&json.datasets&&json.datasets.drip)||{};
   return {drip,versie:String((json&&json.metadata&&json.metadata.versie)||'')};
 }
-/* Gedeelde toepassing van een DRIP-bundel (uit JSON óf uit maplezen). Vervangt de
-   DRIP-storingshistorie volledig en bouwt DRIP_HIST_STATE opnieuw op, zodat
-   herbouwDripHistorie() de koppeling aan het areaal en de open-DRIP-afleiding
-   opnieuw legt. */
-async function pasDripBundelToe(bestandsnaam,drip,versie){
+/* Gedeelde toepassing van een DRIP-bundel (uit JSON óf uit maplezen).
+   Standaard vervangt deze de DRIP-storingshistorie. Met modus 'toevoegen'
+   blijft de bestaande historie staan en wordt een extra JSON-bron toegevoegd.
+   Dubbele incidenten over verschillende bronnen worden daarbij exact
+   ontdubbeld op asset, tijdvenster en classificatie. */
+function dripIncidentSleutel(x){
+  return [String(x&&x.code||x&&x.asset||'').trim().toUpperCase(),Number(x&&x.start)||0,
+    Number(x&&x.einde)||0,String(x&&x.classificatie||'').trim().toUpperCase(),
+    x&&x.hardUit?'1':'0'].join('|');
+}
+function dripTotaalBronKey(bestandsnaam){
+  const naam=String(bestandsnaam||'drip.json').trim().toLowerCase().replace(/[^a-z0-9._-]+/g,'-');
+  return 'drip-json:'+naam;
+}
+function mergeDripBronnen(bestaand,bron){
+  const oud=(Array.isArray(bestaand)?bestaand:[]).filter(s=>s&&s.key!==bron.key);
+  const gezien=new Set();
+  oud.forEach(s=>(s.incidenten||[]).forEach(x=>gezien.add(dripIncidentSleutel(x))));
+  const uniek=[];
+  for(const x of bron.incidenten||[]){
+    const sleutel=dripIncidentSleutel(x);
+    if(gezien.has(sleutel))continue;
+    gezien.add(sleutel);uniek.push(x);
+  }
+  const tijden=uniek.flatMap(x=>[x.start,x.einde]).filter(x=>x!=null);
+  const assetCodes=[...new Set(uniek.map(x=>x.code).filter(Boolean))];
+  const volgende={...bron,incidenten:uniek,assetCodes,
+    van:tijden.length?Math.min(...tijden):null,tot:tijden.length?Math.max(...tijden):null};
+  return [...oud,volgende];
+}
+async function pasDripBundelToe(bestandsnaam,drip,versie,modus){
+  modus=modus==='toevoegen'?'toevoegen':'vervang';
   const adem=()=>typeof uiPauze==='function'?uiPauze():Promise.resolve();
-  const {incidenten,dekkingDatums,assetCodes}=dripDatasetNaarBron(drip,'drip-totaal',bestandsnaam);
+  const sourceKey=modus==='toevoegen'?dripTotaalBronKey(bestandsnaam):'drip-totaal';
+  const {incidenten,dekkingDatums,assetCodes}=dripDatasetNaarBron(drip,sourceKey,bestandsnaam);
   const tijden=incidenten.flatMap(x=>[x.start,x.einde]).filter(x=>x!=null);
   const van=tijden.length?Math.min(...tijden):null,tot=tijden.length?Math.max(...tijden):null;
   let dek=dekkingDatums;
   if(!dek.length&&van!=null&&tot!=null)dek=histDagenTussen(van,tot);
   const regio=normDripHistRegio(bestandsnaam)||(incidenten.find(x=>x.vc)||{}).vc||'';
-  const bron={key:'drip-totaal',name:bestandsnaam,size:0,sheet:'datasets.drip',format:'DRIP totaal (JSON/map)',
+  const bron={key:sourceKey,name:bestandsnaam,size:0,sheet:'datasets.drip',format:'DRIP totaal (JSON/map)',
     episodesGenegeerd:0,regio,incidenten,afgewezen:0,dekkingDatums:dek,dekkingDagen:dek.length,van,tot,
-    assetCodes,_dripTotaal:true,_dripBestand:bestandsnaam};
-  DRIP_HIST_STATE={sources:[bron]};DRIP_MC=null;
+    assetCodes,_dripTotaal:true,_dripBestand:bestandsnaam,_dripVersie:versie||''};
+  const bestaand=(DRIP_HIST_STATE&&Array.isArray(DRIP_HIST_STATE.sources))?DRIP_HIST_STATE.sources:[];
+  DRIP_HIST_STATE={sources:modus==='toevoegen'?mergeDripBronnen(bestaand,bron):[bron]};DRIP_MC=null;
   await adem();
   herbouwDripHistorie();
   ANALYSE_SIGNATURE='';
   await adem();
   probeerAnalyseActiveren('drips',{inspectieAlGereed:true,matchAlGereed:true});
-  const koppeling=(DRIP_HIST_STATE&&DRIP_HIST_STATE.koppeling)||{};
-  const laatstePerVc={};
-  for(const x of (DRIP_HIST_STATE&&DRIP_HIST_STATE.incidenten)||[]){
+  const H=DRIP_HIST_STATE||{},koppeling=H.koppeling||{},laatstePerVc={};
+  for(const x of H.incidenten||[]){
     const t=Math.max(x.einde||0,x.start||0);if(!t)continue;
     const vc=String(x.vc||'').toLowerCase();if(!vc)continue;
     if(!laatstePerVc[vc]||t>laatstePerVc[vc])laatstePerVc[vc]=t;
   }
-  window.__BIDASH_DRIP_TOTAAL__={bestand:bestandsnaam,versie,
-    incidenten:(DRIP_HIST_STATE&&DRIP_HIST_STATE.incidenten.length)||0,
+  const bronNamen=(H.sources||[]).map(s=>s.name).filter(Boolean);
+  const laatsteEntry=(H.incidenten||[]).reduce((m,x)=>Math.max(m,x.einde||0,x.start||0),0)||null;
+  window.__BIDASH_DRIP_TOTAAL__={bestand:bronNamen.join(' + ')||bestandsnaam,versie,
+    bronnen:(H.sources||[]).length,incidenten:(H.incidenten||[]).length,
     gekoppeldeIncidenten:koppeling.gekoppeldeIncidenten||0,gekoppeldeAssets:koppeling.gekoppeldeAssets||0,
-    nietGekoppeld:koppeling.nietGekoppeldeIncidenten||0,laatsteEntry:tot,laatstePerVc};
-  return {incidenten:bron.incidenten.length,gekoppeldeIncidenten:koppeling.gekoppeldeIncidenten||0,laatsteEntry:tot};
+    nietGekoppeld:koppeling.nietGekoppeldeIncidenten||0,laatsteEntry,laatstePerVc};
+  const actieveBron=(H.sources||[]).find(s=>s.key===sourceKey);
+  return {incidenten:(actieveBron&&actieveBron.incidenten||[]).length,totaalIncidenten:(H.incidenten||[]).length,
+    bronnen:(H.sources||[]).length,gekoppeldeIncidenten:koppeling.gekoppeldeIncidenten||0,laatsteEntry};
 }
-async function leesDripTotaalBestand(file){
+async function leesDripTotaalBestand(file,modus){
+  modus=modus==='toevoegen'?'toevoegen':'vervang';
   if(!ASSET_REGISTER_STATE){alert('Laad eerst All Assets. De DRIP-bron wordt rechtstreeks aan dat stamregister gekoppeld.');renderDataGereedheid();return;}
   zetImportVoortgang(file.name,0,'DRIP-totaalbestand lezen',{direct:true});await uiPauze();
   const buffer=await leesBlobAlsArrayBuffer(file,20000,'het JSON-bestand kon niet binnen 20 seconden worden gelezen');
@@ -854,11 +887,15 @@ async function leesDripTotaalBestand(file){
   const {drip,versie}=dripTotaalBronnen(json);
   const heeftData=(Array.isArray(drip.storingen)&&drip.storingen.length)||(Array.isArray(drip.episodes)&&drip.episodes.length);
   if(!heeftData)throw new Error('geen datasets.drip.storingen of datasets.drip.episodes gevonden');
-  zetImportVoortgang(file.name,80,'DRIP-incidenten aan All Assets koppelen',{direct:true});await uiPauze();
-  const {incidenten,gekoppeldeIncidenten}=await pasDripBundelToe(file.name,drip,versie);
-  importKlaar(file.name,`DRIP totaal (JSON ${versie||'?'}) geladen: ${incidenten.toLocaleString('nl-NL')} incidenten (${gekoppeldeIncidenten.toLocaleString('nl-NL')} gekoppeld aan het DRIP-areaal). Vervangt de losse DRIP-storingshistorie.`);
-  if(incidenten&&!gekoppeldeIncidenten)alert('De DRIP-incidenten zijn geladen maar geen enkele kon aan een DRIP-asset in All Assets worden gekoppeld. Controleer of het assetregister DRIP-assets met een CDMS-code bevat.');
-  return {incidenten,gekoppeldeIncidenten};
+  zetImportVoortgang(file.name,80,modus==='toevoegen'?'DRIP-incidenten complementair toevoegen':'DRIP-incidenten aan All Assets koppelen',{direct:true});await uiPauze();
+  const {incidenten,totaalIncidenten,bronnen,gekoppeldeIncidenten}=await pasDripBundelToe(file.name,drip,versie,modus);
+  if(modus==='toevoegen'){
+    importKlaar(file.name,`DRIP JSON toegevoegd: ${incidenten.toLocaleString('nl-NL')} unieke incidenten uit deze bron; totaal ${totaalIncidenten.toLocaleString('nl-NL')} incidenten uit ${bronnen.toLocaleString('nl-NL')} bronnen (${gekoppeldeIncidenten.toLocaleString('nl-NL')} gekoppeld aan het DRIP-areaal).`);
+  }else{
+    importKlaar(file.name,`DRIP totaal (JSON ${versie||'?'}) geladen: ${incidenten.toLocaleString('nl-NL')} incidenten (${gekoppeldeIncidenten.toLocaleString('nl-NL')} gekoppeld aan het DRIP-areaal). Bestaande DRIP-historie is vervangen.`);
+  }
+  if(totaalIncidenten&&!gekoppeldeIncidenten)alert('De DRIP-incidenten zijn geladen maar geen enkele kon aan een DRIP-asset in All Assets worden gekoppeld. Controleer of het assetregister DRIP-assets met een CDMS-code bevat.');
+  return {incidenten,totaalIncidenten,bronnen,gekoppeldeIncidenten};
 }
 
 function rijWaardeExact(row,namen){
