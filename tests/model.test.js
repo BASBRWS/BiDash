@@ -31,3 +31,11 @@ test('kwaliteitsaudit en scorehistorie gaan alleen mee als kwaliteit is geselect
  const met=makeExport(s,new Set(['quality']));assert.equal(met.delen.qualityAudit.score,88);assert.equal(met.delen.qualityHistory.length,2);
  const hersteld=mergeImport(DEFAULT_STATE(),met);assert.equal(hersteld.qualityAudit.score,88);assert.equal(hersteld.qualityHistory.length,2);
 });
+test('expertduidingen gaan selectief mee en een ontbrekend veld blijft bij deelimport behouden',()=>{
+ const s=DEFAULT_STATE();s.expertReviews=[{dienstId:'im',status:'concept',context:{doel:'Veilig afhandelen'}}];
+ const zonder=makeExport(s,new Set(['links']));assert.equal(zonder.delen.expertReviews,undefined);
+ const met=makeExport(s,new Set(['expertReviews']));assert.equal(met.delen.expertReviews[0].dienstId,'im');
+ const bestaand=DEFAULT_STATE();bestaand.expertReviews=[{dienstId:'vm',status:'concept'}];
+ assert.equal(mergeImport(bestaand,{formaat:'BiDash-integraal',versie:1,delen:{links:[]}}).expertReviews[0].dienstId,'vm');
+ assert.equal(mergeImport(bestaand,met).expertReviews[0].dienstId,'im');
+});

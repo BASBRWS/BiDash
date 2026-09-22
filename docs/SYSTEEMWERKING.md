@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.22 en DVM 107, bijgewerkt op 22 september 2026 voor een volledige rondrit van mapbronnen via de handmatige DVM- en integrale totaalexport.
+Status: beschrijving van BiDash 2.23 en DVM 109, bijgewerkt op 22 september 2026 voor generieke expertduiding per dienstverlening.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -34,6 +34,7 @@ Een leeswijzer bij deze tekening staat in [architectuur.md](architectuur.md). De
 | Versie | `site/core/versie.js` | Het versienummer van de schil, de tekst in de kopbalk en in de voet van de zijbalk |
 | Datalaadvoortgang | `site/core/load-progress.js`, `site/core/import-progress-bridge.js` | Eén zichtbare importstatus voor hubbestanden en specialistische DVM-bronnen; bytevoortgang waar de browser die kan meten en fasestatus tijdens parsing/doorrekening |
 | Gegevenscontract | `site/core/model.js` | Deelimport, selectie-export, validatie, gecombineerde signalen |
+| Expertduiding | `site/core/service-expert-input.js` | Generiek schema, volledigheid, statusvalidatie en opslag per dienstverlening |
 | Live storingssync | `site/core/live-snapshot.js` | Vervangen actuele momentopname, vergelijken met vorige lijst en historiseren verdwenen MSI-storingen |
 | Live overzichtsfilter | `site/core/live-overview-filter.js` | Gebruikersselectie van open meldingen die in de actuele DVM-doorrekening meetellen, zonder de bronmomentopname te veranderen |
 | Opslag | `site/core/storage.js` | IndexedDB, transactioneel schrijven |
@@ -92,7 +93,7 @@ niet automatisch als duplicaat verwijderd. Overlap vraagt inhoudelijke beoordeli
 | Dienstverlening | Impact, verkeerskosten, gebied, regio, rekenverslag, memo’s |
 | Planning | Tijdlijn, planningsdashboard, project/budget, dashboardbeheer |
 | Formatie & contracten | Functies, VWM- en CIV-model, contracten, bedrijfsgegevens |
-| Regels & signalen | Signalering, dienst-functiekoppelingen, domeinregels |
+| Regels & signalen | Signalering, dienst-functiekoppelingen, domeinregels en expertinvoer per dienstverlening |
 | Scenario’s | Huidige verkeerskosten, MSI-toekomst, BI-scenario’s; DRIP via DVM |
 | Data & export | Lokale import met zichtbare voortgang, datasetbeheer inclusief live storingsfilter, lokale kwaliteitsaudit, selectieve back-up, oorspronkelijke broninvoer |
 | Help | Gebruikersuitleg, aanbevolen laadvolgorde, actuele storingslijst en procesflow |
@@ -105,7 +106,7 @@ Een nieuwe navigatie mag oorspronkelijke analyses niet onbereikbaar maken.
 ## 4. Lokale gegevens en beveiliging
 
 De hoofdwerkruimte heeft `schema: 1` en bevat `dvm`, `bi`, `planning`, `links`,
-`history`, `qualityAudit` en `qualityHistory`. IndexedDB gebruikt database
+`expertReviews`, `history`, `qualityAudit` en `qualityHistory`. IndexedDB gebruikt database
 `bidash-integraal`, objectstore `workspace`,
 sleutel `current`. Modules gebruiken daarnaast lokale browseropslag. Een back-up
 is een gedownloade export; browseropslag is geen garantie tegen gegevensverlies.
@@ -198,6 +199,7 @@ Integrale export: `formaat: BiDash-integraal`, `versie: 1`, met `delen`, `select
 | `biData` | Alle overige BI-velden; momenteel óók `vwmFte`, `cap`, `vwmRolCap`, `civFormatie` |
 | `planning` | Originele XML, bestandsnaam en `app_collectState()`-instellingen |
 | `links` | Expliciete dienst-functiekoppelingen en eigenaar |
+| `expertReviews` | Expertduiding per dienstverlening, inclusief context, ontbrekende relaties, regel- en signaalvoorstellen, bewijs en akkoordstatus |
 
 Belangrijk: de naam “BI-rekenregels” dekt momenteel niet alle formatievelden.
 Voor volledige overdracht van de BI-instellingen beide BI-selecties meenemen.
@@ -413,6 +415,38 @@ Dubbele IDs worden binnen de samenstelling verwijderd. Geen automatische kosten-
 vermenigvuldiging, extra formatie, contractboete of bewezen causaliteit op basis
 van alleen een gecombineerd signaal. Onbekende beschikbaarheid is geen bewezen normoverschrijding.
 
+### Expertduiding per dienstverlening
+
+`site/core/service-expert-input.js` definieert één generiek contract voor alle
+dienstverleningen. De dienst-ID is de scheiding; het formulier en de validatie zijn
+niet voor Incidentmanagement hard gecodeerd. De schil haalt beschikbare diensten
+uit de DVM-samenvatting en gebruikt vier neutrale VWM-diensten als terugval wanneer
+nog geen DVM-bron is geladen.
+
+Een expertduiding bevat:
+
+- expert, rol, status en formeel akkoord;
+- doel, resultaat, doelgroep, scope en buiten-scope;
+- start, stappen, beslismomenten, overdrachten en eindtoestand;
+- assets, systemen, informatie, rollen, externe en boven-/benedenstroomse afhankelijkheden;
+- faalwijzen, gevolgen, compensatie, herstel en escalatie;
+- normduiding, meetwijze, tijdvenster, bron en onzekerheid;
+- expliciete aanvullende relaties;
+- toetsbare regelvoorstellen en uitvoerbare signaalvoorstellen;
+- bewijs, aannames, open vragen en vertrouwensniveau.
+
+Concepten mogen onvolledig worden opgeslagen. `ter_beoordeling` vereist alle
+kernvragen en minstens één compleet regel- en signaalvoorstel. `vastgesteld`
+vereist daarnaast akkoordgever en datum. Deze statussen zijn inhoudelijke workflow
+en activeren geen regel. Een voorstel moet afzonderlijk door de bevoegde eigenaar
+in DVM of BI worden geïmplementeerd en getest.
+
+De gegevens staan in `state.expertReviews`, zijn selectief exporteerbaar en blijven
+behouden wanneer een oudere of gedeeltelijke import dit veld niet bevat. De
+read-only Context API publiceert genormaliseerde `expertReviews` en een afgeplatte
+lijst `expertRelations`. Dit maakt ontbrekende procesrelaties bevraagbaar zonder
+een tweede berekening of automatische causaliteit te introduceren.
+
 ## 11. Verplichte werkwijze bij AI-wijzigingen
 
 1. Lees dit document en de relevante actuele code. Controleer remote `main`, lokale wijzigingen en open PR’s; een andere AI kan intussen wijzigingen hebben gedaan.
@@ -435,6 +469,7 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 | Wijziging | Vereiste gerichte controle |
 | --- | --- |
 | Model/merge/export/signalen | `npm test` (`tests/model.test.js`) |
+| Expertduiding dienstverlening | `tests/service-expert-input.test.js`: generiek schema, volledigheid, statusovergangen, akkoord, geïsoleerde opslag per dienst en zichtbare route; `tests/model.test.js` en `tests/context-api.test.js` bewaken export/import en read-only context |
 | Navigatie/import/opslag | `tests/browser.cjs`: MS Project, P6, zichtbare tijdlijn, export/herstel, mobiel |
 | Datalaadvoortgang | `tests/data-load-progress.test.js`: byteaggregatie, begrenzing, FileReader-pad, paint-yield en DVM-voortgangsbrug |
 | Canvas/tijdschaal/drag | `tests/planning-large.cjs`: grote synthetische planning, scrollen, slepen, resizen |

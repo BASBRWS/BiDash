@@ -39,7 +39,7 @@ const bi={
   functions,
   triggers:[]
 };
-const state={dvm:{assetregister:{rijen:[{}]},liveStoringen:[{rijen:[{},{},{}]}],werkzaamheden:{rijen:[{}]},uRoutes:{rijen:[{}]}},bi:{},planning:{xml:'<x/>'},links:[{dienst:'im',functie:'f1',eigenaar:'VWM'}],history:[]};
+const state={dvm:{assetregister:{rijen:[{}]},liveStoringen:[{rijen:[{},{},{}]}],werkzaamheden:{rijen:[{}]},uRoutes:{rijen:[{}]}},bi:{},planning:{xml:'<x/>'},links:[{dienst:'im',functie:'f1',eigenaar:'VWM'}],expertReviews:[{dienstId:'im',dienstNaam:'Incidentmanagement',status:'concept',expert:{naam:'Expert A',rol:'Proceseigenaar'},relaties:[{id:'r1',bron:'Meldkamer',relatie:'levert_aan',doel:'Incident detecteren'}]}],history:[]};
 const context=buildBiDashContext({faults,assets:[],roads:[],services,functions,dvm,bi,links:state.links,state});
 
 test('Context API legt storing via assettype aan dienstverlening',()=>{
@@ -48,6 +48,12 @@ test('Context API legt storing via assettype aan dienstverlening',()=>{
   const msi=rows.find(x=>x.id==='m1');
   assert.ok(msi.serviceLinks.some(x=>x.serviceId==='im'));
   assert.ok(msi.gewogenVerlies>0);
+});
+
+test('Context API maakt expertduiding en ontbrekende relaties generiek beschikbaar',()=>{
+  assert.equal(context.expertReviews[0].dienstId,'im');
+  assert.equal(context.expertRelations[0].bron,'Meldkamer');
+  assert.equal(context.expertRelations[0].dienstNaam,'Incidentmanagement');
 });
 
 test('Context API koppelt planning aan storing via corridor',()=>{

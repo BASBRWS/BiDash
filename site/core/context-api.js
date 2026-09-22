@@ -118,6 +118,19 @@ function linkFunctions(services=[],functions=[],links=[]){
   }));
 }
 
+function compactExpertReviews(reviews=[]){
+  return (Array.isArray(reviews)?reviews:[]).map(review=>({
+    dienstId:String(review?.dienstId??''),dienstNaam:String(review?.dienstNaam??''),status:String(review?.status??'concept'),
+    expert:{naam:String(review?.expert?.naam??''),rol:String(review?.expert?.rol??''),organisatie:String(review?.expert?.organisatie??'')},
+    context:{...(review?.context||{})},proces:{...(review?.proces||{})},afhankelijkheden:{...(review?.afhankelijkheden||{})},
+    impact:{...(review?.impact||{})},meting:{...(review?.meting||{})},validatie:{...(review?.validatie||{})},
+    relaties:(Array.isArray(review?.relaties)?review.relaties:[]).map(row=>({...row})),
+    regelVoorstellen:(Array.isArray(review?.regelVoorstellen)?review.regelVoorstellen:[]).map(row=>({...row})),
+    signaalVoorstellen:(Array.isArray(review?.signaalVoorstellen)?review.signaalVoorstellen:[]).map(row=>({...row})),
+    bijgewerktOp:String(review?.bijgewerktOp??'')
+  }));
+}
+
 function sourceInventory({dvm={},bi={},state={}}){
   return [
     ['assetregister',!!state.dvm?.assetregister,Number(state.dvm?.assetregister?.rijen?.length||0)],
@@ -142,9 +155,11 @@ export function buildBiDashContext({faults=[],assets=[],roads=[],services=[],fun
   const uroutes=(dvm.uroutes||[]).map(compactRoute);
   const enrichedFaults=enrichFaults(faults,typeLinks);
   const serviceFunctionLinks=linkFunctions(richServices,functions,links);
+  const expertReviews=compactExpertReviews(state.expertReviews);
   return {
     faults:enrichedFaults,assets:[...assets],roads:[...roads],services:richServices,functions:[...functions],
-    subprocesses,serviceTypeLinks:typeLinks,serviceFunctionLinks,
+    subprocesses,serviceTypeLinks:typeLinks,serviceFunctionLinks,expertReviews,
+    expertRelations:expertReviews.flatMap(review=>review.relaties.map(relatie=>({dienstId:review.dienstId,dienstNaam:review.dienstNaam,...relatie}))),
     planning,capacity,works,uroutes,
     historySources:dvm.historySources||[],dripHistory:dvm.dripHistory||null,
     dvmTypes:dvm.types||{},signals:[...(bi.triggers||[]),...(dvm.triggers||[])],
