@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.22 en DVM 107, bijgewerkt op 21 september 2026 voor een volledige rondrit van mapbronnen via de handmatige DVM- en integrale totaalexport.
+Status: beschrijving van BiDash 2.22 en DVM 107, bijgewerkt op 22 september 2026 voor een volledige rondrit van mapbronnen via de handmatige DVM- en integrale totaalexport.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
