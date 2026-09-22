@@ -241,3 +241,21 @@ Voeg JSON toe
 ```
 
 De knop **Voeg JSON toe** is bedoeld voor losse aanvullende DRIP-totaalbestanden. Een bestand met dezelfde bronnaam vervangt zijn eerdere bronvariant; overlap met andere bronnen wordt niet dubbel geteld. De bestaande knop **Bron vervangen** blijft de expliciete manier om opnieuw vanaf één DRIP-bron te beginnen.
+
+
+## DRIP uit map schrijft incrementeel bij
+
+Wanneer al een **DRIP totaal (JSON)** is geladen, mag **DRIP uit map (CDMS)** die historie niet vervangen.
+
+```text
+bestaand DRIP totaal
+  + nieuwe mapsnede (regio/periode)
+  -> exacte overlap ontdubbelen
+  -> mapsnede als aanvullende bron bewaren
+  -> gezamenlijk DRIP_HIST_STATE herbouwen
+  -> open DRIP-afleiding en Monte Carlo opnieuw uitvoeren
+```
+
+Alleen de expliciete knop **Bron vervangen** op de kaart DRIP totaal wist de bestaande DRIP-historie. **Voeg JSON toe** en **DRIP uit map** zijn beide complementaire routes.
+
+De optionele basis-JSON in de mapdialoog is uitsluitend bedoeld om na afloop een bijgewerkt los `datasets.drip`-bestand te kunnen downloaden; die basis bepaalt niet welke reeds geladen bronnen in de huidige BiDash-werkruimte blijven staan.

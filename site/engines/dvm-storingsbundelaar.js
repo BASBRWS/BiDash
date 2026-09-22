@@ -592,7 +592,7 @@
           <label>Vanaf<br><input type="date" id="dgVanaf" style="padding:6px;border:1px solid #9ca8b4;border-radius:5px"></label>
           <label>Tot en met<br><input type="date" id="dgTot" style="padding:6px;border:1px solid #9ca8b4;border-radius:5px"></label>
         </div>
-        <label style="display:block;margin-bottom:6px">Optioneel basisbestand (eerder DRIP-totaal JSON, alleen de gekozen regio's worden bijgewerkt)<br><input type="file" id="dgBasis" accept=".json"></label>
+        <label style="display:block;margin-bottom:6px">Optioneel basisbestand voor <b>Download bijgewerkte JSON</b> (heeft geen invloed op het incrementeel bijschrijven in de huidige werkruimte)<br><input type="file" id="dgBasis" accept=".json"></label>
         <p id="dgBasisInfo" style="margin:0 0 10px;font-size:12px;color:#107c10;min-height:15px"></p>
         <p id="dgMapMelding" style="color:#a4262c;min-height:16px;margin:0 0 10px"></p>
         <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -732,25 +732,33 @@
     if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,74,'DRIP-episodes en storingen reconstrueren',{direct:true});
     if(typeof uiPauze==='function')await uiPauze();
     const bundel=sbBouwDripBundel(events,{});
+    /* De mapuitkomst en de downloadbasis zijn bewust twee verschillende dingen.
+       In de werkruimte wordt alleen de zojuist gelezen mapsnede toegevoegd aan
+       DRIP_HIST_STATE. Een optioneel basisbestand wordt uitsluitend gebruikt om
+       de knop "Download bijgewerkte JSON" een samengesteld datasets.drip-bestand
+       te laten maken. Daardoor kan een maplezing nooit meer stilzwijgend het
+       eerder geladen DRIP totaal vervangen. */
+    const mapDrip={episodes:bundel.episodes,storingen:bundel.storingen};
     const gecombineerd=config.basisDrip
-      ?sbCombineerMetDripBasis(config.basisDrip,bundel.episodes,bundel.storingen,config.vcs)
-      :{episodes:bundel.episodes,storingen:bundel.storingen};
+      ?sbCombineerMetDripBasis(config.basisDrip,mapDrip.episodes,mapDrip.storingen,config.vcs)
+      :mapDrip;
     const tijdstip=new Date(),z=n=>String(n).padStart(2,'0');
     const stempel=`${tijdstip.getFullYear()}${z(tijdstip.getMonth()+1)}${z(tijdstip.getDate())}_${z(tijdstip.getHours())}${z(tijdstip.getMinutes())}`;
     dgLaatsteExport={data:{metadata:{versie:'2.5',herkomst:'bidash-maplezer',aangemaakt:tijdstip.toISOString(),watermarks:{drip:sbDripWatermerken(gecombineerd)}},datasets:{drip:gecombineerd}},naam:`DRIP_totaal_bidash_${stempel}.json`};
     dgMapVoortgang(88,'DRIP-incidenten aan All Assets koppelen en doorrekenen…');
     if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,86,'DRIP-incidenten aan All Assets koppelen',{direct:true});
     if(typeof uiPauze==='function')await uiPauze();
-    const naam='DRIP uit map ('+regios+')';
-    const {incidenten,gekoppeldeIncidenten,laatsteEntry}=await pasDripBundelToe(naam,gecombineerd,'maplezen');
+    const bronPeriode=config.vanaf||config.tot?' · '+(config.vanaf||'begin')+' t/m '+(config.tot||'nu'):'';
+    const naam='DRIP uit map ('+regios+bronPeriode+')';
+    const {incidenten,totaalIncidenten,bronnen,gekoppeldeIncidenten,laatsteEntry}=await pasDripBundelToe(naam,mapDrip,'maplezen','toevoegen');
     window.__BIDASH_DG_MAP_CONFIG__=null;
     const laatste=laatsteEntry?new Date(laatsteEntry).toLocaleDateString('nl-NL'):'onbekend';
-    const klaarTekst=`Klaar (${regios}): ${bestanden.length.toLocaleString('nl-NL')} bestanden${nietLeesbaar?` (${nietLeesbaar.toLocaleString('nl-NL')} niet leesbaar)`:''} → ${Number(incidenten).toLocaleString('nl-NL')} incidenten (${Number(gekoppeldeIncidenten).toLocaleString('nl-NL')} gekoppeld). Laatste entry ${laatste}.`;
-    dgMapVoltooid(incidenten&&!gekoppeldeIncidenten?klaarTekst+' Let op: geen enkel incident kon aan een DRIP-asset worden gekoppeld.':klaarTekst,incidenten&&!gekoppeldeIncidenten);
-    if(typeof importKlaar==='function')importKlaar(label,'DRIP uit map gelezen. '+klaarTekst+' Vervangt de losse DRIP-storingshistorie.');
+    const klaarTekst=`Klaar (${regios}): ${bestanden.length.toLocaleString('nl-NL')} bestanden${nietLeesbaar?` (${nietLeesbaar.toLocaleString('nl-NL')} niet leesbaar)`:''} → ${Number(incidenten).toLocaleString('nl-NL')} unieke incidenten uit deze mapbron; totaal ${Number(totaalIncidenten).toLocaleString('nl-NL')} incidenten uit ${Number(bronnen).toLocaleString('nl-NL')} bronnen (${Number(gekoppeldeIncidenten).toLocaleString('nl-NL')} gekoppeld). Laatste entry ${laatste}.`;
+    dgMapVoltooid(totaalIncidenten&&!gekoppeldeIncidenten?klaarTekst+' Let op: geen enkel incident kon aan een DRIP-asset worden gekoppeld.':klaarTekst,totaalIncidenten&&!gekoppeldeIncidenten);
+    if(typeof importKlaar==='function')importKlaar(label,'DRIP uit map incrementeel toegevoegd aan DRIP totaal. '+klaarTekst);
     try{if(typeof renderDatasetBeheer==='function')renderDatasetBeheer();}catch(err){}
     try{if(parent!==window)parent.postMessage({type:'hub:changed',engine:'dvm',sourceSpecific:true,bron:'dripMap'},location.origin);}catch(err){}
-    return {bestanden:bestanden.length,incidenten,gekoppeldeIncidenten};
+    return {bestanden:bestanden.length,incidenten,totaalIncidenten,bronnen,gekoppeldeIncidenten};
   }
 
   // Globaal beschikbaar voor de source-manager en de test.

@@ -160,3 +160,10 @@ test('G. Voeg JSON toe houdt bestaande DRIP-bronnen en ontdubbelt overlap',()=>{
   assert.equal(bronnen[1].incidenten[0].code,'D81');
   assert.match(bronnen[1].key,/^drip-json:extra\.json$/);
 });
+
+
+test('H. DRIP uit map schrijft incrementeel bij op geladen DRIP totaal',()=>{
+  assert.match(bundelaar,/pasDripBundelToe\(naam,mapDrip,'maplezen','toevoegen'\)/);
+  assert.match(bundelaar,/DRIP uit map incrementeel toegevoegd aan DRIP totaal/);
+  assert.doesNotMatch(bundelaar,/pasDripBundelToe\(naam,gecombineerd,'maplezen'\)/);
+});

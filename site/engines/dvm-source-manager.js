@@ -4,7 +4,7 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='108';
+  const DVM_VERSION='109';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
@@ -31,7 +31,7 @@
     signaalgeverTotaal:{titel:'Signaalgevers totaal (JSON)',meta:'Nog niet geladen. Eén gecombineerd JSON-bestand (datasets.mtm) met open alarmen én historische storingen. Alternatief voor de losse Open storingen- en Storingshistorie-uploads; bij het laden vervangt het die twee bronnen zodat oud en nieuw niet mengen.'},
     signaalgeverMap:{titel:'Signaalgevers uit map (MTM)',meta:'Nog niet geladen. Kies de X-hoofdmap of de mtm-map; BiDash leest de ruwe storinglijsten onder mtm/<vc>/storinglijst/<jaar>/<maand>/<dag>, bouwt daaruit de open storingen en historie en bewaart alleen wat nodig is. Vult dezelfde bron als Signaalgevers totaal en vervangt de losse Open storingen en Storingshistorie. Werkt in Edge en Chrome.'},
     dripTotaal:{titel:'DRIP totaal (JSON)',meta:'Nog niet geladen. Eén JSON-bestand (datasets.drip) met DRIP-episodes en geclassificeerde storingen. Na de eerste bron kun je met Voeg JSON toe aanvullende bestanden complementair toevoegen; Bron vervangen wist de bestaande DRIP-historie. Voedt de DRIP Monte Carlo en open DRIP-incidenten.'},
-    dripMap:{titel:'DRIP uit map (CDMS)',meta:'Nog niet geladen. Kies de X-hoofdmap of de cdms-map; BiDash leest de ruwe DRIP-logs onder cdms/<vc>/log/<jaar>/<maand>/<dag>, reconstrueert de episodes en storingen en koppelt ze aan het DRIP-areaal. Vult dezelfde bron als DRIP totaal. Werkt in Edge en Chrome.'}
+    dripMap:{titel:'DRIP uit map (CDMS)',meta:'Nog niet geladen. Kies de X-hoofdmap of de cdms-map; BiDash leest de ruwe DRIP-logs onder cdms/<vc>/log/<jaar>/<maand>/<dag>, reconstrueert de episodes en storingen en voegt ze incrementeel toe aan DRIP totaal. Exacte overlap wordt niet dubbel opgenomen. Werkt in Edge en Chrome.'}
   };
 
   function werkVersieBij(){
