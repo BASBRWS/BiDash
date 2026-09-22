@@ -92,3 +92,10 @@ test('bronbeheer toont regio-updates onder elkaar met vetgedrukte regio',()=>{
   assert.match(html,/\.dataset-region-list\{/);
   assert.match(html,/\.dataset-region-row b\{/);
 });
+
+
+test('secundaire bronbeheerknoppen zijn zichtbaar op witte kaarten',()=>{
+  const html=read('site/engines/dvm.html');
+  assert.match(html,/\.dataset-actions \.tb-btn:not\(\.primary\)\{background:#fff;border:1px solid var\(--rws-blauw\);color:var\(--rws-blauw\)\}/);
+  assert.match(source,/Voeg JSON toe/);
+});

@@ -105,6 +105,9 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 .dataset-region-row span{color:var(--sub);font-size:11px}
 .dataset-meta-note{margin-top:8px;padding-top:7px;border-top:1px solid var(--border);color:var(--sub)}
 .dataset-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:auto}
+.dataset-actions .tb-btn:not(.primary){background:#fff;border:1px solid var(--rws-blauw);color:var(--rws-blauw)}
+.dataset-actions .tb-btn:not(.primary):hover{background:#eef3fb}
+.dataset-actions .tb-btn:not(.primary):disabled{background:#fff;color:var(--grijs-donker);border-color:var(--grijs-mid)}
 .dataset-del{background:#fff;border:1px solid #efbdc2;color:var(--rood);border-radius:6px;padding:5px 9px;font-size:11.5px;font-weight:800;cursor:pointer}
 .dataset-del:hover{background:var(--rood-l)}
 .export-select{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin:10px 0 12px}
