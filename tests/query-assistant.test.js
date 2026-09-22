@@ -67,3 +67,42 @@ test('popup is in de hoofdschil gekoppeld zonder AI of externe endpoint',()=>{
  assert.match(app,/installQueryAssistant/);
  assert.match(app,/assistantApplyContext/);
 });
+
+
+test('oudste asset gebruikt installatiegegevens uit All Assets',()=>{
+ const local={...data,assets:[
+   {key:'nieuw',naam:'Nieuw MSI',tp:'MSI',vc:'ZWN',weg:'A15',bouwjaar:2018,eolJaar:2033},
+   {key:'oud',naam:'Oud DRIP',tp:'DRIP',vc:'ZWN',weg:'A4',ingebruikname:'2001-06-15',eolJaar:2016},
+   {key:'zonder',naam:'Zonder datum',tp:'LUS',vc:'NWN',weg:'A12'}
+ ]};
+ const answer=answerQuestion('Wat is het oudste asset?',{data:local});
+ assert.equal(answer.context.dataset,'assets');
+ assert.equal(answer.title,'Oudste asset');
+ assert.equal(answer.rows[0].naam,'Oud DRIP');
+ assert.equal(answer.rows[0]._installLabel,'15-6-2001');
+ assert.match(answer.text,/All Assets/);
+});
+
+test('nieuwste asset gebruikt bouwjaar en negeert ontbrekende installatiedatum',()=>{
+ const local={...data,assets:[
+   {key:'a',naam:'A',tp:'MSI',bouwjaar:2008},
+   {key:'b',naam:'B',tp:'MSI',bouwjaar:2021},
+   {key:'c',naam:'C',tp:'MSI'}
+ ]};
+ const answer=answerQuestion('Wat is het nieuwste asset?',{data:local});
+ assert.equal(answer.rows[0].naam,'B');
+ assert.equal(answer.rows[0]._installLabel,'2021');
+ assert.equal(answer.metrics.find(m=>m.label==='Met installatiedatum').value,'2');
+});
+
+test('EOL-vraag gebruikt alleen EOL uit All Assets',()=>{
+ const local={...data,assets:[
+   {key:'a',naam:'A',tp:'MSI',weg:'A15',eolJaar:2025},
+   {key:'b',naam:'B',tp:'DRIP',weg:'A4',raw:{eol:{jaar:2032}}}
+ ]};
+ const answer=answerQuestion('Welke assets zijn over EOL?',{data:local});
+ assert.equal(answer.context.dataset,'eol');
+ assert.equal(answer.title,'EOL uit All Assets');
+ assert.doesNotMatch(answer.text,/geladen.*referentie/i);
+ assert.ok(answer.rows.every(row=>row._eol<=new Date().getFullYear()));
+});

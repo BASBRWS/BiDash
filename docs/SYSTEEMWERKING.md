@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.20 en DVM 103, bijgewerkt op 19 september 2026 voor de integrale BiDash Context API en de relationele Vraag BiDash-queryassistent, naast de actuele storingslijstsynchronisatie, het configureerbare live-overzichtsfilter, de geïntegreerde Help-pagina, zichtbare voortgang bij gegevensimport en CSP-veilige dynamische bediening.
+Status: beschrijving van BiDash 2.22 en DVM 105, bijgewerkt op 21 september 2026 voor een volledige rondrit van mapbronnen via de handmatige DVM- en integrale totaalexport.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -130,7 +130,27 @@ Ondersteund zijn de bestaande DVM-totaal-JSON, BI-dataset-JSON en planning-XML
 blijft via bronbeheer beschikbaar. ZIP is geen beloofd hub-importformaat: pak een
 planningarchief uit en laad de XML, tenzij ZIP-ondersteuning apart is geïmplementeerd.
 
-De aanbevolen DVM-volgorde is All Assets, historische storingen, U-routes, werkzaamheden en als laatste de actuele open storingslijst. Installatie-/stichtingsdatum, EOL en expliciete levensduur zijn velden van All Assets en vormen geen aparte bron meer. De actuele storingslijst is de volledige momentopname voor het live dashboard. Daarna kan de gebruiker in Datasetbeheer instellen welke open meldingen in de actuele doorrekening meetellen. Historische storingen zijn een aparte gegevensstroom voor historie en prognose en worden door dat live filter niet gewijzigd.
+De handmatige DVM-totaalexport bewaart zowel de feitelijke bronrijen als de
+bronidentiteit en samenvatting van Bronbeheer. Bij een gecombineerde
+signaalgeverbron blijven `_signaalgeverTotaal`, het oorspronkelijke bestand,
+peildatum, herkomst en tellingen behouden. Het `bronbeheer`-manifest bewaart de
+samenvattingen van Signaalgevers totaal en DRIP totaal. Bij herstel gebruikt de
+doorrekening nog steeds de bestaande storingssecties, terwijl Bronbeheer dezelfde
+gecombineerde bronkaarten terugtoont. Oude totaalexports zonder manifest blijven
+bruikbaar; vaste signaalgeverbronsleutels worden bij import alsnog herkend.
+
+Automatische lokale opslag en handmatige export zijn bewust twee verschillende
+paden. `HUB.export()` levert standaard een compacte snapshot voor IndexedDB en
+laat zware, uit een map opgebouwde signaalgeverrijen weg. Alleen een expliciete
+`HUB.export({fullSources:true})` levert de volledige handmatige back-up. De
+hoofdapp gebruikt die volledige variant voor zowel DVM-totaal-JSON als de
+integrale BiDash-export, zonder de compacte lokale werkruimte ermee te vervangen.
+De integrale export neemt daarnaast het bij de geselecteerde storingsdelen horende
+`bronbeheer`-manifest mee. Daardoor blijven bijgewerkte MTM- en CDMS-mapgegevens,
+U-routes, werkzaamheden, classificatielijsten en hun bronstatus na export en
+herimport beschikbaar.
+
+De aanbevolen DVM-volgorde is All Assets, historische storingen, U-routes, werkzaamheden en als laatste de actuele open storingslijst. Installatie-/ingebruiknamedatum, EOL en expliciete levensduur worden uit All Assets gelezen. De actuele storingslijst is de volledige momentopname voor het live dashboard. Daarna kan de gebruiker in Datasetbeheer instellen welke open meldingen in de actuele doorrekening meetellen. Historische storingen zijn een aparte gegevensstroom voor historie en prognose en worden door dat live filter niet gewijzigd.
 
 Naast de losse Open storingen- en Storingshistorie-uploads is er een gecombineerde bron **Signaalgevers totaal (JSON)**. Dat is één exportbestand (`datasets.mtm`) met zowel de open alarmen als de historische storingen. `signaalgeverTotaalBronnen()` in `dvm-3.js` zet de records om naar rijen die `normRij()` al kent: `alarm_episodes` met `eindstatus: "open_aan_einde"` (en `meenemen !== false`) worden de open-storingenstroom, `storingen` worden de historie. Elke open alarmregel draagt haar omschrijving als `melding`, aangevuld met `categorie` en signaalgever (`unit`). `canoniekAssetType()` en `signaalgeverAssetType()` houden daarbij MSI- en detectorregels uit elkaar: lus, lussen, detectie, detector, detectielus, meetlus en inductielus worden intern `LUS`; de overige MTM-signaalgeverregels worden `MSI`. `registerAssetType()` past dezelfde normalisatie toe op All Assets en laat een specifiek bouwdeel of type voorgaan op de bredere CI-familie. `OBJ_BRON.detectie = 'LUS'` koppelt dit technische type aan de schakel detectie in subprocessen en dienstverlening. Bekende foutcodes matchen eerst op de code en daarna op de omschrijving, zodat een andere omschrijving bij code 1006, 1007 of 5004 de impactregel niet blokkeert. Een historische storing zonder omschrijving krijgt `signaalgever + impactklasse` als melding met hetzelfde doel. Een detectorcode zonder passende LUS-regel blijft zichtbaar maar niet-doorgerekend; er wordt geen impact verzonnen. De bron is bewust een óf/óf-keuze: bij het laden vervangt ze de losse Open storingen- en Storingshistorie-bronnen (vervang-modus), zodat oud bestandsformaat nooit met de JSON mengt. De oude uploadknoppen blijven bestaan voor de bestaande werkwijze. De bronnen dragen een `_signaalgeverTotaal`-vlag zodat Datasetbeheer ze onder de eigen kaart "Signaalgevers totaal" toont in plaats van onder Open storingen en Storingshistorie (die dan leeg blijven); de doorrekening gebruikt onverminderd `STORINGSBRONNEN` en `LIVE_STORINGSBRONNEN`. Verwijderen op die kaart wist beide stores in één keer.
 
@@ -222,7 +242,7 @@ Actueel en prognose zijn gescheiden:
 - RIA4 en Windwaarschuwing zijn onafhankelijke DRIP-classificaties. Een gecombineerd bronbestand wordt per gemarkeerde regel gesplitst. De koppeling gebruikt een identifier met locatiecontrole en anders VC, weg, richting en hectometer. Een hergebruikte DRIP-code in een ander gebied mag daardoor geen classificatie overnemen.
 - Een classificatie draagt haar eigen herkomst. `classifiedRows()` levert `herkomst` (`markering` of `aanname`), `markerKolommen` en `rijenBron`. Naast de vaste kopteksten gelden samenstellingen als `RIA-4 DRIP` en `Windwaarschuwing DRIP` als markering; windmeetkolommen (`richting`, `snelheid`, `kracht`, `meting`, `sensor`, `graden`) nadrukkelijk niet, want die beschrijven het weer en niet de soort DRIP. Wordt geen markerkolom herkend, dan is de soort een aanname van de gebruiker over het hele bestand. Die aanname moet zichtbaar zijn in de laadmelding en op de bronkaart, en gaat mee in de totaalexport zodat een herstelde bundel haar niet stilzwijgend tot vaststelling maakt.
 - De brondag is niet automatisch vandaag. NDW-meetmoment, exportdatum en prognoseperiode zijn afzonderlijke datums en moeten herkenbaar blijven.
-- All Assets bepaalt populatie, kenmerken, installatie-/stichtingsdatum, EOL en expliciete levensduurgegevens.
+- All Assets bepaalt populatie, kenmerken, installatie-/ingebruiknamedatum en expliciete EOL/levensduurgegevens. Een aparte EOL-referentie bestaat niet meer.
 - U-routes en werkzaamheden zijn context voor bestaande analyses, geen automatische vermenigvuldigers voor alle kosten.
 
 Rekenketen: volledige open momentopname → gebruikersfilter voor actuele doorrekening → asset-/objectimpact → subprocessen → dienstverlening.
@@ -597,20 +617,10 @@ Wanneer een vraag geen bekend domeinwoord bevat maar wel een term die in de gela
 De terminologie blijft daarmee data-gedreven: een nieuwe afkorting, projectnaam, mijlpaalcode of WBS-term wordt bevraagbaar zodra deze in het planningmodel is geladen, zonder wijziging van de queryparser.
 
 
-## BiDash 2.20 / DVM 103 — All Assets als levenscyclusbron
+## All Assets als bron voor assetleeftijd en EOL
 
-De aparte EOL-referentiebron is uit de runtime, bronmanager, import/export en universele bronherkenning verwijderd. All Assets is voortaan de enige operationele bron voor installatie-/stichtingsdatum, expliciet EOL-jaar en expliciete levensduur.
+Vanaf BiDash 2.20 / DVM 103 bestaat geen afzonderlijke EOL-referentiebron meer. De assetparser normaliseert installatie-/ingebruiknamedatum, bouwjaar, EOL-jaar en expliciete levensduur rechtstreeks uit All Assets. De universele importer mag een EOL-kolom daarom wel als onderdeel van een assetregister herkennen, maar maakt nooit meer een zelfstandige EOL-dataset.
 
-De betrouwbaarheidsketen gebruikt de volgende prioriteit:
+De levensduurketen gebruikt per asset achtereenvolgens een bewuste individuele configuratie, een handmatige fabrikant×type-override, expliciete levensduur/EOL uit All Assets en daarna de generieke assettypewaarde. Een EOL-jaar uit All Assets kan samen met het installatiejaar een levensduur opleveren. De vroegere fabrikant-factsheet/EOL-referentie en de bijbehorende upload-, import-, export- en contextstate zijn verwijderd.
 
-```text
-individuele assetconfiguratie
-  -> fabrikant×type-override
-  -> expliciete levensduur/EOL uit All Assets
-  -> generieke levensduur van het assettype
-  -> standaard-terugval
-```
-
-Een oude DVM-totaalexport met een los `eol`-blok blijft importeerbaar, maar dat legacy-blok wordt vanaf totaalformaat 55 bewust genegeerd. Er worden geen EOL-regels meer buiten All Assets aan assets gekoppeld.
-
-Vraag BiDash ontvangt installatiejaar/-datum en EOL als assetvelden. De intenties `oudste` en `nieuwste` sorteren op de bruikbare installatiedatum uit All Assets; alleen wanneer geen volledige datum beschikbaar is wordt het installatie-/stichtingsjaar gebruikt.
+De Context API levert installatie-/ingebruiknamedatum, bouwjaar en EOL-jaar uit het assetregister aan Vraag BiDash. Vragen als `Wat is het oudste asset?` en `Wat is het nieuwste asset?` rangschikken uitsluitend assets met een bruikbare installatiedatum of bouwjaar. Ontbrekende datums worden niet geïnterpreteerd als nul of als het oudste jaar.

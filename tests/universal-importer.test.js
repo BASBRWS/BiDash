@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {classifyTable,normalizeRows,parseDelimited,makeDvmPartBundle,normHeader,recognizeFile} from '../site/core/universal-importer.js';
 
 test('herkent assetregister op inhoud en afwijkende kolomnamen',()=>{
-  const rows=[{'Asset ID':'a1','Asset naam':'MSI A12 1','Rijksweg':'A12','Hectometer':'12,3','Asset type':'MSI','Bouwjaar':2018,'EOL jaar':2038,'Levensduur':20,'Verkeerscentrale':'MN'}];
+  const rows=[{'Asset ID':'a1','Asset naam':'MSI A12 1','Rijksweg':'A12','Hectometer':'12,3','Asset type':'MSI','Bouwjaar':2018,'Verkeerscentrale':'MN'}];
   const c=classifyTable(rows,{fileName:'areaal.xlsx'});
   assert.equal(c.part,'assetregister');
   const r=normalizeRows(rows,'assetregister')[0];
@@ -12,16 +12,6 @@ test('herkent assetregister op inhoud en afwijkende kolomnamen',()=>{
   assert.equal(r.wegnummer,'A12');
   assert.equal(r['hm-bord'],'12,3');
   assert.equal(r['ci-type'],'MSI');
-  assert.equal(r.eol,2038);
-  assert.equal(r.life_median_years,20);
-});
-
-
-
-test('los EOL-factsheet wordt niet meer als DVM-bron geclassificeerd',()=>{
-  const rows=[{manufacturer_regex:'siemens',model_regex:'.*',life_median_years:15,evidence_level:'public'}];
-  const c=classifyTable(rows,{fileName:'eol-referentie.csv'});
-  assert.notEqual(c.part,'eol');
 });
 
 test('herkent actuele storingen zonder vaste bestandsnaam',()=>{

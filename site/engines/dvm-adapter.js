@@ -120,4 +120,5 @@
   // De signaalgeverbundelaar (maplezen) definieert leesSignaalgeverMap vóór bronbeheer.
   document.write('<script src="dvm-storingsbundelaar.js"></script>');
   document.write('<script src="dvm-source-manager.js"></script>');
+  document.write('<script src="dvm-source-export-completeness.js"></script>');
 })();

@@ -18,7 +18,6 @@ const ASSET_QUERY_FIELDS=[
  {key:'naam',label:'Assetnaam'},{key:'key',label:'Asset-ID'},{key:'tp',label:'Assettype'},{key:'source',label:'Bron'},
  {key:'vc',label:'Verkeerscentrale'},{key:'weg',label:'Locatie of weg'},{key:'status',label:'Status'},
  {key:'contract',label:'Contract'},{key:'aannemer',label:'Aannemer'},{key:'leverancier',label:'Leverancier'},
- {key:'installationYear',label:'Installatie-/stichtingsjaar',type:'number'},{key:'eolYear',label:'EOL-jaar',type:'number'},{key:'lifeYears',label:'Levensduur (jaar)',type:'number'},
  {key:'openFaults',label:'Aantal open storingen',type:'number'},{key:'assetFaultCodes',label:'Asset heeft foutcode'}
 ];
 const FAULT_QUERY_FIELDS=[
@@ -66,6 +65,12 @@ async function restore(next){
 async function capture(){
  if(failedImport)throw Error("Herlaad eerst de pagina om de vorige opgeslagen werkruimte te herstellen.");
  for(const name of Object.keys(ready)){if(name==='planning')continue;const e=await engine(name);if(name==='dvm'){const b=e.export();if(b.assetregister)state.dvm=b;}else{state.bi=e.export();const p=e.planning();if(p)state.planning=p;}summaries[name]=e.summary();}
+}
+async function exportSnapshot(){
+ await capture();
+ const snapshot={...state};
+ if(ready.dvm){const d=await engine('dvm');const full=d.export({fullSources:true});if(full.assetregister)snapshot.dvm=full;}
+ return snapshot;
 }
 async function sync(){if(busy||failedImport)return;busy=true;status('Lokale gegevens en uitkomsten bijwerken…');try{await capture();await write(state);render();status('Lokaal opgeslagen · '+new Date().toLocaleTimeString('nl-NL'));}catch(e){fail(e);}finally{busy=false;}}
 function queue(){clearTimeout(timer);timer=setTimeout(sync,1800);}
@@ -139,8 +144,8 @@ $('#files').onchange=e=>{preview([...e.target.files]).catch(fail);e.target.value
 $('#exportOptions').innerHTML=[...DVM_PARTS,'biData','biRules','planning','links','quality'].map(k=>`<label><input type="checkbox" data-part="${k}" checked>${LABELS[k]}</label>`).join('');
 $('#exportOptions').onchange=()=>{$('#dependencies').textContent=makeExport(state,selection()).afhankelijkheden.join(' ');};
 $('#all').onclick=()=>document.querySelectorAll('[data-part]').forEach(x=>x.checked=true);$('#none').onclick=()=>document.querySelectorAll('[data-part]').forEach(x=>x.checked=false);
-$('#export').onclick=async()=>{try{if(busy)throw Error('Wacht tot import of opslag gereed is.');await capture();const sel=selection();if(!sel.size)throw Error('Kies minstens één onderdeel.');download(makeExport(state,sel),'bidash-integraal_'+new Date().toISOString().slice(0,10)+'.json');}catch(e){fail(e);}};
-for(const [id,key,name] of [['exportDvm','dvm','dvm-dienstimpact-totaal.json'],['exportBi','bi','bidash-wvm-dataset.json'],['exportXml','planning','planning.xml']])$( '#'+id).onclick=async()=>{try{if(busy)throw Error('Wacht tot de lopende bewerking gereed is.');await capture();if(!state[key])throw Error('Dit onderdeel is nog niet geladen.');download(key==='planning'?state.planning.xml:state[key],name,key==='planning'?'text/xml':'application/json');}catch(e){fail(e);}};
+$('#export').onclick=async()=>{try{if(busy)throw Error('Wacht tot import of opslag gereed is.');const snapshot=await exportSnapshot();const sel=selection();if(!sel.size)throw Error('Kies minstens één onderdeel.');download(makeExport(snapshot,sel),'bidash-integraal_'+new Date().toISOString().slice(0,10)+'.json');}catch(e){fail(e);}};
+for(const [id,key,name] of [['exportDvm','dvm','dvm-dienstimpact-totaal.json'],['exportBi','bi','bidash-wvm-dataset.json'],['exportXml','planning','planning.xml']])$( '#'+id).onclick=async()=>{try{if(busy)throw Error('Wacht tot de lopende bewerking gereed is.');const snapshot=key==='dvm'?await exportSnapshot():(await capture(),state);if(!snapshot[key])throw Error('Dit onderdeel is nog niet geladen.');download(key==='planning'?snapshot.planning.xml:snapshot[key],name,key==='planning'?'text/xml':'application/json');}catch(e){fail(e);}};
 $('#save').onclick=sync;$('#refresh').onclick=sync;$('#signalFilter').onchange=render;
 $('#linkForm').onsubmit=e=>{e.preventDefault();const l={dienst:$('#linkService').value,functie:$('#linkFunction').value,eigenaar:$('#linkOwner').value.trim()};state.links=state.links.filter(x=>x.dienst!==l.dienst||x.functie!==l.functie);state.links.push(l);sync();};
 $('#links').onclick=e=>{if(e.target.dataset.remove!==undefined){state.links.splice(Number(e.target.dataset.remove),1);sync();}};
@@ -164,20 +169,16 @@ function allFaults(){return sourceApi('dvm')?.faults()||[];}
 function faultCodesByAsset(faults=allFaults()){
  const map=new Map();for(const fault of faults){if(!fault.assetKey||!fault.code)continue;const codes=map.get(fault.assetKey)||new Set();codes.add(String(fault.code));map.set(fault.assetKey,codes);}return map;
 }
-function assetYearValue(value){
- const n=Number(value);if(Number.isFinite(n)&&n>=1900&&n<=2100)return Math.trunc(n);
- const m=String(value??'').match(/\b(19\d{2}|20\d{2}|2100)\b/);return m?Number(m[1]):null;
-}
 function queryAssets(rows,faults){
  const codes=faultCodesByAsset(faults),counts=new Map();for(const fault of faults)if(fault.assetKey)counts.set(fault.assetKey,(counts.get(fault.assetKey)||0)+1);
- return rows.map(asset=>{
-  const raw=asset.raw||{},installationYear=assetYearValue(raw.bouwjaar??raw.ingebruikname),eolYear=assetYearValue(raw.eol?.jaar??raw.eolJaar??raw.eolYear);
-  const life=Number(raw.eol?.levensduur??raw.eolLevensduur??raw.modelLevensduur);
-  return {...asset,contract:raw.contract,aannemer:raw.aannemer,leverancier:raw.leverancier,
-   installationYear,installationDate:raw.ingebruikname??'',installationSource:raw.bouwjaarBron||'',
-   eolYear,lifeYears:Number.isFinite(life)&&life>0?life:null,
-   openFaults:counts.get(asset.key)||0,assetFaultCodes:[...(codes.get(asset.key)||[])]};
- });
+ return rows.map(asset=>({...asset,
+   contract:asset.raw?.contract,aannemer:asset.raw?.aannemer,leverancier:asset.raw?.leverancier,
+   ingebruikname:asset.raw?.ingebruikname??asset.raw?.ingebruikDatum??null,
+   bouwjaar:asset.raw?.bouwjaar??null,bouwjaarBron:asset.raw?.bouwjaarBron||'',
+   eolJaar:asset.raw?.eol?.jaar??asset.raw?._eolYear??null,
+   eolLevensduur:asset.raw?.eol?.levensduur??asset.raw?._eolLife??null,
+   openFaults:counts.get(asset.key)||0,assetFaultCodes:[...(codes.get(asset.key)||[])]
+ }));
 }
 function queryFaults(rows){
  const codes=faultCodesByAsset(rows);

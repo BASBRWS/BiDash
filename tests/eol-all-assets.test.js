@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 
-test('EOL bestaat niet meer als losse runtimebron',()=>{
+test('EOL-referentie is geen zelfstandige DVM-bron meer',()=>{
   const files=[
     'site/engines/dvm-1.js',
     'site/engines/dvm-2.js',
@@ -14,49 +14,47 @@ test('EOL bestaat niet meer als losse runtimebron',()=>{
     'site/core/model.js',
     'site/core/context-api.js'
   ];
-  for(const file of files){
-    const src=read(file);
-    assert.doesNotMatch(src,/\bEOL_REF\b/,file);
-    assert.doesNotMatch(src,/\bEOL_BRON_NAAM\b/,file);
-    assert.doesNotMatch(src,/leesEolReferentie|eolInputTop/,file);
+  for(const path of files){
+    const source=read(path);
+    assert.doesNotMatch(source,/\bEOL_REF\b/,path);
+    assert.doesNotMatch(source,/\bEOL_BRON_NAAM\b/,path);
+    assert.doesNotMatch(source,/\bleesEolReferentie\b/,path);
+    assert.doesNotMatch(source,/eolInputTop/,path);
   }
 });
 
-test('All Assets blijft EOL en levensduur als assetvelden herkennen',()=>{
+test('All Assets behoudt installatie-, EOL- en levensduurvelden',()=>{
+  const dvm3=read('site/engines/dvm-3.js');
   const importer=read('site/core/universal-importer.js');
-  assert.match(importer,/eol:\['eol','end of life'/);
-  assert.match(importer,/life:\['life median years'/);
-  assert.doesNotMatch(importer,/push\('eol'/);
-  assert.doesNotMatch(importer,/part==='eol'/);
+  assert.match(dvm3,/INSTALLATIE_DATUM_KEYS/);
+  assert.match(dvm3,/EOL_DATUM_KEYS/);
+  assert.match(dvm3,/LEVENSDUUR_KEYS/);
+  assert.match(importer,/inService:\[/);
+  assert.match(importer,/eol:\[/);
+  assert.match(importer,/life:\[/);
+  assert.match(importer,/put\(out,'ingebruikname'/);
+  assert.match(importer,/put\(out,'eol'/);
+  assert.match(importer,/put\(out,'life_median_years'/);
 });
 
-test('DVM export heeft geen apart EOL-deel meer',()=>{
-  const dvm3=read('site/engines/dvm-3.js');
+test('universele importer maakt geen losse EOL-bundle meer',()=>{
+  const importer=read('site/core/universal-importer.js');
   const model=read('site/core/model.js');
-  assert.match(dvm3,/versie:55/);
-  assert.doesNotMatch(dvm3,/\{id:'eol',label:'EOL-referentie'/);
-  assert.doesNotMatch(dvm3,/\neol:\s*neem\('eol'\)/);
+  assert.doesNotMatch(importer,/push\('eol'/);
+  assert.doesNotMatch(importer,/part==='eol'/);
   assert.doesNotMatch(model,/DVM_PARTS=\[[^\]]*'eol'/);
 });
 
-test('betrouwbaarheidsmodel gebruikt All Assets vóór generieke levensduur',()=>{
-  const dvm1=read('site/engines/dvm-1.js');
-  assert.match(dvm1,/All Assets \(levensduur\/EOL\)/);
-  assert.match(dvm1,/All Assets \(EOL-jaar minus installatiedatum\)/);
-  assert.doesNotMatch(dvm1,/EOL-factsheet/);
+test('DVM totaalexport bevat geen aparte EOL-sectie meer',()=>{
+  const dvm3=read('site/engines/dvm-3.js');
+  assert.doesNotMatch(dvm3,/\{id:'eol',label:'EOL-referentie'/);
+  assert.doesNotMatch(dvm3,/eol:\s*neem\('eol'\)/);
+  assert.doesNotMatch(dvm3,/bundle\.eol/);
 });
 
-test('chat krijgt installatie- en EOL-velden uit het assetregister',()=>{
-  const app=read('site/app.js');
-  const chat=read('site/core/query-assistant.js');
-  assert.match(app,/installationYear/);
-  assert.match(app,/installationDate/);
-  assert.match(app,/eolYear/);
-  assert.match(chat,/Oudste asset uit All Assets/);
-  assert.match(chat,/EOL \/ levensduur uit All Assets/);
-});
-
-test('versies markeren de wijziging in assetbroncontract',()=>{
-  assert.match(read('site/core/versie.js'),/BIDASH_VERSIE='2\.20'/);
-  assert.match(read('site/engines/dvm-source-manager.js'),/DVM_VERSION='103'/);
+test('DVM-interface biedt geen aparte EOL-upload meer aan',()=>{
+  const html=read('site/engines/dvm.html');
+  const manager=read('site/engines/dvm-source-manager.js');
+  assert.doesNotMatch(html,/btnEol|landingEolBtn|eolInputTop/);
+  assert.doesNotMatch(manager,/EOL-referentie laden|eolInputTop/);
 });

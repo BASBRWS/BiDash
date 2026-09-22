@@ -24,12 +24,6 @@ test('DVM-bronbeheer heeft voor elke bronsoort een eigen uploadroute',()=>{
   }
 });
 
-
-test('EOL is geen losse bron meer; All Assets draagt EOL en levensduur',()=>{
-  assert.doesNotMatch(source,/eolInputTop|leesEolReferentie|EOL-referentie/);
-  assert.doesNotMatch(source,/\beol:\{input:/);
-});
-
 test('de losse DRIP-storingshistorie-upload is vervangen door DRIP totaal en DRIP uit map',()=>{
   // De oude XLSX/CSV DRIP-historie-uploadbron bestaat niet meer.
   assert.doesNotMatch(source,/dripHistorie:\{input:/);
@@ -69,4 +63,11 @@ test('adapter laadt classificatielijsten vóór bronbeheer',()=>{
   const special=adapter.indexOf('dvm-special-drip-lists.js');
   const manager=adapter.indexOf('dvm-source-manager.js');
   assert.ok(original>=0&&special>original&&manager>special);
+});
+
+
+test('EOL is geen losse bron meer; All Assets is de EOL-bron',()=>{
+  assert.doesNotMatch(source,/eolInputTop/);
+  assert.doesNotMatch(source,/leesEolReferentie/);
+  assert.doesNotMatch(source,/EOL-referentie laden/);
 });

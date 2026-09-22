@@ -4631,7 +4631,7 @@ function tekenDripMcResult(){
   if(R.startGecorrigeerd||R.statusUitgesloten||R.modelBouwjaarN){
     h+=`<div class="calc-warn" style="margin-top:12px"><b>Datakwaliteit.</b> ${R.startGecorrigeerd?'De startdatum lag in het verleden en is naar vandaag verschoven. ':''}${R.statusUitgesloten?`${R.statusUitgesloten} geselecteerde niet-operationele DRIPs zijn niet als actief areaal meegerekend. `:''}${R.modelBouwjaarN?`${R.modelBouwjaarN} DRIPs zonder bouwjaar gebruiken per run een getrokken jaar uit het waargenomen cohort; dit is modeldata en staat in de tabel met “~” aangegeven. `:''}Bouwjaardekking actief areaal: <b>${fmt(R.bouwjaarDekking*100,1)}%</b>.</div>`;
   }
-  h+=`<p class="muted" style="font-size:11.5px;margin:8px 0 0"><b>Modelbasis:</b> bouwjaren en locaties komen uit het register. Levensduur en β bepalen de leeftijdstrend. ${HI.aan?`${HI.gekoppeldeSelectie} geselecteerde DRIPs zijn gekalibreerd met ${HI.incidentenSelectie.toLocaleString('nl-NL')} unieke historische incidenten over ${HI.dekkingDagen.toLocaleString('nl-NL')} bron­dagen. De incidentrate krijgt twee priorjaren uit het leeftijdsmodel; de MTTR krijgt vijf priorwaarnemingen uit de assettype-instelling. ${HI.modelDrips} DRIPs zonder passende historische dekking blijven modelgebaseerd.`:'Historische kalibratie staat uit of er is geen gekoppelde DRIP-historie. Levensduur, β en groeps-MTTR zijn daarom modelparameters, tenzij All Assets voor de asset expliciet levensduur/EOL bevat.'} De voorspellingsband blijft een modeluitkomst, geen meetgarantie.</p>`;
+  h+=`<p class="muted" style="font-size:11.5px;margin:8px 0 0"><b>Modelbasis:</b> bouwjaren en locaties komen uit het register. Levensduur en β bepalen de leeftijdstrend. ${HI.aan?`${HI.gekoppeldeSelectie} geselecteerde DRIPs zijn gekalibreerd met ${HI.incidentenSelectie.toLocaleString('nl-NL')} unieke historische incidenten over ${HI.dekkingDagen.toLocaleString('nl-NL')} bron­dagen. De incidentrate krijgt twee priorjaren uit het leeftijdsmodel; de MTTR krijgt vijf priorwaarnemingen uit de assettype-instelling. ${HI.modelDrips} DRIPs zonder passende historische dekking blijven modelgebaseerd.`:'Historische kalibratie staat uit of er is geen gekoppelde DRIP-historie. Levensduur, β en groeps-MTTR zijn daarom modelparameters, tenzij een geladen referentie expliciet een mediane levensduur bevat.'} De voorspellingsband blijft een modeluitkomst, geen meetgarantie.</p>`;
   h+=monteCarloBegeleidendSchrijvenKaart('drip-montecarlo');
   h+=operationeleContextHtml(R.context,'Werkzaamheden en U-routes bij het geselecteerde DRIP-areaal');
 
@@ -5118,7 +5118,7 @@ function renderAssetConfigPane(){
   const aliases=Object.entries(cfg.aliases).map(([lk,key])=>{const a=ASSET_INDEX&&ASSET_INDEX.byKey.get(key);return `<span class="asset-alias">${esc(cfg.aliasLabels[lk]||lk)} → ${esc(a?a.naam:key)} <button title="Koppeling verwijderen" onclick="assetConfigVerwijderAlias('${encodeURIComponent(lk)}')">×</button></span>`;}).join('');
   const uitgesloten=Object.keys(cfg.uitgeslotenLogIds).map(lk=>`<span class="asset-alias">${esc(cfg.uitgeslotenLabels[lk]||lk)} · buiten areaal <button title="Uitsluiting verwijderen" onclick="assetConfigVerwijderUitsluiting('${encodeURIComponent(lk)}')">×</button></span>`).join('');
   return `<div class="card"><h3>Assetconfiguratie — koppeling, zwaarte en betrouwbaarheid ${tip('Hier koppel je logidentiteiten aan het canonieke All Assets-areaal en stel je alleen waar nodig waarden per individueel asset in. Individuele waarden hebben voorrang op fabrikant-, type- en standaardregels en worden meegenomen in impact, EOL/Weibull en MTTR.')}</h3>
-    <p class="muted" style="margin:-6px 0 8px;font-size:12px">All Assets is de bron voor identiteit, areaal, locatie, installatiejaar, EOL en expliciete levensduur. Een bewuste assetconfiguratie kan daarvan afwijken; als expliciete levensduur ontbreekt, gebruikt het model zichtbaar de generieke waarde van het assettype. Een storingslog wordt niet automatisch een nieuw asset.</p>
+    <p class="muted" style="margin:-6px 0 8px;font-size:12px">All Assets blijft de bron voor identiteit, areaal, locatie, installatie-/ingebruiknamedatum en EOL. De levensduur komt uit expliciete assetvelden of een bewuste assetconfiguratie. Als die ontbreken, gebruikt het model zichtbaar de generieke waarde van het assettype. Een storingslog wordt niet automatisch een nieuw asset.</p>
     <div class="asset-config-grid"><div class="asset-config-kpi"><div class="v">${(ASSET_REGISTER_STATE.actiefN||0).toLocaleString('nl-NL')}</div><div class="l">Actief prognoseareaal</div></div><div class="asset-config-kpi"><div class="v">${ASSET_REGISTER_STATE.assets.length.toLocaleString('nl-NL')}</div><div class="l">Historische referenties</div></div><div class="asset-config-kpi"><div class="v" style="color:var(--groen)">${M.gekoppeld.toLocaleString('nl-NL')}</div><div class="l">Incidenten gekoppeld</div></div><div class="asset-config-kpi"><div class="v" style="color:${M.nietGekoppeld?'var(--oranje)':'var(--groen)'}">${M.nietGekoppeld.toLocaleString('nl-NL')}</div><div class="l">Niet gekoppeld</div></div><div class="asset-config-kpi"><div class="v">${ovN}</div><div class="l">Individueel ingesteld</div></div></div>
     <div class="re-toolbar" style="margin-top:10px"><button class="tb-btn primary" onclick="parametersToepassen()">✓ Toepassen &amp; herberekenen</button>${bestN?`<button class="tb-btn" onclick="assetConfigKoppelBesteAlle()">Koppel beste kandidaten (${bestN})</button>`:''}<button class="tb-btn re-sec" onclick="assetConfigExport()">⭳ Assetconfiguratie</button><button class="tb-btn re-sec" onclick="document.getElementById('assetConfigImportInput').click()">⭱ Assetconfiguratie</button><input type="file" id="assetConfigImportInput" accept=".json,application/json" class="hidden" onchange="assetConfigImport(this.files[0]);this.value=''"> <label style="font-size:11.5px;color:var(--sub)">Automatische hm-tolerantie <input class="re-in" type="number" min="0.01" max="5" step="0.05" value="${cfg.hmTolerantieKm}" onchange="assetConfigTolerantie(this)" style="width:75px"> km</label><span id="assetCfgStatus" class="re-status"></span></div>
     <div class="asset-config-note">De bulkactie koppelt uitsluitend foutgroepen waarvoor hieronder ook een concrete beste kandidaat kan worden getoond. Groepen zonder kandidaat blijven handmatig. Gekoppelde logregels gebruiken daarna de canonieke assetlocatie; ongekoppelde regels blijven zichtbaar, maar tellen niet mee voor asset-specifieke Monte Carlo-kalibratie of EOL-toerekening.</div>
@@ -5159,8 +5159,8 @@ function renderRegels(){
   </div></details>`;
 
   // 1 · Assettypen
-  h+=`<details class="rule" open><summary>1 · Assettypen — gewichten &amp; levensduur ${tip('Per assettype (MSI, camera, lus, wisselbord, DRIP): het impactgewicht in de dienstverlening en de betrouwbaarheidsparameters voor de prognose. <b>Levensduur</b> is de generieke mediane modellevensduur; <b>β</b> is de Weibull-vormparameter (>1 = oplopende leeftijdshazard). Een expliciete levensduur/EOL-waarde uit All Assets krijgt voorrang.')}</summary><div class="rb">
-    <p class="muted" style="font-size:11.5px;margin:2px 0 8px">Gewichten schalen de basisimpact per assettype (1,0 = volledige impact). Levensduur en β zijn modelparameters en moeten met eigen storings- en vervangingshistorie worden gevalideerd. Waar All Assets expliciete levensduur/EOL bevat, gebruikt de tool die per asset automatisch.</p>
+  h+=`<details class="rule" open><summary>1 · Assettypen — gewichten &amp; levensduur ${tip('Per assettype (MSI, camera, lus, wisselbord, DRIP): het impactgewicht in de dienstverlening en de betrouwbaarheidsparameters voor de prognose. <b>Levensduur</b> is de generieke mediane modellevensduur; <b>β</b> is de Weibull-vormparameter (>1 = oplopende leeftijdshazard). Een expliciete levensduurreferentie per fabrikant/model krijgt voorrang.')}</summary><div class="rb">
+    <p class="muted" style="font-size:11.5px;margin:2px 0 8px">Gewichten schalen de basisimpact per assettype (1,0 = volledige impact). Levensduur en β zijn modelparameters en moeten met eigen storings- en vervangingshistorie worden gevalideerd. Waar een geladen referentie expliciet life_median_years bevat, gebruikt de tool die per asset automatisch.</p>
     <table class="tbl re-tbl"><thead><tr><th></th><th>Type</th><th>Functie</th><th class="num">w_besch</th><th class="num">w_prest</th><th class="num">Levensduur (jr)</th><th class="num">β</th><th class="num">MTTR (uur)</th></tr></thead><tbody>`;
   RULES.assetTypen.forEach((r,i)=>h+=`<tr>
     <td><input type="checkbox" data-p="assetTypen" data-i="${i}" data-k="actief" ${r.actief?'checked':''}></td>
@@ -5240,7 +5240,7 @@ function renderRegels(){
 
   // ── DRIP-regels: functie-gewicht ──
   const dr=RULES.drip;
-  h+=`<details class="rule"><summary>7 · DRIP — functie &amp; levensduur ${tip('DRIP telt als volwaardig assettype mee in de dienstverlening (sectie 1: gewicht, levensduur, β; sectie 5: dienstafhankelijkheden). EOL en expliciete levensduur komen uit All Assets; hier kan alleen een bewuste fabrikant×type-override worden ingesteld.')}</summary><div class="rb">
+  h+=`<details class="rule"><summary>7 · DRIP — functie &amp; levensduur ${tip('DRIP telt als volwaardig assettype mee in de dienstverlening (sectie 1: gewicht, levensduur, β; sectie 5: dienstafhankelijkheden). Hier staan de functieclassificatie en eventuele handmatige levensduuroverrides; asset-EOL komt uit All Assets.')}</summary><div class="rb">
     <div class="re-lab">Functie-classificatie (BKN) — gewicht in de keten</div>
     <table class="tbl re-tbl"><thead><tr><th>Code</th><th>Label</th><th class="num">Gewicht</th><th>Dienst</th></tr></thead><tbody>`;
   dr.functies.forEach((f,i)=>{
@@ -5248,9 +5248,7 @@ function renderRegels(){
       <td class="num"><input class="re-in" type="number" step="0.1" min="0" max="1" value="${f.gewicht}" data-p="dripFunctie" data-i="${i}" data-k="gewicht"></td>
       <td>${esc(f.dienst||'–')}</td></tr>`;
   });
-  h+=`</tbody></table>
-    <div class="re-lab" style="margin-top:16px">EOL en levensduur uit All Assets</div>
-    <p class="muted" style="font-size:11.5px;margin:2px 0 8px">Installatiejaar, expliciet EOL-jaar en levensduur worden rechtstreeks uit het geladen All Assets-stamregister gelezen. Ontbrekende expliciete levensduur valt terug op assetconfiguratie, fabrikant×type-override en daarna de assettype-levensduur.</p>`;
+  h+=`</tbody></table>`;
 
   // ── Levensduur per fabrikant × type (instelbaar) ──
   h+=`<div class="re-lab" style="margin-top:18px">Levensduur per fabrikant × type (B50, jaren)</div>
@@ -5262,7 +5260,7 @@ function renderRegels(){
     const combos={};
     Ddata.drips.forEach(d=>{ const k=dripComboKey(d.fabrikant,d.type); if(!combos[k]) combos[k]={fab:d.fabrikant||'(leeg)',type:d.type||'(leeg)',n:0,d}; combos[k].n++; });
     const rijen=Object.entries(combos).sort((a,b)=>b[1].n-a[1].n);
-    h+=`<p class="muted" style="font-size:11px;margin:2px 0 6px">${rijen.length} combinaties in het geladen register. Leeg veld = gebruik de expliciete levensduur/EOL uit All Assets en anders de levensduur van assettype DRIP uit sectie 1. Een ingevulde waarde krijgt voorrang (bron toont dan “handmatig”).</p>
+    h+=`<p class="muted" style="font-size:11px;margin:2px 0 6px">${rijen.length} combinaties in het geladen register. Leeg veld = gebruik levensduur/EOL uit All Assets en anders de levensduur van assettype DRIP uit sectie 1. Een ingevulde waarde krijgt voorrang (bron toont dan “handmatig”).</p>
     <div class="tbl-scroll" style="max-height:340px;overflow:auto"><table class="tbl re-tbl klein"><thead><tr><th>Fabrikant</th><th>Type</th><th class="num">Aantal</th><th class="num">Levensduur</th><th>Herkomst</th></tr></thead><tbody>`;
     rijen.forEach(([k,c])=>{
       const rel=assetReliability(c.d);
@@ -5529,7 +5527,7 @@ function totaalExportBundle(selectie,opties){
   const bron=(arr)=>(arr||[]).filter(b=>!(opties.autosaveLean&&b&&b._signaalgeverTotaal)).map(b=>({key:b.key,naam:b.naam,rijen:b.rijen||[],peildatum:b.peildatum||null,doel:b.doel||null}));
   return {
     formaat:'DVM-dienstimpact-totaal',
-    versie:55,
+    versie:54,
     opgeslagen:new Date().toISOString(),
     exportSelectie: selectie,
     assetregister: neem('assetregister')&&ASSET_REGISTER_STATE&&ASSET_REGISTER_STATE.ruweRegisterRijen
@@ -5607,10 +5605,7 @@ async function totaalImportJson(file, hubModus){
       RULES.kosten=v68MigreerKosten(b.kosten);
     }
 
-    // Legacy totaalexports kunnen nog bundle.eol bevatten. Vanaf v55 wordt
-    // die bewust genegeerd: All Assets is de enige bron voor installatie/EOL.
-
-    // 3) Assetregister (stamregister). Bij merge met een bestaand register kiest
+    // 2) Assetregister (stamregister). EOL en levensduur komen uit All Assets.
     //    de gebruiker expliciet of het register vervangen wordt.
     if(assetregisterActie==='laden'){
       zetImportVoortgang(file.name,20,'Assetregister opbouwen',{direct:true});await uiPauze();
@@ -5623,7 +5618,6 @@ async function totaalImportJson(file, hubModus){
       if(DVM_LEEFTIJD_STATE) DRIP_STATE.leeftijdsdekking={actief:DVM_LEEFTIJD_STATE.actief,metJaar:DVM_LEEFTIJD_STATE.metJaar,pct:DVM_LEEFTIJD_STATE.actief?DVM_LEEFTIJD_STATE.metJaar/DVM_LEEFTIJD_STATE.actief:0};
     }
     if(!ASSET_REGISTER_STATE){ importMislukt(file.name,'Totaalbestand bevat geen assetregister.'); alert('Dit totaalbestand bevat geen assetregister. Laad eerst een assetlijst en probeer daarna opnieuw, of gebruik een totaalexport waarin het register is opgenomen.'); return; }
-
 
     // 4) Storingshistorie (prognosebron)
     if(magImporteren('storingshistorie')&&Array.isArray(bundle.storingshistorie)&&bundle.storingshistorie.length){

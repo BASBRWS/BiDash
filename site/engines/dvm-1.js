@@ -103,8 +103,8 @@ const RULES = {
 
   /* ── DRIP-specifieke classificatie. DRIP is een volwaardig assettype
      (zie assetTypen); hier alleen de functie-indeling die het ketengewicht
-     bepaalt. Levensduur/β staan per assettype in assetTypen; expliciete
-     levensduur/EOL komt rechtstreeks uit All Assets. ── */
+     bepaalt. Levensduur/β staan per assettype in assetTypen; per fabrikant/
+     model komt de levensduur uit All Assets of, als die ontbreekt, uit de assettype-default. ── */
   drip:{
     functies:[
       {code:'6', label:'sturen', gewicht:1.0, dienst:'vm'},
@@ -112,10 +112,10 @@ const RULES = {
       {code:'0', label:'vervalt / geen functie', gewicht:0.0, dienst:''}
     ],
     // instelbare levensduur (jaren, B50) per fabrikant×type-combinatie.
-    // sleutel = "fabrikant|type" (kleine letters). Leeg = gebruik All Assets
-    // en daarna de generieke assettype-/standaard-terugval.
+    // sleutel = "fabrikant|type" (kleine letters). Leeg = gebruik factsheet
+    // of de standaard-terugval.
     levensduurOverride:{},
-    // terugval-levensduur als All Assets geen expliciete levensduur bevat en er geen override is
+    // terugval-levensduur als er geen factsheet en geen override is
     standaardLevensduur:15
   },
   /* Individuele assetconfiguratie. Automatische koppelingen blijven
@@ -222,7 +222,7 @@ function dripBeschikbaarheid(weg, richting){
    • Geprogrammeerde vervanging = "as good as new": leeftijd → 0 op
      het vervangingsjaar (renewal-reward).
    Parameters: L (mediane levensduur, jaren) en β per assettype
-   (RULES.assetTypen), met expliciete assetwaarden uit All Assets.
+   (RULES.assetTypen), met per-asset waarden uit All Assets waar aanwezig.
    ══════════════════════════════════════════════════════════════ */
 
 /* Assettype-record voor een asset-id (MSI/CAM/LUS/DRIP…). */
@@ -235,29 +235,36 @@ function dripComboKey(fabrikant, type){ return (String(fabrikant||'').trim().toL
    Bron-volgorde voor L:
      1. individuele assetconfiguratie
      2. handmatige override per fabrikant×type (rule engine)
-     3. expliciete levensduur/EOL uit All Assets
+     3. expliciete levensduur/EOL uit het geladen assetregister
      4. assettype-levensduur en standaard-terugval  */
 function assetReliability(asset){
   const at = assetTypeRec(asset.assetType||'DRIP') || {beta:3.0, levensduur:15};
   const individueel=assetOverrideVoor(asset._assetKey||asset.assetKey||asset.key);
   let beta = individueel&&+individueel.beta>0?+individueel.beta:(asset._betaOverride&&+asset._betaOverride>0?+asset._betaOverride:(at.beta||3.0));
   let L, bron;
+  // 1. individuele assetconfiguratie
   if(individueel&&+individueel.levensduur>0){L=+individueel.levensduur;bron='assetconfiguratie';}
+  // 2. handmatige override per fabrikant×type
   const ov = asset.assetType==='DRIP' ? RULES.drip.levensduurOverride[dripComboKey(asset.fabrikant, asset.type)] : null;
   if(L==null&&ov!=null && !isNaN(ov)){ L=ov; bron='handmatig (fabrikant×type)'; }
+  // 3. expliciete levensduur of afleidbare EOL uit het geladen register
   const registerLife=asset._eolLife!=null?asset._eolLife:asset.eolLevensduur;
   const registerLifeBron=asset._eolLifeBron||asset.eolLevensduurBron;
   const registerEolJaar=asset._eolYear||(asset.eol&&asset.eol.jaar);
   if(L==null && registerLife!=null && !isNaN(registerLife) && +registerLife>0){
-    L=+registerLife; bron=registerLifeBron||'All Assets (levensduur/EOL)';
+    L=+registerLife; bron=registerLifeBron||'assetregister (levensduur/EOL)';
   }
   if(L==null && registerEolJaar && asset.bouwjaar && registerEolJaar>asset.bouwjaar){
-    L=registerEolJaar-asset.bouwjaar; bron='All Assets (EOL-jaar minus installatiedatum)';
+    L=registerEolJaar-asset.bouwjaar; bron='assetregister (EOL-jaar minus installatiedatum)';
   }
+  // 4. assettype-levensduur. Voor DRIP is dit de primaire generieke regel;
+  // de sectie-7-terugval mag deze niet stilzwijgend overschrijven.
   if(L==null && at.levensduur!=null && +at.levensduur>0){ L=+at.levensduur; bron='assettype'; }
+  // 5. instelbare standaard-terugval als het assettype geen levensduur heeft
   if(L==null && asset.assetType==='DRIP' && RULES.drip.standaardLevensduur!=null && +RULES.drip.standaardLevensduur>0){ L=+RULES.drip.standaardLevensduur; bron='standaard-terugval'; }
+  // 6. laatste terugval
   if(L==null){ L=RULES.drip.standaardLevensduur||15; bron='standaard'; }
-  const eta = L / Math.pow(Math.log(2), 1/beta);
+  const eta = L / Math.pow(Math.log(2), 1/beta);   // B50 → η
   return { beta, L, eta, bron, ref:null };
 }
 
@@ -341,7 +348,8 @@ function dripEolJaar(d){ if(!d.bouwjaar) return null; return d.bouwjaar + Math.r
 function dripFaalkans(d, horizonJr){ return assetFaalkans({...d, assetType:'DRIP', _rel:assetReliability({...d,assetType:'DRIP'})}, horizonJr||0); }
 function levensduurBronTag(bron){
   const b=String(bron||'').toLowerCase();
-  if(b.includes('all assets')||b.includes('assetregister'))return '<span class="tag g">All Assets</span>';
+  if(b.includes('assetregister'))return '<span class="tag g">assetregister</span>';
+  if(b.includes('eol-factsheet')||b.includes('referentie'))return '<span class="tag g">levensduurref.</span>';
   if(b.includes('handmatig')||b.includes('assetconfiguratie'))return '<span class="tag g">handmatig</span>';
   return '<span class="tag gy">assettype</span>';
 }

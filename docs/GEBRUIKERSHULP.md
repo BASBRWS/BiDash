@@ -52,7 +52,7 @@ dan laad je het opnieuw.
 
 ## Aanbevolen laadvolgorde
 
-1. Laad All Assets als technisch stamregister. Installatie-/stichtingsdatum, EOL en expliciete levensduur worden uit ditzelfde bestand gelezen.
+1. Laad All Assets als technisch stamregister. Installatie-/ingebruiknamedatum, EOL en eventuele expliciete levensduur komen uit ditzelfde bestand.
 2. Laad historische storingsbestanden voor historie en prognosekalibratie.
 3. Laad U-routes en geplande werkzaamheden als operationele context.
 4. Laad als laatste de actuele open storingslijst voor het live dashboard.
@@ -328,10 +328,10 @@ Als een term daadwerkelijk in de geladen planning voorkomt, wordt de vraag als p
 De planning blijft daarmee zelf de bron van de terminologie. Nieuwe projectnamen, testfasen, afkortingen, codes of WBS-termen hoeven niet apart aan een vaste woordenlijst te worden toegevoegd.
 
 
-### All Assets is de bron voor leeftijd en EOL
+### Assetleeftijd en EOL
 
-Vanaf BiDash 2.20 is er geen aparte EOL-bron meer. **All Assets** is het technische stamregister voor assetidentiteit, locatie, installatie-/stichtingsdatum, EOL en expliciete levensduur. BiDash herkent daarvoor de bestaande installatie- en EOL-kolomvarianten in het bestand.
+**All Assets is de enige expliciete bron voor assetleeftijd en EOL.** Een aparte EOL-referentie wordt niet meer geladen of opgeslagen.
 
-Vragen in **Vraag BiDash** zoals `Wat is de oudste asset?`, `Wat is de oudste MSI asset in ZWN?` en `Welke assets zijn voorbij EOL?` gebruiken deze velden uit All Assets. Voor oudste/nieuwste assets wordt een echte installatiedatum gebruikt wanneer die beschikbaar is; als alleen een jaar aanwezig is, gebruikt de rangschikking dat jaar. Assets zonder bruikbare installatiedatum worden niet stilzwijgend als oudste of nieuwste aangemerkt.
+Vraag BiDash gebruikt bij vragen als `Wat is het oudste asset?`, `Welke assets zijn het oudst?` en `Wat is het nieuwste asset?` de installatie-/ingebruiknamedatum uit All Assets. Als alleen een bruikbaar jaar beschikbaar is, gebruikt de chat dat jaar. Assets zonder bruikbare installatiedatum worden bij zo'n rangschikking niet stilzwijgend als oud of nieuw behandeld, maar buiten de rangschikking gehouden.
 
-Voor de prognose geldt de levensduurvolgorde: individuele assetconfiguratie → bewuste fabrikant×type-override → expliciete levensduur/EOL uit All Assets → generieke assettype-levensduur. Een oud totaalbestand mag nog een afzonderlijk `eol`-blok bevatten; dat blok wordt bij import genegeerd.
+Voor levensduur/prognose geldt de bronvolgorde: bewuste individuele of fabrikant×type-override, expliciete levensduur/EOL uit All Assets, daarna de zichtbare generieke assettypewaarde. Het EOL-jaar uit All Assets kan samen met het installatiejaar worden gebruikt om een levensduur af te leiden.

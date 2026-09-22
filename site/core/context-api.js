@@ -146,7 +146,7 @@ export function buildBiDashContext({faults=[],assets=[],roads=[],services=[],fun
     faults:enrichedFaults,assets:[...assets],roads:[...roads],services:richServices,functions:[...functions],
     subprocesses,serviceTypeLinks:typeLinks,serviceFunctionLinks,
     planning,capacity,works,uroutes,
-    eol:dvm.eol||{source:'assetregister',loaded:!!state.dvm?.assetregister,count:0},historySources:dvm.historySources||[],dripHistory:dvm.dripHistory||null,
+    historySources:dvm.historySources||[],dripHistory:dvm.dripHistory||null,
     dvmTypes:dvm.types||{},signals:[...(bi.triggers||[]),...(dvm.triggers||[])],
     peildatum:dvm.peildatum||null,biPeildatum:bi.peildatum||null,
     sources:sourceInventory({dvm,bi:{...bi,planning,functions},state}),

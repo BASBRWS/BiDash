@@ -135,7 +135,7 @@ export function makeDvmPartBundle(part,rows,{fileName='bron',sheetName=''}={}){
   else if(part==='liveStoringen')payload=[{key:slug(name),naam:name,rijen:norm,peildatum:peildatum(norm),doel:'live'}];
   else if(part==='dripHistorie')payload={sources:[{key:slug(name),name,rijen:norm}]};
   else throw new Error('Dit herkende DVM-onderdeel kan nog niet als losse bron worden opgebouwd: '+part);
-  return {formaat:'DVM-dienstimpact-totaal',versie:55,opgeslagen:new Date().toISOString(),exportSelectie,[part]:payload};
+  return {formaat:'DVM-dienstimpact-totaal',versie:54,opgeslagen:new Date().toISOString(),exportSelectie,[part]:payload};
 }
 
 export function parseDelimited(text,delimiter){

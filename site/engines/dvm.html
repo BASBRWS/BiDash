@@ -610,7 +610,7 @@ h3 .tip,h4 .tip{font-size:10px}
       <div class="dropzone" id="dz">
         <div class="ic">⭱</div>
         <b>Sleep hier één assetlijst (.xlsx/.xls/.csv) of klik om te kiezen</b>
-        <span>All Assets vormt het stamregister voor identiteit, areaal, locatie, installatiejaar, EOL en levensduur. Ontbrekende levensduur kan alleen nog via de ingestelde modelregels worden aangevuld.</span>
+        <span>All Assets vormt het stamregister voor identiteit, areaal, locatie, installatie-/ingebruiknamedatum en EOL. Ontbrekende levensduurwaarden vallen alleen terug op de ingestelde assettype-defaults.</span>
       </div>
       <div class="load-actions">
         <button class="tb-btn" id="landingAssetBtn" style="background:var(--rws-blauw);border-color:var(--rws-blauw)" onclick="document.getElementById('dripInput').click()">1 · All Assets laden</button>
@@ -620,11 +620,11 @@ h3 .tip,h4 .tip{font-size:10px}
         <button class="tb-btn" id="landingLiveBtn" style="background:var(--rws-blauw);border-color:var(--rws-blauw)" onclick="document.getElementById('liveLogInput').click()" disabled>5 · Open storingen laden</button>
       </div>
       <div class="foot-note">
-        De tool bouwt de assetindex inclusief installatiejaar, EOL en levensduur uit All Assets en koppelt vervolgens de historische storingslogs.
+        De tool bouwt eerst de assetindex uit All Assets, inclusief installatie-/ingebruiknamedatum en EOL, en koppelt vervolgens de historische storingslogs.
         Historische DVM- en DRIP-storingen worden uitsluitend gebruikt voor kalibratie en prognoses. Ze komen nooit in het actuele prestatiedashboard terecht.
         Daarna worden U-routes en werkzaamheden als operationele context geladen. De laatste stap is een momentopname met uitsluitend open storingen; alleen die bron voedt het actuele dashboard.
         De tool herkent WNN-, WNZ-, MN-, ZN- en andere DRIP-incidentwerkmappen automatisch.
-        Is expliciete EOL nog onvolledig, dan gebruikt het model de ingestelde generieke levensduur en Weibullwaarde per assettype.
+        Is EOL in All Assets onvolledig, dan gebruikt het model de ingestelde generieke levensduur en Weibullwaarde per assettype.
         Monte Carlo kan dan door als het areaal, de stichtingsjaren en de storingshistorie voldoende gedekt zijn. De status toont steeds welke bron voor welk doel wordt gebruikt.
         Een 2-km-koppeling met werkzaamheden wordt alleen toegepast als weg, periode en traject controleerbaar aan DATEX II-werkvakgeometrie of aan meegeleverde hectometers of RD-coördinaten kunnen worden gekoppeld. Een onzekere regel blijft alleen wegcontext.
         Let op: 85% in de importbalk betekent dat het bestand nog wordt verwerkt; 85% dekking van stichtingsjaren is wél voldoende voor de analysepoort.
