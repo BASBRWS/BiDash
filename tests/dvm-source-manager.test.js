@@ -79,3 +79,15 @@ test('DRIP totaal biedt naast vervangen ook een complementaire Voeg JSON toe-rou
   assert.match(source,/Voeg JSON toe/);
   assert.match(source,/leesDripTotaalBestand\(files\[0\],'toevoegen'\)/);
 });
+
+
+test('bronbeheer toont regio-updates onder elkaar met vetgedrukte regio',()=>{
+  assert.match(source,/function regioUpdatesHtml/);
+  assert.match(source,/dataset-region-list/);
+  assert.match(source,/dataset-region-row/);
+  assert.match(source,/<b>'\+e\(String\(v\)\.toUpperCase\(\)\)\+'<\\\/b>/);
+  assert.match(source,/Laatste update /);
+  const html=read('site/engines/dvm.html');
+  assert.match(html,/\.dataset-region-list\{/);
+  assert.match(html,/\.dataset-region-row b\{/);
+});
