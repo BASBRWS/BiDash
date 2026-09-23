@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {createServiceExpertReview,expertReviewCompletion,normalizeServiceExpertReview,upsertServiceExpertReview,validateServiceExpertReview} from '../site/core/service-expert-input.js';
+import {createServiceExpertReview,expertReviewCompletion,normalizeServiceExpertReview,upsertServiceExpertReview,validateServiceExpertReview,modelProposalFromService,expertModelProposal,validateExpertModelProposal} from '../site/core/service-expert-input.js';
 
 function completeReview(){
   const review=createServiceExpertReview({id:'im',naam:'Incidentmanagement'},0);
@@ -28,6 +28,7 @@ test('expertformulier bevat de vaste kernvragen en is generiek per dienst',()=>{
   assert.equal(normalized.dienstId,'vm');
   assert.ok(Object.hasOwn(normalized.proces,'beslismomenten'));
   assert.ok(Object.hasOwn(normalized.afhankelijkheden,'bovenstrooms'));
+  assert.ok(Object.hasOwn(normalized,'modelWijziging'));
 });
 
 test('ter beoordeling vereist context, regelvoorstel en signaalvoorstel',()=>{
@@ -70,5 +71,45 @@ test('de hoofdschil heeft een route en knop voor expertinvoer per dienstverlenin
   const html=fs.readFileSync(new URL('../site/index.html',import.meta.url),'utf8');
   assert.match(routes,/\['expertInput','Expertinvoer','native','expertInput'\]/);
   assert.match(app,/data-expert-service/);
+  assert.match(app,/data-expert-test-model/);
+  assert.match(app,/data-expert-apply-model/);
+  assert.match(app,/data-expert-undo-model/);
+  assert.match(app,/data-expert-add="subprocess"/);
   assert.match(html,/id="expertInput"/);
+});
+
+test('huidige subprocessen worden een bewerkbaar modelvoorstel',()=>{
+  const service={id:'im',norm:99,subprocessen:[
+    {naam:'Detecteren',aandeelDienst:.6,bronnen:[{obj:'detectie',gewicht:.7},{obj:'camera',gewicht:.3}]},
+    {naam:'Maatregel',aandeelDienst:.4,bronnen:[{obj:'signalering',gewicht:1}]}
+  ]};
+  const basis=modelProposalFromService(service);
+  assert.equal(basis.subprocessen.length,2);
+  assert.equal(basis.subprocessen[0].afhankelijkheden.detectie,'70');
+  const review=createServiceExpertReview({id:'im',naam:'Incidentmanagement'},0);
+  review.modelWijziging={norm:'98.5',subprocessen:[...basis.subprocessen,{id:'nieuw',naam:'Evalueren',aandeel:'0',afhankelijkheden:{communicatie:'100'},onderbouwing:'Nieuw proces'}],test:null,toepassing:null};
+  const proposal=expertModelProposal(review,service);
+  assert.equal(proposal.norm,98.5);
+  assert.equal(proposal.subprocessen[2].afh.communicatie,1);
+});
+
+test('modelvalidatie bewaakt gesloten aandelen en afhankelijkheden',()=>{
+  const geldig={dienstId:'im',norm:99,subprocessen:[
+    {naam:'Detecteren',gewicht:.6,afh:{detectie:.7,camera:.3}},
+    {naam:'Maatregel',gewicht:.4,afh:{signalering:1}}
+  ]};
+  assert.deepEqual(validateExpertModelProposal(geldig),[]);
+  const ongeldig=structuredClone(geldig);ongeldig.subprocessen[0].gewicht=.5;ongeldig.subprocessen[0].afh.detectie=.6;
+  const fouten=validateExpertModelProposal(ongeldig);
+  assert.ok(fouten.includes('De aandelen van de subprocessen moeten samen 100 procent zijn.'));
+  assert.ok(fouten.includes('De afhankelijkheden van subproces 1 moeten samen 100 procent zijn.'));
+});
+
+test('DVM-adapter ondersteunt proefberekenen, toepassen en terugzetten',()=>{
+  const adapter=fs.readFileSync(new URL('../site/engines/dvm-adapter-original.js',import.meta.url),'utf8');
+  const engine=fs.readFileSync(new URL('../site/engines/dvm-1.js',import.meta.url),'utf8');
+  assert.match(adapter,/testServiceModel\(model\)/);
+  assert.match(adapter,/applyServiceModel\(model\)/);
+  assert.match(adapter,/restoreServiceModel\(snapshot\)/);
+  assert.match(engine,/SUBPROCESSEN\[id\]=regels\.map/);
 });

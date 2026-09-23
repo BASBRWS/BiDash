@@ -83,9 +83,9 @@ Rule engine en trigger engine zijn dus verschillend: de eerste bepaalt betekenis
 
 ### Expertduiding vóór regelwijziging
 
-Onder **Regels & signalen / Expertinvoer** kan een inhoudelijk expert per dienstverlening de bestaande keten controleren. Het scherm toont de door DVM geleverde norm, uitkomst, subprocessen en assetafhankelijkheden, maar rekent die niet opnieuw uit. De expert legt doel en scope, procesverloop, rollen, informatie, afhankelijkheden, faalwijzen, herstel, meting en bewijs vast. Relaties die nog niet in de bestaande keten voorkomen krijgen een eigen bron, relatietype, doel, belang en onderbouwing.
+Onder **Regels & signalen / Expertinvoer** kan een inhoudelijk expert per dienstverlening de bestaande keten controleren. Het scherm toont de door DVM geleverde norm, uitkomst, subprocessen en assetafhankelijkheden. De expert legt doel en scope, procesverloop, rollen, informatie, afhankelijkheden, faalwijzen, herstel, meting en bewijs vast. Relaties die nog niet in de bestaande keten voorkomen krijgen een eigen bron, relatietype, doel, belang en onderbouwing.
 
-Regels worden als toetsbare ALS-DAN-voorstellen vastgelegd en signalen als conditie met ernst, actiehouder, actie, reactietijd en escalatie. De invoer loopt via Concept naar Ter beoordeling en Vastgesteld. Deze status verandert geen actieve DVM- of BI-configuratie. Pas na afzonderlijke beoordeling implementeert de bevoegde domeineigenaar een voorstel in de bestaande rule- of trigger-engine. Zo blijft expertkennis traceerbaar zonder een tweede rekenmodel te introduceren.
+De actuele norm en procesketen kunnen als bewerkbaar modelvoorstel worden overgenomen. Een expert kan subprocessen toevoegen, verwijderen en wijzigen, inclusief dienstaandeel en assetafhankelijkheden. **Proefberekening uitvoeren** zet het voorstel tijdelijk in DVM, leest de nieuwe dienstuitkomst en herstelt meteen de actieve configuratie. Een volledig vastgesteld voorstel kan bewust worden toegepast. De vorige configuratie wordt als rollback-snapshot opgeslagen en kan met **Vorige model terugzetten** opnieuw actief worden gemaakt. Regels en signalen blijven toetsbare voorstellen en worden niet automatisch uitvoerbaar gemaakt.
 
 ## 7. De engines rekenen binnen hun eigenaarschap
 

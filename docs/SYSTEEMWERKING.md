@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.23 en DVM 109, bijgewerkt op 22 september 2026 voor generieke expertduiding per dienstverlening.
+Status: beschrijving van BiDash 2.23 en DVM 110, bijgewerkt op 23 september 2026 voor testbare en terugzetbare expertmodellen per dienstverlening.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -440,6 +440,8 @@ kernvragen en minstens één compleet regel- en signaalvoorstel. `vastgesteld`
 vereist daarnaast akkoordgever en datum. Deze statussen zijn inhoudelijke workflow
 en activeren geen regel. Een voorstel moet afzonderlijk door de bevoegde eigenaar
 in DVM of BI worden geïmplementeerd en getest.
+
+De expert kan de actuele dienstnorm en subprocessen als modelvoorstel overnemen, subprocessen toevoegen of verwijderen en per subproces het dienstaandeel en de assetafhankelijkheden aanpassen. Een proefberekening past het voorstel tijdelijk toe op de geladen DVM-data, leest de uitkomst en herstelt direct het actieve model. Toepassen kan alleen bij een volledig `vastgesteld` dossier. DVM bewaart dan de vorige dienstconfiguratie als rollback-snapshot. De knop **Vorige model terugzetten** herstelt die configuratie en rekent opnieuw. De subprocesaandelen en afhankelijkheden moeten beide per niveau 100% vormen. Nieuwe subprocessen reizen mee in `parameters.subprocessen` van de DVM-totaalexport en worden bij import als volledige procesketen hersteld.
 
 De gegevens staan in `state.expertReviews`, zijn selectief exporteerbaar en blijven
 behouden wanneer een oudere of gedeeltelijke import dit veld niet bevat. De

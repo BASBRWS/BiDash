@@ -12,9 +12,15 @@ Datum: 22 september 2026
 - Regelvoorstellen gebruiken een toetsbare ALS-DAN-structuur. Signaalvoorstellen bevatten conditie, ernst, actiehouder, actie, reactietijd en escalatie.
 - De statussen **Concept**, **Ter beoordeling** en **Vastgesteld** ondersteunen inhoudelijke review. Voor vaststelling zijn alle kernvragen, een compleet regel- en signaalvoorstel en akkoordgegevens vereist.
 
-## Veilige grens
+## Testen en toepassen
 
-Expertinvoer is onderbouwde inhoudelijke duiding en verandert geen actieve DVM- of BI-rekenregel. Implementatie van een voorstel blijft een afzonderlijke, controleerbare stap bij de eigenaar van het betreffende domein.
+- De expert kan de huidige dienstnorm en subprocessen als bewerkbaar model overnemen.
+- Een nieuw subproces bevat een naam, aandeel in de dienstverlening, assetafhankelijkheden en onderbouwing.
+- De subprocessen moeten samen 100% zijn. De afhankelijkheden binnen ieder subproces moeten ook samen 100% zijn.
+- **Proefberekening uitvoeren** rekent het voorstel tijdelijk door en herstelt daarna automatisch het actieve model.
+- Een volledig vastgesteld voorstel kan met **Vastgesteld model toepassen** actief worden gemaakt.
+- DVM bewaart de vorige configuratie. **Vorige model terugzetten** maakt de toepassing ongedaan en rekent opnieuw.
+- Vrije tekst, relaties en regel- of signaalvoorstellen blijven duiding en worden niet automatisch uitvoerbare regels.
 
 ## Opslag en overdracht
 
@@ -24,4 +30,4 @@ De duiding wordt lokaal in de BiDash-werkruimte opgeslagen. **Expertduiding dien
 
 Nieuwe tests bewaken het generieke gegevensmodel, statusvalidatie, vaststelling, opslag per dienstverlening, navigatie, selectieve export/import en beschikbaarheid in de read-only Context API.
 
-Deze wijziging raakt de BiDash-schil. De actuele DVM-engine blijft versie 109.
+Deze wijziging gebruikt BiDash 2.23 en DVM 110.

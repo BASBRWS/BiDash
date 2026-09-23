@@ -169,7 +169,7 @@ De bronbestanden blijven lokaal in de browser. De werkruimte wordt in IndexedDB 
 
 ## Een expert laat regels en signalen duiden
 
-Ga naar **Regels & signalen** en kies **Expertinvoer**, of gebruik **Expertinvoer** bij de betreffende dienstverlening. BiDash opent het formulier direct voor die dienst. Boven het formulier staat wat BiDash nu gebruikt: de dienstnorm, de actuele uitkomst, de subprocessen en hun bekende assetafhankelijkheden. Met **Gebruik deze keten als startpunt** neem je de zichtbare processtappen en bronnen over als invulhulp.
+Ga naar **Regels & signalen** en kies **Expertinvoer**, of gebruik **Expertinvoer** bij de betreffende dienstverlening. BiDash opent het formulier direct voor die dienst. Boven het formulier staat wat BiDash nu gebruikt: de dienstnorm, de actuele uitkomst, de subprocessen en hun bekende assetafhankelijkheden. Met **Gebruik deze keten als startpunt** neem je de zichtbare processtappen, bronnen en actuele modelwaarden over als invulhulp.
 
 Vraag de expert niet alleen om een percentage of losse regel, maar om de hele redenering:
 
@@ -185,7 +185,11 @@ Vraag de expert niet alleen om een percentage of losse regel, maar om de hele re
 
 Gebruik **Nieuwe relatie** voor verbanden die BiDash nog niet kent. Dit kan bijvoorbeeld een afhankelijkheid van een extern meldproces, een overdracht naar een hulpdienst of een compensatie door een andere rol zijn. Zet een duiding eerst op **Concept**. **Ter beoordeling** vereist alle kernvragen en minimaal één compleet regel- en signaalvoorstel. **Vastgesteld** vereist daarnaast een akkoordgever en akkoorddatum.
 
-Belangrijk: opslaan maakt van een voorstel niet automatisch een actieve rekenregel. De domeineigenaar moet een goedgekeurd voorstel daarna gecontroleerd in de DVM- of BI-regels implementeren. De expertduiding blijft lokaal bewaard en kan in **Data & export** als **Expertduiding dienstverlening** worden meegenomen.
+Onder **Basiswaarden en subprocessen** kun je de dienstnorm aanpassen en subprocessen toevoegen, verwijderen of wijzigen. Vul per subproces het aandeel van de dienstverlening en de verdeling over signalering, camera, detectie, DRIP, communicatie, dynamische strook en wisselbord in. De subprocessen moeten samen 100% zijn. Ook de afhankelijkheden binnen ieder subproces moeten samen 100% zijn.
+
+Gebruik **Proefberekening uitvoeren** om het voorstel tijdelijk op de geladen DVM-data door te rekenen. BiDash toont de uitkomst voor en na en herstelt daarna automatisch het actieve model. Er verandert tijdens deze test dus niets blijvend. **Vastgesteld model toepassen** is alleen beschikbaar als de volledige duiding is vastgesteld en akkoordgegevens aanwezig zijn. Na toepassing blijft **Vorige model terugzetten** beschikbaar. Daarmee herstel je de vorige norm en procesketen en rekent BiDash opnieuw.
+
+Belangrijk: alleen de gestructureerde basiswaarden en subprocessen kunnen na vaststelling worden toegepast. Vrije tekst, relaties en regel- of signaalvoorstellen wijzigen niet automatisch een actieve rekenregel. De expertduiding en rollback-informatie blijven lokaal bewaard en kunnen in **Data & export** als **Expertduiding dienstverlening** worden meegenomen.
 
 ## Queryfilters voor assets en storingen
 
