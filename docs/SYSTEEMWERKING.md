@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.23 en DVM 109, bijgewerkt op 22 september 2026 voor generieke expertduiding per dienstverlening.
+Status: beschrijving van BiDash 2.24 en DVM 111, bijgewerkt op 24 september 2026 voor begeleide expertinvoer met gesloten subprocessaandelen.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -423,23 +423,15 @@ niet voor Incidentmanagement hard gecodeerd. De schil haalt beschikbare diensten
 uit de DVM-samenvatting en gebruikt vier neutrale VWM-diensten als terugval wanneer
 nog geen DVM-bron is geladen.
 
-Een expertduiding bevat:
+Een expertduiding bevat de expert, rol, status en formeel akkoord, begeleide keuzes over doel en bereik, procesverloop, uitval, herstel, norm, meetwijze, bron en onzekerheid, en optionele uitleg per keuze. Aanvullende relaties, regelvoorstellen, signaalvoorstellen, bewijs, aannames en open vragen blijven beschikbaar als optionele verdieping.
 
-- expert, rol, status en formeel akkoord;
-- doel, resultaat, doelgroep, scope en buiten-scope;
-- start, stappen, beslismomenten, overdrachten en eindtoestand;
-- assets, systemen, informatie, rollen, externe en boven-/benedenstroomse afhankelijkheden;
-- faalwijzen, gevolgen, compensatie, herstel en escalatie;
-- normduiding, meetwijze, tijdvenster, bron en onzekerheid;
-- expliciete aanvullende relaties;
-- toetsbare regelvoorstellen en uitvoerbare signaalvoorstellen;
-- bewijs, aannames, open vragen en vertrouwensniveau.
+De begeleide vragen gebruiken vaste antwoordopties. Iedere vraag en sectie heeft een toegankelijke tooltip die uitlegt waarom het antwoord nodig is en of het antwoord de berekening beïnvloedt. Vrije tekst is alleen een optionele toelichting. Oudere vrije antwoorden blijven bij normalisatie behouden en worden in het keuzescherm als bestaand antwoord getoond.
 
-Concepten mogen onvolledig worden opgeslagen. `ter_beoordeling` vereist alle
-kernvragen en minstens één compleet regel- en signaalvoorstel. `vastgesteld`
-vereist daarnaast akkoordgever en datum. Deze statussen zijn inhoudelijke workflow
-en activeren geen regel. Een voorstel moet afzonderlijk door de bevoegde eigenaar
-in DVM of BI worden geïmplementeerd en getest.
+Concepten mogen onvolledig worden opgeslagen. `ter_beoordeling` vereist de begeleide kernkeuzes, een geldige dienstnorm, minimaal één subproces, minimaal één DVM-afhankelijkheid per subproces en een gesloten subprocessenverdeling. Een regel- of signaalvoorstel is niet verplicht. `vastgesteld` vereist daarnaast akkoordgever en datum. De statussen activeren op zichzelf geen regel.
+
+De expert kan de actuele dienstnorm en subprocessen als modelvoorstel overnemen, subprocessen toevoegen of verwijderen en per subproces het dienstaandeel aanpassen. Alleen die aandelen moeten samen 100% vormen. Bij het wijzigen van één aandeel blijft die invoer staan en wordt het resterende aandeel naar verhouding over de overige subprocessen verdeeld. Technische DVM-afhankelijkheden worden met vinkjes gekozen. Zij hoeven in de expertinvoer geen tweede 100%-verdeling te vormen; DVM normaliseert de positieve technische gewichten intern voordat het model wordt toegepast.
+
+Een proefberekening past het voorstel tijdelijk toe op de geladen DVM-data, leest de uitkomst en herstelt direct het actieve model. Toepassen kan alleen bij een volledig `vastgesteld` dossier. DVM bewaart dan de vorige dienstconfiguratie als rollback-snapshot. De knop **Vorige model terugzetten** herstelt die configuratie en rekent opnieuw. Nieuwe subprocessen reizen mee in `parameters.subprocessen` van de DVM-totaalexport en worden bij import als volledige procesketen hersteld.
 
 De gegevens staan in `state.expertReviews`, zijn selectief exporteerbaar en blijven
 behouden wanneer een oudere of gedeeltelijke import dit veld niet bevat. De
@@ -469,7 +461,7 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 | Wijziging | Vereiste gerichte controle |
 | --- | --- |
 | Model/merge/export/signalen | `npm test` (`tests/model.test.js`) |
-| Expertduiding dienstverlening | `tests/service-expert-input.test.js`: generiek schema, volledigheid, statusovergangen, akkoord, geïsoleerde opslag per dienst en zichtbare route; `tests/model.test.js` en `tests/context-api.test.js` bewaken export/import en read-only context |
+| Expertduiding dienstverlening | `tests/service-expert-input.test.js`: generiek schema, begeleide keuzes, optionele uitleg, tooltips, gesloten subprocessaandelen, technische vinkjes, statusovergangen, akkoord, geïsoleerde opslag per dienst en zichtbare route; `tests/model.test.js` en `tests/context-api.test.js` bewaken export/import en read-only context |
 | Navigatie/import/opslag | `tests/browser.cjs`: MS Project, P6, zichtbare tijdlijn, export/herstel, mobiel |
 | Datalaadvoortgang | `tests/data-load-progress.test.js`: byteaggregatie, begrenzing, FileReader-pad, paint-yield en DVM-voortgangsbrug |
 | Canvas/tijdschaal/drag | `tests/planning-large.cjs`: grote synthetische planning, scrollen, slepen, resizen |

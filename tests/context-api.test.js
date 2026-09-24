@@ -39,7 +39,7 @@ const bi={
   functions,
   triggers:[]
 };
-const state={dvm:{assetregister:{rijen:[{}]},liveStoringen:[{rijen:[{},{},{}]}],werkzaamheden:{rijen:[{}]},uRoutes:{rijen:[{}]}},bi:{},planning:{xml:'<x/>'},links:[{dienst:'im',functie:'f1',eigenaar:'VWM'}],expertReviews:[{dienstId:'im',dienstNaam:'Incidentmanagement',status:'concept',expert:{naam:'Expert A',rol:'Proceseigenaar'},relaties:[{id:'r1',bron:'Meldkamer',relatie:'levert_aan',doel:'Incident detecteren'}]}],history:[]};
+const state={dvm:{assetregister:{rijen:[{}]},liveStoringen:[{rijen:[{},{},{}]}],werkzaamheden:{rijen:[{}]},uRoutes:{rijen:[{}]}},bi:{},planning:{xml:'<x/>'},links:[{dienst:'im',functie:'f1',eigenaar:'VWM'}],expertReviews:[{dienstId:'im',dienstNaam:'Incidentmanagement',status:'concept',expert:{naam:'Expert A',rol:'Proceseigenaar'},toelichtingen:{'proces.start':'Geldt alleen buiten kantooruren'},relaties:[{id:'r1',bron:'Meldkamer',relatie:'levert_aan',doel:'Incident detecteren'}]}],history:[]};
 const context=buildBiDashContext({faults,assets:[],roads:[],services,functions,dvm,bi,links:state.links,state});
 
 test('Context API legt storing via assettype aan dienstverlening',()=>{
@@ -54,6 +54,7 @@ test('Context API maakt expertduiding en ontbrekende relaties generiek beschikba
   assert.equal(context.expertReviews[0].dienstId,'im');
   assert.equal(context.expertRelations[0].bron,'Meldkamer');
   assert.equal(context.expertRelations[0].dienstNaam,'Incidentmanagement');
+  assert.equal(context.expertReviews[0].toelichtingen['proces.start'],'Geldt alleen buiten kantooruren');
 });
 
 test('Context API koppelt planning aan storing via corridor',()=>{

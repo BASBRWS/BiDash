@@ -167,25 +167,29 @@ De rule engine bepaalt wat meetelt en hoe die feiten doorwerken naar de dienstve
 
 De bronbestanden blijven lokaal in de browser. De werkruimte wordt in IndexedDB opgeslagen. Voor overdracht of back-up gebruik je een integrale export.
 
-## Een expert laat regels en signalen duiden
+## Begeleide expertinvoer per dienstverlening
 
-Ga naar **Regels & signalen** en kies **Expertinvoer**, of gebruik **Expertinvoer** bij de betreffende dienstverlening. BiDash opent het formulier direct voor die dienst. Boven het formulier staat wat BiDash nu gebruikt: de dienstnorm, de actuele uitkomst, de subprocessen en hun bekende assetafhankelijkheden. Met **Gebruik deze keten als startpunt** neem je de zichtbare processtappen en bronnen over als invulhulp.
+Ga naar **Regels & signalen** en kies **Expertinvoer**, of gebruik **Expertinvoer** bij de betreffende dienstverlening. Bovenaan staat de actieve dienstnorm, uitkomst en procesketen. De huidige subprocessen worden automatisch als bewerkbaar startpunt geladen.
 
-Vraag de expert niet alleen om een percentage of losse regel, maar om de hele redenering:
+De expert hoeft geen bedrijfskundig model te maken. Het scherm bestaat uit vaste keuzes over doel, proces, uitval, herstel, norm en bewijs. Bij iedere vraag en ieder onderdeel staat een informatieknop. Die legt uit waarom het antwoord nodig is en of het antwoord de berekening beïnvloedt. Onder iedere keuze kan de expert optioneel extra uitleg toevoegen.
 
-1. Wie geeft de duiding en vanuit welke verantwoordelijkheid?
-2. Wat is doel, merkbaar resultaat, doelgroep, scope en buiten-scope van de dienst?
-3. Wat start het proces, welke stappen en beslismomenten bestaan er, waar zijn overdrachten en wanneer is het proces klaar?
-4. Welke assets, systemen, informatie, rollen, capaciteit, ketenpartners en boven- of benedenstroomse processen zijn nodig?
-5. Wat kan misgaan, wat is het gevolg, welke compensatie bestaat, hoe verloopt herstel en wanneer volgt escalatie?
-6. Hoe wordt prestatie gemeten, over welk tijdvenster en gebied, met welke bron en onzekerheid?
-7. Welke toetsbare ALS-DAN-regels en welke uitzonderingen worden voorgesteld?
-8. Wanneer moet welk signaal ontstaan, wie handelt, binnen welke tijd en wanneer wordt geëscaleerd?
-9. Welk bewijs, welke aannames, open vragen en formele akkoordgegevens horen erbij?
+Onder **Subprocessen en aandelen** kan de expert:
 
-Gebruik **Nieuwe relatie** voor verbanden die BiDash nog niet kent. Dit kan bijvoorbeeld een afhankelijkheid van een extern meldproces, een overdracht naar een hulpdienst of een compensatie door een andere rol zijn. Zet een duiding eerst op **Concept**. **Ter beoordeling** vereist alle kernvragen en minimaal één compleet regel- en signaalvoorstel. **Vastgesteld** vereist daarnaast een akkoordgever en akkoorddatum.
+1. een bestaande naam of aandeel aanpassen;
+2. een ontbrekend subproces toevoegen;
+3. een onjuist subproces verwijderen;
+4. met vinkjes aangeven welke DVM-onderdelen nodig zijn;
+5. een optionele toelichting toevoegen.
 
-Belangrijk: opslaan maakt van een voorstel niet automatisch een actieve rekenregel. De domeineigenaar moet een goedgekeurd voorstel daarna gecontroleerd in de DVM- of BI-regels implementeren. De expertduiding blijft lokaal bewaard en kan in **Data & export** als **Expertduiding dienstverlening** worden meegenomen.
+Alleen de aandelen van de subprocessen moeten samen 100% zijn. Als één aandeel wijzigt, verdeelt BiDash het resterende percentage naar verhouding over de andere subprocessen. De gekozen DVM-onderdelen hebben daarom geen tweede procentverdeling. BiDash bewaart bestaande technische gewichten en normaliseert de actieve afhankelijkheden intern.
+
+Zet een duiding eerst op **Concept**. **Ter beoordeling** vereist de verplichte keuzes, een geldige dienstnorm, minstens één subproces, minimaal één gekozen DVM-onderdeel per subproces en samen 100% subprocesaandeel. Een regel- of signaalvoorstel is niet verplicht. **Vastgesteld** vereist daarnaast een akkoordgever en akkoorddatum.
+
+Extra relaties, regels en signalen staan onder **Geavanceerd**. Dit deel is alleen bedoeld voor een expert die een concrete ontbrekende relatie, toetsbare regel of waarschuwing wil vastleggen. Deze voorstellen worden niet automatisch actief.
+
+Gebruik **Proefberekening uitvoeren** om het voorstel tijdelijk op de geladen DVM-data door te rekenen. BiDash toont de uitkomst voor en na en herstelt daarna automatisch het actieve model. Er verandert tijdens deze test dus niets blijvend. **Vastgesteld model toepassen** is alleen beschikbaar als de volledige duiding is vastgesteld en akkoordgegevens aanwezig zijn. Na toepassing blijft **Vorige model terugzetten** beschikbaar. Daarmee herstel je de vorige norm en procesketen en rekent BiDash opnieuw.
+
+Belangrijk: alleen de gestructureerde norm en subprocessen kunnen na vaststelling worden toegepast. Keuzeantwoorden, extra uitleg, relaties en regel- of signaalvoorstellen wijzigen niet automatisch een actieve rekenregel. De expertduiding en rollback-informatie blijven lokaal bewaard en kunnen in **Data & export** als **Expertduiding dienstverlening** worden meegenomen.
 
 ## Queryfilters voor assets en storingen
 

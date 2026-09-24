@@ -6,7 +6,7 @@
    De schil hoort haar eigen versie te kennen en die meteen te tonen; de modules
    melden alleen hun eigen versie aan. */
 
-export const BIDASH_VERSIE='2.23';
+export const BIDASH_VERSIE='2.24';
 
 /* Alleen DVM houdt een eigen engineversie bij. BI en planning melden niets, en
    dan hoort er ook niets over hen in de balk te staan. */

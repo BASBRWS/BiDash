@@ -61,6 +61,42 @@
    triggers:FORECAST_TRIGGERS||[]
   };
  }
+ function expertModelSnapshot(dienstId){
+  const dienst=DIENSTEN.find(d=>String(d.id)===String(dienstId));
+  if(!dienst)throw Error('Onbekende dienstverlening.');
+  return {
+   dienstId:String(dienst.id),norm:Number(dienst.norm),afh:structuredClone(dienst.afh||{}),
+   subprocessen:structuredClone((SUBPROCESSEN[dienst.id]||[]).map(sp=>({naam:sp.naam,gewicht:Number(sp.gewicht)||0,afh:{...(sp.afh||{})},tekst:sp.tekst||''})))
+  };
+ }
+ function expertServiceResult(dienstId){
+  const row=hubDienstContext().services.find(service=>String(service.id)===String(dienstId));
+  return row?structuredClone({id:row.id,naam:row.naam,norm:row.norm,besch:row.besch,prestatie:row.prestatie,lo:row.lo,hi:row.hi,exact:row.exact,subprocessen:row.subprocessen}):null;
+ }
+ function expertHerbereken(){
+  ANALYSE_SIGNATURE='';MC_RESULT=null;DRIP_MC=null;DIENST_SEL=null;
+  probeerAnalyseActiveren('expertmodel');
+ }
+ function expertModelZet(model){
+  const dienst=DIENSTEN.find(d=>String(d.id)===String(model?.dienstId));
+  if(!dienst)throw Error('Onbekende dienstverlening.');
+  const norm=Number(model.norm),regels=Array.isArray(model.subprocessen)?model.subprocessen:[];
+  if(!Number.isFinite(norm)||norm<0||norm>100)throw Error('De dienstnorm moet tussen 0 en 100 procent liggen.');
+  if(!regels.length)throw Error('Minstens één subproces is verplicht.');
+  const gewichtSom=regels.reduce((som,sp)=>som+(Number(sp.gewicht)||0),0);
+  if(Math.abs(gewichtSom-1)>.0005)throw Error('De aandelen van de subprocessen moeten samen 100 procent zijn.');
+  const nieuw=regels.map((sp,index)=>{
+   const ruweAfh=Object.fromEntries(Object.entries(sp.afh||{}).map(([key,value])=>[String(key),Math.max(0,Number(value)||0)]).filter(([,value])=>value>0));
+   const som=Object.values(ruweAfh).reduce((a,b)=>a+b,0);
+   if(!String(sp.naam||'').trim())throw Error(`Subproces ${index+1} heeft geen naam.`);
+   if(!som)throw Error(`Subproces ${index+1} heeft geen afhankelijkheid.`);
+   const afh=Object.fromEntries(Object.entries(ruweAfh).map(([key,value])=>[key,value/som]));
+   return {naam:String(sp.naam).trim(),gewicht:Math.max(0,Number(sp.gewicht)||0),afh,tekst:String(sp.tekst||'').trim()};
+  });
+  dienst.norm=norm;SUBPROCESSEN[dienst.id]=nieuw;normaliseerSubprocesAandelen(dienst.id);dienst.afh=dienstAssetAfhankelijkheid(dienst);
+  expertHerbereken();
+  return expertServiceResult(dienst.id);
+ }
  window.HUB={
   async import(bundle){const b=structuredClone(bundle);if(b.formaat!=='DVM-dienstimpact-totaal')throw Error('Geen DVM-totaalbestand.');if(!b.assetregister?.rijen?.length)throw Error('Een DVM-berekening vereist een assetregister. Importeer een volledige dataset of combineer de selectie met het bestaande register.');STATE=null; HISTORIE_STATE=null; STORINGSBRONNEN=[]; LIVE_STORINGSBRONNEN=[]; DRIP_HIST_STATE=null; U_ROUTE_STATE=null; WERK_STATE=null;resetForecast();await totaalImportJson(new File([JSON.stringify(b)],'dvm-lokaal.json',{type:'application/json'}),'vervang');if(!ASSET_REGISTER_STATE)throw Error('Het assetregister is niet verwerkt.');revealForecastTab();return this.summary();},
   export(options={}){return totaalExportBundle(Object.fromEntries(totaalExportOpties().map(o=>[o.id,true])),{autosaveLean:options.fullSources!==true});},
@@ -78,6 +114,20 @@
   }));},
   detail(key){return {asset:(ASSET_REGISTER_STATE?.assets||[]).find(a=>a.key===key),faults:this.faults().filter(m=>m.assetKey===key)};},
   context(){return hubContext();},
+  serviceModel(dienstId){return expertModelSnapshot(dienstId);},
+  testServiceModel(model){
+   const vorige=expertModelSnapshot(model?.dienstId),voor=expertServiceResult(model?.dienstId);
+   try{const na=expertModelZet(model);return {getestOp:new Date().toISOString(),voor,na,voorstel:structuredClone(model)};}
+   finally{expertModelZet(vorige);}
+  },
+  applyServiceModel(model){
+   const rollback=expertModelSnapshot(model?.dienstId),voor=expertServiceResult(model?.dienstId),na=expertModelZet(model);
+   notify();return {toegepastOp:new Date().toISOString(),rollback,voor,na};
+  },
+  restoreServiceModel(snapshot){
+   const voor=expertServiceResult(snapshot?.dienstId),na=expertModelZet(snapshot);notify();
+   return {teruggezetOp:new Date().toISOString(),voor,na};
+  },
   async open(tab){if(tab==='prognose'){revealForecastTab();await renderForecastPage();toonTab('prognose');return;}const renderers={overzicht:renderOverzicht,wegdelen:renderWegdelen,storingen:renderStoringen,berekening:renderBerekening,wegdeelverslag:renderWegdeelverslag,gebied:renderGebied,rapport:renderRapport,drips:renderDrips,datasets:renderDatasetBeheer,regels:renderRegels};if(tabToegestaan(tab)&&renderers[tab])renderers[tab]();toonTab(tab);if(tab==='regels')await enhanceRules();if(tab==='datasets'){const host=document.getElementById('tab-datasets');if(host){host.querySelector('.hub-source-tools')?.remove();const bar=document.createElement('div');bar.className='hub-source-tools';for(const [label,id] of [['Assetlijst','dripInput'],['Storingshistorie','autoLogInput'],['Open storingen','liveLogInput'],['U-routes','uRouteInput'],['Werkzaamheden','werkInput']]){const b=document.createElement('button');b.textContent=label+' laden';b.onclick=()=>document.getElementById(id).click();bar.append(b);}host.prepend(bar);}}},
   async scenario(kind){if(kind==='current')tmc70Open();else await this.open('prognose');},
   openCosts(key){kostenOpenWeg(encodeURIComponent(key));},

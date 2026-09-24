@@ -475,18 +475,20 @@ function dienstAssetAfhankelijkheid(dienst){
   return totaal?uit:{...(dienst.afh||{})};
 }
 function subprocessenConfig(){
-  return Object.fromEntries(Object.entries(SUBPROCESSEN).map(([id,subs])=>[id,subs.map(sp=>({naam:sp.naam,gewicht:sp.gewicht==null?1:sp.gewicht,afh:{...(sp.afh||{})}}))]));
+  return Object.fromEntries(Object.entries(SUBPROCESSEN).map(([id,subs])=>[id,subs.map(sp=>({naam:sp.naam,gewicht:sp.gewicht==null?1:sp.gewicht,afh:{...(sp.afh||{})},tekst:sp.tekst||''}))]));
 }
 function laadSubprocessenConfig(cfg){
   if(!cfg)return;
   Object.entries(cfg).forEach(([id,regels])=>{
-    const doel=SUBPROCESSEN[id]||[];
-    (regels||[]).forEach((bron,i)=>{
-      const sp=doel.find(x=>x.naam===bron.naam)||doel[i];if(!sp)return;
-      if(bron.afh)sp.afh={...sp.afh,...bron.afh};
-      if(bron.gewicht!=null)sp.gewicht=Number(bron.gewicht)||0;
-    });
+    if(!Array.isArray(regels)||!DIENSTEN.some(d=>d.id===id))return;
+    SUBPROCESSEN[id]=regels.map((bron,i)=>({
+      naam:String(bron?.naam||`Subproces ${i+1}`).trim(),
+      gewicht:Math.max(0,Number(bron?.gewicht==null?1:bron.gewicht)||0),
+      afh:Object.fromEntries(Object.entries(bron?.afh||{}).map(([key,value])=>[key,Math.max(0,Number(value)||0)]).filter(([,value])=>value>0)),
+      tekst:String(bron?.tekst||bron?.onderbouwing||'').trim()
+    })).filter(sp=>sp.naam&&Object.keys(sp.afh).length);
     normaliseerSubprocesAandelen(id);
+    const dienst=DIENSTEN.find(d=>d.id===id);if(dienst)dienst.afh=dienstAssetAfhankelijkheid(dienst);
   });
 }
 
@@ -708,4 +710,3 @@ function normaliseerMsiErnstRegels(regels,behoudFactoren){
 /* Diepe kopie van de fabrieksinstellingen, zodat "herstel standaard" altijd werkt. */
 const RULES_DEFAULT = JSON.parse(JSON.stringify(RULES));
 const DIENSTEN_AFH_DEFAULT = JSON.parse(JSON.stringify(DIENSTEN.map(d=>({id:d.id,afh:d.afh,norm:d.norm}))));
-
