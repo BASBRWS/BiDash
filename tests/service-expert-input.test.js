@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {createServiceExpertReview,expertReviewCompletion,normalizeServiceExpertReview,upsertServiceExpertReview,validateServiceExpertReview,modelProposalFromService,expertModelProposal,validateExpertModelProposal} from '../site/core/service-expert-input.js';
+import {createServiceExpertReview,expertReviewCompletion,normalizeServiceExpertReview,upsertServiceExpertReview,validateServiceExpertReview,modelProposalFromService,expertModelProposal,validateExpertModelProposal,EXPERT_GUIDED_SECTIONS,rebalanceExpertShares} from '../site/core/service-expert-input.js';
 
 function completeReview(){
   const review=createServiceExpertReview({id:'im',naam:'Incidentmanagement'},0);
@@ -13,6 +13,7 @@ function completeReview(){
   review.impact={faalwijzen:'Incident niet gedetecteerd',veiligheid:'Onveilige rijstrook en vertraging',informatie:'Onvolledig verkeersbeeld',alternatief:'Handmatige melding',herstel:'Beeld controleren',escalatie:'Na 10 minuten'};
   review.meting={normDuiding:'Norm geldt op de brondag',meetwijze:'Afgeronde incidenten gedeeld door incidenten',meetvenster:'Per maand',bron:'Incidentregistratie',onzekerheid:'Niet gemelde incidenten'};
   review.validatie={bewijs:'Werkinstructie en incidentanalyse',aannames:'Volledige registratie',openVragen:'Geen',vertrouwen:'4',akkoordNaam:'',akkoordDatum:''};
+  review.modelWijziging={norm:'99',subprocessen:[{id:'sp1',naam:'Detecteren',aandeel:'60',afhankelijkheden:{detectie:'70',camera:'30'},onderbouwing:''},{id:'sp2',naam:'Maatregel uitvoeren',aandeel:'40',afhankelijkheden:{signalering:'100'},onderbouwing:''}],test:null,toepassing:null};
   review.relaties=[{id:'r1',bron:'Detectie',relatie:'levert_aan',doel:'Incident detecteren',kritiek:'essentieel',duiding:'Start het proces',bewijs:'Werkinstructie'}];
   review.regelVoorstellen=[{id:'r2',als:'Detectie ontbreekt',dan:'Detectievermogen onbekend',maatstaf:'Langer dan 5 minuten',gewicht:'Hoog',uitzondering:'Handmatige melding',eigenaar:'Proceseigenaar',bewijs:'Analyse'}];
   review.signaalVoorstellen=[{id:'s1',voorwaarde:'Detectie langer dan 5 minuten onbekend',ernst:'kritiek',actie:'Controleer alternatieve bronnen',eigenaar:'Wegverkeersleider',responstijd:'Direct',escalatie:'Na 10 minuten'}];
@@ -29,12 +30,15 @@ test('expertformulier bevat de vaste kernvragen en is generiek per dienst',()=>{
   assert.ok(Object.hasOwn(normalized.proces,'beslismomenten'));
   assert.ok(Object.hasOwn(normalized.afhankelijkheden,'bovenstrooms'));
   assert.ok(Object.hasOwn(normalized,'modelWijziging'));
+  assert.ok(Object.hasOwn(normalized,'toelichtingen'));
+  assert.equal(EXPERT_GUIDED_SECTIONS.length,4);
 });
 
-test('ter beoordeling vereist context, regelvoorstel en signaalvoorstel',()=>{
+test('ter beoordeling vereist de begeleide kernkeuzes maar geen regel- of signaalvoorstel',()=>{
   const leeg=createServiceExpertReview({id:'im',naam:'Incidentmanagement'},0);leeg.status='ter_beoordeling';
   assert.ok(validateServiceExpertReview(leeg).length>10);
   const review=completeReview();
+  review.regelVoorstellen=[];review.signaalVoorstellen=[];
   assert.deepEqual(validateServiceExpertReview(review),[]);
   assert.equal(expertReviewCompletion(review).percentage,100);
 });
@@ -93,7 +97,7 @@ test('huidige subprocessen worden een bewerkbaar modelvoorstel',()=>{
   assert.equal(proposal.subprocessen[2].afh.communicatie,1);
 });
 
-test('modelvalidatie bewaakt gesloten aandelen en afhankelijkheden',()=>{
+test('modelvalidatie bewaakt alleen de gesloten subprocessaandelen',()=>{
   const geldig={dienstId:'im',norm:99,subprocessen:[
     {naam:'Detecteren',gewicht:.6,afh:{detectie:.7,camera:.3}},
     {naam:'Maatregel',gewicht:.4,afh:{signalering:1}}
@@ -102,7 +106,25 @@ test('modelvalidatie bewaakt gesloten aandelen en afhankelijkheden',()=>{
   const ongeldig=structuredClone(geldig);ongeldig.subprocessen[0].gewicht=.5;ongeldig.subprocessen[0].afh.detectie=.6;
   const fouten=validateExpertModelProposal(ongeldig);
   assert.ok(fouten.includes('De aandelen van de subprocessen moeten samen 100 procent zijn.'));
-  assert.ok(fouten.includes('De afhankelijkheden van subproces 1 moeten samen 100 procent zijn.'));
+  assert.ok(!fouten.some(fout=>fout.includes('afhankelijkheden')&&fout.includes('100 procent')));
+});
+
+test('aanpassen van één aandeel verdeelt de rest automatisch tot 100 procent',()=>{
+  assert.deepEqual(rebalanceExpertShares([60,30,10],0,50),[50,37.5,12.5]);
+  assert.deepEqual(rebalanceExpertShares([0,0],0,25),[25,75]);
+  assert.deepEqual(rebalanceExpertShares([20],0,10),[100]);
+  assert.equal(rebalanceExpertShares([33.33,33.33,33.34]).reduce((sum,value)=>sum+value,0),100);
+});
+
+test('begeleide invoer gebruikt keuzes, optionele uitleg, vinkjes en tooltips',()=>{
+  const app=fs.readFileSync(new URL('../site/app.js',import.meta.url),'utf8');
+  const css=fs.readFileSync(new URL('../site/style.css',import.meta.url),'utf8');
+  assert.match(app,/EXPERT_GUIDED_SECTIONS/);
+  assert.match(app,/Extra uitleg, niet verplicht/);
+  assert.match(app,/name="subprocess-afh"/);
+  assert.match(app,/data-expert-share-total/);
+  assert.match(app,/expert-tooltip/);
+  assert.match(css,/\.expert-tooltip/);
 });
 
 test('DVM-adapter ondersteunt proefberekenen, toepassen en terugzetten',()=>{
@@ -111,5 +133,6 @@ test('DVM-adapter ondersteunt proefberekenen, toepassen en terugzetten',()=>{
   assert.match(adapter,/testServiceModel\(model\)/);
   assert.match(adapter,/applyServiceModel\(model\)/);
   assert.match(adapter,/restoreServiceModel\(snapshot\)/);
+  assert.match(adapter,/\[key,value\/som\]/);
   assert.match(engine,/SUBPROCESSEN\[id\]=regels\.map/);
 });

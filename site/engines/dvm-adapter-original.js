@@ -86,10 +86,11 @@
   const gewichtSom=regels.reduce((som,sp)=>som+(Number(sp.gewicht)||0),0);
   if(Math.abs(gewichtSom-1)>.0005)throw Error('De aandelen van de subprocessen moeten samen 100 procent zijn.');
   const nieuw=regels.map((sp,index)=>{
-   const afh=Object.fromEntries(Object.entries(sp.afh||{}).map(([key,value])=>[String(key),Math.max(0,Number(value)||0)]).filter(([,value])=>value>0));
-   const som=Object.values(afh).reduce((a,b)=>a+b,0);
+   const ruweAfh=Object.fromEntries(Object.entries(sp.afh||{}).map(([key,value])=>[String(key),Math.max(0,Number(value)||0)]).filter(([,value])=>value>0));
+   const som=Object.values(ruweAfh).reduce((a,b)=>a+b,0);
    if(!String(sp.naam||'').trim())throw Error(`Subproces ${index+1} heeft geen naam.`);
-   if(Math.abs(som-1)>.0005)throw Error(`De afhankelijkheden van subproces ${index+1} moeten samen 100 procent zijn.`);
+   if(!som)throw Error(`Subproces ${index+1} heeft geen afhankelijkheid.`);
+   const afh=Object.fromEntries(Object.entries(ruweAfh).map(([key,value])=>[key,value/som]));
    return {naam:String(sp.naam).trim(),gewicht:Math.max(0,Number(sp.gewicht)||0),afh,tekst:String(sp.tekst||'').trim()};
   });
   dienst.norm=norm;SUBPROCESSEN[dienst.id]=nieuw;normaliseerSubprocesAandelen(dienst.id);dienst.afh=dienstAssetAfhankelijkheid(dienst);

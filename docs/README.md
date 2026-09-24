@@ -9,6 +9,7 @@ Achtergrond bij BiDash integraal. De applicatie zelf staat in [`site/`](../site)
 | [Systeemwerking](SYSTEEMWERKING.md) | Technische architectuur, kwaliteitscontract, importregels, rekenketens en verplichte wijzigingscontroles |
 | [Logische architectuur](architectuur.md) | Dienstverlening als doellaag, de drie invloeddomeinen, rule engine en trigger engine, plus de relatie met de technische vierlagenarchitectuur |
 | [Rekenvoorbeeld signaalgevers](rekenvoorbeeld-signaalgevers.md) | Tien jaar geen signaalgevers vervangen, doorgerekend tot beschikbaarheid, dienstverlening en kosten |
+| [Release notes begeleide expertinvoer](release-notes-2026-09-24-begeleide-expertinvoer.md) | Vervangt de open vragenlijst door vaste keuzes, optionele uitleg, tooltips en automatisch gesloten subprocessaandelen |
 | [Release notes expertmodel testen en terugzetten](release-notes-2026-09-23-expertmodel-testen.md) | Proefberekening, toepassen, rollback en subprocessen toevoegen vanuit expertinvoer |
 | [Release notes expertinvoer per dienstverlening](release-notes-2026-09-22-expertinvoer-dienstverlening.md) | Laat een inhoudelijk expert procescontext, ontbrekende relaties en onderbouwde regel- en signaalvoorstellen per dienstverlening vastleggen zonder actieve regels automatisch te wijzigen |
 | [Release notes lus naar detectie in dienstverlening](release-notes-2026-09-18-detectielus-keten.md) | Normaliseert lus, detectie, detector, meetlus en inductielus naar Detectielus en koppelt deze bron aan detectie binnen dienstverlening |

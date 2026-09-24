@@ -124,6 +124,7 @@ function compactExpertReviews(reviews=[]){
     expert:{naam:String(review?.expert?.naam??''),rol:String(review?.expert?.rol??''),organisatie:String(review?.expert?.organisatie??'')},
     context:{...(review?.context||{})},proces:{...(review?.proces||{})},afhankelijkheden:{...(review?.afhankelijkheden||{})},
     impact:{...(review?.impact||{})},meting:{...(review?.meting||{})},validatie:{...(review?.validatie||{})},
+    toelichtingen:{...(review?.toelichtingen||{})},
     modelWijziging:review?.modelWijziging?structuredClone(review.modelWijziging):{norm:'',subprocessen:[],test:null,toepassing:null},
     relaties:(Array.isArray(review?.relaties)?review.relaties:[]).map(row=>({...row})),
     regelVoorstellen:(Array.isArray(review?.regelVoorstellen)?review.regelVoorstellen:[]).map(row=>({...row})),
