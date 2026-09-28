@@ -7,9 +7,9 @@ De standaardweergave is de processflow. Via de documentnavigatie zijn onder ande
 ## Welke versie je voor je hebt
 
 Rechtsboven in de balk staat de versie, naast de Help-knop. Direct na het openen
-staat daar de versie van BiDash zelf, bijvoorbeeld `BiDash 2.25`. Zodra je een
-module opent die een eigen versie bijhoudt, komt die erachter: `BiDash 2.25 · DVM 111`.
-Onderin de navigatie staat hetzelfde nummer als `Integratie 2.25`. Noem dat nummer
+staat daar de versie van BiDash zelf, bijvoorbeeld `BiDash 2.26`. Zodra je een
+module opent die een eigen versie bijhoudt, komt die erachter: `BiDash 2.26 · DVM 111`.
+Onderin de navigatie staat hetzelfde nummer als `Integratie 2.26`. Noem dat nummer
 bij een melding over een verschil in uitkomsten; zonder versie is een uitkomst niet
 terug te vinden.
 
@@ -37,6 +37,18 @@ kiezen.
 
 De mapkoppeling blijft lokaal in deze browser. BiDash gebruikt hiervoor geen
 Microsoft Graph, uploadt geen bestanden en verandert niets in SharePoint.
+
+Bij exporteren vanuit **Data & export** blijft de normale download bestaan. Heeft
+de gekoppelde map schrijfrechten, dan bewaart BiDash dezelfde integrale, DVM-, BI-
+of planningexport daarnaast automatisch in die map. De bestandsnaam bevat de
+datum. Exporteer je op dezelfde dag nogmaals, dan wordt de versie van die dag in
+de map bijgewerkt. De browser kan bij de eerste export nog om schrijfrechten
+vragen. Weiger je die, of lukt schrijven niet, dan is de gewone download al wel
+gemaakt en toont BiDash dat alleen het opslaan in de map is mislukt.
+
+De terugval waarbij je in een andere browser iedere keer een map uploadt kan die
+map niet beschrijven. Automatisch terugschrijven werkt daarom in Edge of Chrome
+met de moderne mapkoppeling.
 
 ## Planning en triggers laden
 

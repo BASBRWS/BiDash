@@ -2,7 +2,7 @@ import {GROUPS,ROUTES,resolveRoute} from './ui/routes.js';
 import {DEFAULT_STATE,DVM_PARTS,BI_RULE_KEYS,LABELS,validate,makeExport,mergeImport,combine} from './core/model.js';
 import {read,write,readValue,writeValue} from './core/storage.js';
 import {toonVersies} from './core/versie.js';
-import {nieuwsteMomentopnameUitBestanden,nieuwsteMomentopnameUitMap,mapToestemming} from './core/latest-snapshot.js';
+import {nieuwsteMomentopnameUitBestanden,nieuwsteMomentopnameUitMap,mapToestemming,schrijfBestandNaarMap} from './core/latest-snapshot.js';
 import {runQualityAudit,QUALITY_CATEGORIES} from './core/quality-audit.js';
 import {applyQuery,operatorsFor} from './core/query-filter.js';
 import {installQueryAssistant} from './core/query-assistant.js';
@@ -222,6 +222,17 @@ function render(){
  $('#inventory').textContent=`Lokaal: DVM ${state.dvm?'geladen':'leeg'} · BI ${state.bi?'geladen':'leeg'} · planning ${state.planning?'geladen':'leeg'} · ${state.links.length} koppelingen · ${(state.expertReviews||[]).length} expertduidingen.`;
 }
 function download(obj,name,type='application/json'){const blob=new Blob([typeof obj==='string'?obj:JSON.stringify(obj)],{type}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);}
+async function schrijfExportOokNaarGekoppeldeMap(data,name,type='application/json'){
+ if(!latestSnapshotDirectory){latestSnapshotStatus('Export gedownload. Koppel een gesynchroniseerde map om exports daar automatisch ook op te slaan.');return false;}
+ try{
+  await schrijfBestandNaarMap(latestSnapshotDirectory,{name,data,type});
+  latestSnapshotStatus(`Export gedownload en ook opgeslagen in ${latestSnapshotDirectory.name||'de gekoppelde map'} als ${name}.`,'success');
+  status(`Export opgeslagen in de gekoppelde map: ${name}.`);return true;
+ }catch(error){
+  latestSnapshotStatus(`Export is wel gedownload, maar niet in de gekoppelde map opgeslagen: ${error.message||String(error)}`,'error');
+  status('Export gedownload; opslaan in de gekoppelde map is mislukt.',true);console.error(error);return false;
+ }
+}
 function qualityDate(value){const d=new Date(value);return Number.isFinite(d.getTime())?d.toLocaleString('nl-NL'):'Onbekend';}
 function qualityTone(severity){return {critical:'red',warning:'amber',info:'blue',good:'green'}[severity]||'blue';}
 function qualitySeverity(severity){return {critical:'Blokkerend',warning:'Waarschuwing',info:'Informatie',good:'Goed'}[severity]||severity;}
@@ -273,7 +284,7 @@ async function chooseLatestSnapshotDirectory(){
   $('#latestSnapshotFolderFallback').click();return null;
  }
  try{
-  const handle=await window.showDirectoryPicker({mode:'read',id:'bidash-laatste-stand'});
+  const handle=await window.showDirectoryPicker({mode:'readwrite',id:'bidash-laatste-stand'});
   latestSnapshotDirectory=handle;
   try{await writeValue(LATEST_SNAPSHOT_DIRECTORY_KEY,handle);renderLatestSnapshotSource();}
   catch(_error){latestSnapshotStatus(`Map ${handle.name||''} is voor deze sessie gekoppeld, maar de browser kon de koppeling niet onthouden.`);}
@@ -328,8 +339,8 @@ $('#latestSnapshotFolderFallback').onchange=async event=>{const files=[...event.
 $('#exportOptions').innerHTML=[...DVM_PARTS,'biData','biRules','planning','links','expertReviews','quality'].map(k=>`<label><input type="checkbox" data-part="${k}" checked>${LABELS[k]}</label>`).join('');
 $('#exportOptions').onchange=()=>{$('#dependencies').textContent=makeExport(state,selection()).afhankelijkheden.join(' ');};
 $('#all').onclick=()=>document.querySelectorAll('[data-part]').forEach(x=>x.checked=true);$('#none').onclick=()=>document.querySelectorAll('[data-part]').forEach(x=>x.checked=false);
-$('#export').onclick=async()=>{try{if(busy)throw Error('Wacht tot import of opslag gereed is.');const snapshot=await exportSnapshot();const sel=selection();if(!sel.size)throw Error('Kies minstens één onderdeel.');download(makeExport(snapshot,sel),'bidash-integraal_'+new Date().toISOString().slice(0,10)+'.json');}catch(e){fail(e);}};
-for(const [id,key,name] of [['exportDvm','dvm','dvm-dienstimpact-totaal.json'],['exportBi','bi','bidash-wvm-dataset.json'],['exportXml','planning','planning.xml']])$( '#'+id).onclick=async()=>{try{if(busy)throw Error('Wacht tot de lopende bewerking gereed is.');const snapshot=key==='dvm'?await exportSnapshot():(await capture(),state);if(!snapshot[key])throw Error('Dit onderdeel is nog niet geladen.');download(key==='planning'?snapshot.planning.xml:snapshot[key],name,key==='planning'?'text/xml':'application/json');}catch(e){fail(e);}};
+$('#export').onclick=async()=>{try{if(busy)throw Error('Wacht tot import of opslag gereed is.');const snapshot=await exportSnapshot();const sel=selection();if(!sel.size)throw Error('Kies minstens één onderdeel.');const data=makeExport(snapshot,sel),name='bidash-integraal_'+new Date().toISOString().slice(0,10)+'.json';download(data,name);await schrijfExportOokNaarGekoppeldeMap(data,name);}catch(e){fail(e);}};
+for(const [id,key,basisnaam,type] of [['exportDvm','dvm','dvm-dienstimpact-totaal','application/json'],['exportBi','bi','bidash-wvm-dataset','application/json'],['exportXml','planning','planning','text/xml']])$( '#'+id).onclick=async()=>{try{if(busy)throw Error('Wacht tot de lopende bewerking gereed is.');const snapshot=key==='dvm'?await exportSnapshot():(await capture(),state);if(!snapshot[key])throw Error('Dit onderdeel is nog niet geladen.');const data=key==='planning'?snapshot.planning.xml:snapshot[key],name=`${basisnaam}_${new Date().toISOString().slice(0,10)}.${key==='planning'?'xml':'json'}`;download(data,name,type);await schrijfExportOokNaarGekoppeldeMap(data,name,type);}catch(e){fail(e);}};
 $('#save').onclick=sync;$('#refresh').onclick=sync;$('#signalFilter').onchange=render;
 $('#linkForm').onsubmit=e=>{e.preventDefault();const l={dienst:$('#linkService').value,functie:$('#linkFunction').value,eigenaar:$('#linkOwner').value.trim()};state.links=state.links.filter(x=>x.dienst!==l.dienst||x.functie!==l.functie);state.links.push(l);sync();};
 $('#links').onclick=e=>{if(e.target.dataset.remove!==undefined){state.links.splice(Number(e.target.dataset.remove),1);sync();}};

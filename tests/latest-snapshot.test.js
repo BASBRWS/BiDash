@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {datumUitBestandsnaam,isOndersteundeMomentopname,momentopnameTijd,nieuwsteMomentopnameUitBestanden,nieuwsteMomentopnameUitMap,mapToestemming} from '../site/core/latest-snapshot.js';
+import {datumUitBestandsnaam,isOndersteundeMomentopname,momentopnameTijd,nieuwsteMomentopnameUitBestanden,nieuwsteMomentopnameUitMap,mapToestemming,schrijfBestandNaarMap} from '../site/core/latest-snapshot.js';
 
 const file=(name,json,lastModified=0)=>({name,lastModified,text:async()=>typeof json==='string'?json:JSON.stringify(json)});
 
@@ -45,17 +45,40 @@ test('leest alleen JSON-bestanden uit de gekozen map',async()=>{
 });
 
 test('vraagt maptoestemming alleen wanneer dat nodig en toegestaan is',async()=>{
-  let requested=0;
-  const handle={queryPermission:async()=> 'prompt',requestPermission:async()=>{requested++;return 'granted';}};
+  let requested=0,queryMode='',requestMode='';
+  const handle={queryPermission:async options=>{queryMode=options.mode;return 'prompt';},requestPermission:async options=>{requested++;requestMode=options.mode;return 'granted';}};
   assert.equal(await mapToestemming(handle),'prompt');
+  assert.equal(queryMode,'read');
   assert.equal(requested,0);
-  assert.equal(await mapToestemming(handle,{vragen:true}),'granted');
+  assert.equal(await mapToestemming(handle,{vragen:true,mode:'readwrite'}),'granted');
   assert.equal(requested,1);
+  assert.equal(requestMode,'readwrite');
+});
+
+test('schrijft een export transactioneel naar de gekoppelde map',async()=>{
+  let written=null,closed=false;
+  const writable={write:async blob=>{written=blob;},close:async()=>{closed=true;}};
+  const handle={queryPermission:async()=> 'granted',getFileHandle:async(name,options)=>{
+    assert.equal(name,'bidash-integraal_2026-09-28.json');
+    assert.deepEqual(options,{create:true});
+    return {createWritable:async()=>writable};
+  }};
+  const result=await schrijfBestandNaarMap(handle,{name:'bidash-integraal_2026-09-28.json',data:{formaat:'BiDash-integraal'}});
+  assert.equal(await written.text(),'{"formaat":"BiDash-integraal"}');
+  assert.equal(closed,true);
+  assert.equal(result.bytes,30);
+});
+
+test('weigert een exportnaam die buiten de gekoppelde map kan schrijven',async()=>{
+  await assert.rejects(()=>schrijfBestandNaarMap({getFileHandle(){throw Error('mag niet worden bereikt');}},{name:'../export.json',data:{}}),/Ongeldige bestandsnaam/);
 });
 
 test('Data en export bevat de knop en behoudt de lokale netwerkgrens',()=>{
   const html=readFileSync(new URL('../site/index.html',import.meta.url),'utf8');
+  const app=readFileSync(new URL('../site/app.js',import.meta.url),'utf8');
   assert.match(html,/id="loadLatestSnapshot"[^>]*>Laad laatste stand<\/button>/);
   assert.match(html,/id="chooseLatestSnapshotFolder"/);
   assert.match(html,/connect-src 'none'/);
+  assert.match(app,/showDirectoryPicker\(\{mode:'readwrite'/);
+  assert.match(app,/schrijfExportOokNaarGekoppeldeMap\(data,name/);
 });

@@ -51,12 +51,31 @@ export async function nieuwsteMomentopnameUitMap(directoryHandle){
   return nieuwsteMomentopnameUitBestanden(files);
 }
 
-export async function mapToestemming(directoryHandle,{vragen=false}={}){
+export async function mapToestemming(directoryHandle,{vragen=false,mode='read'}={}){
   if(!directoryHandle)return 'prompt';
   if(typeof directoryHandle.queryPermission!=='function')return 'granted';
-  let toestemming=await directoryHandle.queryPermission({mode:'read'});
+  let toestemming=await directoryHandle.queryPermission({mode});
   if(toestemming==='prompt'&&vragen&&typeof directoryHandle.requestPermission==='function'){
-    toestemming=await directoryHandle.requestPermission({mode:'read'});
+    toestemming=await directoryHandle.requestPermission({mode});
   }
   return toestemming;
+}
+
+export async function schrijfBestandNaarMap(directoryHandle,{name,data,type='application/json'}={}){
+  if(!directoryHandle||typeof directoryHandle.getFileHandle!=='function')throw Error('De gekoppelde map ondersteunt geen schrijfacties.');
+  if(!name||/[\\/\0]/.test(name))throw Error('Ongeldige bestandsnaam voor export.');
+  const toestemming=await mapToestemming(directoryHandle,{vragen:true,mode:'readwrite'});
+  if(toestemming!=='granted')throw Error('Geen schrijfrechten voor de gekoppelde map. Geef toestemming of koppel de map opnieuw.');
+  const fileHandle=await directoryHandle.getFileHandle(name,{create:true});
+  if(!fileHandle||typeof fileHandle.createWritable!=='function')throw Error('De browser kan in deze gekoppelde map geen bestand maken.');
+  const writable=await fileHandle.createWritable();
+  const inhoud=typeof data==='string'?data:JSON.stringify(data);
+  try{
+    await writable.write(new Blob([inhoud],{type}));
+    await writable.close();
+  }catch(error){
+    if(typeof writable.abort==='function')try{await writable.abort();}catch(_abortError){}
+    throw error;
+  }
+  return {name,type,bytes:new Blob([inhoud]).size};
 }
