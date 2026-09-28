@@ -94,10 +94,12 @@ test('huidige subprocessen worden een bewerkbaar modelvoorstel',()=>{
   review.modelWijziging={norm:'98.5',subprocessen:[...basis.subprocessen,{id:'nieuw',naam:'Evalueren',aandeel:'0',afhankelijkheden:{communicatie:'100'},onderbouwing:'Nieuw proces'}],test:null,toepassing:null};
   const proposal=expertModelProposal(review,service);
   assert.equal(proposal.norm,98.5);
+  assert.equal(proposal.subprocessen[0].afh.detectie,.7);
+  assert.equal(proposal.subprocessen[0].afh.camera,.3);
   assert.equal(proposal.subprocessen[2].afh.communicatie,1);
 });
 
-test('modelvalidatie bewaakt alleen de gesloten subprocessaandelen',()=>{
+test('modelvalidatie bewaakt subprocessaandelen en de grenzen van assetpercentages',()=>{
   const geldig={dienstId:'im',norm:99,subprocessen:[
     {naam:'Detecteren',gewicht:.6,afh:{detectie:.7,camera:.3}},
     {naam:'Maatregel',gewicht:.4,afh:{signalering:1}}
@@ -107,6 +109,12 @@ test('modelvalidatie bewaakt alleen de gesloten subprocessaandelen',()=>{
   const fouten=validateExpertModelProposal(ongeldig);
   assert.ok(fouten.includes('De aandelen van de subprocessen moeten samen 100 procent zijn.'));
   assert.ok(!fouten.some(fout=>fout.includes('afhankelijkheden')&&fout.includes('100 procent')));
+  const relatieveGewichten=structuredClone(geldig);relatieveGewichten.subprocessen[0].afh={detectie:.8,camera:.8};
+  assert.deepEqual(validateExpertModelProposal(relatieveGewichten),[]);
+  const buitenBereik=structuredClone(geldig);buitenBereik.subprocessen[0].afh.detectie=1.25;
+  assert.ok(validateExpertModelProposal(buitenBereik).includes('Subproces 1 heeft voor detectie geen geldig afhankelijkheidspercentage groter dan 0 en maximaal 100.'));
+  const nul=structuredClone(geldig);nul.subprocessen[0].afh.detectie=0;
+  assert.ok(validateExpertModelProposal(nul).includes('Subproces 1 heeft voor detectie geen geldig afhankelijkheidspercentage groter dan 0 en maximaal 100.'));
 });
 
 test('aanpassen van één aandeel verdeelt de rest automatisch tot 100 procent',()=>{
@@ -116,12 +124,16 @@ test('aanpassen van één aandeel verdeelt de rest automatisch tot 100 procent',
   assert.equal(rebalanceExpertShares([33.33,33.33,33.34]).reduce((sum,value)=>sum+value,0),100);
 });
 
-test('begeleide invoer gebruikt keuzes, optionele uitleg, vinkjes en tooltips',()=>{
+test('begeleide invoer gebruikt keuzes, optionele uitleg, assetpercentages en tooltips',()=>{
   const app=fs.readFileSync(new URL('../site/app.js',import.meta.url),'utf8');
   const css=fs.readFileSync(new URL('../site/style.css',import.meta.url),'utf8');
   assert.match(app,/EXPERT_GUIDED_SECTIONS/);
   assert.match(app,/Extra uitleg, niet verplicht/);
   assert.match(app,/name="subprocess-afh"/);
+  assert.match(app,/name="subprocess-afh-weight"/);
+  assert.match(app,/data-dependency=/);
+  assert.match(app,/De assetpercentages zijn relatieve gewichten en hoeven samen niet 100% te zijn/);
+  assert.match(app,/Dit percentage bepaalt hoe zwaar dit assettype meetelt binnen het subproces/);
   assert.match(app,/data-expert-share-total/);
   assert.match(app,/expert-tooltip/);
   assert.match(css,/\.expert-tooltip/);

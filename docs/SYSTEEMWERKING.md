@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.27 en DVM 112, bijgewerkt op 28 september 2026 voor compact bronbeheer en laden uit en exporteren naar een lokaal gesynchroniseerde SharePoint-map.
+Status: beschrijving van BiDash 2.28 en DVM 112, bijgewerkt op 28 september 2026 voor bewerkbare assetafhankelijkheden in expertinvoer, compact bronbeheer en laden uit en exporteren naar een lokaal gesynchroniseerde SharePoint-map.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -457,7 +457,7 @@ De begeleide vragen gebruiken vaste antwoordopties. Iedere vraag en sectie heeft
 
 Concepten mogen onvolledig worden opgeslagen. `ter_beoordeling` vereist de begeleide kernkeuzes, een geldige dienstnorm, minimaal één subproces, minimaal één DVM-afhankelijkheid per subproces en een gesloten subprocessenverdeling. Een regel- of signaalvoorstel is niet verplicht. `vastgesteld` vereist daarnaast akkoordgever en datum. De statussen activeren op zichzelf geen regel.
 
-De expert kan de actuele dienstnorm en subprocessen als modelvoorstel overnemen, subprocessen toevoegen of verwijderen en per subproces het dienstaandeel aanpassen. Alleen die aandelen moeten samen 100% vormen. Bij het wijzigen van één aandeel blijft die invoer staan en wordt het resterende aandeel naar verhouding over de overige subprocessen verdeeld. Technische DVM-afhankelijkheden worden met vinkjes gekozen. Zij hoeven in de expertinvoer geen tweede 100%-verdeling te vormen; DVM normaliseert de positieve technische gewichten intern voordat het model wordt toegepast.
+De expert kan de actuele dienstnorm en subprocessen als modelvoorstel overnemen, subprocessen toevoegen of verwijderen en per subproces het dienstaandeel aanpassen. Alleen die aandelen moeten samen 100% vormen. Bij het wijzigen van één aandeel blijft die invoer staan en wordt het resterende aandeel naar verhouding over de overige subprocessen verdeeld. Technische DVM-afhankelijkheden worden per assettype gekozen en krijgen ieder een zichtbaar percentage tussen 0 en 100. Deze assetpercentages zijn relatieve gewichten en hoeven samen geen tweede 100%-verdeling te vormen. `expertModelProposal()` zet de invoer om van procenten naar decimalen. DVM normaliseert daarna de positieve technische gewichten in `expertModelZet()` voordat het model wordt proefberekend of toegepast. Bestaande gewichten worden bij het laden van het actieve model weer als percentages in het formulier getoond.
 
 Een proefberekening past het voorstel tijdelijk toe op de geladen DVM-data, leest de uitkomst en herstelt direct het actieve model. Toepassen kan alleen bij een volledig `vastgesteld` dossier. DVM bewaart dan de vorige dienstconfiguratie als rollback-snapshot. De knop **Vorige model terugzetten** herstelt die configuratie en rekent opnieuw. Nieuwe subprocessen reizen mee in `parameters.subprocessen` van de DVM-totaalexport en worden bij import als volledige procesketen hersteld.
 

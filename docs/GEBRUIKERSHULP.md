@@ -7,9 +7,9 @@ De standaardweergave is de processflow. Via de documentnavigatie zijn onder ande
 ## Welke versie je voor je hebt
 
 Rechtsboven in de balk staat de versie, naast de Help-knop. Direct na het openen
-staat daar de versie van BiDash zelf, bijvoorbeeld `BiDash 2.27`. Zodra je een
-module opent die een eigen versie bijhoudt, komt die erachter: `BiDash 2.27 · DVM 112`.
-Onderin de navigatie staat hetzelfde nummer als `Integratie 2.27`. Noem dat nummer
+staat daar de versie van BiDash zelf, bijvoorbeeld `BiDash 2.28`. Zodra je een
+module opent die een eigen versie bijhoudt, komt die erachter: `BiDash 2.28 · DVM 112`.
+Onderin de navigatie staat hetzelfde nummer als `Integratie 2.28`. Noem dat nummer
 bij een melding over een verschil in uitkomsten; zonder versie is een uitkomst niet
 terug te vinden.
 
@@ -215,10 +215,11 @@ Onder **Subprocessen en aandelen** kan de expert:
 1. een bestaande naam of aandeel aanpassen;
 2. een ontbrekend subproces toevoegen;
 3. een onjuist subproces verwijderen;
-4. met vinkjes aangeven welke DVM-onderdelen nodig zijn;
-5. een optionele toelichting toevoegen.
+4. per subproces aangeven welke DVM-assettypen nodig zijn;
+5. per gekozen assettype het afhankelijkheidspercentage instellen;
+6. een optionele toelichting toevoegen.
 
-Alleen de aandelen van de subprocessen moeten samen 100% zijn. Als één aandeel wijzigt, verdeelt BiDash het resterende percentage naar verhouding over de andere subprocessen. De gekozen DVM-onderdelen hebben daarom geen tweede procentverdeling. BiDash bewaart bestaande technische gewichten en normaliseert de actieve afhankelijkheden intern.
+Alleen de aandelen van de subprocessen moeten samen 100% zijn. Als één aandeel wijzigt, verdeelt BiDash het resterende percentage naar verhouding over de andere subprocessen. De assetpercentages zijn relatieve gewichten binnen één subproces. Ze mogen bijvoorbeeld 70% Detectie en 30% Camera zijn, maar hoeven samen niet precies 100% te vormen. BiDash normaliseert de positieve waarden intern voordat het voorstel wordt proefberekend of toegepast. Een hoger percentage laat dat assettype zwaarder meetellen in het subproces.
 
 Zet een duiding eerst op **Concept**. **Ter beoordeling** vereist de verplichte keuzes, een geldige dienstnorm, minstens één subproces, minimaal één gekozen DVM-onderdeel per subproces en samen 100% subprocesaandeel. Een regel- of signaalvoorstel is niet verplicht. **Vastgesteld** vereist daarnaast een akkoordgever en akkoorddatum.
 
