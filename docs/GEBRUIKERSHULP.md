@@ -7,11 +7,36 @@ De standaardweergave is de processflow. Via de documentnavigatie zijn onder ande
 ## Welke versie je voor je hebt
 
 Rechtsboven in de balk staat de versie, naast de Help-knop. Direct na het openen
-staat daar de versie van BiDash zelf, bijvoorbeeld `BiDash 2.13`. Zodra je een
-module opent die een eigen versie bijhoudt, komt die erachter: `BiDash 2.13 · DVM 82`.
-Onderin de navigatie staat hetzelfde nummer als `Integratie 2.13`. Noem dat nummer
+staat daar de versie van BiDash zelf, bijvoorbeeld `BiDash 2.25`. Zodra je een
+module opent die een eigen versie bijhoudt, komt die erachter: `BiDash 2.25 · DVM 111`.
+Onderin de navigatie staat hetzelfde nummer als `Integratie 2.25`. Noem dat nummer
 bij een melding over een verschil in uitkomsten; zonder versie is een uitkomst niet
 terug te vinden.
+
+## Laatste stand uit SharePoint laden
+
+Ga naar **Data & export** en klik op **Laad laatste stand**. BiDash kan de
+SharePoint-map niet rechtstreeks via internet openen. Laat de map `bidash` daarom
+eerst met OneDrive op je computer synchroniseren. Bij de eerste keer kies je die
+lokale map. Edge of Chrome onthoudt de koppeling in deze browser; na een herstart
+kan de browser nogmaals om leestoestemming vragen.
+
+BiDash bekijkt alleen de JSON-bestanden direct in de gekozen map. Een integrale
+BiDash-back-up en een DVM-totaalbestand worden herkend; auditrapporten, losse
+bron-JSON en kapotte bestanden worden overgeslagen. De exporttijd in het veld
+`opgeslagen` bepaalt welke geldige stand het nieuwste is. Ontbreekt die, dan volgt
+de datum in de bestandsnaam, zoals
+`dvm-dienstimpact-totaal_2026-09-24.json`, en daarna de wijzigingsdatum.
+
+De gevonden stand wordt niet meteen toegepast. Onder de knop verschijnt eerst de
+bestaande importcontrole met de onderdelen die worden vervangen. Klik pas daarna
+op **Import uitvoeren**. Niet meegeleverde onderdelen blijven behouden. Met
+**Map koppelen of wijzigen** kies je een andere gesynchroniseerde map. In een
+browser zonder blijvende mapkoppeling moet je de map bij iedere keer opnieuw
+kiezen.
+
+De mapkoppeling blijft lokaal in deze browser. BiDash gebruikt hiervoor geen
+Microsoft Graph, uploadt geen bestanden en verandert niets in SharePoint.
 
 ## Planning en triggers laden
 
