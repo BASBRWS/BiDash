@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.25 en DVM 111, bijgewerkt op 28 september 2026 voor het laden van de nieuwste stand uit een lokaal gesynchroniseerde SharePoint-map.
+Status: beschrijving van BiDash 2.26 en DVM 111, bijgewerkt op 28 september 2026 voor laden uit en exporteren naar een lokaal gesynchroniseerde SharePoint-map.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -186,6 +186,15 @@ bestand. De gekozen JSON gaat door dezelfde importvoorvertoning, validatie,
 deelimport en transactionele opslag als een handmatig gekozen bestand. Er wordt
 dus niets stilzwijgend toegepast. In browsers zonder blijvende mapkoppeling geldt
 een mapupload als terugval en moet de map per keer opnieuw worden gekozen.
+
+De integrale, DVM-, BI- en planningexports uit **Data & export** blijven via de
+gewone browserdownload beschikbaar. Als dezelfde map is gekoppeld, vraagt BiDash
+zo nodig schrijfrechten en schrijft het exportbestand daarnaast met datum in de
+bestandsnaam naar die map. `createWritable()` vervangt een bestand met dezelfde
+naam pas bij het sluiten van de schrijfactie. Mislukt de mapschrijfactie, dan blijft
+de al gestarte browserdownload beschikbaar en meldt BiDash het verschil zichtbaar.
+Andere exports, zoals één expertduiding of een auditrapport, vallen buiten deze
+automatische mapschrijfactie.
 
 Deze functie gebruikt geen Microsoft Graph en doet geen netwerkverzoek. OneDrive
 verzorgt de synchronisatie buiten BiDash; de Content Security Policy blijft

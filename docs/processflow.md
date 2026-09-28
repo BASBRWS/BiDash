@@ -32,6 +32,13 @@ OneDrive verzorgt de synchronisatie buiten BiDash. De applicatie doet zelf geen
 SharePoint- of Graph-verzoek en de Content Security Policy blijft
 `connect-src 'none'`.
 
+Een export uit **Data & export** volgt twee lokale paden: de gewone browserdownload
+blijft bestaan en BiDash schrijft hetzelfde bestand daarnaast naar de gekoppelde
+map als de gebruiker schrijfrechten geeft. Integrale, DVM-, BI- en planningexports
+krijgen een datum in de bestandsnaam. Bij een schrijffout blijft de download
+behouden; de statusregel benoemt dat de mapkopie niet is gelukt. Een browser die
+alleen de mapupload-terugval ondersteunt kan niet naar die gekozen map schrijven.
+
 ## 3. Actuele storingslijst is een vervangende momentopname
 
 De invoer Open storingen accepteert XLSX, XLS en CSV met herkenbare storingsregels. Deze lijst is geen extra historische bron. De nieuwe lijst vervangt de vorige actuele momentopname volledig, ook als de bestandsnaam anders is.

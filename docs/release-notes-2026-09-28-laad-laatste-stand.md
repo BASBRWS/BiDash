@@ -1,4 +1,4 @@
-# BiDash 2.25, laad laatste stand uit SharePoint-map
+# BiDash 2.26, laad en bewaar de laatste stand in de SharePoint-map
 
 Datum: 28 september 2026  
 DVM-engine: 111, ongewijzigd
@@ -18,12 +18,19 @@ DVM-engine: 111, ongewijzigd
   import.
 - **Map koppelen of wijzigen** maakt het mogelijk een andere synchronisatiemap te
   kiezen. Browsers zonder blijvende mapkoppeling gebruiken een mapupload per keer.
+- Integrale, DVM-, BI- en planningexports uit **Data & export** blijven gewoon
+  downloaden en worden daarnaast naar dezelfde gekoppelde map geschreven.
+- Alle vier deze exportnamen bevatten een datum. Een tweede export op dezelfde dag
+  werkt de versie van die dag in de map bij.
+- Een bestaande mapkoppeling met alleen leestoegang vraagt bij de eerste export om
+  schrijfrechten. Bij weigering of een schrijffout blijft de download beschikbaar
+  en toont BiDash dat alleen de mapkopie is mislukt.
 
 ## Beveiliging en gegevens
 
 BiDash benadert SharePoint niet rechtstreeks. OneDrive synchroniseert de map op
-het apparaat; BiDash leest die lokale map na toestemming van de gebruiker. Er is
-geen Microsoft Graph-aanmelding, geen upload en geen wijziging in SharePoint. De
+het apparaat; BiDash leest en schrijft die lokale map na toestemming van de
+gebruiker. Er is geen Microsoft Graph-aanmelding of upload vanuit de website. De
 bestaande Content Security Policy met `connect-src 'none'` blijft behouden.
 
 ## Techniek en controle
@@ -33,5 +40,5 @@ bestaande Content Security Policy met `connect-src 'none'` blijft behouden.
 - De gekoppelde `FileSystemDirectoryHandle` staat onder een aparte sleutel in de
   bestaande IndexedDB en wordt niet onderdeel van een export.
 - Tests dekken formaatherkenning, datumvolgorde, het overslaan van ongeldige JSON,
-  directorylezing, toestemmingsvernieuwing, de knop en de ongewijzigde
-  netwerkgrens.
+  directorylezing, lees- en schrijfrechten, veilig schrijven, de knop en de
+  ongewijzigde netwerkgrens.
