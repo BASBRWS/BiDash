@@ -93,6 +93,15 @@ test('bronbeheer toont regio-updates onder elkaar met vetgedrukte regio',()=>{
   assert.match(html,/\.dataset-region-row b\{/);
 });
 
+test('totaalkaarten tonen geen lange bestandenlog maar wel inhoud en regio-updates',()=>{
+  assert.doesNotMatch(source,/function bronBestandenHtml/);
+  assert.doesNotMatch(source,/dataset-file/);
+  assert.match(source,/return samenvatting\+regioUpdatesHtml\(s\.laatstePerVc\)/);
+  assert.match(source,/dataset-meta-label">Inhoud/);
+  const html=read('site/engines/dvm.html');
+  assert.doesNotMatch(html,/\.dataset-file\{/);
+});
+
 
 test('secundaire bronbeheerknoppen zijn zichtbaar op witte kaarten',()=>{
   const html=read('site/engines/dvm.html');

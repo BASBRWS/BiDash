@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.26 en DVM 111, bijgewerkt op 28 september 2026 voor laden uit en exporteren naar een lokaal gesynchroniseerde SharePoint-map.
+Status: beschrijving van BiDash 2.27 en DVM 112, bijgewerkt op 28 september 2026 voor compact bronbeheer en laden uit en exporteren naar een lokaal gesynchroniseerde SharePoint-map.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -170,7 +170,7 @@ De DRIP-storingshistorie werkt sinds DVM 98 op precies dezelfde manier als de si
 
 **DRIP uit map (CDMS)** gebruikt vanaf DVM 109 altijd de toevoegmodus van `pasDripBundelToe()`. De zojuist gelezen mapsnede wordt als afzonderlijke DRIP-bron aan `DRIP_HIST_STATE.sources` toegevoegd; een reeds geladen DRIP totaal blijft staan. De bronnaam bevat regio en, indien gekozen, periode zodat opeenvolgende perioden naast elkaar kunnen bestaan. Een herhaling met dezelfde bronnaam ververst die mapsnede. Een optioneel basisbestand in de mapdialoog is alleen voor de knop `Download bijgewerkte JSON` en bepaalt niet meer de staat in de huidige werkruimte.
 
-Datasetbeheer rendert de metadata van **Signaalgevers totaal** en **DRIP totaal** niet meer als één doorlopende tekstregel. `bronBestandenHtml()` maakt een apart bestandenblok, `regioUpdatesHtml()` maakt één regelblok per verkeerscentrale en zet de regiocode vet met daaronder `Laatste update <datum>`. De bijbehorende CSS staat in `dvm.html` onder `dataset-meta-section`, `dataset-region-list` en `dataset-region-row`. Deze opmaak verandert geen brondata of rekenlogica.
+Datasetbeheer toont op de kaarten **Signaalgevers totaal** en **DRIP totaal** geen doorlopende lijst met alle ingelezen bestanden meer. De inhoudelijke tellingen blijven staan. `regioUpdatesHtml()` maakt per verkeerscentrale één regel met de nieuwste bekende brondatum, zet de regiocode vet en toont daarnaast `Laatste update <datum>`. `laatstePerVc` wordt bij het opbouwen van de bronstatus met de hoogste datum per regio gevuld. De bijbehorende CSS staat in `dvm.html` onder `dataset-meta-section`, `dataset-region-list` en `dataset-region-row`. De bestandsnamen en bronhistorie blijven in de bronstatus en exports beschikbaar; alleen de kaartweergave is compacter. Dit verandert geen brondata of rekenlogica.
 
 De hoofdapp activeert `site/core/load-progress.js` voordat `app.js` de bestandkeuze verwerkt. Voor de gewone Data & export-route wordt `File.text()` alleen tijdens een actieve importsessie vervangen door een `FileReader`-lezing met dezelfde tekstuitkomst en echte bytevoortgang. Na het leesmoment laat de module eerst een browserpaint plaatsvinden voordat de bestaande JSON- of XML-verwerking verdergaat. Dit voorkomt geen zware synchrone parse, maar zorgt dat de gebruiker vóór zo'n parse ziet welk bestand en welke fase actief is.
 

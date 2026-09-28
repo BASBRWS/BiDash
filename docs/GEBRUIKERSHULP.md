@@ -7,9 +7,9 @@ De standaardweergave is de processflow. Via de documentnavigatie zijn onder ande
 ## Welke versie je voor je hebt
 
 Rechtsboven in de balk staat de versie, naast de Help-knop. Direct na het openen
-staat daar de versie van BiDash zelf, bijvoorbeeld `BiDash 2.26`. Zodra je een
-module opent die een eigen versie bijhoudt, komt die erachter: `BiDash 2.26 · DVM 111`.
-Onderin de navigatie staat hetzelfde nummer als `Integratie 2.26`. Noem dat nummer
+staat daar de versie van BiDash zelf, bijvoorbeeld `BiDash 2.27`. Zodra je een
+module opent die een eigen versie bijhoudt, komt die erachter: `BiDash 2.27 · DVM 112`.
+Onderin de navigatie staat hetzelfde nummer als `Integratie 2.27`. Noem dat nummer
 bij een melding over een verschil in uitkomsten; zonder versie is een uitkomst niet
 terug te vinden.
 
@@ -117,7 +117,7 @@ De DRIP-storingshistorie werkt op dezelfde manier. De losse XLSX/CSV DRIP-histor
 - **DRIP totaal (JSON)**: één bestand met `datasets.drip` (DRIP-episodes en geclassificeerde storingen). Is al een DRIP-bron geladen, dan zie je daarnaast **Voeg JSON toe**. Daarmee voeg je een extra DRIP-totaalbestand complementair toe zonder de bestaande DRIP-bronnen te wissen. Exact overlappende incidenten worden niet dubbel opgenomen. **Bron vervangen** blijft beschikbaar wanneer je de bestaande DRIP-historie bewust volledig wilt vervangen.
 - **DRIP uit map (CDMS)**: BiDash leest de ruwe DRIP-logs rechtstreeks en schrijft de gevonden incidenten incrementeel bij op het reeds geladen DRIP totaal. Een maplezing vervangt dus niet meer de bestaande DRIP-historie. Draai je dezelfde regio en periode opnieuw, dan wordt die mapbron ververst; exacte overlap met andere DRIP-bronnen wordt niet dubbel opgenomen. Net als bij de signaalgevers verschijnt eerst een klein venster waarin je **verkeerscentrale(s)**, optioneel een **periode** en optioneel een eerder **DRIP-totaal-JSON als basis** kiest. In **Edge of Chrome** mag je gewoon de **X-schijf** kiezen; BiDash daalt zelf alleen af in `cdms/<vc>/log/<jaar>/<maand>/<dag>` voor de gekozen regio en periode. Tijdens het zoeken beweegt de balk zonder een verzonnen percentage en zie je hoeveel mappen en bestanden al zijn gevonden. Zodra het totaal bekend is, toont BiDash per gelezen bestand de herkende gebeurtenissen, verstreken tijd en een schatting van de resterende tijd. Het zoeken en lezen gebeurt begrensd parallel, met maximaal zes gelijktijdige acties. Lukt de moderne mapkiezer niet, kies dan **`X:\cdms`** (niet heel X:). Na afloop kun je het resultaat als bijgewerkt DRIP-totaal-JSON downloaden om de volgende keer als basis te gebruiken.
 
-In **DVM-bronbeheer** zijn de bronkaarten voor Signaalgevers totaal en DRIP totaal leesbaar in vaste blokken opgebouwd. Bestanden en aantallen staan apart. De laatste bronupdate wordt per verkeerscentrale onder elkaar getoond met de regiocode vet, bijvoorbeeld **ZWN** met daaronder `Laatste update 21-09-2026`. Daardoor staan meerdere regio's niet meer als één lange kommaregel in de kaart.
+In **DVM-bronbeheer** tonen de bronkaarten voor Signaalgevers totaal en DRIP totaal de inhoudelijke aantallen, maar niet meer de lange lijst met alle ingelezen bestanden. De laatste bronupdate wordt per verkeerscentrale onder elkaar getoond met de regiocode vet, bijvoorbeeld **ZWN** met daarnaast `Laatste update 21-09-2026`. Per regio staat alleen de nieuwste bekende datum. De onderliggende bronhistorie blijft wel bewaard voor validatie, berekeningen en export.
 
 Beide bronnen koppelen de DRIP-incidenten op dezelfde manier aan het DRIP-areaal (eerst op CDMS-code, anders op weg, richting en hectometer) en voeden dezelfde DRIP Monte Carlo en dezelfde afleiding van open DRIP's uit historie. De aparte Windwaarschuwing- en RIA4-selectielijsten blijven bestaan.
 
