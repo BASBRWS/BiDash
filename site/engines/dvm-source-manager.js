@@ -4,7 +4,7 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='111';
+  const DVM_VERSION='112';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
@@ -141,13 +141,6 @@
     if(!t)return '';
     const d=new Date(t);return Number.isNaN(d.getTime())?String(t):d.toLocaleDateString('nl-NL');
   }
-  function bronBestandenHtml(bestand){
-    const e=typeof esc==='function'?esc:(v=>String(v==null?'':v));
-    const namen=String(bestand||'').split(/\s+\+\s+/).map(x=>x.trim()).filter(Boolean);
-    if(!namen.length)return '';
-    return '<div class="dataset-meta-section"><div class="dataset-meta-label">Bestand'+(namen.length===1?'':'en')+'</div>'+
-      namen.map(n=>'<div class="dataset-file">'+e(n)+'</div>').join('')+'</div>';
-  }
   function regioUpdatesHtml(perVc){
     const e=typeof esc==='function'?esc:(v=>String(v==null?'':v));
     const entries=Object.entries(perVc||{}).filter(([,t])=>t).sort(([a],[b])=>a.localeCompare(b));
@@ -162,7 +155,7 @@
       '<div>'+(s.open||0).toLocaleString('nl-NL')+' open ('+(s.herkendOpen||0).toLocaleString('nl-NL')+' herkend)</div>'+
       '<div>'+(s.historie||0).toLocaleString('nl-NL')+' historisch ('+(s.herkendHist||0).toLocaleString('nl-NL')+' herkend)</div>'+
       (laatste?'<div>Laatste entry '+laatste+'</div>':'')+(peil?'<div>Peildatum open '+peil+'</div>':'')+'</div>';
-    return bronBestandenHtml(s.bestand)+samenvatting+regioUpdatesHtml(s.laatstePerVc)+
+    return samenvatting+regioUpdatesHtml(s.laatstePerVc)+
       '<div class="dataset-meta-note">Voedt zowel het actuele dashboard als de prognose; vervangt de losse Open storingen en Storingshistorie.</div>';
   }
 
@@ -193,7 +186,7 @@
       '<div>'+(s.gekoppeldeIncidenten||0).toLocaleString('nl-NL')+' gekoppeld aan het DRIP-areaal'+
       (s.nietGekoppeld?' · '+(s.nietGekoppeld||0).toLocaleString('nl-NL')+' niet gekoppeld':'')+'</div>'+
       (laatste?'<div>Laatste entry '+laatste+'</div>':'')+'</div>';
-    return bronBestandenHtml(s.bestand)+samenvatting+regioUpdatesHtml(s.laatstePerVc)+
+    return samenvatting+regioUpdatesHtml(s.laatstePerVc)+
       '<div class="dataset-meta-note"><b>Bron vervangen</b> wist de huidige DRIP-historie.<br><b>Voeg JSON toe</b> vult de huidige DRIP-bronnen complementair aan.</div>';
   }
 

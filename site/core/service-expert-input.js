@@ -135,7 +135,7 @@ export function expertModelProposal(value,currentService={}){
     norm:Number(review.modelWijziging.norm===''?fallback.norm:review.modelWijziging.norm),
     subprocessen:rows.map(row=>({
       id:txt(row.id),naam:txt(row.naam),gewicht:Number(row.aandeel)/100,
-      afh:Object.fromEntries(Object.entries(row.afhankelijkheden||{}).map(([key,gewicht])=>[txt(key),Number(gewicht)/100]).filter(([key,gewicht])=>key&&Number.isFinite(gewicht)&&gewicht>0)),
+      afh:Object.fromEntries(Object.entries(row.afhankelijkheden||{}).map(([key,gewicht])=>[txt(key),Number(gewicht)/100]).filter(([key])=>key)),
       tekst:txt(row.onderbouwing)
     }))
   };
@@ -175,11 +175,12 @@ export function validateExpertModelProposal(proposal={}){
   if(!rows.length)fouten.push('Leg minstens één subproces vast.');
   const namen=new Set();
   rows.forEach((row,index)=>{
-    const nr=index+1,naam=txt(row.naam),gewicht=Number(row.gewicht),afh=Object.entries(row.afh||{}).filter(([,value])=>Number(value)>0);
+    const nr=index+1,naam=txt(row.naam),gewicht=Number(row.gewicht),alleAfh=Object.entries(row.afh||{}),afh=alleAfh.filter(([,value])=>Number(value)>0);
     if(!naam)fouten.push(`Subproces ${nr} heeft geen naam.`);
     else if(namen.has(naam.toLowerCase()))fouten.push(`Subproces ${nr} heeft een dubbele naam.`);
     else namen.add(naam.toLowerCase());
     if(!Number.isFinite(gewicht)||gewicht<0)fouten.push(`Subproces ${nr} heeft geen geldig aandeel.`);
+    for(const [key,value] of alleAfh)if(!Number.isFinite(Number(value))||Number(value)<=0||Number(value)>1)fouten.push(`Subproces ${nr} heeft voor ${key} geen geldig afhankelijkheidspercentage groter dan 0 en maximaal 100.`);
     if(!afh.length)fouten.push(`Subproces ${nr} heeft geen afhankelijkheid.`);
   });
   const som=rows.reduce((sum,row)=>sum+(Number(row.gewicht)||0),0);
