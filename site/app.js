@@ -1,7 +1,8 @@
 import {GROUPS,ROUTES,resolveRoute} from './ui/routes.js';
 import {DEFAULT_STATE,DVM_PARTS,BI_RULE_KEYS,LABELS,validate,makeExport,mergeImport,combine} from './core/model.js';
-import {read,write} from './core/storage.js';
+import {read,write,readValue,writeValue} from './core/storage.js';
 import {toonVersies} from './core/versie.js';
+import {nieuwsteMomentopnameUitBestanden,nieuwsteMomentopnameUitMap,mapToestemming} from './core/latest-snapshot.js';
 import {runQualityAudit,QUALITY_CATEGORIES} from './core/quality-audit.js';
 import {applyQuery,operatorsFor} from './core/query-filter.js';
 import {installQueryAssistant} from './core/query-assistant.js';
@@ -13,6 +14,8 @@ const money=n=>Number.isFinite(n)?n.toLocaleString('nl-NL',{style:'currency',cur
 const date=s=>s?new Date(s).toLocaleDateString('nl-NL'):'geen bron geladen';
 let state=DEFAULT_STATE(),summaries={},busy=false,failedImport=false,timer,view='overview';const frames={},ready={};
 const engineVersies={};
+const LATEST_SNAPSHOT_DIRECTORY_KEY='latest-snapshot-directory';
+let latestSnapshotDirectory=null,latestSnapshotBusy=false;
 function status(s,error=false){$('#status').textContent=s;$('#status').classList.toggle('error',error);}
 let routeTicket=0,assetPage=0;const pageSize=60;
 const ASSET_QUERY_FIELDS=[
@@ -255,10 +258,59 @@ async function executeQualityAudit(){
  }finally{busy=false;if(button)button.disabled=false;}
 }
 function selection(){return new Set([...document.querySelectorAll('[data-part]:checked')].map(e=>e.dataset.part));}
-async function preview(files){
+function latestSnapshotStatus(text,tone=''){
+ const host=$('#latestSnapshotStatus');if(!host)return;
+ host.textContent=text;host.classList.toggle('error',tone==='error');host.classList.toggle('success',tone==='success');
+}
+function renderLatestSnapshotSource(){
+ latestSnapshotStatus(latestSnapshotDirectory
+  ?`Gekoppelde map: ${latestSnapshotDirectory.name||'SharePoint-map'}.`
+  :'Nog geen map gekoppeld. Bij de eerste keer opent BiDash de mapkiezer.');
+}
+async function chooseLatestSnapshotDirectory(){
+ if(typeof window.showDirectoryPicker!=='function'){
+  latestSnapshotStatus('Deze browser kan een map niet blijvend koppelen. Kies de gesynchroniseerde map opnieuw; BiDash leest alleen de JSON-bestanden.');
+  $('#latestSnapshotFolderFallback').click();return null;
+ }
+ try{
+  const handle=await window.showDirectoryPicker({mode:'read',id:'bidash-laatste-stand'});
+  latestSnapshotDirectory=handle;
+  try{await writeValue(LATEST_SNAPSHOT_DIRECTORY_KEY,handle);renderLatestSnapshotSource();}
+  catch(_error){latestSnapshotStatus(`Map ${handle.name||''} is voor deze sessie gekoppeld, maar de browser kon de koppeling niet onthouden.`);}
+  return handle;
+ }catch(error){if(error?.name==='AbortError')return null;throw error;}
+}
+async function latestSnapshotHandle(){
+ let handle=latestSnapshotDirectory;
+ if(!handle)handle=await chooseLatestSnapshotDirectory();
+ if(!handle)return null;
+ const toestemming=await mapToestemming(handle,{vragen:true});
+ if(toestemming==='granted')return handle;
+ latestSnapshotStatus('BiDash heeft geen leestoegang meer tot deze map. Kies de map opnieuw.','error');
+ return chooseLatestSnapshotDirectory();
+}
+function snapshotDatum(result){
+ if(!Number(result.tijd))return 'datum onbekend';
+ const d=new Date(result.tijd);return Number.isFinite(d.getTime())?d.toLocaleString('nl-NL'):'datum onbekend';
+}
+async function prepareLatestSnapshot(result,bron){
+ latestSnapshotStatus(`Gevonden: ${result.file.name} (${snapshotDatum(result)}). Controleer hieronder welke onderdelen worden vervangen.`,'success');
+ status(`Nieuwste stand gevonden in ${bron}: ${result.file.name}.`);
+ await preview([result.file],{importType:'auto'});
+}
+async function loadLatestSnapshot(){
+ if(busy||latestSnapshotBusy)throw Error('Wacht tot de lopende bewerking gereed is.');
+ latestSnapshotBusy=true;const buttons=[$('#loadLatestSnapshot'),$('#chooseLatestSnapshotFolder')];buttons.forEach(button=>button.disabled=true);
+ try{
+  const handle=await latestSnapshotHandle();if(!handle)return;
+  latestSnapshotStatus(`Map ${handle.name||''} controleren op de nieuwste stand…`);status('Nieuwste JSON in de gekoppelde map zoeken…');
+  await prepareLatestSnapshot(await nieuwsteMomentopnameUitMap(handle),handle.name||'de gekoppelde map');
+ }finally{latestSnapshotBusy=false;buttons.forEach(button=>button.disabled=false);}
+}
+async function preview(files,{importType}={}){
  if(busy)throw Error('Wacht tot de lopende bewerking klaar is.');
  await capture();let proposed=structuredClone(state),labels=[];
- for(const f of files){const text=await f.text();const type=$('#importType').value;
+ for(const f of files){const text=await f.text();const type=importType||$('#importType').value;
   if(type==='planning'||/\.xml$/i.test(f.name)){const doc=new DOMParser().parseFromString(text,'text/xml');if(doc.querySelector('parsererror'))throw Error('Ongeldige XML: '+f.name);proposed.planning={name:f.name,xml:text,state:null};labels.push('Planning XML: '+f.name);continue;}
   const json=validate(JSON.parse(text));
   if(json.formaat==='DVM-dienstimpact-totaal'||json.formaat==='BiDash-integraal'){proposed=mergeImport(proposed,json);labels.push(f.name+': '+(json.formaat==='DVM-dienstimpact-totaal'?DVM_PARTS.filter(k=>Object.hasOwn(json,k)&&json.exportSelectie?.[k]!==false).map(k=>LABELS[k]).join(', '):Object.keys(json.delen).join(', ')));}
@@ -270,6 +322,9 @@ async function preview(files){
  $('#applyImport').onclick=async()=>{if(busy)return;busy=true;clearTimeout(timer);$('#applyImport').disabled=true;status('Bronnen lokaal verwerken; een groot DVM-register kan even duren…');const previous=state;try{await restore(proposed);state=proposed;expertDrafts.clear();expertDraft=null;expertServiceId='';$('#expertInputHost').replaceChildren();await capture();await write(state);render();host.replaceChildren();status('Import voltooid en lokaal opgeslagen.');}catch(e){state=previous;failedImport=true;fail(Error('Import niet opgeslagen: '+e.message+' Herlaad de pagina om de vorige opgeslagen werkruimte terug te zetten.'));}finally{busy=false;}};
 }
 $('#files').onchange=e=>{preview([...e.target.files]).catch(fail);e.target.value='';};
+$('#loadLatestSnapshot').onclick=()=>loadLatestSnapshot().catch(error=>{latestSnapshotStatus(error.message||String(error),'error');fail(error);});
+$('#chooseLatestSnapshotFolder').onclick=async()=>{try{await chooseLatestSnapshotDirectory();}catch(error){latestSnapshotStatus(error.message||String(error),'error');fail(error);}};
+$('#latestSnapshotFolderFallback').onchange=async event=>{const files=[...event.target.files];event.target.value='';if(!files.length)return;try{latestSnapshotBusy=true;latestSnapshotStatus('Gekozen map controleren op de nieuwste stand…');await prepareLatestSnapshot(await nieuwsteMomentopnameUitBestanden(files),'de gekozen map');}catch(error){latestSnapshotStatus(error.message||String(error),'error');fail(error);}finally{latestSnapshotBusy=false;}};
 $('#exportOptions').innerHTML=[...DVM_PARTS,'biData','biRules','planning','links','expertReviews','quality'].map(k=>`<label><input type="checkbox" data-part="${k}" checked>${LABELS[k]}</label>`).join('');
 $('#exportOptions').onchange=()=>{$('#dependencies').textContent=makeExport(state,selection()).afhankelijkheden.join(' ');};
 $('#all').onclick=()=>document.querySelectorAll('[data-part]').forEach(x=>x.checked=true);$('#none').onclick=()=>document.querySelectorAll('[data-part]').forEach(x=>x.checked=false);
@@ -299,7 +354,7 @@ $('#primaryNav').innerHTML=GROUPS.map(g=>`<button data-route="${g.items[0][0]}" 
 toonVersies(document,engineVersies);
 window.addEventListener('hashchange',()=>show(location.hash.slice(1)));
 
-try{busy=true;state=(await read())||DEFAULT_STATE();if(!Array.isArray(state.expertReviews))state.expertReviews=[];await restore(state);await capture();render();status('Werkruimte gereed. Kies Laden & exporteren voor jouw bestanden.');}catch(e){fail(e);}finally{busy=false;}
+try{busy=true;[state,latestSnapshotDirectory]=await Promise.all([read(),readValue(LATEST_SNAPSHOT_DIRECTORY_KEY).catch(()=>null)]);state=state||DEFAULT_STATE();if(!Array.isArray(state.expertReviews))state.expertReviews=[];renderLatestSnapshotSource();await restore(state);await capture();render();status('Werkruimte gereed. Kies Laden & exporteren voor jouw bestanden.');}catch(e){fail(e);}finally{busy=false;}
 
 show(location.hash.slice(1)||'overview');
 

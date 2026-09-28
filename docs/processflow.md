@@ -20,6 +20,18 @@ Tijdens deze stap toont de hoofdapp een voortgangsbalk onder de statusregel. Voo
 
 Specialistische technische bronnen, zoals All Assets, historische storingen, open storingen, U-routes en werkzaamheden, laad je via DVM-bronbeheer. EOL en installatie-/ingebruiknamedatum zijn velden van All Assets en geen aparte bron. De bestaande DVM-importfasen en percentages worden via `hub:import-progress` ook naar dezelfde voortgangsbalk in de hoofdapp gestuurd. Daardoor ziet de gebruiker één doorlopende importstatus voor zowel de hub-import als de specialistische DVM-bronnen.
 
+De knop **Laad laatste stand** gebruikt dezelfde veilige importstroom. De gebruiker
+koppelt één keer de lokale map die OneDrive met SharePoint synchroniseert. BiDash
+onthoudt alleen de maptoegang, zoekt bij iedere klik de nieuwste geldige integrale
+of DVM-totaal-JSON en toont die eerst als importvoorstel. De keuze volgt de
+exporttijd in `opgeslagen`, anders de datum in de bestandsnaam en ten slotte de
+wijzigingsdatum. Andere JSON-bestanden worden genegeerd. In een browser zonder
+blijvende mapkoppeling kiest de gebruiker de map per keer opnieuw.
+
+OneDrive verzorgt de synchronisatie buiten BiDash. De applicatie doet zelf geen
+SharePoint- of Graph-verzoek en de Content Security Policy blijft
+`connect-src 'none'`.
+
 ## 3. Actuele storingslijst is een vervangende momentopname
 
 De invoer Open storingen accepteert XLSX, XLS en CSV met herkenbare storingsregels. Deze lijst is geen extra historische bron. De nieuwe lijst vervangt de vorige actuele momentopname volledig, ook als de bestandsnaam anders is.

@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.24 en DVM 111, bijgewerkt op 24 september 2026 voor begeleide expertinvoer met gesloten subprocessaandelen.
+Status: beschrijving van BiDash 2.25 en DVM 111, bijgewerkt op 28 september 2026 voor het laden van de nieuwste stand uit een lokaal gesynchroniseerde SharePoint-map.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -33,6 +33,7 @@ Een leeswijzer bij deze tekening staat in [architectuur.md](architectuur.md). De
 | Orchestratie | `site/app.js` | Importvoorstel, herstel, opslag, gezamenlijke weergave, adapters |
 | Versie | `site/core/versie.js` | Het versienummer van de schil, de tekst in de kopbalk en in de voet van de zijbalk |
 | Datalaadvoortgang | `site/core/load-progress.js`, `site/core/import-progress-bridge.js` | Eén zichtbare importstatus voor hubbestanden en specialistische DVM-bronnen; bytevoortgang waar de browser die kan meten en fasestatus tijdens parsing/doorrekening |
+| Laatste stand | `site/core/latest-snapshot.js` | Herkent integrale en DVM-totaal-JSON, kiest de nieuwste geldige momentopname uit een gekoppelde lokale map en bewaakt maptoestemming |
 | Gegevenscontract | `site/core/model.js` | Deelimport, selectie-export, validatie, gecombineerde signalen |
 | Expertduiding | `site/core/service-expert-input.js` | Generiek schema, volledigheid, statusvalidatie en opslag per dienstverlening |
 | Live storingssync | `site/core/live-snapshot.js` | Vervangen actuele momentopname, vergelijken met vorige lijst en historiseren verdwenen MSI-storingen |
@@ -95,7 +96,7 @@ niet automatisch als duplicaat verwijderd. Overlap vraagt inhoudelijke beoordeli
 | Formatie & contracten | Functies, VWM- en CIV-model, contracten, bedrijfsgegevens |
 | Regels & signalen | Signalering, dienst-functiekoppelingen, domeinregels en expertinvoer per dienstverlening |
 | Scenario’s | Huidige verkeerskosten, MSI-toekomst, BI-scenario’s; DRIP via DVM |
-| Data & export | Lokale import met zichtbare voortgang, datasetbeheer inclusief live storingsfilter, lokale kwaliteitsaudit, selectieve back-up, oorspronkelijke broninvoer |
+| Data & export | Lokale import met zichtbare voortgang, nieuwste stand uit een gesynchroniseerde SharePoint-map, datasetbeheer inclusief live storingsfilter, lokale kwaliteitsaudit, selectieve back-up, oorspronkelijke broninvoer |
 | Help | Gebruikersuitleg, aanbevolen laadvolgorde, actuele storingslijst en procesflow |
 
 Rechtsboven in de hoofdwerkruimte staat een Help-knop naar `site/help.html`. Die pagina is onderdeel van de gepubliceerde `site/`-map en werkt dus ook wanneer de repository later niet publiek toegankelijk is. De inhoud volgt de documentatie in `docs/`.
@@ -172,6 +173,24 @@ De DRIP-storingshistorie werkt sinds DVM 98 op precies dezelfde manier als de si
 Datasetbeheer rendert de metadata van **Signaalgevers totaal** en **DRIP totaal** niet meer als één doorlopende tekstregel. `bronBestandenHtml()` maakt een apart bestandenblok, `regioUpdatesHtml()` maakt één regelblok per verkeerscentrale en zet de regiocode vet met daaronder `Laatste update <datum>`. De bijbehorende CSS staat in `dvm.html` onder `dataset-meta-section`, `dataset-region-list` en `dataset-region-row`. Deze opmaak verandert geen brondata of rekenlogica.
 
 De hoofdapp activeert `site/core/load-progress.js` voordat `app.js` de bestandkeuze verwerkt. Voor de gewone Data & export-route wordt `File.text()` alleen tijdens een actieve importsessie vervangen door een `FileReader`-lezing met dezelfde tekstuitkomst en echte bytevoortgang. Na het leesmoment laat de module eerst een browserpaint plaatsvinden voordat de bestaande JSON- of XML-verwerking verdergaat. Dit voorkomt geen zware synchrone parse, maar zorgt dat de gebruiker vóór zo'n parse ziet welk bestand en welke fase actief is.
+
+Onder **Data & export** kan de gebruiker met **Laad laatste stand** een lokaal met
+OneDrive gesynchroniseerde SharePoint-map koppelen. De moderne mapkiezer bewaart
+de `FileSystemDirectoryHandle` onder een aparte sleutel in dezelfde IndexedDB; de
+inhoud van de map wordt niet gekopieerd naar de werkruimte. Bij iedere klik leest
+`latest-snapshot.js` alleen de JSON-bestanden direct in die map, negeert ongeldige
+of andersoortige JSON en kiest de nieuwste ondersteunde `BiDash-integraal`- of
+`DVM-dienstimpact-totaal`-momentopname. De datum in `opgeslagen` heeft voorrang,
+daarna de ISO-datum in de bestandsnaam en ten slotte de wijzigingsdatum van het
+bestand. De gekozen JSON gaat door dezelfde importvoorvertoning, validatie,
+deelimport en transactionele opslag als een handmatig gekozen bestand. Er wordt
+dus niets stilzwijgend toegepast. In browsers zonder blijvende mapkoppeling geldt
+een mapupload als terugval en moet de map per keer opnieuw worden gekozen.
+
+Deze functie gebruikt geen Microsoft Graph en doet geen netwerkverzoek. OneDrive
+verzorgt de synchronisatie buiten BiDash; de Content Security Policy blijft
+`connect-src 'none'`. Een directe SharePoint-koppeling zou afzonderlijke RWS
+Entra-appregistratie, toestemming en een gewijzigd beveiligingscontract vereisen.
 
 DVM had al eigen fasen en percentages via `zetImportVoortgang()`. `site/core/import-progress-bridge.js` geeft die status via `hub:import-progress` door aan de hoofdapp. De bronimport zelf blijft eigenaar van zijn percentages; de hub verzint geen schijnnauwkeurigheid wanneer alleen bekend is dat een parse of moduleherstel bezig is. In dat geval wordt een onbepaalde geanimeerde balk getoond.
 
