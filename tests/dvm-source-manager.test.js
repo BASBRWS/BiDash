@@ -112,9 +112,10 @@ test('secundaire bronbeheerknoppen zijn zichtbaar op witte kaarten',()=>{
 
 
 test('NDW verkeersintensiteit staat als eigen DVM-bron in bronbeheer',()=>{
-  assert.match(source,/ndwVerkeer:\{input:'ndwTrafficInput'.*handler:'ndw:verkeer'.*accept:'\.json,\.html,\.htm'/);
+  assert.match(source,/ndwVerkeer:\{input:'ndwTrafficInput'.*handler:'ndw:verkeer'.*accept:'\.xml,\.gz,\.json,\.html,\.htm'/);
   assert.match(source,/NDW verkeersintensiteit voor kosten/);
   assert.match(source,/window\.bidashLaadNdwFile\(files\[0\]\)/);
   assert.match(source,/Gebruik uit werkruimte/);
   assert.match(source,/Voedt voertuigen per uur in de verkeerskosten/);
+  assert.match(source,/snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties\.xml\.gz/);
 });
