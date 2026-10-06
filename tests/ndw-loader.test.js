@@ -79,3 +79,14 @@ test('NDW loader accepteert het actuele gecombineerde DATEX II v3 bronbestand',(
   assert.match(source,/vehicleFlowRate/);
   assert.match(source,/snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties\.xml\.gz/);
 });
+
+
+test('NDW v3 configuratie zonder meetwaarden geeft gerichte fout',()=>{
+  const source=read('site/core/ndw-loader.js');
+  assert.match(source,/NDW-configuratiebestand herkend/);
+  assert.match(source,/snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties\.xml\.gz/);
+  assert.match(source,/bytes\[0\]===0x1f/);
+  assert.match(source,/ndwMonibasLocation/);
+  assert.match(source,/ndwWgs84ToRd/);
+  assert.match(source,/ndwAssetGrid/);
+});

@@ -218,6 +218,13 @@ const PATCH_SOURCE=String.raw`
     return {schema:1,publication:publication||new Date().toISOString(),configurationPublication:publication||'',files:[fileName],sha256:[hash||''],stats:{sites:gekoppeldeSites.length,validSites,locationSites,assetRegister:grid.count},sites:gekoppeldeSites};
   }
   async function snapshotFromRawNdw(file){
+    const naam=String(file?.name||'').toLowerCase();
+    if(naam.includes('snelheden_en_intensiteiten_configuratie_meetlocaties')&&!naam.includes('meetgegevens_en_configuratie')){
+      throw new Error('Dit is alleen het NDW-configuratiebestand met meetlocaties en bevat geen actuele intensiteiten. Kies snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz.');
+    }
+    if(naam.includes('snelheden_en_intensiteiten_meetgegevens')&&!naam.includes('meetgegevens_en_configuratie')&&!naam.includes('configuratie_meetlocaties')){
+      throw new Error('Dit bestand bevat alleen NDW-meetwaarden zonder de meetlocatieconfiguratie. Kies snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz.');
+    }
     const raw=await ndwFileText(file);
     setProgress(45,'NDW DATEX II XML lezen en meetlocaties koppelen…');
     const snapshot=ndwXmlSnapshot(raw.text,file.name,raw.hash);
