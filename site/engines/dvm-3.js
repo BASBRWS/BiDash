@@ -5625,9 +5625,12 @@ async function totaalImportJson(file, hubModus){
     if(hubModus||modus==='vervang'||!ASSET_REGISTER_STATE) assetregisterActie='laden';
     else assetregisterActie=confirm('Dit totaalbestand bevat ook een assetregister, terwijl er al een assetregister geladen is.\n\nOK = assetregister vervangen en alle koppelingen opnieuw opbouwen.\nAnnuleren = bestaand assetregister behouden en alleen overige bronnen mergen.')?'laden':'overslaan';
   }
+  let importFase='DVM-totaalbestand voorbereiden';
   try{
+    importFase='DVM-totaalbestand inlezen';
     zetImportVoortgang(file.name,2,'Totaalbestand inlezen',{direct:true});await uiPauze();
 
+    importFase='DVM-instellingen en rekenregels herstellen';
     // 1) Parameters + assetconfiguratie (altijd toepassen; vormen de rekenbasis)
     if(magImporteren('parameters')&&bundle.parameters){
       const b=bundle.parameters;
@@ -5643,6 +5646,7 @@ async function totaalImportJson(file, hubModus){
       RULES.kosten=v68MigreerKosten(b.kosten);
     }
 
+    importFase='DVM-assetregister herstellen';
     // 2) Assetregister (stamregister). EOL en levensduur komen uit All Assets.
     //    de gebruiker expliciet of het register vervangen wordt.
     if(assetregisterActie==='laden'){
@@ -5657,6 +5661,7 @@ async function totaalImportJson(file, hubModus){
     }
     if(!ASSET_REGISTER_STATE){ importMislukt(file.name,'Totaalbestand bevat geen assetregister.'); alert('Dit totaalbestand bevat geen assetregister. Laad eerst een assetlijst en probeer daarna opnieuw, of gebruik een totaalexport waarin het register is opgenomen.'); return; }
 
+    importFase='DVM-storingshistorie herstellen';
     // 4) Storingshistorie (prognosebron)
     if(magImporteren('storingshistorie')&&Array.isArray(bundle.storingshistorie)&&bundle.storingshistorie.length){
       zetImportVoortgang(file.name,45,'Storingshistorie terugzetten',{direct:true});await uiPauze();
@@ -5664,6 +5669,7 @@ async function totaalImportJson(file, hubModus){
       STORINGSBRONNEN = modus==='vervang' ? nb : mergeBronnen(STORINGSBRONNEN,nb);
     } else if(magImporteren('storingshistorie')&&modus==='vervang'){ STORINGSBRONNEN=[]; }
 
+    importFase='DVM-open storingen herstellen';
     // 5) Open storingen (live dashboardbron)
     if(magImporteren('liveStoringen')&&Array.isArray(bundle.liveStoringen)&&bundle.liveStoringen.length){
       zetImportVoortgang(file.name,55,'Open-storingenlijst terugzetten',{direct:true});await uiPauze();
@@ -5672,6 +5678,7 @@ async function totaalImportJson(file, hubModus){
       LIVE_PEILDATUM=Math.max(0,...LIVE_STORINGSBRONNEN.map(b=>b.peildatum||0))||null;
     } else if(magImporteren('liveStoringen')&&modus==='vervang'){ LIVE_STORINGSBRONNEN=[]; LIVE_PEILDATUM=null; }
 
+    importFase='DVM-DRIP-historie herstellen';
     // 6) DRIP-historie
     if(magImporteren('dripHistorie')&&bundle.dripHistorie&&Array.isArray(bundle.dripHistorie.sources)){
       zetImportVoortgang(file.name,62,'DRIP-historie terugzetten',{direct:true});await uiPauze();
@@ -5682,6 +5689,7 @@ async function totaalImportJson(file, hubModus){
       herbouwDripHistorie(); DRIP_MC=null;
     } else if(magImporteren('dripHistorie')&&modus==='vervang'){ DRIP_HIST_STATE=null; DRIP_MC=null; }
 
+    importFase='DVM-U-routes herstellen';
     // 7) U-routes
     if(magImporteren('uRoutes')&&bundle.uRoutes&&Array.isArray(bundle.uRoutes.rijen)&&(modus==='vervang'||!U_ROUTE_STATE)){
       zetImportVoortgang(file.name,72,'U-routes terugzetten',{direct:true});await uiPauze();
@@ -5696,6 +5704,7 @@ async function totaalImportJson(file, hubModus){
       }
     } else if(magImporteren('uRoutes')&&modus==='vervang'){ U_ROUTE_STATE=null; }
 
+    importFase='DVM-werkzaamheden herstellen';
     // 8) Werkzaamheden
     if(magImporteren('werkzaamheden')&&bundle.werkzaamheden&&Array.isArray(bundle.werkzaamheden.rijen)&&(modus==='vervang'||!WERK_STATE)){
       zetImportVoortgang(file.name,82,'Werkzaamheden terugzetten',{direct:true});await uiPauze();
@@ -5707,6 +5716,7 @@ async function totaalImportJson(file, hubModus){
       }
     } else if(magImporteren('werkzaamheden')&&modus==='vervang'){ WERK_STATE=null; }
 
+    importFase='DVM-DRIP-selectie herstellen';
     // 9) DRIP-selectie (per-DRIP checkboxes)
     if(magImporteren('dripSelectie')&&Array.isArray(bundle.dripSelectie)&&typeof DRIP_SELECTIE!=='undefined'){
       if(modus==='vervang'||!(DRIP_SELECTIE instanceof Set)){ DRIP_SELECTIE=new Set(bundle.dripSelectie); }
@@ -5714,6 +5724,7 @@ async function totaalImportJson(file, hubModus){
       try{ if(typeof DRIP_SEL_KEY!=='undefined') localStorage.setItem(DRIP_SEL_KEY, JSON.stringify([...DRIP_SELECTIE])); }catch(e){}
     }
 
+    importFase='DVM-indexen en analysebeeld herbouwen';
     // Herbouw indexen en analysebeeld
     zetImportVoortgang(file.name,92,'Koppelingen en analysebeeld herbouwen',{direct:true});await uiPauze();
     ASSET_CONFIG_VERSIE++;
@@ -5731,6 +5742,7 @@ async function totaalImportJson(file, hubModus){
     // scherm mag de totaalimport daarom niet meer terugdraaien of als mislukte
     // bestandsimport melden. Open eerst het veilige overzicht en laat daarna de
     // normale routering/rendering proberen.
+    importFase='DVM-resultaatscherm opbouwen';
     try{
       probeerAnalyseActiveren(importDoel,{inspectieAlGereed:true,matchAlGereed:true});
     }catch(renderErr){
@@ -5744,9 +5756,12 @@ async function totaalImportJson(file, hubModus){
     importKlaar(file.name,`Totaalimport voltooid (${modus==='merge'?'complementair toegevoegd':'volledig vervangen'}).${assetregisterTekst} Losse bestanden die je hierna laadt, worden complementair toegevoegd.`);
     zetStoringsImportStatus(`Totaalimport ${modus==='merge'?'complementair verwerkt':'als vervanging verwerkt'}: historie, open storingen, U-routes, werkzaamheden en instellingen zijn hersteld.${assetregisterTekst}`);
   }catch(err){
-    importMislukt(file.name,err.message);
-    if(hubModus)throw err; alert('Kon het totaalbestand niet volledig verwerken: '+err.message);
-    console.error(err);
+    const detail=err?.message||String(err);
+    const melding=importFase+': '+detail;
+    importMislukt(file.name,melding);
+    console.error('DVM-totaalimport gestopt bij '+importFase,err);
+    if(hubModus)throw new Error(melding,{cause:err});
+    alert('Kon het totaalbestand niet volledig verwerken. '+melding);
   }
 }
 document.addEventListener('DOMContentLoaded',()=>{
