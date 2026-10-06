@@ -8,7 +8,9 @@ const PATCH_SOURCE=String.raw`
 
   function loaderHtml(){
     return '<div class="bidash-ndw-loader" style="margin:12px 0;padding:12px;background:#fff;border:1px solid #b7c9d8;border-radius:6px">'
-      +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button type="button" class="tb-btn primary" id="bidashNdwLoadButton" onclick="bidashLaadNdw()">Laad NDW</button><span class="muted">Laadt verkeersintensiteiten en vult automatisch 6 spitsuren en 30% snelheidsreductie.</span></div>'
+      +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button type="button" class="tb-btn primary" id="bidashNdwLoadButton" onclick="bidashLaadNdw()">Gebruik NDW uit werkruimte</button><button type="button" class="tb-btn" id="bidashNdwChooseButton" onclick="bidashKiesNdwBestand()">Kies export met NDW</button></div>'
+      +'<p class="muted" style="margin:8px 0 0">Voor de verkeerskosten wordt NDW-verkeersintensiteit gebruikt. Dit is een andere bron dan de NDW CMDB-import van MSI- en DRIP-areaal. De huidige kostenmodule leest een eerder opgeslagen NDW-verkeerssnapshot uit deze werkruimte of uit een Business Intelligence Dashboard WVM/DVM JSON- of HTML-export.</p>'
+      +'<p class="muted" style="margin:6px 0 0"><b>Let op:</b> NDW levert het voertuigaantal. De standaard 6 hinderuren en 30% snelheidsreductie zijn scenarioaannames en geen NDW-metingen. Controleer die per wegdeel als je kosten gebruikt.</p>'
       +'<input id="bidashNdwSourceFile" type="file" accept=".json,.html,.htm" style="display:none" onchange="bidashNdwBestand(this)">'
       +'<div id="bidashNdwProgress" style="margin-top:8px;display:none"><div style="height:8px;background:#dbe5ec;border-radius:6px;overflow:hidden"><span id="bidashNdwProgressBar" style="display:block;height:100%;width:0;background:#007bc7;transition:width .15s"></span></div><div id="bidashNdwProgressLabel" style="font-size:12px;margin-top:5px">Nog niet gestart</div></div>'
       +'</div>';
@@ -27,7 +29,7 @@ const PATCH_SOURCE=String.raw`
     if(bar){bar.style.width=Math.max(0,Math.min(100,Number(pct)||0))+'%';bar.style.background=error?'#d52b1e':'#007bc7';}
     if(text)text.textContent=label||'';
   }
-  function buttonBusy(busy){const b=document.getElementById('bidashNdwLoadButton');if(b)b.disabled=!!busy;}
+  function buttonBusy(busy){for(const id of ['bidashNdwLoadButton','bidashNdwChooseButton']){const b=document.getElementById(id);if(b)b.disabled=!!busy;}}
   function hasValue(v){return v!==''&&v!==null&&v!==undefined&&Number.isFinite(Number(v));}
   function pause(){return new Promise(resolve=>setTimeout(resolve,0));}
 
@@ -141,7 +143,7 @@ const PATCH_SOURCE=String.raw`
     c.scenarioWegen67=perRoad;c.ndw69=choices;RULES.kosten=c;
     if(typeof SC67_CACHE!=='undefined')SC67_CACHE={fingerprint:'',routes:{},busy:false,error:''};
     globalThis.__BIDASH_LAST_NDW_LOAD__={tijd:new Date().toISOString(),bron:bronNaam||'lokaal',sites:snapshot.sites.length,wegdelen:rows.length,gekoppeld:matched,nietGekoppeld:unmatched,hinderuren:6,snelheidsreductie:30};
-    setProgress(100,'Gereed. '+matched+' van '+rows.length+' wegdelen hebben een NDW-intensiteit. Hinderuren 6, snelheidsreductie 30%.');
+    setProgress(100,'Gereed. '+matched+' van '+rows.length+' wegdelen hebben een NDW-intensiteit. Het voertuigaantal komt uit NDW. Hinderuren en snelheidsreductie blijven scenario-invoer; standaard worden alleen ontbrekende waarden op 6 uur en 30% gezet.',matched===0);
     if(typeof kostenDagVervers==='function')kostenDagVervers();
     try{if(parent!==globalThis)parent.postMessage({type:'hub:changed',engine:'dvm',sourceSpecific:true,bron:'ndw'},location.origin);}catch(error){}
   }
@@ -153,10 +155,16 @@ const PATCH_SOURCE=String.raw`
       let snapshot=(typeof ndw69Data==='function'&&ndw69Data()?.sites?.length)?ndw69Data():null;
       if(!snapshot){try{snapshot=snapshotFromWorkspace(await readStoredWorkspace());}catch(error){console.warn(error);}}
       if(snapshot&&Array.isArray(snapshot.sites)&&snapshot.sites.length){await applySnapshot(snapshot,'lokale werkruimte');return;}
-      setProgress(4,'Geen lokale NDW-set gevonden. Kies een eerdere BiDash/DVM-export met NDW-data.');
-      const input=document.getElementById('bidashNdwSourceFile');if(input){input.value='';input.click();}
+      setProgress(100,'Geen NDW-verkeerssnapshot gevonden in de huidige of lokaal opgeslagen werkruimte. Gebruik "Kies export met NDW" en selecteer een eerdere Business Intelligence Dashboard WVM/DVM JSON- of HTML-export met NDW-verkeersdata.',true);
     }catch(error){console.error(error);setProgress(100,error.message||String(error),true);alert(error.message||String(error));}
     finally{buttonBusy(false);}
+  };
+
+  globalThis.bidashKiesNdwBestand=function(){
+    const input=document.getElementById('bidashNdwSourceFile');
+    if(!input){setProgress(100,'Bestandskiezer voor NDW is niet beschikbaar. Herlaad de pagina.',true);return;}
+    input.value='';
+    input.click();
   };
 
   globalThis.bidashNdwBestand=async function(input){
