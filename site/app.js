@@ -64,10 +64,20 @@ async function engine(name){
  ready[name]=new Promise((resolve,reject)=>{const f=document.createElement('iframe');frames[name]=f;f.title=name==='dvm'?'Asset- en dienstanalyse':name==='planning'?'Integrale planning':'Organisatieanalyse';f.sandbox='allow-scripts allow-same-origin allow-downloads allow-modals allow-popups';f.src='engines/'+name+'.html'+(name==='planning'?'?v=planning23':'');const timeout=setTimeout(()=>reject(Error('Module '+name+' reageert niet.')),30000);f.onload=()=>{if(f.contentWindow.HUB){clearTimeout(timeout);resolve(f.contentWindow.HUB);}else{clearTimeout(timeout);reject(Error('Module '+name+' is niet volledig geladen.'));}};$('#engine-'+name).append(f);});
  return ready[name];
 }
+async function importStap(naam,actie){
+ try{return await actie();}
+ catch(error){
+  const detail=error?.message||String(error);
+  const fout=Error(`${naam}: ${detail}`);
+  fout.importStap=naam;
+  fout.cause=error;
+  throw fout;
+ }
+}
 async function restore(next){
- if(next.bi){const b=await engine('bi');b.import(next.bi);}
- if(next.planning){await ensurePlanning();const b=await engine('bi');await b.importPlanning(next.planning);}
- if(next.dvm?.assetregister?.rijen?.length){const d=await engine('dvm');await d.import(next.dvm);}
+ if(next.bi)await importStap('BI-gegevens herstellen',async()=>{const b=await engine('bi');await b.import(next.bi);});
+ if(next.planning)await importStap('Planning herstellen',async()=>{await ensurePlanning();const b=await engine('bi');await b.importPlanning(next.planning);});
+ if(next.dvm?.assetregister?.rijen?.length)await importStap('DVM-bronnen herstellen',async()=>{const d=await engine('dvm');await d.import(next.dvm);});
 }
 async function capture(){
  if(failedImport)throw Error("Herlaad eerst de pagina om de vorige opgeslagen werkruimte te herstellen.");
@@ -331,7 +341,7 @@ async function preview(files,{importType}={}){
  }
  const host=$('#preview');host.innerHTML='<h3>Deze onderdelen worden vervangen</h3><ul>'+labels.map(l=>'<li>'+esc(l)+'</li>').join('')+'</ul><p>Niet meegeleverde onderdelen blijven behouden. Maak bij twijfel eerst een export.</p><button id="applyImport" class="primary">Import uitvoeren</button><button id="cancelImport">Annuleren</button>';
  $('#cancelImport').onclick=()=>host.replaceChildren();
- $('#applyImport').onclick=async()=>{if(busy)return;busy=true;clearTimeout(timer);$('#applyImport').disabled=true;status('Bronnen lokaal verwerken; een groot DVM-register kan even duren…');const previous=state;try{await restore(proposed);state=proposed;expertDrafts.clear();expertDraft=null;expertServiceId='';$('#expertInputHost').replaceChildren();await capture();await write(state);render();host.replaceChildren();status('Import voltooid en lokaal opgeslagen.');}catch(e){state=previous;failedImport=true;fail(Error('Import niet opgeslagen: '+e.message+' Herlaad de pagina om de vorige opgeslagen werkruimte terug te zetten.'));}finally{busy=false;}};
+ $('#applyImport').onclick=async()=>{if(busy)return;busy=true;clearTimeout(timer);$('#applyImport').disabled=true;status('Bronnen lokaal verwerken; een groot DVM-register kan even duren…');const previous=state;try{await restore(proposed);state=proposed;expertDrafts.clear();expertDraft=null;expertServiceId='';$('#expertInputHost').replaceChildren();await importStap('Geïmporteerde werkruimte uitlezen',capture);await importStap('Werkruimte lokaal opslaan',()=>write(state));render();host.replaceChildren();status('Import voltooid en lokaal opgeslagen.');}catch(e){state=previous;failedImport=true;const stap=e?.importStap||'Onbekende importstap';const detail=e?.cause?.message||e?.message||String(e);fail(Error(`Import gestopt bij ${stap}. Technische fout: ${detail}. Er is niets als nieuwe werkruimte opgeslagen. Herlaad de pagina om de vorige opgeslagen werkruimte terug te zetten.`));}finally{busy=false;}};
 }
 $('#files').onchange=e=>{preview([...e.target.files]).catch(fail);e.target.value='';};
 $('#loadLatestSnapshot').onclick=()=>loadLatestSnapshot().catch(error=>{latestSnapshotStatus(error.message||String(error),'error');fail(error);});
