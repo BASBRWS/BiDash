@@ -8,6 +8,7 @@ const source=read('site/engines/dvm-source-manager.js');
 test('DVM-bronbeheer heeft voor elke bronsoort een eigen uploadroute',()=>{
   const expected={
     assetregister:['dripInput','leesDripBestand'],
+    ndwVerkeer:['ndwTrafficInput','ndw:verkeer'],
     windDrips:['windDripListInput','special:wind'],
     ria4Drips:['ria4DripListInput','special:ria4'],
     storingshistorie:['autoLogInput','leesStoringsBestanden'],
@@ -49,7 +50,7 @@ test('historieknoppen omzeilen de generieke storingsherkenner',()=>{
 
 test('bronbeheer blijft ook zonder geladen datasets toegankelijk en toont lege bronkaarten',()=>{
   assert.match(source,/tab==='datasets'\?true/);
-  for(const type of ['windDrips','ria4Drips','storingshistorie','liveStoringen','dripTotaal','dripMap'])assert.match(source,new RegExp(`${type}:\\{titel:`));
+  for(const type of ['ndwVerkeer','windDrips','ria4Drips','storingshistorie','liveStoringen','dripTotaal','dripMap'])assert.match(source,new RegExp(`${type}:\\{titel:`));
 });
 
 test('DVM-bronbeheer verwijdert de generieke totaalimport uit de primaire beheeracties',()=>{
@@ -107,4 +108,13 @@ test('secundaire bronbeheerknoppen zijn zichtbaar op witte kaarten',()=>{
   const html=read('site/engines/dvm.html');
   assert.match(html,/\.dataset-actions \.tb-btn:not\(\.primary\)\{background:#fff;border:1px solid var\(--rws-blauw\);color:var\(--rws-blauw\)\}/);
   assert.match(source,/Voeg JSON toe/);
+});
+
+
+test('NDW verkeersintensiteit staat als eigen DVM-bron in bronbeheer',()=>{
+  assert.match(source,/ndwVerkeer:\{input:'ndwTrafficInput'.*handler:'ndw:verkeer'.*accept:'\.json,\.html,\.htm'/);
+  assert.match(source,/NDW verkeersintensiteit voor kosten/);
+  assert.match(source,/window\.bidashLaadNdwFile\(files\[0\]\)/);
+  assert.match(source,/Gebruik uit werkruimte/);
+  assert.match(source,/Voedt voertuigen per uur in de verkeerskosten/);
 });

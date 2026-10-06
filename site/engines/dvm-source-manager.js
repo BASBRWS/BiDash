@@ -4,10 +4,11 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='114';
+  const DVM_VERSION='115';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
+    ndwVerkeer:{input:'ndwTrafficInput',label:'NDW verkeerssnapshot laden',multiple:false,requiresAsset:false,handler:'ndw:verkeer',accept:'.json,.html,.htm'},
     windDrips:{input:'windDripListInput',label:'Windwaarschuwing DRIP’s laden',multiple:false,requiresAsset:true,handler:'special:wind',accept:SPECIAL_ACCEPT},
     ria4Drips:{input:'ria4DripListInput',label:'RIA4 DRIP’s laden',multiple:false,requiresAsset:true,handler:'special:ria4',accept:SPECIAL_ACCEPT},
     storingshistorie:{input:'autoLogInput',label:'Storingshistorie toevoegen',multiple:true,requiresAsset:true,handler:'leesStoringsBestanden'},
@@ -19,9 +20,10 @@
     dripTotaal:{input:'dripTotaalInput',label:'DRIP totaal (JSON) laden',multiple:false,requiresAsset:true,handler:'leesDripTotaal',accept:'.json'},
     dripMap:{input:'dripMapInput',label:'DRIP uit map lezen (CDMS)',multiple:true,directory:true,requiresAsset:true,handler:'leesDripMap'}
   });
-  const SOURCE_ORDER=['assetregister','windDrips','ria4Drips','storingshistorie','uRoutes','werkzaamheden','liveStoringen','signaalgeverTotaal','signaalgeverMap','dripTotaal','dripMap'];
+  const SOURCE_ORDER=['assetregister','ndwVerkeer','windDrips','ria4Drips','storingshistorie','uRoutes','werkzaamheden','liveStoringen','signaalgeverTotaal','signaalgeverMap','dripTotaal','dripMap'];
   const PLACEHOLDERS={
     assetregister:{titel:'Assetregister / All Assets',meta:'Nog niet geladen. Laad dit stamregister als eerste.'},
+    ndwVerkeer:{titel:'NDW verkeersintensiteit voor kosten',meta:'Nog geen NDW-verkeerssnapshot geladen. Kies een eerdere Business Intelligence Dashboard WVM/DVM JSON- of HTML-export waarin ndw69Snapshot is opgeslagen. Dit is niet de NDW MSI/DRIP-areaalimport.'},
     windDrips:{titel:'Windwaarschuwing DRIP’s',meta:'Nog geen referentielijst geladen. Deze bron markeert welke DRIP-assets bij windwaarschuwing horen.'},
     ria4Drips:{titel:'RIA4 DRIP’s',meta:'Nog geen referentielijst geladen. Deze bron markeert welke DRIP-assets bij RIA4 horen.'},
     storingshistorie:{titel:'Storingshistorie',meta:'Nog geen historische DVM-storingsbron geladen. Deze bron voedt alleen prognoses.'},
@@ -130,6 +132,25 @@
     window.clearDripSpecialList(k);meldWijzigingAanSchil(type,[]);if(typeof renderDatasetBeheer==='function')renderDatasetBeheer();return true;
   };
 
+  function ndwVerkeerState(){
+    try{
+      const d=typeof ndw69Data==='function'?ndw69Data():null;
+      if(!d||!Array.isArray(d.sites)||!d.sites.length)return null;
+      const last=window.__BIDASH_LAST_NDW_LOAD__||null;
+      return {bestand:last?.bron||((d.files||[]).filter(Boolean).join(' + '))||'NDW verkeerssnapshot',
+        sites:d.sites.length,validSites:Number(d.stats?.validSites)||0,publication:d.publication||null,geladenOp:last?.tijd||null};
+    }catch(error){return null;}
+  }
+  function ndwVerkeerMeta(s){
+    const pub=datumTekst(s.publication);
+    return '<div class="dataset-meta-section"><div class="dataset-meta-label">Inhoud</div>'+
+      '<div>'+Number(s.sites||0).toLocaleString('nl-NL')+' meetlocaties</div>'+
+      '<div>'+Number(s.validSites||0).toLocaleString('nl-NL')+' met bruikbare verkeersintensiteit</div>'+
+      (pub?'<div>Publicatie '+pub+'</div>':'')+
+      (s.bestand?'<div>Bron '+String(s.bestand).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))+'</div>':'')+
+      '</div><div class="dataset-meta-note">Voedt voertuigen per uur in de verkeerskosten. Hinderuren en snelheidsreductie blijven scenarioaannames.</div>';
+  }
+
   function signaalgeverTotaalState(){try{return window.__BIDASH_SIGNAALGEVER_TOTAAL__||null;}catch(error){return null;}}
   /* De signaalgever-totaalbron leeft in dezelfde stores als Open storingen en
      Storingshistorie (anders zou de doorrekening haar niet zien), maar hoort in
@@ -193,9 +214,13 @@
   if(typeof datasetItems==='function'){
     const originalDatasetItems=datasetItems;
     datasetItems=function(){
-      const sgt=signaalgeverTotaalState(),drt=dripTotaalState();
+      const ndw=ndwVerkeerState(),sgt=signaalgeverTotaalState(),drt=dripTotaalState();
       const current=originalDatasetItems().filter(item=>!isSignaalgeverTotaalItem(item)&&!isDripTotaalItem(item)),out=[];
       SOURCE_ORDER.forEach(type=>{
+        if(type==='ndwVerkeer'){
+          out.push({type,key:'',titel:PLACEHOLDERS[type].titel,aanwezig:!!ndw,meta:ndw?ndwVerkeerMeta(ndw):PLACEHOLDERS[type].meta});
+          return;
+        }
         if(type==='signaalgeverTotaal'){
           out.push({type,key:'',titel:PLACEHOLDERS[type].titel,aanwezig:!!sgt,meta:sgt?signaalgeverTotaalMeta(sgt):PLACEHOLDERS[type].meta});
           return;
@@ -251,6 +276,7 @@
       let html=originalDatasetItemCard(item);const c=config(item.type);if(!c)return html;
       const disabled=bronGeblokkeerd(item.type),title=disabled?'Laad eerst Assetregister / All Assets.':'Deze knop gebruikt rechtstreeks de bron-specifieke DVM-parser.';
       let upload=`<button class="tb-btn primary dataset-upload" onclick="openDatasetUpload('${item.type}')" ${disabled?'disabled':''} title="${title}">⭱ ${knopTekst(item)}</button>`;
+      if(item.type==='ndwVerkeer')upload+=`<button class="tb-btn dataset-upload" onclick="bidashLaadNdw().then(()=>renderDatasetBeheer()).catch(error=>alert(error.message||String(error)))" title="Zoek een NDW-verkeerssnapshot in de actieve of lokaal opgeslagen werkruimte.">Gebruik uit werkruimte</button>`;
       if(item.type==='dripTotaal'&&item.aanwezig)upload+=`<button class="tb-btn dataset-upload" onclick="openDripTotaalToevoegen()" ${disabled?'disabled':''} title="Voeg een extra DRIP totaal JSON complementair toe; bestaande DRIP-bronnen blijven staan.">＋ Voeg JSON toe</button>`;
       if(isSpecial(item.type)&&item.aanwezig)upload+=`<button class="tb-btn" onclick="clearSpecialDripSource('${item.type}')">Wissen</button>`;
       html=html.replace('<div class="dataset-actions">','<div class="dataset-actions">'+upload);return html;
@@ -266,7 +292,7 @@
         [...actions.querySelectorAll('button')].forEach(button=>{if((button.getAttribute('onclick')||'').includes('totaalImportInput'))button.remove();});
         if(!host.querySelector('.bron-specifiek-uitleg')){
           const uitleg=document.createElement('p');uitleg.className='dataset-note bron-specifiek-uitleg';
-          uitleg.innerHTML='<b>Bron-specifiek laden:</b> gebruik hieronder per onderdeel de eigen uploadknop. Een gecombineerd DRIP-bestand met aparte kolommen RIA4 en Windwaarschuwing wordt automatisch per gemarkeerde regel gesplitst. Losse referentielijsten blijven via hun eigen knop bruikbaar. De koppeling gebruikt eerst de identifier en controleert VC, weg, richting en hectometer.';
+          uitleg.innerHTML='<b>Bron-specifiek laden:</b> gebruik hieronder per onderdeel de eigen uploadknop. NDW verkeersintensiteit voor kosten heeft een eigen bronkaart en staat los van de NDW MSI/DRIP-areaalimport. Een gecombineerd DRIP-bestand met aparte kolommen RIA4 en Windwaarschuwing wordt automatisch per gemarkeerde regel gesplitst. Losse referentielijsten blijven via hun eigen knop bruikbaar. De koppeling gebruikt eerst de identifier en controleert VC, weg, richting en hectometer.';
           actions.insertAdjacentElement('afterend',uitleg);
         }
       }
@@ -287,6 +313,9 @@
     let result;
     switch(c.handler){
       case 'leesDripBestand': result=await leesDripBestand(files[0]);break;
+      case 'ndw:verkeer':
+        if(typeof window.bidashLaadNdwFile!=='function')throw new Error('NDW-verkeersloader is nog niet gereed. Herlaad de pagina en probeer opnieuw.');
+        result=await window.bidashLaadNdwFile(files[0]);break;
       case 'leesStoringsBestanden': result=await leesStoringsBestanden(files);break;
       case 'leesURouteBestand': result=await leesURouteBestand(files[0]);break;
       case 'leesWerkBestand': result=await leesWerkBestand(files[0]);break;
