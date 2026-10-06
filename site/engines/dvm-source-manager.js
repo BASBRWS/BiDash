@@ -8,7 +8,7 @@
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
-    ndwVerkeer:{input:'ndwTrafficInput',label:'NDW verkeerssnapshot laden',multiple:false,requiresAsset:false,handler:'ndw:verkeer',accept:'.json,.html,.htm'},
+    ndwVerkeer:{input:'ndwTrafficInput',label:'NDW verkeersdata laden',multiple:false,requiresAsset:false,handler:'ndw:verkeer',accept:'.xml,.gz,.json,.html,.htm'},
     windDrips:{input:'windDripListInput',label:'Windwaarschuwing DRIP’s laden',multiple:false,requiresAsset:true,handler:'special:wind',accept:SPECIAL_ACCEPT},
     ria4Drips:{input:'ria4DripListInput',label:'RIA4 DRIP’s laden',multiple:false,requiresAsset:true,handler:'special:ria4',accept:SPECIAL_ACCEPT},
     storingshistorie:{input:'autoLogInput',label:'Storingshistorie toevoegen',multiple:true,requiresAsset:true,handler:'leesStoringsBestanden'},
@@ -23,7 +23,7 @@
   const SOURCE_ORDER=['assetregister','ndwVerkeer','windDrips','ria4Drips','storingshistorie','uRoutes','werkzaamheden','liveStoringen','signaalgeverTotaal','signaalgeverMap','dripTotaal','dripMap'];
   const PLACEHOLDERS={
     assetregister:{titel:'Assetregister / All Assets',meta:'Nog niet geladen. Laad dit stamregister als eerste.'},
-    ndwVerkeer:{titel:'NDW verkeersintensiteit voor kosten',meta:'Nog geen NDW-verkeerssnapshot geladen. Kies een eerdere Business Intelligence Dashboard WVM/DVM JSON- of HTML-export waarin ndw69Snapshot is opgeslagen. Dit is niet de NDW MSI/DRIP-areaalimport.'},
+    ndwVerkeer:{titel:'NDW verkeersintensiteit voor kosten',meta:'Nog geen NDW-verkeersdata geladen. Gebruik bij voorkeur snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz van NDW Open Data. Een eerdere Business Intelligence Dashboard WVM/DVM export met ndw69Snapshot wordt ook geaccepteerd. Dit is niet de NDW MSI/DRIP-areaalimport.'},
     windDrips:{titel:'Windwaarschuwing DRIP’s',meta:'Nog geen referentielijst geladen. Deze bron markeert welke DRIP-assets bij windwaarschuwing horen.'},
     ria4Drips:{titel:'RIA4 DRIP’s',meta:'Nog geen referentielijst geladen. Deze bron markeert welke DRIP-assets bij RIA4 horen.'},
     storingshistorie:{titel:'Storingshistorie',meta:'Nog geen historische DVM-storingsbron geladen. Deze bron voedt alleen prognoses.'},
