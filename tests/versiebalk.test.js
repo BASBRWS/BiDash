@@ -27,18 +27,18 @@ function documentStub({metBadge=false}={}){
 }
 
 test('de schil toont haar eigen versie ook zonder geladen module',()=>{
-  assert.equal(versieTekst(),'BiDash '+BIDASH_VERSIE);
+  assert.equal(versieTekst(),'Business Intelligence Dashboard WVM '+BIDASH_VERSIE);
   assert.match(versieTitel(),/modules melden hun versie zodra ze geladen zijn/);
   const doc=documentStub({metBadge:true});
-  assert.equal(toonVersies(doc),'BiDash '+BIDASH_VERSIE);
-  assert.equal(doc.getElementById('bidashVersionBadge').textContent,'BiDash '+BIDASH_VERSIE);
+  assert.equal(toonVersies(doc),'Business Intelligence Dashboard WVM '+BIDASH_VERSIE);
+  assert.equal(doc.getElementById('bidashVersionBadge').textContent,'Business Intelligence Dashboard WVM '+BIDASH_VERSIE);
   assert.equal(doc.voet.textContent,'Integratie '+BIDASH_VERSIE);
 });
 
 test('een gemelde engineversie komt erbij, een lege melding niet',()=>{
-  assert.equal(versieTekst({dvm:'99'}),'BiDash '+BIDASH_VERSIE+' · DVM 99');
-  assert.equal(versieTekst({dvm:'99',bi:'',planning:null}),'BiDash '+BIDASH_VERSIE+' · DVM 99');
-  assert.equal(versieTekst({dvm:'99',planning:'23'}),'BiDash '+BIDASH_VERSIE+' · DVM 99 · Planning 23');
+  assert.equal(versieTekst({dvm:'99'}),'Business Intelligence Dashboard WVM '+BIDASH_VERSIE+' · DVM 99');
+  assert.equal(versieTekst({dvm:'99',bi:'',planning:null}),'Business Intelligence Dashboard WVM '+BIDASH_VERSIE+' · DVM 99');
+  assert.equal(versieTekst({dvm:'99',planning:'23'}),'Business Intelligence Dashboard WVM '+BIDASH_VERSIE+' · DVM 99 · Planning 23');
   assert.match(versieTitel({dvm:'99'}),/de geladen modules/);
 });
 
@@ -47,7 +47,7 @@ test('de badge wordt aangemaakt wanneer de opmaak hem niet meelevert',()=>{
   toonVersies(doc,{dvm:'99'});
   const badge=doc.acties.children[0];
   assert.equal(badge.id,'bidashVersionBadge');
-  assert.equal(badge.textContent,'BiDash '+BIDASH_VERSIE+' · DVM 99');
+  assert.equal(badge.textContent,'Business Intelligence Dashboard WVM '+BIDASH_VERSIE+' · DVM 99');
 });
 
 test('de schil rendert de balk bij het starten en verwerkt versiemeldingen',()=>{
@@ -72,5 +72,5 @@ test('de DVM-module meldt alleen haar eigen versie aan de schil',()=>{
 test('het versienummer van de schil staat op precies één plek',()=>{
   const bestanden=['site/app.js','site/index.html','site/engines/dvm-source-manager.js','site/engines/dvm-adapter.js'];
   for(const bestand of bestanden)assert.doesNotMatch(read(bestand),/2\.14/,bestand+' bevat een tweede versienummer');
-  assert.match(read('site/core/versie.js'),/BIDASH_VERSIE='2\.28'/);
+  assert.match(read('site/core/versie.js'),/BIDASH_VERSIE='2\.29'/);
 });
