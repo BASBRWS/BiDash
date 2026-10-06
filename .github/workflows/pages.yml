@@ -1,4 +1,4 @@
-name: BiDash browserapp
+name: Business Intelligence Dashboard WVM
 on:
   push:
     branches: [main]
