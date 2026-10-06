@@ -856,6 +856,8 @@ function mergeDripBronnen(bestaand,bron){
   return [...oud,volgende];
 }
 async function pasDripBundelToe(bestandsnaam,drip,versie,modus){
+  let fase='DRIP-bron normaliseren';
+  try{
   modus=modus==='toevoegen'?'toevoegen':'vervang';
   const adem=()=>typeof uiPauze==='function'?uiPauze():Promise.resolve();
   const sourceKey=modus==='toevoegen'?dripTotaalBronKey(bestandsnaam):'drip-totaal';
@@ -867,12 +869,15 @@ async function pasDripBundelToe(bestandsnaam,drip,versie,modus){
   const bron={key:sourceKey,name:bestandsnaam,size:0,sheet:'datasets.drip',format:'DRIP totaal (JSON/map)',
     episodesGenegeerd:0,regio,incidenten,afgewezen:0,dekkingDatums:dek,dekkingDagen:dek.length,van,tot,
     assetCodes,_dripTotaal:true,_dripBestand:bestandsnaam,_dripVersie:versie||''};
+  fase='DRIP-bronnen samenvoegen';
   const bestaand=(DRIP_HIST_STATE&&Array.isArray(DRIP_HIST_STATE.sources))?DRIP_HIST_STATE.sources:[];
   DRIP_HIST_STATE={sources:modus==='toevoegen'?mergeDripBronnen(bestaand,bron):[bron]};DRIP_MC=null;
   await adem();
+  fase='DRIP-historie herbouwen en aan All Assets koppelen';
   herbouwDripHistorie();
   ANALYSE_SIGNATURE='';
   await adem();
+  fase='Open DRIP-storingen en DVM-weergave bijwerken';
   probeerAnalyseActiveren('drips',{inspectieAlGereed:true,matchAlGereed:true});
   const H=DRIP_HIST_STATE||{},koppeling=H.koppeling||{},laatstePerVc={};
   for(const x of H.incidenten||[]){
@@ -889,6 +894,11 @@ async function pasDripBundelToe(bestandsnaam,drip,versie,modus){
   const actieveBron=(H.sources||[]).find(s=>s.key===sourceKey);
   return {incidenten:(actieveBron&&actieveBron.incidenten||[]).length,totaalIncidenten:(H.incidenten||[]).length,
     bronnen:(H.sources||[]).length,gekoppeldeIncidenten:koppeling.gekoppeldeIncidenten||0,laatsteEntry};
+  }catch(err){
+    const detail=err&&err.message?err.message:String(err);
+    console.error('DRIP-map/totaal gestopt bij '+fase,err);
+    throw new Error(fase+': '+detail,{cause:err});
+  }
 }
 async function leesDripTotaalBestand(file,modus){
   modus=modus==='toevoegen'?'toevoegen':'vervang';
