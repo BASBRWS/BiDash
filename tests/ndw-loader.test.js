@@ -13,7 +13,7 @@ test('NDW loader leest eerst bestaande of lokaal opgeslagen snapshot',()=>{
   assert.match(source,/state\?\.dvm\?\.parameters\?\.kosten\?\.ndw69Snapshot/);
 });
 
-test('als lokale NDW data ontbreekt kan een oude BiDash of DVM export gericht worden gelezen',()=>{
+test('als lokale NDW data ontbreekt kan een oude dashboard- of DVM-export gericht worden gelezen',()=>{
   const source=read('site/core/ndw-loader.js');
   assert.match(source,/accept="\.json,\.html,\.htm"/);
   assert.match(source,/"ndw69Snapshot"/);
@@ -21,6 +21,10 @@ test('als lokale NDW data ontbreekt kan een oude BiDash of DVM export gericht wo
   assert.match(source,/file\.slice\(offset,end\)\.text\(\)/);
   assert.match(source,/parseJsonWorker/);
   assert.match(source,/JSON\.parse\(e\.data\)/);
+  assert.match(source,/bidashKiesNdwBestand/);
+  assert.match(source,/id="bidashNdwChooseButton"/);
+  assert.match(source,/input\.click\(\)/);
+  assert.doesNotMatch(source,/Geen lokale NDW-set gevonden[\s\S]{0,400}input\.click\(\)/);
 });
 
 test('NDW loader vult spitsuren en 30 procent alleen waar waarden ontbreken',()=>{
@@ -48,4 +52,12 @@ test('signal forecast activeert de NDW loader',()=>{
 
 test('browserpatch is inert buiten browser',()=>{
   assert.equal(installNdwLoader(globalThis),false);
+});
+
+
+test('NDW loader maakt verschil tussen gemeten intensiteit en scenarioaannames zichtbaar',()=>{
+  const source=read('site/core/ndw-loader.js');
+  assert.match(source,/NDW levert het voertuigaantal/);
+  assert.match(source,/6 hinderuren en 30% snelheidsreductie zijn scenarioaannames/);
+  assert.match(source,/andere bron dan de NDW CMDB-import/);
 });
