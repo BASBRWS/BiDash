@@ -14,6 +14,7 @@ const money=n=>Number.isFinite(n)?n.toLocaleString('nl-NL',{style:'currency',cur
 const date=s=>s?new Date(s).toLocaleDateString('nl-NL'):'geen bron geladen';
 let state=DEFAULT_STATE(),summaries={},busy=false,failedImport=false,timer,view='overview';const frames={},ready={};
 const engineVersies={};
+const APP_BUILD='20261006-1125';
 const LATEST_SNAPSHOT_DIRECTORY_KEY='latest-snapshot-directory';
 let latestSnapshotDirectory=null,latestSnapshotBusy=false;
 function status(s,error=false){$('#status').textContent=s;$('#status').classList.toggle('error',error);}
@@ -61,7 +62,7 @@ async function show(id){
 function fail(e){status(e.message||String(e),true);console.error(e);}
 async function engine(name){
  if(ready[name])return ready[name];
- ready[name]=new Promise((resolve,reject)=>{const f=document.createElement('iframe');frames[name]=f;f.title=name==='dvm'?'Asset- en dienstanalyse':name==='planning'?'Integrale planning':'Organisatieanalyse';f.sandbox='allow-scripts allow-same-origin allow-downloads allow-modals allow-popups';f.src='engines/'+name+'.html'+(name==='planning'?'?v=planning23':'');const timeout=setTimeout(()=>reject(Error('Module '+name+' reageert niet.')),30000);f.onload=()=>{if(f.contentWindow.HUB){clearTimeout(timeout);resolve(f.contentWindow.HUB);}else{clearTimeout(timeout);reject(Error('Module '+name+' is niet volledig geladen.'));}};$('#engine-'+name).append(f);});
+ ready[name]=new Promise((resolve,reject)=>{const f=document.createElement('iframe');frames[name]=f;f.title=name==='dvm'?'Asset- en dienstanalyse':name==='planning'?'Integrale planning':'Organisatieanalyse';f.sandbox='allow-scripts allow-same-origin allow-downloads allow-modals allow-popups';f.src='engines/'+name+'.html?v='+(name==='planning'?'planning23-':'')+APP_BUILD;const timeout=setTimeout(()=>reject(Error('Module '+name+' reageert niet.')),30000);f.onload=()=>{if(f.contentWindow.HUB){clearTimeout(timeout);resolve(f.contentWindow.HUB);}else{clearTimeout(timeout);reject(Error('Module '+name+' is niet volledig geladen.'));}};$('#engine-'+name).append(f);});
  return ready[name];
 }
 async function importStap(naam,actie){
@@ -341,7 +342,7 @@ async function preview(files,{importType}={}){
  }
  const host=$('#preview');host.innerHTML='<h3>Deze onderdelen worden vervangen</h3><ul>'+labels.map(l=>'<li>'+esc(l)+'</li>').join('')+'</ul><p>Niet meegeleverde onderdelen blijven behouden. Maak bij twijfel eerst een export.</p><button id="applyImport" class="primary">Import uitvoeren</button><button id="cancelImport">Annuleren</button>';
  $('#cancelImport').onclick=()=>host.replaceChildren();
- $('#applyImport').onclick=async()=>{if(busy)return;busy=true;clearTimeout(timer);$('#applyImport').disabled=true;status('Bronnen lokaal verwerken; een groot DVM-register kan even duren…');const previous=state;try{await restore(proposed);state=proposed;expertDrafts.clear();expertDraft=null;expertServiceId='';$('#expertInputHost').replaceChildren();await importStap('Geïmporteerde werkruimte uitlezen',capture);await importStap('Werkruimte lokaal opslaan',()=>write(state));render();host.replaceChildren();status('Import voltooid en lokaal opgeslagen.');}catch(e){state=previous;failedImport=true;const stap=e?.importStap||'Onbekende importstap';const detail=e?.cause?.message||e?.message||String(e);fail(Error(`Import gestopt bij ${stap}. Technische fout: ${detail}. Er is niets als nieuwe werkruimte opgeslagen. Herlaad de pagina om de vorige opgeslagen werkruimte terug te zetten.`));}finally{busy=false;}};
+ $('#applyImport').onclick=async()=>{if(busy)return;busy=true;clearTimeout(timer);$('#applyImport').disabled=true;status('Bronnen lokaal verwerken; een groot DVM-register kan even duren…');const previous=state;try{await restore(proposed);state=proposed;expertDrafts.clear();expertDraft=null;expertServiceId='';$('#expertInputHost').replaceChildren();await importStap('Geïmporteerde werkruimte uitlezen',capture);await importStap('Werkruimte lokaal opslaan',()=>write(state));render();host.replaceChildren();status('Import voltooid en lokaal opgeslagen.');}catch(e){state=previous;failedImport=true;const stap=e?.importStap||'Onbekende importstap';const detail=e?.message||String(e),root=e?.cause?.message&&e.cause.message!==detail?` Oorzaak: ${e.cause.message}.`:'';fail(Error(`Import gestopt bij ${stap}. Technische fout: ${detail}.${root} Er is niets als nieuwe werkruimte opgeslagen. Herlaad de pagina om de vorige opgeslagen werkruimte terug te zetten.`));}finally{busy=false;}};
 }
 $('#files').onchange=e=>{preview([...e.target.files]).catch(fail);e.target.value='';};
 $('#loadLatestSnapshot').onclick=()=>loadLatestSnapshot().catch(error=>{latestSnapshotStatus(error.message||String(error),'error');fail(error);});

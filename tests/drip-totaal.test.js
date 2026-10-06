@@ -40,7 +40,7 @@ for(const naam of ['sbGroupBy','sbVcAlias','sbGeldigeDatum','sbClassificeer','sb
   vm.runInContext(haalFunctie(bundelaar,naam),ctx,{filename:naam});
 for(const naam of ['num','parseDatum'])
   vm.runInContext(haalFunctie(dvm2,naam),ctx,{filename:naam});
-for(const naam of ['normDripCode','normDripHistRegio','parseDripHistorieLocatie','parseDripHistorieDatum','dripTotaalIncidentUitRij','dripDatasetNaarBron','dripTotaalBronnen','dripIncidentSleutel','dripTotaalBronKey','mergeDripBronnen'])
+for(const naam of ['normDripCode','normDripHistRegio','parseDripHistorieLocatie','parseDripHistorieDatum','dripTotaalIncidentUitRij','dripDatasetNaarBron','dripTotaalBronnen','dripIncidentSleutel','dripIncidentBereik','dripTotaalBronKey','mergeDripBronnen'])
   vm.runInContext(haalFunctie(dvm3,naam),ctx,{filename:naam});
 
 const call=(naam,...args)=>vm.runInContext(naam,ctx)(...args);
@@ -166,4 +166,20 @@ test('H. DRIP uit map schrijft incrementeel bij op geladen DRIP totaal',()=>{
   assert.match(bundelaar,/pasDripBundelToe\(naam,mapDrip,'maplezen','toevoegen'\)/);
   assert.match(bundelaar,/DRIP uit map incrementeel toegevoegd aan DRIP totaal/);
   assert.doesNotMatch(bundelaar,/pasDripBundelToe\(naam,gecombineerd,'maplezen'\)/);
+});
+
+
+test('I. groot DRIP-tijdsbereik gebruikt geen spread naar Math.min of Math.max',()=>{
+  const groot=Array.from({length:120000},(_,i)=>({start:1000+i*10,einde:1005+i*10}));
+  const bereik=call('dripIncidentBereik',groot);
+  assert.equal(bereik.van,1000);
+  assert.equal(bereik.tot,1005+(groot.length-1)*10);
+  const blok=dvm3.slice(dvm3.indexOf('function mergeDripBronnen'),dvm3.indexOf('async function leesDripTotaalBestand'));
+  assert.doesNotMatch(blok,/Math\.(?:min|max)\s*\(\s*\.\.\.tijden/);
+});
+
+test('J. herstel en herbouw van DRIP-historie gebruiken stackveilige tijdberekening',()=>{
+  const blok=dvm3.slice(dvm3.indexOf('function verwerkDripHistorieBron'),dvm3.indexOf('function koppelDripHistorieAanAreaal'));
+  assert.match(blok,/dripIncidentBereik\(incidenten\)/);
+  assert.doesNotMatch(blok,/Math\.(?:min|max)\s*\(\s*\.\.\.tijden/);
 });

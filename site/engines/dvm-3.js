@@ -820,6 +820,22 @@ function dripIncidentSleutel(x){
     Number(x&&x.hm)||0,Number(x&&x.start)||0,Number(x&&x.einde)||0,
     String(x&&x.classificatie||'').trim().toUpperCase(),x&&x.hardUit?'1':'0'].join('|');
 }
+/* Bepaal tijdsbereik zonder duizenden timestamps als losse functieargumenten
+   aan Math.min/Math.max door te geven. Grote DRIP-bronnen kunnen ruim boven
+   de argumentlimiet van de browser komen en anders een call-stackfout geven. */
+function dripIncidentBereik(incidenten){
+  let van=null,tot=null;
+  for(const x of (Array.isArray(incidenten)?incidenten:[])){
+    for(const raw of [x&&x.start,x&&x.einde]){
+      if(raw==null)continue;
+      const t=Number(raw);
+      if(!Number.isFinite(t))continue;
+      if(van==null||t<van)van=t;
+      if(tot==null||t>tot)tot=t;
+    }
+  }
+  return {van,tot};
+}
 function dripTotaalBronKey(bestandsnaam){
   const naam=String(bestandsnaam||'drip.json').trim().toLowerCase().replace(/[^a-z0-9._-]+/g,'-');
   return 'drip-json:'+naam;
@@ -834,10 +850,9 @@ function mergeDripBronnen(bestaand,bron){
     if(gezien.has(sleutel))continue;
     gezien.add(sleutel);uniek.push(x);
   }
-  const tijden=uniek.flatMap(x=>[x.start,x.einde]).filter(x=>x!=null);
+  const {van,tot}=dripIncidentBereik(uniek);
   const assetCodes=[...new Set(uniek.map(x=>x.code).filter(Boolean))];
-  const volgende={...bron,incidenten:uniek,assetCodes,
-    van:tijden.length?Math.min(...tijden):null,tot:tijden.length?Math.max(...tijden):null};
+  const volgende={...bron,incidenten:uniek,assetCodes,van,tot};
   return [...oud,volgende];
 }
 async function pasDripBundelToe(bestandsnaam,drip,versie,modus){
@@ -845,8 +860,7 @@ async function pasDripBundelToe(bestandsnaam,drip,versie,modus){
   const adem=()=>typeof uiPauze==='function'?uiPauze():Promise.resolve();
   const sourceKey=modus==='toevoegen'?dripTotaalBronKey(bestandsnaam):'drip-totaal';
   const {incidenten,dekkingDatums,assetCodes}=dripDatasetNaarBron(drip,sourceKey,bestandsnaam);
-  const tijden=incidenten.flatMap(x=>[x.start,x.einde]).filter(x=>x!=null);
-  const van=tijden.length?Math.min(...tijden):null,tot=tijden.length?Math.max(...tijden):null;
+  const {van,tot}=dripIncidentBereik(incidenten);
   let dek=dekkingDatums;
   if(!dek.length&&van!=null&&tot!=null)dek=histDagenTussen(van,tot);
   const regio=normDripHistRegio(bestandsnaam)||(incidenten.find(x=>x.vc)||{}).vc||'';
@@ -1789,8 +1803,7 @@ function verwerkDripHistorieBron(meta,incidentRijen,dekkingRijen,assetRijen){
     if(t==null){ const m=String(g(['bestand','file','bestandsnaam'])||'').match(/(20\d{2})(\d{2})(\d{2})/); if(m)t=new Date(+m[1],+m[2]-1,+m[3]).getTime(); }
     if(t!=null) dekking.add(histDagSleutel(t));
   });
-  const tijden=incidenten.flatMap(x=>[x.start,x.einde]).filter(x=>x!=null);
-  const van=tijden.length?Math.min(...tijden):null, tot=tijden.length?Math.max(...tijden):null;
+  const {van,tot}=dripIncidentBereik(incidenten);
   if(!dekking.size&&van!=null&&tot!=null) histDagenTussen(van,tot).forEach(d=>dekking.add(d));
   const assetCodes=new Set(incidenten.map(x=>x.code).filter(Boolean));
   (assetRijen||[]).forEach(row=>{ const g=histGetter(row), c=normDripCode(g(['asset','drip','object','id_cdms','cdms']))||normDripCode(g(['locatie','location','assetnaam'])); if(c)assetCodes.add(c); });
@@ -1817,8 +1830,8 @@ function normaliseerDripHistorieHerstelBron(bron,index){
     .map(x=>({...x,sourceKey:x.sourceKey||key,sourceName:x.sourceName||name}));
   let dekkingDatums=Array.isArray(bron.dekkingDatums)?bron.dekkingDatums.filter(Boolean).map(String):[];
   if(!dekkingDatums.length&&incidenten.length){
-    const tijden=incidenten.flatMap(x=>[x.start,x.einde]).filter(x=>x!=null&&Number.isFinite(Number(x)));
-    if(tijden.length)dekkingDatums=histDagenTussen(Math.min(...tijden.map(Number)),Math.max(...tijden.map(Number)));
+    const {van,tot}=dripIncidentBereik(incidenten);
+    if(van!=null&&tot!=null)dekkingDatums=histDagenTussen(van,tot);
   }
   let assetCodes=Array.isArray(bron.assetCodes)?bron.assetCodes.map(normDripCode).filter(Boolean):[];
   if(!assetCodes.length)assetCodes=incidenten.map(x=>normDripCode(x.code||x.asset)).filter(Boolean);
@@ -1846,9 +1859,9 @@ function herbouwDripHistorie(){
   const incidenten=[...uniek.values()].sort((a,b)=>(a.start==null?Infinity:a.start)-(b.start==null?Infinity:b.start));
   const dekking=new Set(); bronnen.forEach(b=>(b.dekkingDatums||[]).forEach(d=>dekking.add(d)));
   const assets=new Set(); bronnen.forEach(b=>(b.assetCodes||[]).forEach(c=>assets.add(c)));
-  const tijden=incidenten.flatMap(x=>[x.start,x.einde]).filter(x=>x!=null);
+  const bereik=dripIncidentBereik(incidenten);
   DRIP_HIST_STATE={sources:bronnen,incidenten,duplicaten,assetCodes:[...assets],dekkingDatums:[...dekking].sort(),
-    dekkingDagen:dekking.size,van:tijden.length?Math.min(...tijden):null,tot:tijden.length?Math.max(...tijden):null,
+    dekkingDagen:dekking.size,van:bereik.van,tot:bereik.tot,
     censoredN:incidenten.filter(x=>x.censored).length,
     duurUitgeslotenN:incidenten.filter(x=>!x.duurBetrouwbaar).length,
     episodesGenegeerd:bronnen.reduce((s,b)=>s+(b.episodesGenegeerd||0),0)};
@@ -5705,12 +5718,13 @@ async function totaalImportJson(file, hubModus){
     // 6) DRIP-historie
     if(magImporteren('dripHistorie')&&bundle.dripHistorie&&Array.isArray(bundle.dripHistorie.sources)){
       importFase='DVM-DRIP-historie normaliseren';
-      zetImportVoortgang(file.name,62,'DRIP-historie terugzetten',{direct:true});await uiPauze();
+      zetImportVoortgang(file.name,62,'DRIP-historie normaliseren',{direct:true});await uiPauze();
       const bestaand=((DRIP_HIST_STATE&&DRIP_HIST_STATE.sources)||[]).map(normaliseerDripHistorieHerstelBron);
       const nb=bundle.dripHistorie.sources.map(normaliseerDripHistorieHerstelBron);
       const vervang=new Set(nb.map(s=>s.key));
       DRIP_HIST_STATE={sources: modus==='vervang' ? nb : [...bestaand.filter(x=>!vervang.has(x.key)),...nb]};
       importFase='DVM-DRIP-historie herbouwen en koppelen';
+      zetImportVoortgang(file.name,66,'DRIP-historie herbouwen en aan areaal koppelen',{direct:true});await uiPauze();
       herbouwDripHistorie(); DRIP_MC=null;
     } else if(magImporteren('dripHistorie')&&modus==='vervang'){ DRIP_HIST_STATE=null; DRIP_MC=null; }
 
