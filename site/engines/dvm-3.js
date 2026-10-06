@@ -1808,8 +1808,29 @@ function dripHistorieIncidentSleutel(x){
   return [x.vc||'',id,s,e].join('|');
 }
 
+function normaliseerDripHistorieHerstelBron(bron,index){
+  bron=bron&&typeof bron==='object'?bron:{};
+  const key=String(bron.key||('herstelde-drip-historie-'+(index+1)));
+  const name=String(bron.name||bron.naam||key);
+  const incidenten=(Array.isArray(bron.incidenten)?bron.incidenten:[])
+    .filter(x=>x&&typeof x==='object')
+    .map(x=>({...x,sourceKey:x.sourceKey||key,sourceName:x.sourceName||name}));
+  let dekkingDatums=Array.isArray(bron.dekkingDatums)?bron.dekkingDatums.filter(Boolean).map(String):[];
+  if(!dekkingDatums.length&&incidenten.length){
+    const tijden=incidenten.flatMap(x=>[x.start,x.einde]).filter(x=>x!=null&&Number.isFinite(Number(x)));
+    if(tijden.length)dekkingDatums=histDagenTussen(Math.min(...tijden.map(Number)),Math.max(...tijden.map(Number)));
+  }
+  let assetCodes=Array.isArray(bron.assetCodes)?bron.assetCodes.map(normDripCode).filter(Boolean):[];
+  if(!assetCodes.length)assetCodes=incidenten.map(x=>normDripCode(x.code||x.asset)).filter(Boolean);
+  assetCodes=[...new Set(assetCodes)];
+  dekkingDatums=[...new Set(dekkingDatums)].sort();
+  return {...bron,key,name,incidenten,dekkingDatums,assetCodes,
+    episodesGenegeerd:Number(bron.episodesGenegeerd)||0,
+    regio:bron.regio||normDripHistRegio(name)};
+}
+
 function herbouwDripHistorie(){
-  const bronnen=(DRIP_HIST_STATE&&DRIP_HIST_STATE.sources)||[];
+  const bronnen=((DRIP_HIST_STATE&&DRIP_HIST_STATE.sources)||[]).map(normaliseerDripHistorieHerstelBron);
   const uniek=new Map(); let duplicaten=0;
   bronnen.forEach(bron=>bron.incidenten.forEach(x=>{
     const sleutel=dripHistorieIncidentSleutel(x);
@@ -1822,9 +1843,9 @@ function herbouwDripHistorie(){
       bestaand.duurBetrouwbaar=bestaand.duurUren>0&&!bestaand.censored&&(bestaand.hardUit||bestaand.duurUren<168);
     }else uniek.set(sleutel,{...x,sourceNames:[x.sourceName]});
   }));
-  const incidenten=[...uniek.values()].sort((a,b)=>a.start-b.start);
-  const dekking=new Set(); bronnen.forEach(b=>b.dekkingDatums.forEach(d=>dekking.add(d)));
-  const assets=new Set(); bronnen.forEach(b=>b.assetCodes.forEach(c=>assets.add(c)));
+  const incidenten=[...uniek.values()].sort((a,b)=>(a.start==null?Infinity:a.start)-(b.start==null?Infinity:b.start));
+  const dekking=new Set(); bronnen.forEach(b=>(b.dekkingDatums||[]).forEach(d=>dekking.add(d)));
+  const assets=new Set(); bronnen.forEach(b=>(b.assetCodes||[]).forEach(c=>assets.add(c)));
   const tijden=incidenten.flatMap(x=>[x.start,x.einde]).filter(x=>x!=null);
   DRIP_HIST_STATE={sources:bronnen,incidenten,duplicaten,assetCodes:[...assets],dekkingDatums:[...dekking].sort(),
     dekkingDagen:dekking.size,van:tijden.length?Math.min(...tijden):null,tot:tijden.length?Math.max(...tijden):null,
@@ -1838,7 +1859,9 @@ function koppelDripHistorieAanAreaal(opties){
   opties=opties||{};
   const H=DRIP_HIST_STATE, D=DRIP_STATE||(STATE&&STATE.drips);
   if(!H){ return; }
-  if(!D||!D.drips){ H.koppeling={gekoppeldeAssets:0,gekoppeldeIncidenten:0,nietGekoppeldeIncidenten:H.incidenten.length}; return; }
+  const incidenten=Array.isArray(H.incidenten)?H.incidenten:[];
+  const bronnen=Array.isArray(H.sources)?H.sources:[];
+  if(!D||!Array.isArray(D.drips)){ H.koppeling={gekoppeldeAssets:0,gekoppeldeIncidenten:0,nietGekoppeldeIncidenten:incidenten.length}; return; }
   D.drips.forEach(d=>{ d._hist=null; d.histCode=d.histCode||normDripCode(d.idCdms); });
   const codeMap=new Map();
   D.drips.forEach(d=>{ if(!d.histCode)return; const a=codeMap.get(d.histCode)||[]; a.push(d); codeMap.set(d.histCode,a); });
@@ -1859,26 +1882,26 @@ function koppelDripHistorieAanAreaal(opties){
     pool.forEach(d=>{ if(!dripLocatiePast(loc,d))return; if(d.weg!==loc.weg)return; if(loc.richting&&d.richting&&loc.richting!==d.richting)return; if(d.hm==null)return; const a=Math.abs(d.hm-loc.hm); if(a<afstand){afstand=a;best=d;} });
     return best;
   };
-  const bronMap=new Map(H.sources.map(b=>[b.key,b]));
+  const bronMap=new Map(bronnen.map(b=>[b.key,b]));
   const agg=new Map(),nietGekoppeldeCodes=new Set();
   const zorg=d=>{
     if(!agg.has(d.uid))agg.set(d.uid,{uid:d.uid,d,incidenten:[],dekking:new Set(),bronnen:new Set()});
     return agg.get(d.uid);
   };
   // Ook assets zonder incidenten uit asset_samenvatting krijgen nulwaarnemingen.
-  H.sources.forEach(bron=>bron.assetCodes.forEach(code=>{
+  bronnen.forEach(bron=>(bron.assetCodes||[]).forEach(code=>{
     const d=vind(code,{vc:bron.regio}); if(!d){if(!isUitgesloten(code))nietGekoppeldeCodes.add(code);return;}
-    const a=zorg(d); bron.dekkingDatums.forEach(x=>a.dekking.add(x)); a.bronnen.add(bron.name);
+    const a=zorg(d); (bron.dekkingDatums||[]).forEach(x=>a.dekking.add(x)); a.bronnen.add(bron.name);
   }));
   let gekoppeldeIncidenten=0,uitgeslotenIncidenten=0;
-  H.incidenten.forEach(x=>{
+  incidenten.forEach(x=>{
     const d=vind(x.code,x); x.matchUid=d?d.uid:null;x.matchAssetKey=d?(d._assetKey||d.assetKey):null;
     if(!d){ if(isUitgesloten(x.code||x.asset)){x.matchStatus='buiten-areaal';uitgeslotenIncidenten++;}else if(x.code)nietGekoppeldeCodes.add(x.code); return; }
     x.matchStatus='gekoppeld';
     if(x.code)nietGekoppeldeCodes.delete(x.code);
     gekoppeldeIncidenten++;
     const a=zorg(d); a.incidenten.push(x); a.bronnen.add(x.sourceName);
-    const bron=bronMap.get(x.sourceKey); if(bron)bron.dekkingDatums.forEach(y=>a.dekking.add(y));
+    const bron=bronMap.get(x.sourceKey); if(bron)(bron.dekkingDatums||[]).forEach(y=>a.dekking.add(y));
   });
   const alleDuren=[]; agg.forEach(a=>a.incidenten.forEach(x=>{if(x.duurBetrouwbaar)alleDuren.push(x.duurUren);}));
   alleDuren.sort((a,b)=>a-b);
@@ -1900,7 +1923,7 @@ function koppelDripHistorieAanAreaal(opties){
   assetStats.sort((a,b)=>b.n-a.n||b.betrouwbareDownUren-a.betrouwbareDownUren);
   H.duurCapUren=duurCap; H.duurBetrouwbaarN=alleDuren.length; H.assetStats=assetStats;
   H.koppeling={gekoppeldeAssets:assetStats.length,gekoppeldeIncidenten,
-    uitgeslotenIncidenten,nietGekoppeldeIncidenten:H.incidenten.length-gekoppeldeIncidenten-uitgeslotenIncidenten,
+    uitgeslotenIncidenten,nietGekoppeldeIncidenten:incidenten.length-gekoppeldeIncidenten-uitgeslotenIncidenten,
     nietGekoppeldeCodes:[...nietGekoppeldeCodes].sort()};
   if(!opties.slaMatchBeeldOver)herbouwAssetMatchBeeld();
 }
@@ -5681,11 +5704,13 @@ async function totaalImportJson(file, hubModus){
     importFase='DVM-DRIP-historie herstellen';
     // 6) DRIP-historie
     if(magImporteren('dripHistorie')&&bundle.dripHistorie&&Array.isArray(bundle.dripHistorie.sources)){
+      importFase='DVM-DRIP-historie normaliseren';
       zetImportVoortgang(file.name,62,'DRIP-historie terugzetten',{direct:true});await uiPauze();
-      const bestaand=(DRIP_HIST_STATE&&DRIP_HIST_STATE.sources)||[];
-      const nb=bundle.dripHistorie.sources;
+      const bestaand=((DRIP_HIST_STATE&&DRIP_HIST_STATE.sources)||[]).map(normaliseerDripHistorieHerstelBron);
+      const nb=bundle.dripHistorie.sources.map(normaliseerDripHistorieHerstelBron);
       const vervang=new Set(nb.map(s=>s.key));
       DRIP_HIST_STATE={sources: modus==='vervang' ? nb : [...bestaand.filter(x=>!vervang.has(x.key)),...nb]};
+      importFase='DVM-DRIP-historie herbouwen en koppelen';
       herbouwDripHistorie(); DRIP_MC=null;
     } else if(magImporteren('dripHistorie')&&modus==='vervang'){ DRIP_HIST_STATE=null; DRIP_MC=null; }
 
