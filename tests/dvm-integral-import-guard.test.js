@@ -6,7 +6,7 @@ const guard=readFileSync(new URL('../site/engines/dvm-adapter.js',import.meta.ur
 const original=readFileSync(new URL('../site/engines/dvm-adapter-original.js',import.meta.url),'utf8');
 
 test('DVM-adapter bewaart de bestaande adapter en laadt die parser-synchroon',()=>{
-  assert.match(guard,/document\.write\('<script src="dvm-adapter-original\.js"><\/script>'\)/);
+  assert.match(guard,/document\.write\('<script src="dvm-adapter-original\.js(?:\?v=[^"]+)?"><\/script>'\)/);
   assert.match(original,/window\.HUB=\{/);
   assert.match(original,/structuredClone\(bundle\)/);
 });
