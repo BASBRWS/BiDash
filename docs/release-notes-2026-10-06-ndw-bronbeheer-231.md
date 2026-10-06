@@ -20,4 +20,4 @@ NDW voedt alleen voertuigen per uur. Zes hinderuren en 30 procent snelheidsreduc
 
 ## Ruwe NDW open data
 
-De huidige importkaart leest nog geen ruwe NDW XML of XML.GZ. Voor actuele ruwe NDW-data is het nieuwe DATEX II v3 gecombineerde product snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz de logische bron voor een volgende directe parser.
+De bronkaart leest nu rechtstreeks het actuele DATEX II v3 gecombineerde bestand snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz. GZIP wordt in Edge en Chrome in de browser uitgepakt. De parser leest meetlocaties, anyVehicle-intensiteiten, rijstroken, meettijd, snelheid en beschikbare locatiekenmerken. Een eerdere dashboard/DVM-export met ndw69Snapshot blijft ondersteund.
