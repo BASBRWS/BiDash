@@ -15,7 +15,7 @@ test('NDW loader leest eerst bestaande of lokaal opgeslagen snapshot',()=>{
 
 test('als lokale NDW data ontbreekt kan een oude dashboard- of DVM-export gericht worden gelezen',()=>{
   const source=read('site/core/ndw-loader.js');
-  assert.match(source,/accept="\.json,\.html,\.htm"/);
+  assert.match(source,/accept="\.xml,\.gz,\.json,\.html,\.htm"/);
   assert.match(source,/"ndw69Snapshot"/);
   assert.match(source,/const NDW69_DATA/);
   assert.match(source,/file\.slice\(offset,end\)\.text\(\)/);
@@ -67,4 +67,15 @@ test('NDW loader exposeert een directe file-handler voor DVM bronbeheer',()=>{
   const source=read('site/core/ndw-loader.js');
   assert.match(source,/globalThis\.bidashLaadNdwFile=async function\(file\)/);
   assert.match(source,/await globalThis\.bidashLaadNdwFile\(file\)/);
+});
+
+
+test('NDW loader accepteert het actuele gecombineerde DATEX II v3 bronbestand',()=>{
+  const source=read('site/core/ndw-loader.js');
+  assert.match(source,/snapshotFromRawNdw/);
+  assert.match(source,/ndwXmlSnapshot/);
+  assert.match(source,/physicalQuantity/);
+  assert.match(source,/measurementSite/);
+  assert.match(source,/vehicleFlowRate/);
+  assert.match(source,/snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties\.xml\.gz/);
 });
