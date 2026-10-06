@@ -119,3 +119,10 @@ test('NDW verkeersintensiteit staat als eigen DVM-bron in bronbeheer',()=>{
   assert.match(source,/Voedt voertuigen per uur in de verkeerskosten/);
   assert.match(source,/snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties\.xml\.gz/);
 });
+
+
+test('NDW verkeersdata vereist All Assets en noemt exact het gecombineerde bestand',()=>{
+  assert.match(source,/ndwVerkeer:\{input:'ndwTrafficInput'.*requiresAsset:true.*handler:'ndw:verkeer'/);
+  assert.match(source,/snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties\.xml\.gz/);
+  assert.match(source,/All Assets moet eerst geladen zijn/);
+});
