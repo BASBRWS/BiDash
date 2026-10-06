@@ -61,3 +61,10 @@ test('NDW loader maakt verschil tussen gemeten intensiteit en scenarioaannames z
   assert.match(source,/6 hinderuren en 30% snelheidsreductie zijn scenarioaannames/);
   assert.match(source,/andere bron dan de NDW CMDB-import/);
 });
+
+
+test('NDW loader exposeert een directe file-handler voor DVM bronbeheer',()=>{
+  const source=read('site/core/ndw-loader.js');
+  assert.match(source,/globalThis\.bidashLaadNdwFile=async function\(file\)/);
+  assert.match(source,/await globalThis\.bidashLaadNdwFile\(file\)/);
+});
