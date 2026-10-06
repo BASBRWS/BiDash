@@ -420,7 +420,7 @@ async function xlsxLeesBladLicht(ctx,blad,toegestaan,mapper,voortgang){
   let koppen=null;const uit=[],kandidaten=[];
   const routeExtra=toegestaan===U_ROUTE_KOLOMMEN_LICHT;
   const [links,beelden]=routeExtra?await Promise.all([xlsxHyperlinksLicht(ctx,blad).catch(()=>new Map()),xlsxAfbeeldingenLicht(ctx,blad).catch(()=>new Map())]):[new Map(),new Map()];
-  const maakKoppen=vals=>{const max=Math.max(...vals.keys()),gezien={};return Array.from({length:max+1},(_,i)=>{let k=String(vals.get(i)??'').trim()||'__EMPTY'+(i?'_'+i:'');const b=k;gezien[b]=(gezien[b]||0)+1;if(gezien[b]>1)k=b+'_'+(gezien[b]-1);return k;});};
+  const maakKoppen=vals=>{const max=maxGetal(vals.keys(),-1),gezien={};return Array.from({length:max+1},(_,i)=>{let k=String(vals.get(i)??'').trim()||'__EMPTY'+(i?'_'+i:'');const b=k;gezien[b]=(gezien[b]||0)+1;if(gezien[b]>1)k=b+'_'+(gezien[b]-1);return k;});};
   const kopScore=vals=>{if(!toegestaan)return kandidaten.length?0:1;let n=0;vals.forEach(v=>{if(kolomToegestaan(toegestaan,v))n++;});return n;};
   const verwerk=(vals,rijNr)=>{const obj={};vals.forEach((v,i)=>{const k=koppen[i];if(k&&kolomToegestaan(toegestaan,k))obj[k]=v;});const img=rijNr&&beelden.get(rijNr);if(img&&img.length)obj.route_beeld_url=img.map(x=>x.url).join(' ');if(!Object.keys(obj).length)return;const gemapt=mapper?mapper(obj):obj;if(gemapt)uit.push(gemapt);};
   const kiesKop=()=>{if(koppen||!kandidaten.length)return;let beste=0;for(let i=1;i<kandidaten.length;i++)if(kandidaten[i].score>kandidaten[beste].score)beste=i;koppen=maakKoppen(kandidaten[beste].vals);for(let i=beste+1;i<kandidaten.length;i++)verwerk(kandidaten[i].vals,kandidaten[i].rijNr);kandidaten.length=0;};
@@ -586,7 +586,7 @@ function voegLiveBronnenToe(bronnen){
   });
   const vervang=new Set(bronnen.map(x=>x.key));
   LIVE_STORINGSBRONNEN=[...LIVE_STORINGSBRONNEN.filter(x=>!vervang.has(x.key)),...bronnen];
-  LIVE_PEILDATUM=Math.max(0,...LIVE_STORINGSBRONNEN.map(b=>b.peildatum||0))||null;
+  LIVE_PEILDATUM=maxGetal(LIVE_STORINGSBRONNEN.map(b=>b.peildatum||0),0)||null;
   LIVE_STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeLiveStoringsRijen());
   ANALYSE_SIGNATURE='';herbouwAssetMatchBeeld();
 }
@@ -1022,13 +1022,13 @@ function routeHoofdwegenUitTekst(v){
 }
 function contextSegmenten(codes){return (codes||[]).map(decodeNwbSegment).filter(p=>p.length>=2);}
 function segmentenBegrenzing(lijnen){
-  const ps=(lijnen||[]).flat();if(!ps.length)return null;return {minX:Math.min(...ps.map(p=>p.x)),maxX:Math.max(...ps.map(p=>p.x)),minY:Math.min(...ps.map(p=>p.y)),maxY:Math.max(...ps.map(p=>p.y))};
+  const ps=(lijnen||[]).flat();if(!ps.length)return null;return {minX:minGetal(ps.map(p=>p.x)),maxX:maxGetal(ps.map(p=>p.x)),minY:minGetal(ps.map(p=>p.y)),maxY:maxGetal(ps.map(p=>p.y))};
 }
 function puntBinnenBegrenzing(x,y,b,marge){return !!b&&x>=b.minX-marge&&x<=b.maxX+marge&&y>=b.minY-marge&&y<=b.maxY+marge;}
 function contextAssetsBinnenBegrenzing(b,marge){
   if(!b||!ASSET_INDEX||!ASSET_INDEX.byGrid)return ASSET_REGISTER_STATE&&ASSET_REGISTER_STATE.assets||[];
   const s=ASSET_INDEX.gridSize||5000,uit=[];
-  for(let gx=Math.floor((b.minX-marge)/s);gx<=Math.floor((b.maxX+marge)/s);gx++)for(let gy=Math.floor((b.minY-marge)/s);gy<=Math.floor((b.maxY+marge)/s);gy++)uit.push(...(ASSET_INDEX.byGrid.get(gx+'|'+gy)||[]));
+  for(let gx=Math.floor((b.minX-marge)/s);gx<=Math.floor((b.maxX+marge)/s);gx++)for(let gy=Math.floor((b.minY-marge)/s);gy<=Math.floor((b.maxY+marge)/s);gy++)voegArrayToe(uit,(ASSET_INDEX.byGrid.get(gx+'|'+gy)||[]));
   return uit;
 }
 function afstandBegrenzingen(a,b){
@@ -1144,7 +1144,7 @@ function routeInzetAssets(r){
   if(r._inzetRegister===ASSET_REGISTER_STATE&&r.inzetAssets)return r.inzetAssets;
   const wegen=uniekeWaarden([r.weg,...(r.hoofdwegen||[])].map(w=>String(w||'').toUpperCase()).filter(Boolean));
   let kandidaten=[];
-  if(ASSET_INDEX&&ASSET_INDEX.byRoad&&wegen.length)wegen.forEach(w=>kandidaten.push(...(ASSET_INDEX.byRoad.get(w)||[])));
+  if(ASSET_INDEX&&ASSET_INDEX.byRoad&&wegen.length)wegen.forEach(w=>voegArrayToe(kandidaten,(ASSET_INDEX.byRoad.get(w)||[])));
   else kandidaten=ASSET_REGISTER_STATE.assets||[];
   const richting=normAssetRichting(r.richting);
   kandidaten=uniekeAssets(kandidaten).filter(a=>a.prognoseActief!==false&&(!wegen.length||wegen.includes(String(a.weg||'').toUpperCase()))&&(!richting||!a.richting||normAssetRichting(a.richting)===richting));
@@ -1224,7 +1224,7 @@ async function leesURouteBestand(file){
     const index=bouwURouteIndex(routes);
     U_ROUTE_STATE={bestand:file.name,routes,totaal:routes.length,metRelation:routes.filter(r=>r.relationId).length,
       volledig:routes.filter(r=>/^ja$/i.test(r.volledig)||r.statusPct>=100).length,ruimtelijkN:routes.filter(r=>r.ruimtelijk).length,
-      geometrieN:routes.filter(r=>r.rdSegmenten&&r.rdSegmenten.length).length,peildatum:Math.max(0,...routes.map(r=>r.peildatum||0))||datumUitBestandsnaam(file.name),
+      geometrieN:routes.filter(r=>r.rdSegmenten&&r.rdSegmenten.length).length,peildatum:maxGetal(routes.map(r=>r.peildatum||0),0)||datumUitBestandsnaam(file.name),
       byRef:index.byRef,byHoofdweg:index.byHoofdweg,byRelation:index.byRelation,werkMatchesN:0,routeAssetKoppelingenN:0,ruweRijen:rijen.slice()};
     if(WERK_STATE)await herkoppelWerkAssetsLicht((f,fa)=>zetImportVoortgang(file.name,95+f*4,fa,{direct:true}));
     ANALYSE_SIGNATURE='';zetImportVoortgang(file.name,99,'Routecontext vernieuwen',{direct:true});await uiPauze();probeerAnalyseActiveren(null);
@@ -1276,9 +1276,9 @@ function assetsLangsURoute(r){
 function koppelURoutesAanWerk(w){
   if(!U_ROUTE_STATE)return [];
   const expliciet=(w.uRoutes||[]).length>0;let kandidaten=[];
-  if(expliciet)(w.uRoutes||[]).forEach(ref=>kandidaten.push(...(U_ROUTE_STATE.byRef.get(ref)||[])));
+  if(expliciet)(w.uRoutes||[]).forEach(ref=>voegArrayToe(kandidaten,(U_ROUTE_STATE.byRef.get(ref)||[])));
   else if(!w.exactKoppelbaar||!w.rdSegmenten||!w.rdSegmenten.length)return [];
-  else kandidaten.push(...(U_ROUTE_STATE.byHoofdweg.get(w.weg)||[]));
+  else voegArrayToe(kandidaten,(U_ROUTE_STATE.byHoofdweg.get(w.weg)||[]));
   kandidaten=[...new Map(kandidaten.map(r=>[r.relationId||r.id,r])).values()];
   if(expliciet&&(!w.exactKoppelbaar||!w.rdSegmenten||!w.rdSegmenten.length))return kandidaten.slice(0,12).map(r=>Object.assign(r,{koppelAfstandM:null,koppelMethode:'expliciet U-nummer, locatie uit routebestand'}));
   const zonderGeometrie=kandidaten.filter(r=>!(r.rdSegmenten&&r.rdSegmenten.length));
@@ -1330,7 +1330,7 @@ async function leesWerkBestand(file){
     let bronTotaal=0,genegeerdN=0;const selecteerHwn=r=>{bronTotaal++;if(!bekendeHwnSet&&!werkRijIsHwn(r)){genegeerdN++;return null;}return r;};
     const rijen=await contextRijenUitBestand(file,WERK_KOLOMMEN_LICHT,(f,fa)=>zetImportVoortgang(file.name,f==null?null:f*72,fa,{direct:true}),selecteerHwn);
     const werken=rijen.map(normWerkRij).filter(Boolean);if(!werken.length)throw new Error('geen herkenbare werkzaamheden gevonden');
-    WERK_STATE={bestand:file.name,werken,totaal:werken.length,bronTotaal,genegeerdN,exactN:0,assetKoppelingenN:0,peildatum:Math.max(0,...werken.map(w=>w.peildatum||0))||datumUitBestandsnaam(file.name),ruweRijen:rijen.slice()};
+    WERK_STATE={bestand:file.name,werken,totaal:werken.length,bronTotaal,genegeerdN,exactN:0,assetKoppelingenN:0,peildatum:maxGetal(werken.map(w=>w.peildatum||0),0)||datumUitBestandsnaam(file.name),ruweRijen:rijen.slice()};
     zetImportVoortgang(file.name,76,`Assets binnen ±${WERK_BUFFER_KM} km koppelen`,{direct:true});await uiPauze();await herkoppelWerkAssetsLicht((f,fa)=>zetImportVoortgang(file.name,76+f*22,fa,{direct:true}));
     ANALYSE_SIGNATURE='';probeerAnalyseActiveren(null);importKlaar(file.name,`${werken.length.toLocaleString('nl-NL')} HWN-werkzaamheden geladen; ${genegeerdN.toLocaleString('nl-NL')} niet-relevante bronregels overgeslagen; ${WERK_STATE.exactN.toLocaleString('nl-NL')} ruimtelijk koppelbaar.`);
   }catch(err){importMislukt(file.name,err.message);alert('Kon het werkzaamhedenbestand niet verwerken: '+err.message);}
@@ -2479,7 +2479,7 @@ function renderOverzicht(){
     <div class="chart-legend">${DIENSTEN.map(d=>`<span><i style="background:${d.kleur}"></i>${d.naam.replace(/&amp;/g,'&')}</span>`).join('')}</div>
     <div class="tbl-scroll" style="margin-top:14px;max-height:none"><table class="mini-tbl"><thead><tr><th>VC</th><th class="num">Storingen</th>${DIENSTEN.map(d=>`<th class="num" title="${esc(d.naam)}">${d.id.toUpperCase()}</th>`).join('')}<th class="num">Zwakste</th></tr></thead><tbody>`;
   vcRows.forEach(r=>{
-    const min=Math.min(...DIENSTEN.map(d=>r.d[d.id]));
+    const min=minGetal(DIENSTEN.map(d=>r.d[d.id]));
     const zwak=DIENSTEN.find(d=>r.d[d.id]===min);
     h+=`<tr><td class="mono"><b>${esc(r.vc)}</b></td><td class="num">${r.n}</td>`;
     DIENSTEN.forEach(d=>h+=`<td class="num" style="color:${beschKleur(r.d[d.id],d.norm)};font-weight:${r.d[d.id]===min?'700':'400'}">${fmt(r.d[d.id],2)}</td>`);
@@ -2515,12 +2515,12 @@ function renderOverzicht(){
   DIENSTEN.forEach(d=>h+=`<th class="num" title="${esc(d.naam)}">${d.id.toUpperCase()}</th>`);
   h+=`</tr></thead><tbody>`;
   const top=[...STATE.wegdelen].sort((a,b)=>{
-    const la=Math.min(...DIENSTEN.map(d=>a.diensten[d.id].besch));
-    const lb=Math.min(...DIENSTEN.map(d=>b.diensten[d.id].besch));
+    const la=minGetal(DIENSTEN.map(d=>a.diensten[d.id].besch));
+    const lb=minGetal(DIENSTEN.map(d=>b.diensten[d.id].besch));
     return la-lb;
   }).slice(0,15);
   top.forEach(wd=>{
-    const minB=Math.min(...DIENSTEN.map(d=>wd.diensten[d.id].besch));
+    const minB=minGetal(DIENSTEN.map(d=>wd.diensten[d.id].besch));
     h+=`<tr class="${minB<96?'crit':''}"><td class="mono"><b>${esc(wd.key)}</b></td><td>${esc(wd.vc)}</td><td class="num">${wd.n}</td>`;
     DIENSTEN.forEach(d=>{
       const dd=wd.diensten[d.id];
@@ -2662,7 +2662,7 @@ function tekenWegtabel(){
   DIENSTEN.forEach(d=>h+=`<th class="num" title="${esc(d.naam)} beschikbaarheid">${d.id.toUpperCase()}</th>`);
   h+=`</tr></thead><tbody>`;
   rows.forEach(wd=>{
-    const crit=Math.min(...DIENSTEN.map(d=>wd.diensten[d.id].besch))<96;
+    const crit=minGetal(DIENSTEN.map(d=>wd.diensten[d.id].besch))<96;
     h+=`<tr class="${crit?'crit':''}">
       <td class="mono"><b>${esc(wd.key)}</b></td>
       <td>${esc(wd.vc)} <span class="muted">/ ${esc(wd.district)}</span></td>
@@ -2886,15 +2886,15 @@ let WV_SEL = null;
 function renderWegdeelverslag(){
   // sorteer wegdelen op kriticiteit (laagste dienst-beschikbaarheid eerst)
   const gesorteerd=[...STATE.wegdelen].sort((a,b)=>{
-    const la=Math.min(...DIENSTEN.map(d=>a.diensten[d.id].besch));
-    const lb=Math.min(...DIENSTEN.map(d=>b.diensten[d.id].besch));
+    const la=minGetal(DIENSTEN.map(d=>a.diensten[d.id].besch));
+    const lb=minGetal(DIENSTEN.map(d=>b.diensten[d.id].besch));
     return la-lb;
   });
   if(!WV_SEL || !STATE.wegdelen.find(w=>w.key===WV_SEL)) WV_SEL = gesorteerd[0].key;
   let h=`<div class="card"><h3>Wegdeel- &amp; dienstverslag ${tip('Een <b>compleet rapport per wegdeel</b>: een managementsamenvatting in gewone taal, de volledige areaaldoorrekening (beschikbaarheid én prestatie) en per dienst de ketenopbouw met alle tussengetallen. Kies bovenin een wegdeel — ze staan gesorteerd op kriticiteit.')}</h3>
     <p class="muted" style="margin:-6px 0 12px;font-size:12px">Volledig rekenverslag per wegdeel: managementduiding, de areaaldoorrekening (beschikbaarheid + prestatie) en per dienst de ketenopbouw met alle tussengetallen. Kies een wegdeel; ze staan op kriticiteit gesorteerd.</p>
     <div class="wv-nav" id="wvNav">${gesorteerd.map(w=>{
-      const minB=Math.min(...DIENSTEN.map(d=>w.diensten[d.id].besch));
+      const minB=minGetal(DIENSTEN.map(d=>w.diensten[d.id].besch));
       return `<button class="${w.key===WV_SEL?'act':''}" data-wv="${esc(w.key)}" title="min. dienstbeschikbaarheid ${fmt(minB,1)}%">${esc(w.key)}</button>`;
     }).join('')}</div>
     <div id="wvHost"></div>
@@ -3076,7 +3076,7 @@ function chartWegStrip(wd){
   const items=wd.meldingen.filter(m=>m.hm!=null);
   if(!items.length) return '<p class="muted" style="font-size:12px">Geen hm-posities beschikbaar voor dit wegdeel.</p>';
   const hms=items.map(m=>m.hm);
-  const min=Math.min(...hms), max=Math.max(...hms);
+  const min=minGetal(hms), max=maxGetal(hms);
   const span=Math.max(max-min,1);
   const W=800,H=120,padL=40,padR=20,padT=14,padB=28;
   const sx=h=>padL+((h-min)/span)*(W-padL-padR);
@@ -3093,7 +3093,7 @@ function chartWegStrip(wd){
   }
   s+=`<text x="${W-padR}" y="${yAs+16}" text-anchor="end" class="ax">hm →</text>`;
   // clusterbanden
-  const maxN=Math.max(...wd.chokes.map(c=>c.n),1);
+  const maxN=maxGetal(wd.chokes.map(c=>c.n),1);
   wd.chokes.forEach(c=>{
     const x0=sx(c.hmMin), x1=sx(c.hmMax);
     const bw=Math.max(x1-x0,4);
@@ -3169,7 +3169,7 @@ function rijkswegNetwerkData(){
       return a.x-b.x||a.y-b.y;
     });
     const wegSleutel=[g.vc,g.weg].join('|'),wegPunten=perWeg.get(wegSleutel)||[];
-    wegPunten.push(...ps.map(p=>({...p,richting:g.richting})));perWeg.set(wegSleutel,wegPunten);
+    voegArrayToe(wegPunten,ps.map(p=>({...p,richting:g.richting})));perWeg.set(wegSleutel,wegPunten);
   });
   const segmenten=[],punten=[],nwbPerWeg=new Map();
   Object.entries(NWB_HOOFDWEGEN.wegen||{}).forEach(([weg,codes])=>{
@@ -3177,8 +3177,8 @@ function rijkswegNetwerkData(){
     (codes||[]).forEach((code,nr)=>{
       const ps=decodeNwbSegment(code);if(ps.length<2)return;
       const xs=ps.map(p=>p.x),ys=ps.map(p=>p.y);
-      const segment={weg:wegCode,nr:nr+1,punten:ps,minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys),bron:'NWB'};
-      segmenten.push(segment);wegSegmenten.push(segment);punten.push(...ps);
+      const segment={weg:wegCode,nr:nr+1,punten:ps,minX:minGetal(xs),maxX:maxGetal(xs),minY:minGetal(ys),maxY:maxGetal(ys),bron:'NWB'};
+      segmenten.push(segment);wegSegmenten.push(segment);voegArrayToe(punten,ps);
     });
     if(wegSegmenten.length)nwbPerWeg.set(wegCode,wegSegmenten);
   });
@@ -3261,8 +3261,8 @@ function renderRijkswegKaart(chokes){
   let gekozen=chokes.find(c=>chokeKaartId(c)===GEBIED_KAART_SELECTIE);
   if(!gekozen&&kaartChokes.length){gekozen=kaartChokes.slice().sort((a,b)=>a.c.beschLok-b.c.beschLok)[0].c;GEBIED_KAART_SELECTIE=chokeKaartId(gekozen);}
   const allePunten=basisPunten.concat(kaartChokes.map(x=>x.p));
-  let minX=Math.min(...allePunten.map(p=>p.x)),maxX=Math.max(...allePunten.map(p=>p.x));
-  let minY=Math.min(...allePunten.map(p=>p.y)),maxY=Math.max(...allePunten.map(p=>p.y));
+  let minX=minGetal(allePunten.map(p=>p.x)),maxX=maxGetal(allePunten.map(p=>p.x));
+  let minY=minGetal(allePunten.map(p=>p.y)),maxY=maxGetal(allePunten.map(p=>p.y));
   const W=900,H=530,pad=22,doel=(W-2*pad)/(H-2*pad);
   let bw=Math.max(maxX-minX,10000),bh=Math.max(maxY-minY,10000),cx=(minX+maxX)/2,cy=(minY+maxY)/2;
   if(bw/bh>doel)bh=bw/doel;else bw=bh*doel;
@@ -3690,7 +3690,7 @@ function chartRapportRegio(rows){
   const data=rows.filter(r=>r.assets||r.liveMin!=null||r.mcW).slice(0,8);
   if(!data.length)return '<p class="muted">Geen regiowaarden om te tekenen.</p>';
   const alle=data.flatMap(r=>[r.liveMin,r.mcW?r.mcP50:null]).filter(v=>v!=null);
-  const min=Math.max(0,Math.floor((Math.min(...alle,99)-.5)*10)/10),max=100;
+  const min=Math.max(0,Math.floor((minGetal(alle,99)-.5)*10)/10),max=100;
   const W=680,H=260,padL=72,padR=18,padT=18,padB=48,groepW=(W-padL-padR)/data.length,barW=Math.min(18,(groepW-14)/2);
   const sy=v=>padT+(1-(v-min)/(max-min))*(H-padT-padB);
   let s=`<svg viewBox="0 0 ${W} ${H}" class="chart" role="img">`;
@@ -3869,7 +3869,7 @@ function chartLijn(labels, series, opts){
   opts=opts||{};
   const W=680,H=250,padL=54,padR=16,padT=16,padB=40;
   const n=labels.length;
-  let maxY=opts.maxY!=null?opts.maxY:Math.max(1,...series.flatMap(s=>s.data));
+  let maxY=opts.maxY!=null?opts.maxY:maxGetal(series.flatMap(s=>s.data),1);
   maxY=maxY*1.08;
   const sx=i=> padL + (n<=1?0:(i/(n-1))*(W-padL-padR));
   const sy=v=> H-padB - (v/maxY)*(H-padT-padB);
@@ -3932,7 +3932,7 @@ function chartMcWegdeelBand(wegRes,norm){
   if(!rows.length)return '<p class="muted">Geen wegdeelresultaten beschikbaar.</p>';
   const vals=rows.flatMap(x=>[x.mc.besch.p5,x.mc.besch.p50,x.mc.besch.p95,x.wd.besch]);
   const W=680,rowH=30,padL=125,padR=55,padT=16,padB=32,H=padT+padB+rows.length*rowH;
-  let min=Math.max(80,Math.floor((Math.min(...vals)-.2)*10)/10),max=100;
+  let min=Math.max(80,Math.floor((minGetal(vals)-.2)*10)/10),max=100;
   if(max-min<1)min=max-1;
   const sx=v=>padL+((v-min)/(max-min))*(W-padL-padR);
   let s=`<svg viewBox="0 0 ${W} ${H}" class="chart" role="img">`;
@@ -3952,7 +3952,7 @@ function chartMcWegdeelBand(wegRes,norm){
 function chartMcHistorischPrognose(wegRes,norm){
   const rows=(wegRes||[]).filter(x=>x.mc&&x.mc.besch).slice().sort((a,b)=>a.mc.besch.p50-b.mc.besch.p50).slice(0,12);
   if(!rows.length)return '<p class="muted">Geen wegdeelresultaten beschikbaar.</p>';
-  const W=680,H=260,padL=55,padR=15,padT=16,padB=54,min=Math.max(80,Math.floor((Math.min(...rows.flatMap(x=>[x.wd.besch,x.mc.besch.p50]))-.2)*10)/10),max=100;
+  const W=680,H=260,padL=55,padR=15,padT=16,padB=54,min=Math.max(80,Math.floor((minGetal(rows.flatMap(x=>[x.wd.besch,x.mc.besch.p50]))-.2)*10)/10),max=100;
   const sy=v=>padT+(1-(v-min)/(max-min))*(H-padT-padB),groepW=(W-padL-padR)/rows.length,barW=Math.min(18,(groepW-12)/2);
   let s=`<svg viewBox="0 0 ${W} ${H}" class="chart" role="img">`;
   for(let g=Math.ceil(min);g<=max;g+=1){const y=sy(g);s+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="var(--panel)"/><text x="${padL-5}" y="${y+3}" text-anchor="end" class="ax">${g}</text>`;}
@@ -3970,7 +3970,7 @@ function chartMcHistorischPrognose(wegRes,norm){
 function chartMcLeeftijdFactor(wegRes){
   const rows=(wegRes||[]).filter(x=>x.mc).slice().sort((a,b)=>(b.mc.leeftijdFactor||1)-(a.mc.leeftijdFactor||1)).slice(0,12);
   if(!rows.length)return '<p class="muted">Geen leeftijdsfactoren beschikbaar.</p>';
-  const W=680,rowH=30,padL=125,padR=55,padT=16,padB=30,H=padT+padB+rows.length*rowH,max=Math.max(1.2,...rows.map(x=>x.mc.leeftijdFactor||1));
+  const W=680,rowH=30,padL=125,padR=55,padT=16,padB=30,H=padT+padB+rows.length*rowH,max=maxGetal(rows.map(x=>x.mc.leeftijdFactor||1),1.2);
   const sx=v=>padL+(v/max)*(W-padL-padR);
   let s=`<svg viewBox="0 0 ${W} ${H}" class="chart" role="img">`;
   const x1=sx(1);s+=`<line x1="${x1}" y1="${padT-4}" x2="${x1}" y2="${H-padB}" stroke="var(--rws-blauw-dark)" stroke-width="1.5" stroke-dasharray="4 3"/><text x="${x1}" y="${padT-7}" text-anchor="middle" class="norm">stationair</text>`;
@@ -4204,7 +4204,7 @@ function tekenMcResult(){
   h+=`<div class="card"><h3>Prognose per wegdeel ${tip('Per wegdeel de gesimuleerde beschikbaarheid over de horizon. p50 is de verwachte mediaan; p5–p95 de bandbreedte. Vergelijk met de historische waarde om te zien of het wegdeel richting norm beweegt.')}<span class="badge">${R.scope==='alle'?'alle':'top-12 zwaarste'}</span></h3>
     <div class="tbl-scroll"><table class="tbl"><thead><tr>
       <th>Wegdeel</th><th class="num">Stor./jr</th><th>Bron</th><th class="num">Historisch</th><th class="num">Prognose p50</th><th class="num">p5 (slecht)</th><th class="num">p95 (goed)</th><th>Bandbreedte</th></tr></thead><tbody>`;
-  const bandMin=Math.min(...R.wegRes.map(x=>x.mc.besch.p5));
+  const bandMin=minGetal(R.wegRes.map(x=>x.mc.besch.p5));
   R.wegRes.sort((a,b)=>a.mc.besch.p50-b.mc.besch.p50).forEach(x=>{
     const mc=x.mc.besch, wd=x.wd;
     // mini-bandbalk
@@ -4756,7 +4756,7 @@ function tekenDripMcResult(){
       {naam:'p95', kleur:'var(--rws-blauw-mid)', data:cum.perJaarStats.map(s=>s.p95)}
     ], {markX:R.vervangJaar, yFmt:v=>fmt(v,1)})}</div>
     <div class="chart-legend"><span><i style="background:var(--oranje)"></i>gemiddeld per jaar</span><span><i style="background:var(--grijs-mid)"></i>p5</span><span><i style="background:var(--rws-blauw-mid)"></i>p95</span>${R.vervangJaar?'<span><i style="background:var(--rood)"></i>vervangingsjaar</span>':''}</div>
-    <p class="muted" style="font-size:11.5px;margin-top:8px">De piek ligt in <b>${cum.jaren[cum.perJaar.indexOf(Math.max(...cum.perJaar))]}</b> met circa <b>${fmt(Math.max(...cum.perJaar),1)}</b> verwachte uitvallen. ${R.vervangJaar?`Na de vervanging in ${R.vervangJaar} daalt de jaarlijkse uitval.`:''}</p>
+    <p class="muted" style="font-size:11.5px;margin-top:8px">De piek ligt in <b>${cum.jaren[cum.perJaar.indexOf(maxGetal(cum.perJaar,0))]}</b> met circa <b>${fmt(maxGetal(cum.perJaar,0),1)}</b> verwachte uitvallen. ${R.vervangJaar?`Na de vervanging in ${R.vervangJaar} daalt de jaarlijkse uitval.`:''}</p>
   </div>`;
 
   // ── Lijngrafiek 3: dienstverlies per jaar ──
@@ -4766,7 +4766,7 @@ function tekenDripMcResult(){
     data:R.dienstPerJaarStats[dn.id].map(st=>(100-st.p50)*100)
   }));
   const rriVerlies=(R.dienstPerJaarStats.rri||[]).map(st=>(100-st.p50)*100);
-  const rriPiek=rriVerlies.length?Math.max(...rriVerlies):0;
+  const rriPiek=rriVerlies.length?maxGetal(rriVerlies,0):0;
   h+=`<div class="card"><h3>Dienstverlies per jaar door DRIP-stilstand ${tip('De mediaan van de jaarlijkse dienstbeschikbaarheid, uitgedrukt als verlies ten opzichte van 100%. Alle diensten gebruiken per run exact dezelfde DRIP-stilstand. De hoogte verschilt alleen door het effectieve DRIP-aandeel in de dienstketen.')}</h3>
     <div class="chart-wrap">${chartLijn(cum.jaren,verliesSeries,{markX:R.vervangJaar,yFmt:v=>fmt(v,2)})}</div>
     <div class="chart-legend">${dienstenMetDrip.map(dn=>`<span><i style="background:${dn.kleur}"></i>${dn.naam.replace(/&amp;/g,'&')}</span>`).join('')}${R.vervangJaar?'<span><i style="background:var(--rood)"></i>vervangingsjaar</span>':''}</div>
@@ -5721,7 +5721,7 @@ async function totaalImportJson(file, hubModus){
       zetImportVoortgang(file.name,55,'Open-storingenlijst terugzetten',{direct:true});await uiPauze();
       const nb=bundle.liveStoringen.map(b=>({key:b.key,naam:b.naam,rijen:(b.rijen||[]).map(r=>({...r,_liveOpen:true,_bronBestand:b.naam})),peildatum:b.peildatum||bronPeildatum({rijen:b.rijen,naam:b.naam}),doel:'live-open'}));
       LIVE_STORINGSBRONNEN = modus==='vervang' ? nb : mergeBronnen(LIVE_STORINGSBRONNEN,nb);
-      LIVE_PEILDATUM=Math.max(0,...LIVE_STORINGSBRONNEN.map(b=>b.peildatum||0))||null;
+      LIVE_PEILDATUM=maxGetal(LIVE_STORINGSBRONNEN.map(b=>b.peildatum||0),0)||null;
     } else if(magImporteren('liveStoringen')&&modus==='vervang'){ LIVE_STORINGSBRONNEN=[]; LIVE_PEILDATUM=null; }
 
     importFase='DVM-DRIP-historie herstellen';
@@ -5748,7 +5748,7 @@ async function totaalImportJson(file, hubModus){
         const index=bouwURouteIndex(routes);
         U_ROUTE_STATE={bestand:bundle.uRoutes.bestand||file.name,routes,totaal:routes.length,metRelation:routes.filter(r=>r.relationId).length,
           volledig:routes.filter(r=>/^ja$/i.test(r.volledig)||r.statusPct>=100).length,ruimtelijkN:routes.filter(r=>r.ruimtelijk).length,
-          geometrieN:routes.filter(r=>r.rdSegmenten&&r.rdSegmenten.length).length,peildatum:Math.max(0,...routes.map(r=>r.peildatum||0))||null,
+          geometrieN:routes.filter(r=>r.rdSegmenten&&r.rdSegmenten.length).length,peildatum:maxGetal(routes.map(r=>r.peildatum||0),0)||null,
           byRef:index.byRef,byHoofdweg:index.byHoofdweg,byRelation:index.byRelation,werkMatchesN:0,routeAssetKoppelingenN:0,ruweRijen:rijen.slice()};
       }
     } else if(magImporteren('uRoutes')&&modus==='vervang'){ U_ROUTE_STATE=null; }
@@ -5760,7 +5760,7 @@ async function totaalImportJson(file, hubModus){
       const rijen=bundle.werkzaamheden.rijen;
       const werken=rijen.map(normWerkRij).filter(Boolean);
       if(werken.length){
-        WERK_STATE={bestand:bundle.werkzaamheden.bestand||file.name,werken,totaal:werken.length,bronTotaal:rijen.length,genegeerdN:0,exactN:0,assetKoppelingenN:0,peildatum:Math.max(0,...werken.map(w=>w.peildatum||0))||null,ruweRijen:rijen.slice()};
+        WERK_STATE={bestand:bundle.werkzaamheden.bestand||file.name,werken,totaal:werken.length,bronTotaal:rijen.length,genegeerdN:0,exactN:0,assetKoppelingenN:0,peildatum:maxGetal(werken.map(w=>w.peildatum||0),0)||null,ruweRijen:rijen.slice()};
         await herkoppelWerkAssetsLicht();
       }
     } else if(magImporteren('werkzaamheden')&&modus==='vervang'){ WERK_STATE=null; }
