@@ -4012,7 +4012,7 @@ function chartMcVc(rows,norm){
   rows=rows||[];
   if(!rows.length)return '<p class="muted">Geen VC-prognose beschikbaar.</p>';
   const vals=rows.flatMap(r=>[r.p5,r.p50,r.p95]);
-  const W=680,H=245,padL=54,padR=15,padT=20,padB=46,min=Math.max(80,Math.floor((Math.min(...vals)-.2)*10)/10),max=100;
+  const W=680,H=245,padL=54,padR=15,padT=20,padB=46,min=Math.max(80,Math.floor((minGetal(vals)-.2)*10)/10),max=100;
   const sy=v=>padT+(1-(v-min)/(max-min))*(H-padT-padB),groepW=(W-padL-padR)/rows.length,barW=Math.min(42,groepW*.45);
   let s=`<svg viewBox="0 0 ${W} ${H}" class="chart" role="img">`;
   for(let g=Math.ceil(min);g<=max;g+=1){const y=sy(g);s+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="var(--panel)"/><text x="${padL-5}" y="${y+3}" text-anchor="end" class="ax">${g}</text>`;}
