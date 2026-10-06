@@ -89,6 +89,37 @@ const PATCH_SOURCE=String.raw`
     if(/(?:^|[^A-Z])(LI|LINKS)(?:[^A-Z]|$)/.test(s))return 'LI';
     return '';
   }
+  function ndwMonibasLocation(){
+    const s=Array.from(arguments).map(v=>String(v||'')).join(' ');
+    const m=s.match(/(?:^|[_\\s])(\\d{3})[01][a-z]{3}(\\d{4})r[a-z](?:$|[_\\s])/i);
+    return m?{road:'A'+String(Number(m[1])),hm:Number(m[2])/10}:{road:'',hm:null};
+  }
+  function ndwWgs84ToRd(lat,lon){
+    lat=Number(lat);lon=Number(lon);if(!Number.isFinite(lat)||!Number.isFinite(lon))return null;
+    const dN=.36*(lat-52.15517440),dE=.36*(lon-5.38720621);
+    const R=[[0,1,190094.945],[1,1,-11832.228],[2,1,-114.221],[0,3,-32.391],[1,0,-.705],[3,1,-2.34],[1,3,-.608],[0,2,-.008],[2,3,.148]];
+    const S=[[1,0,309056.544],[0,2,3638.893],[2,0,73.077],[1,2,-157.984],[3,0,59.788],[0,1,.433],[2,2,-6.439],[1,1,-.032],[0,4,.092],[1,4,-.054]];
+    let x=155000,y=463000;for(const [p,q,k] of R)x+=k*dN**p*dE**q;for(const [p,q,k] of S)y+=k*dN**p*dE**q;return {x,y};
+  }
+  function ndwAssetGrid(){
+    let assets=[];try{if(typeof ASSET_REGISTER_STATE!=='undefined'&&Array.isArray(ASSET_REGISTER_STATE?.assets))assets=ASSET_REGISTER_STATE.assets;}catch(error){}
+    const size=500,map=new Map(),num=v=>{const n=Number(String(v??'').replace(',','.'));return Number.isFinite(n)?n:null;};
+    for(const a of assets){const x=num(a.rdX),y=num(a.rdY),hm=num(a.hm);if(x==null||y==null||hm==null||!a.weg)continue;const key=Math.floor(x/size)+'|'+Math.floor(y/size),list=map.get(key)||[];list.push({x,y,hm,road:String(a.weg).toUpperCase(),direction:String(a.richting||'').toUpperCase()});map.set(key,list);}
+    return {size,map,count:assets.length};
+  }
+  function ndwEnrichLocation(site,grid){
+    if(!grid?.map?.size||site.lat==null||site.lon==null)return site;
+    const rd=ndwWgs84ToRd(site.lat,site.lon);if(!rd)return site;
+    const gx=Math.floor(rd.x/grid.size),gy=Math.floor(rd.y/grid.size),hint=String(site.road||'').toUpperCase();let best=null,second=null;
+    for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(const a of (grid.map.get((gx+dx)+'|'+(gy+dy))||[])){
+      if(hint&&a.road!==hint)continue;const dist=Math.hypot(a.x-rd.x,a.y-rd.y);
+      if(!best||dist<best.dist){second=best;best={a,dist};}else if(!second||dist<second.dist)second={a,dist};
+    }
+    if(!best||best.dist>200)return {...site,rdX:rd.x,rdY:rd.y,locationMethod:(site.locationMethod||'')+'; WGS84-coördinaat zonder All Assets-match binnen 200 m'};
+    return {...site,rdX:rd.x,rdY:rd.y,road:best.a.road||site.road,direction:best.a.direction||site.direction,hm:best.a.hm??site.hm,
+      locationUncertain:!!(second&&second.dist-best.dist<3&&second.a.direction!==best.a.direction),
+      locationMethod:'NDW DATEX II v3 WGS84 → RD; dichtstbijzijnde All Assets-locatie '+Math.round(best.dist)+' m'};
+  }
   async function ndwFileText(file){
     const buf=await file.arrayBuffer(),bytes=new Uint8Array(buf);
     let text='';
@@ -115,16 +146,17 @@ const PATCH_SOURCE=String.raw`
       const nameBox=xmlOne(site,'measurementSiteName'),name=xmlFirstText(nameBox,['value'])||id;
       const identification=xmlFirstText(site,['measurementSiteIdentification','measurementEquipmentReference']);
       const loc=xmlOne(site,'measurementSiteLocation');
-      const roadNumber=xmlFirstText(loc,['roadNumber'])||xmlFirstText(site,['roadNumber']);
-      const road=ndwRoadFromText(roadNumber,name,identification,id);
+      const roadNumber=xmlFirstText(loc,['roadNumber'])||xmlFirstText(site,['roadNumber']),monibas=ndwMonibasLocation(id,name,identification);
+      const road=ndwRoadFromText(roadNumber,name,identification,id)||monibas.road;
       let hm=null;
       const hmRaw=xmlFirstText(loc,['kilometrePoint','kilometerPoint','hectometre','hectometer','distanceAlong']);
       if(hmRaw&&Number.isFinite(Number(String(hmRaw).replace(',','.'))))hm=Number(String(hmRaw).replace(',','.'));
       if(hm==null)hm=ndwHmFromText(name,identification,id);
+      if(hm==null)hm=monibas.hm;
       const direction=ndwDirectionFromText(name,identification,id);
       const latRaw=xmlFirstText(loc,['latitude']),lonRaw=xmlFirstText(loc,['longitude']);
       const lat=Number.isFinite(Number(latRaw))?Number(latRaw):null,lon=Number.isFinite(Number(lonRaw))?Number(lonRaw):null;
-      const characteristics=new Map();
+      const characteristics=new Map();let flowLane=0,speedLane=0;
       for(const ch of xmlNodes(site,'measurementSpecificCharacteristics')){
         if(!ch.hasAttribute('index'))continue;
         const index=String(ch.getAttribute('index')),type=xmlFirstText(ch,['specificMeasurementValueType']);
@@ -132,6 +164,8 @@ const PATCH_SOURCE=String.raw`
         lane=String(lane).replace(/^lane/i,'')||'all';
         const vehicleType=xmlFirstText(ch,['vehicleType']),hasLength=xmlNodes(ch,'lengthCharacteristic').length>0;
         const anyVehicle=vehicleType==='anyVehicle'||(!vehicleType&&!hasLength);
+        if(anyVehicle&&lane==='all'&&type==='trafficFlow')lane=String(++flowLane);
+        else if(anyVehicle&&lane==='all'&&type==='trafficSpeed')lane=String(++speedLane);
         const period=Number(xmlFirstText(ch,['period']))||60;
         characteristics.set(index,{index,type,lane,anyVehicle,period});
       }
@@ -176,10 +210,12 @@ const PATCH_SOURCE=String.raw`
       sites.push({id,version:cfg.version||ref?.getAttribute('version')||'',name:cfg.name||id,time,road:cfg.road||'',direction:cfg.direction||'',hm:cfg.hm,lat:cfg.lat,lon:cfg.lon,
         q,period,speed,lanes,issues,locationMethod:'NDW DATEX II v3 gecombineerd bestand; weg/richting/hectometer uit configuratie of herkenbare meetlocatienaam'});
     }
-    if(!sites.length)throw new Error('Geen NDW meetgegevens gevonden. Kies het gecombineerde bestand snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz.');
-    const validSites=sites.filter(s=>s.q!==null).length;
-    const locationSites=sites.filter(s=>s.road&&s.hm!=null&&s.direction).length;
-    return {schema:1,publication:publication||new Date().toISOString(),configurationPublication:publication||'',files:[fileName],sha256:[hash||''],stats:{sites:sites.length,validSites,locationSites},sites};
+    if(!measurementSites.length&&configs.size)throw new Error('NDW-configuratiebestand herkend met '+configs.size.toLocaleString('nl-NL')+' meetlocaties, maar zonder actuele meetwaarden. Dit bestand is alleen de meetlocatieconfiguratie. Kies snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz.');
+    if(!sites.length)throw new Error('Geen gekoppelde NDW meetgegevens gevonden. Kies het gecombineerde bestand snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz.');
+    const grid=ndwAssetGrid(),gekoppeldeSites=sites.map(s=>ndwEnrichLocation(s,grid));
+    const validSites=gekoppeldeSites.filter(s=>s.q!==null).length;
+    const locationSites=gekoppeldeSites.filter(s=>s.road&&s.hm!=null&&s.direction).length;
+    return {schema:1,publication:publication||new Date().toISOString(),configurationPublication:publication||'',files:[fileName],sha256:[hash||''],stats:{sites:gekoppeldeSites.length,validSites,locationSites,assetRegister:grid.count},sites:gekoppeldeSites};
   }
   async function snapshotFromRawNdw(file){
     const raw=await ndwFileText(file);
