@@ -9,9 +9,9 @@ const PATCH_SOURCE=String.raw`
   function loaderHtml(){
     return '<div class="bidash-ndw-loader" style="margin:12px 0;padding:12px;background:#fff;border:1px solid #b7c9d8;border-radius:6px">'
       +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button type="button" class="tb-btn primary" id="bidashNdwLoadButton" onclick="bidashLaadNdw()">Gebruik NDW uit werkruimte</button><button type="button" class="tb-btn" id="bidashNdwChooseButton" onclick="bidashKiesNdwBestand()">Kies export met NDW</button></div>'
-      +'<p class="muted" style="margin:8px 0 0">Voor de verkeerskosten wordt NDW-verkeersintensiteit gebruikt. Dit is een andere bron dan de NDW CMDB-import van MSI- en DRIP-areaal. De huidige kostenmodule leest een eerder opgeslagen NDW-verkeerssnapshot uit deze werkruimte of uit een Business Intelligence Dashboard WVM/DVM JSON- of HTML-export.</p>'
+      +'<p class="muted" style="margin:8px 0 0">Voor de verkeerskosten wordt NDW-verkeersintensiteit gebruikt. Dit is een andere bron dan de NDW CMDB-import van MSI- en DRIP-areaal. Laad bij voorkeur het actuele NDW DATEX II v3 bestand snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz. Een eerdere Business Intelligence Dashboard WVM/DVM JSON- of HTML-export met ndw69Snapshot blijft ook bruikbaar.</p>'
       +'<p class="muted" style="margin:6px 0 0"><b>Let op:</b> NDW levert het voertuigaantal. De standaard 6 hinderuren en 30% snelheidsreductie zijn scenarioaannames en geen NDW-metingen. Controleer die per wegdeel als je kosten gebruikt.</p>'
-      +'<input id="bidashNdwSourceFile" type="file" accept=".json,.html,.htm" style="display:none" onchange="bidashNdwBestand(this)">'
+      +'<input id="bidashNdwSourceFile" type="file" accept=".xml,.gz,.json,.html,.htm" style="display:none" onchange="bidashNdwBestand(this)">'
       +'<div id="bidashNdwProgress" style="margin-top:8px;display:none"><div style="height:8px;background:#dbe5ec;border-radius:6px;overflow:hidden"><span id="bidashNdwProgressBar" style="display:block;height:100%;width:0;background:#007bc7;transition:width .15s"></span></div><div id="bidashNdwProgressLabel" style="font-size:12px;margin-top:5px">Nog niet gestart</div></div>'
       +'</div>';
   }
@@ -65,7 +65,132 @@ const PATCH_SOURCE=String.raw`
     });
   }
 
+  function xmlNodes(root,name){return root?Array.from(root.getElementsByTagNameNS('*',name)||[]):[];}
+  function xmlOne(root,name){const xs=root?root.getElementsByTagNameNS('*',name):null;return xs&&xs.length?xs[0]:null;}
+  function xmlText(node){return node?String(node.textContent||'').trim():'';}
+  function xmlFirstText(root,names){
+    for(const name of names){const n=xmlOne(root,name),t=xmlText(n);if(t)return t;}
+    return '';
+  }
+  function ndwRoadFromText(){
+    const texts=Array.from(arguments).map(v=>String(v||'').toUpperCase()).join(' ');
+    const m=texts.match(/(?:^|[^A-Z0-9])([AN])\s*0*(\d{1,3})(?=[^0-9]|$)/);
+    return m?m[1]+String(Number(m[2])):'';
+  }
+  function ndwHmFromText(){
+    const texts=Array.from(arguments).map(v=>String(v||'').replace(',','.')).join(' ');
+    const tagged=texts.match(/\b(?:KM|HM|HMP|HECTOMETER)\s*[:=\-]?\s*(\d{1,3}(?:\.\d{1,3})?)/i);
+    if(tagged)return Number(tagged[1]);
+    return null;
+  }
+  function ndwDirectionFromText(){
+    const s=Array.from(arguments).map(v=>String(v||'').toUpperCase()).join(' ');
+    if(/(?:^|[^A-Z])(RE|RECHTS)(?:[^A-Z]|$)/.test(s))return 'RE';
+    if(/(?:^|[^A-Z])(LI|LINKS)(?:[^A-Z]|$)/.test(s))return 'LI';
+    return '';
+  }
+  async function ndwFileText(file){
+    const buf=await file.arrayBuffer(),bytes=new Uint8Array(buf);
+    let text='';
+    const gzip=/\.gz$/i.test(file.name)||((bytes[0]===0x1f)&&(bytes[1]===0x8b));
+    if(gzip){
+      if(typeof DecompressionStream!=='function')throw new Error('Deze browser kan NDW .gz niet uitpakken. Gebruik Edge of Chrome, of pak het XML-bestand eerst uit.');
+      text=await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+    }else text=new TextDecoder('utf-8').decode(buf);
+    let hash='';
+    try{
+      if(crypto&&crypto.subtle){const h=await crypto.subtle.digest('SHA-256',buf);hash=Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');}
+    }catch(error){}
+    return {text,hash};
+  }
+  function ndwXmlSnapshot(xml,fileName,hash){
+    if(typeof DOMParser!=='function')throw new Error('XML-parser is niet beschikbaar in deze browser.');
+    const doc=new DOMParser().parseFromString(xml,'application/xml');
+    if(xmlNodes(doc,'parsererror').length)throw new Error('NDW XML kon niet worden gelezen.');
+    const configs=new Map();
+    const configSites=[...xmlNodes(doc,'measurementSiteRecord'),...xmlNodes(doc,'measurementSite')];
+    for(const site of configSites){
+      const id=site.getAttribute('id')||'';if(!id||configs.has(id))continue;
+      const version=site.getAttribute('version')||'';
+      const nameBox=xmlOne(site,'measurementSiteName'),name=xmlFirstText(nameBox,['value'])||id;
+      const identification=xmlFirstText(site,['measurementSiteIdentification','measurementEquipmentReference']);
+      const loc=xmlOne(site,'measurementSiteLocation');
+      const roadNumber=xmlFirstText(loc,['roadNumber'])||xmlFirstText(site,['roadNumber']);
+      const road=ndwRoadFromText(roadNumber,name,identification,id);
+      let hm=null;
+      const hmRaw=xmlFirstText(loc,['kilometrePoint','kilometerPoint','hectometre','hectometer','distanceAlong']);
+      if(hmRaw&&Number.isFinite(Number(String(hmRaw).replace(',','.'))))hm=Number(String(hmRaw).replace(',','.'));
+      if(hm==null)hm=ndwHmFromText(name,identification,id);
+      const direction=ndwDirectionFromText(name,identification,id);
+      const latRaw=xmlFirstText(loc,['latitude']),lonRaw=xmlFirstText(loc,['longitude']);
+      const lat=Number.isFinite(Number(latRaw))?Number(latRaw):null,lon=Number.isFinite(Number(lonRaw))?Number(lonRaw):null;
+      const characteristics=new Map();
+      for(const ch of xmlNodes(site,'measurementSpecificCharacteristics')){
+        if(!ch.hasAttribute('index'))continue;
+        const index=String(ch.getAttribute('index')),type=xmlFirstText(ch,['specificMeasurementValueType']);
+        let lane=xmlFirstText(ch,['laneNumber','specificLane'])||'all';
+        lane=String(lane).replace(/^lane/i,'')||'all';
+        const vehicleType=xmlFirstText(ch,['vehicleType']),hasLength=xmlNodes(ch,'lengthCharacteristic').length>0;
+        const anyVehicle=vehicleType==='anyVehicle'||(!vehicleType&&!hasLength);
+        const period=Number(xmlFirstText(ch,['period']))||60;
+        characteristics.set(index,{index,type,lane,anyVehicle,period});
+      }
+      configs.set(id,{id,version,name,road,hm,direction,lat,lon,characteristics});
+    }
+    const measurementSites=xmlNodes(doc,'siteMeasurements'),sites=[];
+    let publication='';
+    const pubTimes=xmlNodes(doc,'publicationTime').map(xmlText).filter(t=>Number.isFinite(Date.parse(t))).sort((a,b)=>Date.parse(b)-Date.parse(a));
+    if(pubTimes.length)publication=pubTimes[0];
+    for(const sm of measurementSites){
+      const ref=xmlOne(sm,'measurementSiteReference'),id=ref?.getAttribute('id')||'';if(!id)continue;
+      const cfg=configs.get(id)||{id,version:ref?.getAttribute('version')||'',name:id,road:'',hm:null,direction:'',lat:null,lon:null,characteristics:new Map()};
+      const timeBox=xmlOne(sm,'measurementTimeDefault');
+      const time=xmlFirstText(timeBox,['timeValue'])||xmlText(timeBox)||publication;
+      if(!Number.isFinite(Date.parse(time)))continue;
+      const quantities=[
+        ...xmlNodes(sm,'physicalQuantity').filter(x=>x.hasAttribute('index')),
+        ...xmlNodes(sm,'measuredValue').filter(x=>x.hasAttribute('index'))
+      ];
+      const laneFlows=new Map(),laneSpeeds=new Map(),issues=[];let period=60;
+      for(const qn of quantities){
+        const index=String(qn.getAttribute('index')),ch=cfg.characteristics.get(index)||{index,type:'',lane:index,anyVehicle:true,period:60};
+        period=ch.period||period;
+        const dataError=xmlFirstText(qn,['dataError']).toLowerCase()==='true';
+        const flowRaw=xmlFirstText(qn,['vehicleFlowRate']),speedRaw=xmlFirstText(qn,['speed']);
+        const isFlow=ch.type==='trafficFlow'||flowRaw!=='',isSpeed=ch.type==='trafficSpeed'||speedRaw!=='';
+        if(isFlow&&ch.anyVehicle){
+          const v=Number(flowRaw);
+          if(dataError||!Number.isFinite(v)||v<0){issues.push('ongeldige intensiteit index '+index);continue;}
+          const key=String(ch.lane||index);
+          if(laneFlows.has(key)){issues.push('dubbele anyVehicle-intensiteit rijstrook '+key);continue;}
+          laneFlows.set(key,{lane:key,index,q:v});
+        }
+        if(isSpeed&&ch.anyVehicle){
+          const v=Number(speedRaw);if(!dataError&&Number.isFinite(v)&&v>=0&&v<=255)laneSpeeds.set(String(ch.lane||index),v);
+        }
+      }
+      const lanes=[...laneFlows.values()].sort((a,b)=>String(a.lane).localeCompare(String(b.lane),undefined,{numeric:true}));
+      const q=lanes.length&&!issues.length?lanes.reduce((s,x)=>s+x.q,0):null;
+      const speedValues=[...laneSpeeds.values()],speed=speedValues.length?speedValues.reduce((s,x)=>s+x,0)/speedValues.length:null;
+      if(!lanes.length)issues.push('geen anyVehicle-intensiteit');
+      sites.push({id,version:cfg.version||ref?.getAttribute('version')||'',name:cfg.name||id,time,road:cfg.road||'',direction:cfg.direction||'',hm:cfg.hm,lat:cfg.lat,lon:cfg.lon,
+        q,period,speed,lanes,issues,locationMethod:'NDW DATEX II v3 gecombineerd bestand; weg/richting/hectometer uit configuratie of herkenbare meetlocatienaam'});
+    }
+    if(!sites.length)throw new Error('Geen NDW meetgegevens gevonden. Kies het gecombineerde bestand snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz.');
+    const validSites=sites.filter(s=>s.q!==null).length;
+    const locationSites=sites.filter(s=>s.road&&s.hm!=null&&s.direction).length;
+    return {schema:1,publication:publication||new Date().toISOString(),configurationPublication:publication||'',files:[fileName],sha256:[hash||''],stats:{sites:sites.length,validSites,locationSites},sites};
+  }
+  async function snapshotFromRawNdw(file){
+    const raw=await ndwFileText(file);
+    setProgress(45,'NDW DATEX II XML lezen en meetlocaties koppelen…');
+    const snapshot=ndwXmlSnapshot(raw.text,file.name,raw.hash);
+    if(typeof ndw69ValidateData==='function')ndw69ValidateData(snapshot);
+    return snapshot;
+  }
+
   async function snapshotFromFile(file){
+    if(/\.(?:xml|gz)$/i.test(file.name))return snapshotFromRawNdw(file);
     const chunkSize=1024*1024;let offset=0,carry='',found=false,depth=0,inString=false,escaped=false,done=false,parts=[];
     function startIndex(text){
       const markers=['"ndw69Snapshot"','const NDW69_DATA'];let best=-1;
