@@ -167,12 +167,24 @@ const PATCH_SOURCE=String.raw`
     input.click();
   };
 
+  globalThis.bidashLaadNdwFile=async function(file){
+    if(!file)throw new Error('Geen NDW-bronbestand gekozen.');
+    buttonBusy(true);
+    try{
+      setProgress(5,'NDW-data uit '+file.name+' halen…');
+      const snapshot=await snapshotFromFile(file);
+      await applySnapshot(snapshot,file.name);
+      return globalThis.__BIDASH_LAST_NDW_LOAD__||null;
+    }catch(error){
+      console.error(error);setProgress(100,error.message||String(error),true);throw error;
+    }finally{buttonBusy(false);}
+  };
+
   globalThis.bidashNdwBestand=async function(input){
     const file=input?.files?.[0];if(!file)return;
-    buttonBusy(true);
-    try{setProgress(5,'NDW-data uit '+file.name+' halen…');const snapshot=await snapshotFromFile(file);await applySnapshot(snapshot,file.name);}
-    catch(error){console.error(error);setProgress(100,error.message||String(error),true);alert(error.message||String(error));}
-    finally{if(input)input.value='';buttonBusy(false);}
+    try{await globalThis.bidashLaadNdwFile(file);}
+    catch(error){alert(error.message||String(error));}
+    finally{if(input)input.value='';}
   };
 
   globalThis.__BIDASH_NDW_LOADER_ACTIVE__=true;
