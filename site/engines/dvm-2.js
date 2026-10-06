@@ -226,6 +226,29 @@ function herbouwAssetMatchBeeld(){
 function uniekeWaarden(a){return [...new Set((a||[]).filter(x=>x!=null&&x!==''))];}
 function pct0(v){return Math.round(Math.max(0,Math.min(1,v||0))*100)+'%';}
 function maandSleutel(t){const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+function numeriekBereik(waarden){
+  let min=null,max=null;
+  for(const raw of (waarden||[])){
+    const n=Number(raw);
+    if(!Number.isFinite(n))continue;
+    if(min==null||n<min)min=n;
+    if(max==null||n>max)max=n;
+  }
+  return {min,max,aantal:min==null?0:1};
+}
+function meldingTijdBereik(meldingen){
+  let min=null,max=null,aantal=0;
+  for(const m of (meldingen||[])){
+    for(const raw of [m&&m.tVan,m&&m.tTot]){
+      const n=Number(raw);
+      if(!Number.isFinite(n)||!n)continue;
+      aantal++;
+      if(min==null||n<min)min=n;
+      if(max==null||n>max)max=n;
+    }
+  }
+  return {min,max,aantal};
+}
 function assetTypeMttrUren(tp){
   const at=assetTypeRec(tp)||{};
   const v=+at.mttr;
@@ -263,10 +286,12 @@ function inspecteerStoringsRijen(rijen){
   });
   Object.values(typen).forEach(g=>{
     g.prognoseN=ASSET_INDEX?g.matchN:g.n;
-    g.dekkingDagen=g.tijden.length>1?(Math.max(...g.tijden)-Math.min(...g.tijden))/86400e3:0;
+    const typeBereik=numeriekBereik(g.tijden);
+    g.dekkingDagen=g.tijden.length>1&&typeBereik.min!=null?(typeBereik.max-typeBereik.min)/86400e3:0;
     g.maandenN=g.maanden.size;
     g.assetsAlle=Object.values(g.assets).map(a=>{
-      a.dekkingDagen=a.tijden.length>1?(Math.max(...a.tijden)-Math.min(...a.tijden))/86400e3:0;
+      const assetBereik=numeriekBereik(a.tijden);
+      a.dekkingDagen=a.tijden.length>1&&assetBereik.min!=null?(assetBereik.max-assetBereik.min)/86400e3:0;
       a.genoeg=a.n>=DATA_DREMPELS.assetIncidenten&&a.duurN>=DATA_DREMPELS.assetDuren&&a.dekkingDagen>=DATA_DREMPELS.historieDagen;
       return a;
     }).sort((a,b)=>b.n-a.n||a.naam.localeCompare(b.naam));
@@ -1066,12 +1091,14 @@ function doorrekenen(rijenRaw,opties){
     }
   });
 
-  // rapportageperiode uit de van/tot data
-  const ts=[...M.map(m=>m.tVan),...M.map(m=>m.tTot)].filter(Boolean);
+  // rapportageperiode uit de van/tot data. Iteratief bepaald, zodat grote
+  // historische sets niet als duizenden functieargumenten aan Math.min/max
+  // worden doorgegeven.
+  const tijdBereik=meldingTijdBereik(M);
   // Een lijst met open storingen is een puntbeeld. Iedere open storing is op
   // de peildatum volledig actief en wordt daarom niet verdund over zijn
   // historische leeftijd. Historische loganalyse behoudt de werkelijke duur.
-  const periodeJr = actueel ? 1/365.25 : (ts.length>=2 ? Math.max((Math.max(...ts)-Math.min(...ts))/(365.25*24*3600e3), 1/52) : (1/12));
+  const periodeJr = actueel ? 1/365.25 : (tijdBereik.aantal>=2 ? Math.max((tijdBereik.max-tijdBereik.min)/(365.25*24*3600e3), 1/52) : (1/12));
   const periodeUren = actueel ? 24 : periodeJr*8760;
 
   // stap 6: aggregatie per wegdeel (weg+richting), op basis van getelde signaalgevers.

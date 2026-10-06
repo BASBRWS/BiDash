@@ -13,7 +13,7 @@ export const BIDASH_VERSIE='2.28';
 export const ENGINE_LABELS={dvm:'DVM',bi:'BI',planning:'Planning'};
 
 export function versieTekst(engines={}){
-  const delen=['BiDash '+BIDASH_VERSIE];
+  const delen=['Business Intelligence Dashboard WVM '+BIDASH_VERSIE];
   for(const [id,versie] of Object.entries(engines)){
     const v=String(versie??'').trim();
     if(v)delen.push((ENGINE_LABELS[id]||id)+' '+v);
