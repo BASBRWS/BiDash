@@ -5705,12 +5705,13 @@ async function totaalImportJson(file, hubModus){
     // 6) DRIP-historie
     if(magImporteren('dripHistorie')&&bundle.dripHistorie&&Array.isArray(bundle.dripHistorie.sources)){
       importFase='DVM-DRIP-historie normaliseren';
-      zetImportVoortgang(file.name,62,'DRIP-historie terugzetten',{direct:true});await uiPauze();
+      zetImportVoortgang(file.name,62,'DRIP-historie normaliseren',{direct:true});await uiPauze();
       const bestaand=((DRIP_HIST_STATE&&DRIP_HIST_STATE.sources)||[]).map(normaliseerDripHistorieHerstelBron);
       const nb=bundle.dripHistorie.sources.map(normaliseerDripHistorieHerstelBron);
       const vervang=new Set(nb.map(s=>s.key));
       DRIP_HIST_STATE={sources: modus==='vervang' ? nb : [...bestaand.filter(x=>!vervang.has(x.key)),...nb]};
       importFase='DVM-DRIP-historie herbouwen en koppelen';
+      zetImportVoortgang(file.name,66,'DRIP-historie herbouwen en aan areaal koppelen',{direct:true});await uiPauze();
       herbouwDripHistorie(); DRIP_MC=null;
     } else if(magImporteren('dripHistorie')&&modus==='vervang'){ DRIP_HIST_STATE=null; DRIP_MC=null; }
 
