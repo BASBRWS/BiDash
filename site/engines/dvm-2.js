@@ -144,7 +144,7 @@ function koppelMeldingAanAsset(m,typeId){
 
   let exact=[];
   [logId,m&&m.osid,m&&m.asset,m&&m.entityid].forEach(v=>{
-    const k=normAssetTekst(v);if(k&&(ASSET_INDEX.byExact.get(k)||[]).length)exact.push(...ASSET_INDEX.byExact.get(k));
+    const k=normAssetTekst(v);if(k&&(ASSET_INDEX.byExact.get(k)||[]).length)voegArrayToe(exact,ASSET_INDEX.byExact.get(k));
   });
   if(typeId)exact=exact.filter(a=>a.tp===typeId);
   if(typeId==='DRIP')exact=exact.filter(a=>dripLocatiePast(m,a));
@@ -158,7 +158,7 @@ function koppelMeldingAanAsset(m,typeId){
       const vc=normAssetVc(m&&m.vc);const regionaal=cands.filter(a=>!vc||!a.vc||normAssetVc(a.vc)===vc);if(regionaal.length)cands=regionaal;
     }
     if(cands.length===1)return {asset:cands[0],status:'gekoppeld',methode:'DRIP-code',afstand:0,logId,logKey,suggesties:cands};
-    if(cands.length)exact.push(...cands);
+    if(cands.length)voegArrayToe(exact,cands);
   }
 
   const weg=String(m&&m.weg||'').trim().toUpperCase(),richting=normAssetRichting(m&&m.richting),vc=normAssetVc(m&&m.vc);
@@ -235,6 +235,29 @@ function numeriekBereik(waarden){
     if(max==null||n>max)max=n;
   }
   return {min,max,aantal:min==null?0:1};
+}
+function minGetal(waarden,bovengrens=Infinity){
+  let best=bovengrens;
+  for(const raw of (waarden||[])){
+    const n=Number(raw);
+    if(Number.isNaN(n))continue;
+    if(n<best)best=n;
+  }
+  return best;
+}
+function maxGetal(waarden,ondergrens=-Infinity){
+  let best=ondergrens;
+  for(const raw of (waarden||[])){
+    const n=Number(raw);
+    if(Number.isNaN(n))continue;
+    if(n>best)best=n;
+  }
+  return best;
+}
+function voegArrayToe(doel,waarden){
+  if(!doel||!waarden)return doel;
+  for(const waarde of waarden)doel.push(waarde);
+  return doel;
 }
 function meldingTijdBereik(meldingen){
   let min=null,max=null,aantal=0;
@@ -595,7 +618,7 @@ function berekenGereedheid(){
 function ontbrekendVoor(tab){
   const g=berekenGereedheid(),miss=[];
   if(tab==='prognose'){
-    miss.push(...g.regMsi.miss);
+    voegArrayToe(miss,g.regMsi.miss);
     if(!g.logsAlg)miss.unshift('Laad na All Assets één of meer herkenbare historische storingslogs.');
     const m=STORINGS_INSPECTIE&&STORINGS_INSPECTIE.typen.MSI;
     if(!m||!m.genoeg)miss.push('MSI-prognosedata voldoet nog niet aan 12 maanden dekking, 20 gekoppelde incidenten, 12 actieve maanden en minimaal 70% koppeldekking aan All Assets.');
@@ -604,10 +627,10 @@ function ontbrekendVoor(tab){
     if(!U_ROUTE_STATE)miss.push('Optioneel: laad de U-route-inventarisatie om de routecontext in de memo mee te nemen.');
     if(!WERK_STATE)miss.push('Optioneel: laad de geplande werkzaamheden om de werkcontext in de memo mee te nemen.');
   }else if(tab==='drips'){
-    miss.push(...g.regDrip.miss);
+    voegArrayToe(miss,g.regDrip.miss);
     if(!(typeof DRIP_STATE!=='undefined'&&DRIP_STATE&&DRIP_STATE.drips&&DRIP_STATE.drips.length))miss.unshift('Laad een assetlijst waarin DRIP-assets herkenbaar zijn.');
   }else{
-    miss.push(...g.regAlg.miss);
+    voegArrayToe(miss,g.regAlg.miss);
     if(!g.liveAlg)miss.unshift('Laad bij de laatste stap een momentopname met uitsluitend open storingen. Historische logs worden hier bewust niet gebruikt.');
     if(!U_ROUTE_STATE)miss.push('Optioneel: laad de U-route-inventarisatie voor routecontext.');
     if(!WERK_STATE)miss.push('Optioneel: laad de geplande werkzaamheden voor werkcontext.');
@@ -760,7 +783,7 @@ async function verwijderDataset(type,keyEnc){
   if(!confirm(`Weet je zeker dat je ${namen[type]||'deze dataset'} wilt verwijderen?${extra}`))return;
   if(type==='assetregister'){ASSET_REGISTER_STATE=null;ASSET_INDEX=null;DVM_LEEFTIJD_STATE=null;DRIP_STATE=null;}
   else if(type==='storingshistorie'){STORINGSBRONNEN=STORINGSBRONNEN.filter(b=>b.key!==key);}
-  else if(type==='liveStoringen'){LIVE_STORINGSBRONNEN=LIVE_STORINGSBRONNEN.filter(b=>b.key!==key);LIVE_PEILDATUM=Math.max(0,...LIVE_STORINGSBRONNEN.map(b=>b.peildatum||0))||null;}
+  else if(type==='liveStoringen'){LIVE_STORINGSBRONNEN=LIVE_STORINGSBRONNEN.filter(b=>b.key!==key);LIVE_PEILDATUM=maxGetal(LIVE_STORINGSBRONNEN.map(b=>b.peildatum||0),0)||null;}
   else if(type==='dripHistorie'){const rest=((DRIP_HIST_STATE&&DRIP_HIST_STATE.sources)||[]).filter(s=>s.key!==key);DRIP_HIST_STATE=rest.length?{sources:rest}:null;if(DRIP_HIST_STATE)herbouwDripHistorie();}
   else if(type==='uRoutes'){U_ROUTE_STATE=null;if(WERK_STATE)WERK_STATE.werken.forEach(w=>{w.routeMatches=[];});}
   else if(type==='werkzaamheden'){WERK_STATE=null;if(U_ROUTE_STATE){U_ROUTE_STATE.werkMatchesN=0;U_ROUTE_STATE.routeAssetKoppelingenN=0;}}
@@ -1604,7 +1627,7 @@ function memoSecties(bron, niveau, koppelBW){
     const topAandeel=totaalGem>0?top.reduce((som,p)=>som+(p.gemEvents||0),0)/totaalGem*100:0;
     const jaarWaarden=(R.cum&&R.cum.perJaar)||[];
     const jaren=(R.cum&&R.cum.jaren)||[];
-    const piekWaarde=jaarWaarden.length?Math.max(...jaarWaarden):0;
+    const piekWaarde=jaarWaarden.length?maxGetal(jaarWaarden,0):0;
     const piekIndex=jaarWaarden.indexOf(piekWaarde);
     const trendWaarden=jaarWaarden.length>2?jaarWaarden.slice(1,-1):jaarWaarden;
     const eersteVol=trendWaarden.length?trendWaarden[0]:0, laatsteVol=trendWaarden.length?trendWaarden[trendWaarden.length-1]:0;
@@ -1724,8 +1747,8 @@ function bjlOverzicht(koppelBW){
   });
   // zwaarst geraakte wegvakken (top 12 op laagste dienstbeschikbaarheid over alle diensten)
   const wegRijen = STATE.wegdelen.slice().sort((a,b)=>{
-    const la=Math.min(...DIENSTEN.map(d=>a.diensten[d.id].besch));
-    const lb=Math.min(...DIENSTEN.map(d=>b.diensten[d.id].besch));
+    const la=minGetal(DIENSTEN.map(d=>a.diensten[d.id].besch));
+    const lb=minGetal(DIENSTEN.map(d=>b.diensten[d.id].besch));
     return la-lb;
   }).slice(0,12).map(w=>[
     esc(w.key), String(w.n), String(w.N),
@@ -2292,7 +2315,7 @@ function memoLiekeDienstImpactGrafiek(data){
   const series=DIENSTEN.map((d,i)=>({id:d.id,naam:d.naam.replace(/&amp;/g,'&'),kleur:kleuren[i%kleuren.length],
     data:data.map(b=>{const r=(b.dienstRows||[]).find(x=>x.id===d.id);return r?r.besch:100;})}));
   const alle=series.flatMap(s=>s.data);
-  const minY=Math.max(95,Math.floor((Math.min(...alle)-0.05)*10)/10);
+  const minY=Math.max(95,Math.floor((minGetal(alle)-0.05)*10)/10);
   const maxY=100;
   const W=680,H=250,padL=56,padR=18,padT=18,padB=44,n=labels.length;
   const sx=i=>padL+(n<=1?0:(i/(n-1))*(W-padL-padR));
@@ -2384,8 +2407,8 @@ function memoLiekeDripCurveData(pd,R){
 function memoLiekeDripCurveSvg(pd,R){
   const data=memoLiekeDripCurveData(pd,R);if(!data.length)return '';
   const W=680,H=230,padL=52,padR=54,padT=18,padB=44,n=data.length;
-  const maxE=Math.max(1,...data.map(x=>x.cumulatief))*1.08;
-  const minB=Math.max(0,Math.min(99.9,Math.floor((Math.min(...data.map(x=>x.besch))-.02)*100)/100));
+  const maxE=maxGetal(data.map(x=>x.cumulatief),1)*1.08;
+  const minB=Math.max(0,Math.min(99.9,Math.floor((minGetal(data.map(x=>x.besch))-.02)*100)/100));
   const sx=i=>padL+(n<=1?0:i/(n-1)*(W-padL-padR));
   const syE=v=>padT+(1-v/maxE)*(H-padT-padB);
   const syB=v=>padT+(100-v)/(100-minB||1)*(H-padT-padB);
@@ -2519,12 +2542,12 @@ async function tmc70Simulate(config,tarief,progress=()=>{},cancelled=()=>false){
   if(!Number.isFinite(total[i]*tarief))throw Error('Het totaal is te groot.');
  }
  if(cancelled())throw Error('Simulatie gestopt.');
- const summary=tmc70Summary(total,tarief),max=Math.max(...total)*tarief,min=Math.min(...total)*tarief,bins=Array(24).fill(0);
+ const summary=tmc70Summary(total,tarief),max=maxGetal(total)*tarief,min=minGetal(total)*tarief,bins=Array(24).fill(0);
  for(const v of total)bins[max===min?0:Math.min(23,Math.floor((v*tarief-min)/(max-min)*24))]++;
  progress(1);return {...summary,hist:{min,max,bins},per:rows.map((r,j)=>({key:r.key,...tmc70Summary(per[j],tarief)})),runs:config.runs,seed:config.seed,dependency:config.dependency};
 }
 function tmc70Help(){return `<details><summary>Hoe worden deze VVU en kosten berekend</summary><p>Dit is onzekerheid rond één brondag met de open storingen uit jouw storingslijst. Het model voorspelt geen toekomstige assetstoringen of toekomstige verkeersdagen.</p><p>Per run worden voertuigen per uur, hinderuren en extra minuten getrokken uit een driehoeksverdeling. Je stelt zelf het minimum, de meest verwachte waarde en het maximum in. Gelijke waarden geven een vaste invoer. De knop met 20 procent maakt alleen een voorstel voor aannames, geen gemeten onzekerheidsmarge.</p><p>VVU = voertuigen per uur × hinderuren × extra minuten / 60. Kosten = VVU × het ingestelde gewogen tarief voor personenauto en vracht. De tarieven en het prijspeil blijven tijdens de simulatie vast. De extra minuten uit het bestaande trajectmodel bevatten de storingsimpact al. Deze wordt niet nogmaals vermenigvuldigd. OSM-routes en snelheidsreducties worden niet opnieuw per run berekend; je varieert de resulterende extra reistijd.</p><p>Hinderuren zijn de uren waarin verkeer extra reistijd door deze storing ondervindt. Gebruik bijvoorbeeld de som van ochtendspits en avondspits, met een daarbij passend gemiddeld voertuigaantal en extra vertraging. Een NDW-minuutmeting buiten die uren is geen gemeten spitsgemiddelde. De meetdatum blijft bij de invoer vermeld.</p><p>Bij samen oplopende waarden gebruikt elke invoer op alle wegdelen dezelfde toevalspositie. Dit veronderstelt sterke positieve samenhang. Bij onafhankelijk trekt iedere invoer afzonderlijk. Geen van beide relaties is uit de meetgegevens geschat. Ook bij gezamenlijke trekking moet je dubbele verkeersstromen zelf uit de selectie verwijderen.</p><p>De mediaan is p50. Tussen p5 en p95 valt de middelste 90 procent van de gesimuleerde uitkomsten. Dit is een scenarioband, geen gemeten schade of statistisch betrouwbaarheidsinterval. De scope wordt per run opgeteld; afzonderlijke medianen en percentielen mogen niet worden opgeteld. Ontbrekende invoer is geen nul.</p><p>Methode voor de <a href="https://numpy.org/doc/stable/reference/random/generated/numpy.random.Generator.triangular.html" target="_blank" rel="noopener">driehoeksverdeling, definitie met minimum, modus en maximum</a>. De gekozen marges zijn jouw aannames.</p>${kostenBronHtml()}</details>`;}
-function tmc70Graph(h){const peak=Math.max(...h.bins,1),w=760,bw=680/h.bins.length;return `<svg viewBox="0 0 ${w} 240" role="img" aria-label="Verdeling van gesimuleerde kosten per brondag" style="width:100%;max-width:900px;background:white"><text x="40" y="18" fill="#154273">Aantal runs per kostenklasse</text>${h.bins.map((n,i)=>`<rect x="${40+i*bw}" y="${195-160*n/peak}" width="${bw-2}" height="${160*n/peak}" fill="#007bc7"><title>${n} runs. ${kostenEuro(h.min+(h.max-h.min)*i/h.bins.length)} tot ${kostenEuro(h.min+(h.max-h.min)*(i+1)/h.bins.length)}</title></rect>`).join('')}<line x1="40" x2="720" y1="195" y2="195" stroke="#154273"/><text x="40" y="224">${kostenEuro(h.min)}</text><text x="720" y="224" text-anchor="end">${kostenEuro(h.max)}</text></svg>`;}
+function tmc70Graph(h){const peak=maxGetal(h.bins,1),w=760,bw=680/h.bins.length;return `<svg viewBox="0 0 ${w} 240" role="img" aria-label="Verdeling van gesimuleerde kosten per brondag" style="width:100%;max-width:900px;background:white"><text x="40" y="18" fill="#154273">Aantal runs per kostenklasse</text>${h.bins.map((n,i)=>`<rect x="${40+i*bw}" y="${195-160*n/peak}" width="${bw-2}" height="${160*n/peak}" fill="#007bc7"><title>${n} runs. ${kostenEuro(h.min+(h.max-h.min)*i/h.bins.length)} tot ${kostenEuro(h.min+(h.max-h.min)*(i+1)/h.bins.length)}</title></rect>`).join('')}<line x1="40" x2="720" y1="195" y2="195" stroke="#154273"/><text x="40" y="224">${kostenEuro(h.min)}</text><text x="720" y="224" text-anchor="end">${kostenEuro(h.max)}</text></svg>`;}
 function tmc70ResultHtml(r,interactive=true){return `<section class="kosten-blok"><h3>Monte Carlo verkeerskosten per brondag</h3><p>Bronpeildatum ${esc(r.source.datum)}. ${r.per.length} van ${r.source.rows.length} wegdelen geselecteerd. ${r.runs.toLocaleString('nl-NL')} runs. Prijspeil ${esc(r.source.prijspeil)}. Vast tarief ${kostenEuro(r.source.tarief)} per VVU, intern zonder afronding.</p><p><b>Mediaan ${kostenEuro(r.kosten.p50)} per brondag.</b> Middelste 90 procent van ${kostenEuro(r.kosten.p5)} tot ${kostenEuro(r.kosten.p95)}. Gemiddelde ${kostenEuro(r.kosten.mean)}.</p><p>VVU mediaan ${sc67Format(r.vvu.p50)}, band ${sc67Format(r.vvu.p5)} tot ${sc67Format(r.vvu.p95)}. Dit is een som van geselecteerde wegdeelscenario’s. ${r.source.overlap?'Overlapcontrole is bevestigd.':'Overlapcontrole is niet bevestigd, dezelfde verkeersstroom kan meerdere wegdelen raken.'}</p>${mc72Histogram(r,interactive)}<div style="overflow:auto"><table class="tbl"><thead><tr><th>Wegdeel</th><th>VVU mediaan, P50</th><th>Lage kosten, P5</th><th>Lage kosten, P50</th><th>Hoge kosten, P95</th></tr></thead><tbody>${r.per.map(p=>`<tr><td>${esc(p.key)}</td><td>${sc67Format(p.vvu.p50)}</td><td>${kostenEuro(p.kosten.p5)}</td><td>${kostenEuro(p.kosten.p50)}</td><td>${kostenEuro(p.kosten.p95)}</td></tr>`).join('')}</tbody></table></div><p>Samenhang ${r.dependency==='samen'?'alle invoer loopt samen op':'alle invoer onafhankelijk'}. Startwaarde ${r.seed}. ${esc(r.config.note||'Geen aanvullende onderbouwing ingevuld. De bereiken zijn scenarioaannames.')}</p><details><summary>Invoer en bron per gesimuleerd wegdeel</summary>${r.config.rows.filter(x=>x.selected).map(x=>{const s=r.source.rows.find(y=>y.key===x.key);return `<p><b>${esc(x.key)}</b>. Voertuigen per uur ${x.q.map(v=>sc67Format(v)).join(' / ')}. Hinderuren ${x.uren.map(v=>sc67Format(v)).join(' / ')}. Extra minuten ${x.minuten.map(v=>sc67Format(v)).join(' / ')}. Volgorde minimum, meest verwacht, maximum. ${esc(s?.bron||'Verkeerskundig effect zonder aanvullende bron, scenario.')}${s?.ndw?` NDW ${esc(s.ndw.id)}, meetmoment ${esc(s.ndw.time||'onbekend')}.`:''}</p>`;}).join('')}</details></section>`;}
 function tmc70Memo(bron){
  if(!bron?.kostenAan||['montecarlo','drip-montecarlo'].includes(bron.type))return '';
@@ -2638,7 +2661,7 @@ async function f71Simulate(c,m,tarief,progress=()=>{},cancelled=()=>false){
  const summary=tmc70Summary(total,tarief),selected={assets:p.prepared.reduce((s,x)=>s+x.g.assets.length,0),years:p.prepared.reduce((s,x)=>s+x.g.cohorts.filter(a=>a.year).reduce((t,a)=>t+a.n,0),0),explicit:p.prepared.reduce((s,x)=>s+x.g.cohorts.filter(a=>!['assettype','standaard','standaard-terugval'].includes(a.source)).reduce((t,a)=>t+a.n,0),0)};return {...summary,events:tmc70Summary(counts,1).vvu,monthly:p.months.map((m,j)=>({label:m.label,...tmc70Summary(monthly[j],tarief),events:tmc70Summary(monthEvents[j],1).vvu})),yearly:yearKeys.map((label,j)=>({label,...tmc70Summary(yearly[j],tarief)})),per:p.prepared.map((x,j)=>({key:x.g.label,assets:x.g.assets.length,historical:x.n,...tmc70Summary(way[j],tarief)})),runs:c.runs,tarief,config:c,source:{diag:m.diag,selected,sources:m.sources,liveDate:m.liveDate,groups:p.prepared.map(x=>({key:x.g.label,cohorts:x.g.cohorts,traffic:x.g.traffic,n:x.n,H:x.H,durations:x.durations.length})),historyAssumption:'Dekking tussen ingestelde begin- en einddatum als volledig aangenomen. Actueel register als historische populatie gebruikt.',durationSource:globalDur.length>=5?'Empirische herstelduren, groeps- of geselecteerde populatie':'Lognormale aanname uit MTTR en spreiding',prijspeil:kostenBasis().prijspeil},fingerprint:f71Fingerprint(m)};
 }
 function f71Help(){return `<details><summary>Hoe werkt de toekomstprognose voor signaalgevers</summary><p>Alleen operationele MSI-signaalgevers uit het assetregister worden gebruikt. De historische locaties worden op weg, rijrichting en hectometer aan het register gekoppeld, binnen 100 meter. Bij twijfel tussen verkeerscentrales wordt de melding uitgesloten. Identieke locaties met hetzelfde startmoment tellen eenmaal. Het gaat om locatie-episodes, niet om bewezen unieke defecte lampen of individuele assetstoringen.</p><p>Per wegdeel wordt de historische frequentie gekalibreerd op de opgetelde leeftijdsgewichten van de signaalgevers. De macht neemt toe met de ingestelde Weibull-vormparameter. Levensduur komt eerst uit een assetoverride, expliciete EOL of referentie, daarna uit de assettype-instelling. Deze levensduur is een modelschaal, geen harde uitvaldatum. De vormparameter wordt niet uit deze logs geschat. Zonder bouwjaar is het aandeel stationair.</p><p>De frequentie volgt een Gamma-Poisson model met vijf gedeelde pseudo-episodes als groepsprior. Wegdelen zonder gekoppelde historie gebruiken alleen deze gedeelde prior. Ontbrekende historie wordt niet als nul storingen behandeld. Per maand wordt de leeftijdsafhankelijke intensiteit berekend; binnen een maand zijn startmomenten uniform in de tijd. De huidige registerpopulatie wordt ook als historische populatie gebruikt. De ingestelde historische periode wordt als gedekt aangenomen. Uittreding, vervanging en ontbrekende registraties kunnen daarom de kalibratie vertekenen.</p><p>Een herstel zet de leeftijd niet terug. Zonder minimaal vijf bruikbare herstelduren wordt een lognormale herstelduur getrokken uit MTTR en spreiding. De starttoestand is operationeel, open storingen van een oudere bronpeildatum worden niet als nog steeds open aangenomen. Alle assets blijven in bedrijf, zonder geplande vervanging.</p><p>Verkeerskosten ontstaan alleen tijdens de ingestelde spitsvensters zolang een gesimuleerde storing voortduurt. De modeldag telt 24 uur, klokwisselingen worden niet gemodelleerd. Bij overlappende storingen telt de hinder binnen één wegdeel eenmaal. Dezelfde verkeersstroom kan meerdere wegdelen raken. De verkeerswerking is een representatief wegdeelscenario, geen gemeten effect van iedere afzonderlijke signaalgever. Voertuigaantal en extra vertraging worden per wegdeel en run gevarieerd en blijven binnen die run constant. Tarieven blijven vast, zonder inflatie of discontering.</p><p>VVU = voertuigen per uur × overlappende spitsuren × extra minuten / 60. Kosten = VVU × gewogen tarief. Maand-, jaar- en periodetotalen worden binnen elke run opgeteld. Medianen en percentielen uit afzonderlijke regels mogen niet worden opgeteld. De banden zijn scenario-uitkomsten, geen gegarandeerde voorspellingen.</p><p>Methoden, <a href="https://www.itl.nist.gov/div898/handbook/apr/section1/apr172.htm" target="_blank" rel="noopener">NIST power-law model voor herstelbare systemen</a> en <a href="https://www.itl.nist.gov/div898/handbook/apr/section1/apr165.htm" target="_blank" rel="noopener">NIST Gamma-model voor onzekere storingsintensiteit</a>. De verkeersrelatie, priorsterkte en spitsinstellingen zijn modelaannames.</p>${kostenBronHtml()}</details>`;}
-function f71Graph(rows){const max=Math.max(...rows.map(x=>x.kosten.p95),1),sx=i=>60+(rows.length===1?0:i/(rows.length-1)*800),sy=v=>220-v/max*180;return `<svg viewBox="0 0 920 280" role="img" aria-label="Maandelijkse kostenprognose, mediaan en middelste 90 procent" style="background:white;width:100%"><text x="60" y="20">${kostenEuro(max)} per maand</text><polygon fill="#cce8f5" points="${rows.map((r,i)=>sx(i)+','+sy(r.kosten.p95)).join(' ')} ${rows.map((r,i)=>[sx(i),sy(r.kosten.p5)]).reverse().map(x=>x.join(',')).join(' ')}"/><polyline fill="none" stroke="#154273" stroke-width="3" points="${rows.map((r,i)=>sx(i)+','+sy(r.kosten.p50)).join(' ')}"/>${rows.map((r,i)=>`<circle cx="${sx(i)}" cy="${sy(r.kosten.p50)}" r="3" fill="#154273"><title>${r.label}, mediaan ${kostenEuro(r.kosten.p50)}, p5 ${kostenEuro(r.kosten.p5)}, p95 ${kostenEuro(r.kosten.p95)}</title></circle>`).join('')}<text x="60" y="255">${rows[0]?.label||''}</text><text x="860" y="255" text-anchor="end">${rows[rows.length-1]?.label||''}</text></svg>`;}
+function f71Graph(rows){const max=maxGetal(rows.map(x=>x.kosten.p95),1),sx=i=>60+(rows.length===1?0:i/(rows.length-1)*800),sy=v=>220-v/max*180;return `<svg viewBox="0 0 920 280" role="img" aria-label="Maandelijkse kostenprognose, mediaan en middelste 90 procent" style="background:white;width:100%"><text x="60" y="20">${kostenEuro(max)} per maand</text><polygon fill="#cce8f5" points="${rows.map((r,i)=>sx(i)+','+sy(r.kosten.p95)).join(' ')} ${rows.map((r,i)=>[sx(i),sy(r.kosten.p5)]).reverse().map(x=>x.join(',')).join(' ')}"/><polyline fill="none" stroke="#154273" stroke-width="3" points="${rows.map((r,i)=>sx(i)+','+sy(r.kosten.p50)).join(' ')}"/>${rows.map((r,i)=>`<circle cx="${sx(i)}" cy="${sy(r.kosten.p50)}" r="3" fill="#154273"><title>${r.label}, mediaan ${kostenEuro(r.kosten.p50)}, p5 ${kostenEuro(r.kosten.p5)}, p95 ${kostenEuro(r.kosten.p95)}</title></circle>`).join('')}<text x="60" y="255">${rows[0]?.label||''}</text><text x="860" y="255" text-anchor="end">${rows[rows.length-1]?.label||''}</text></svg>`;}
 function f71ResultHtml(r,interactive=true){const table=rows=>`<div style="overflow:auto"><table class="tbl"><thead><tr><th>Periode</th><th>VVU mediaan, P50</th><th>Lage kosten, P5</th><th>Lage kosten, P50</th><th>Hoge kosten, P95</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${esc(x.label?mc72PeriodCaption(x.label,r.config):x.key)}</td><td>${sc67Format(x.vvu.p50)}</td><td>${kostenEuro(x.kosten.p5)}</td><td>${kostenEuro(x.kosten.p50)}</td><td>${kostenEuro(x.kosten.p95)}</td></tr>`).join('')}</tbody></table></div>`;return `<section class="kosten-blok"><h3>Toekomstprognose signaalgevers en verkeerskosten</h3><p>${esc(r.config.from)} tot en met ${esc(r.config.to)}. ${r.per.reduce((s,x)=>s+x.assets,0)} signaalgevers in ${r.per.length} geselecteerde wegdelen. ${r.runs} runs. Historie ${esc(r.config.histFrom)} tot en met ${esc(r.config.histTo)}.</p><p><b>Mediaan ${kostenEuro(r.kosten.p50)} voor de hele periode.</b> Middelste 90 procent ${kostenEuro(r.kosten.p5)} tot ${kostenEuro(r.kosten.p95)}. ${sc67Format(r.vvu.p50)} VVU. Gesimuleerde locatie-episodes, mediaan ${sc67Format(r.events.p50,0)}, band ${sc67Format(r.events.p5,0)} tot ${sc67Format(r.events.p95,0)}.</p><p>Herstelduur, ${esc(r.source.durationSource)}. ${r.source.selected.explicit} van ${r.source.selected.assets} geselecteerde assets hebben een specifiekere levensduur dan de generieke assettype-instelling. ${r.source.selected.years} geselecteerde assets hebben een bouwjaar. Prijspeil ${esc(r.source.prijspeil)}.</p>${mc72Forecast(r,interactive)}<h4>Jaarblokken, alleen de geselecteerde dagen binnen ieder jaar</h4>${table(r.yearly)}<details><summary>Maandblokken</summary>${table(r.monthly)}</details><details><summary>Subtotalen per wegdeel</summary>${table(r.per)}</details><details><summary>Herkomst en aannames</summary><p>${esc(r.source.historyAssumption)}. Exacte locatie en starttijd zijn gebruikt om ${r.source.diag.duplicate} herhaalde regels weg te filteren. ${r.source.diag.unmatched} locaties konden niet eenduidig worden gekoppeld, ${r.source.diag.invalid} regels hadden onvoldoende locatie- of datuminvoer.</p>${r.source.sources.map(s=>`<p>${esc(s.name)}, ${s.from} tot ${s.to}.</p>`).join('')}${r.source.groups.map(g=>`<p><b>${esc(g.key)}</b>. ${g.n} historische episodes. Levensduurcohorten ${g.cohorts.map(c=>esc(c.n+' assets, bouwjaar '+(c.year||'onbekend')+', '+c.L+' jaar, vorm '+c.beta+', '+c.source)).join('; ')}. Voertuigen per uur ${g.traffic.q}, extra minuten ${sc67Format(g.traffic.minuten)}. ${g.traffic.fallbackQ?'Voertuigaantal 1.000 is een aanname. ':''}${g.traffic.fallbackDelay?'Extra vertraging 0,5 minuut is een aanname. ':''}${g.traffic.ndw?'NDW '+esc(g.traffic.ndw.id)+' '+esc(g.traffic.ndw.time)+'. ':''}${esc(g.traffic.bron||'Verkeerskundig effect is een scenarioaanname.')}</p>`).join('')}</details></section>`;}
 function f71Open(){
  F71_TOKEN++;const m=f71Build();F71_MODEL=m;const fingerprint=f71Fingerprint(m),saved=kostenBasis().forecastMSI71,same=saved?.fingerprint===fingerprint,c=same?saved.config:f71Defaults(m);F71_SESSION={m,fingerprint};
@@ -2677,7 +2700,7 @@ function mc72Number(v,metric){return metric==='kosten'?kostenEuro(v):sc67Format(
 function mc72Model(p,o){
  const source=p[o.period]||[],last=source.length-1,lo=Math.max(0,Math.min(last,Number(o.lo)||0)),hi=Math.max(lo,Math.min(last,Number.isFinite(Number(o.hi))?Number(o.hi):last)),metric=o.metric==='vvu'?'vvu':'kosten';
  const rows=source.slice(lo,hi+1).map((r,i)=>{const period=mc72Period(r.label,p.config),divisor=o.normal==='daily'&&period.days>0?period.days:1,v=r[metric];return {index:lo+i,label:r.label,period,raw:v,values:{p5:v.p5/divisor,p50:v.p50/divisor,p95:v.p95/divisor},divisor};});
- const selected=Math.max(lo,Math.min(hi,Number(o.selected)||0));return {rows,source,lo,hi,selected,metric,max:Math.max(1,...rows.map(r=>r.values.p95)),unit:o.normal==='daily'?'per kalenderdag':o.period==='yearly'?'per jaarblok':'per maandblok'};
+ const selected=Math.max(lo,Math.min(hi,Number(o.selected)||0));return {rows,source,lo,hi,selected,metric,max:maxGetal(rows.map(r=>r.values.p95),1),unit:o.normal==='daily'?'per kalenderdag':o.period==='yearly'?'per jaarblok':'per maandblok'};
 }
 function mc72Details(p,o){
  if(p.type==='hist'){const h=p.hist,i=Math.max(0,Math.min(h.bins.length-1,Number(o.selected)||0)),n=h.bins[i]||0,total=h.bins.reduce((a,b)=>a+b,0),lo=h.min+(h.max-h.min)*i/h.bins.length,hi=h.min+(h.max-h.min)*(i+1)/h.bins.length;return `<b>Kostenklasse ${i+1} van ${h.bins.length}</b><p>${kostenEuro(lo)} tot ${kostenEuro(hi)} per brondag. ${n.toLocaleString('nl-NL')} runs, ${sc67Format(total?n/total*100:0)} procent van alle runs.</p><p>Een balk telt simulaties met kosten binnen deze klasse. De balkhoogte is geen beschikbaarheid.</p>`;}
@@ -2693,7 +2716,7 @@ function mc72ForecastSvg(p,o,interactive){
  const stride=Math.max(1,Math.ceil(rows.length/7));rows.forEach((r,i)=>{if(i%stride===0||i===rows.length-1)svg+=`<text x="${sx(i)}" y="${B+25+(i===rows.length-1&&i%stride!==0?17:0)}" text-anchor="middle" font-size="12">${esc(r.label)}${r.period.partial?' *':''}</text>`;});
  svg+=`<line data-mc72-cursor x1="${sx(Math.max(0,active))}" x2="${sx(Math.max(0,active))}" y1="${T}" y2="${B}" stroke="#007bc7" stroke-width="1.5" stroke-dasharray="3 3"/><text x="${L}" y="350" font-size="12">* Gedeeltelijke periode. Tik op de grafiek of kies hieronder een periode.</text></svg>`;return svg;
 }
-function mc72HistSvg(p,o,interactive){const h=p.hist,max=Math.max(...h.bins,1),bw=800/h.bins.length,x=i=>130+i*bw,selected=Number(o.selected)||0,range=h.max-h.min,tx=v=>range>0?130+(v-h.min)/range*800:530;let svg=`<svg viewBox="0 0 1000 350" ${interactive?'tabindex="0" onkeydown="mc72Keys(event,this)" onpointermove="mc72Pointer(event,this)" onclick="mc72Pointer(event,this)"':''} role="img" aria-label="Verdeling van kosten per brondag. Balkhoogte is het aantal runs."><text x="130" y="20">Aantal runs per kostenklasse</text>`;for(let i=0;i<=4;i++){const n=max*i/4,y=270-200*i/4;svg+=`<line x1="130" x2="930" y1="${y}" y2="${y}" stroke="#d9e3e9"/><text x="118" y="${y+4}" text-anchor="end" font-size="12">${Math.round(n)}</text>`;}
+function mc72HistSvg(p,o,interactive){const h=p.hist,max=maxGetal(h.bins,1),bw=800/h.bins.length,x=i=>130+i*bw,selected=Number(o.selected)||0,range=h.max-h.min,tx=v=>range>0?130+(v-h.min)/range*800:530;let svg=`<svg viewBox="0 0 1000 350" ${interactive?'tabindex="0" onkeydown="mc72Keys(event,this)" onpointermove="mc72Pointer(event,this)" onclick="mc72Pointer(event,this)"':''} role="img" aria-label="Verdeling van kosten per brondag. Balkhoogte is het aantal runs."><text x="130" y="20">Aantal runs per kostenklasse</text>`;for(let i=0;i<=4;i++){const n=max*i/4,y=270-200*i/4;svg+=`<line x1="130" x2="930" y1="${y}" y2="${y}" stroke="#d9e3e9"/><text x="118" y="${y+4}" text-anchor="end" font-size="12">${Math.round(n)}</text>`;}
  svg+=h.bins.map((n,i)=>`<rect data-mc72-bar="${i}" x="${x(i)}" y="${270-200*n/max}" width="${Math.max(1,bw-2)}" height="${200*n/max}" fill="${i===selected?'#ba4a00':'#007bc7'}"><title>${n} runs. Kosten ${kostenEuro(h.min+range*i/h.bins.length)} tot ${kostenEuro(h.min+range*(i+1)/h.bins.length)}</title></rect>`).join('');
  for(const [k,color,y] of [['p5','#237a45',36],['p50','#154273',50],['p95','#ba4a00',64]]){const v=p.kosten[k];svg+=`<line x1="${tx(v)}" x2="${tx(v)}" y1="70" y2="270" stroke="${color}" stroke-dasharray="4 3" stroke-width="2"/><text x="${tx(v)}" y="${y}" text-anchor="middle" font-size="12" fill="${color}">${k.toUpperCase()} ${kostenEuro(v)}</text>`;}
  return svg+`<text x="130" y="300">${kostenEuro(h.min)}</text><text x="930" y="300" text-anchor="end">${kostenEuro(h.max)}</text><text x="130" y="330">Kosten per brondag. Selecteer een balk om het aantal runs te bekijken.</text></svg>`;
@@ -2750,7 +2773,7 @@ function kostenHistorieOpen(){
  d.querySelector('#kostenHistVc').value=document.getElementById('kostenDagVc')?.value||'';d.showModal();kostenHistorieTeken();
 }
 function kostenHistorieTeken(){
- const data=kostenHistorieGroepen(document.getElementById('kostenHistVc').value,document.getElementById('kostenHistMode').value),max=Math.max(1,...data.map(g=>g.gemiddelde)),n=data.length;
+ const data=kostenHistorieGroepen(document.getElementById('kostenHistVc').value,document.getElementById('kostenHistMode').value),max=maxGetal(data.map(g=>g.gemiddelde),1),n=data.length;
  document.getElementById('kostenHistGrafiek').innerHTML=!n?'<p>Nog geen volledig berekenbare dagstanden voor deze selectie.</p>':`<svg viewBox="0 0 1000 300" role="img" aria-label="Geschatte gemiddelde euro per dag"><text x="10" y="20">${esc(kostenEuro(max))} / dag</text>${data.map((g,i)=>`<rect x="${50+i*930/n}" y="${260-g.gemiddelde/max*220}" width="${Math.max(1,850/n)}" height="${g.gemiddelde/max*220}" fill="#167da5"><title>${g.label}: ${kostenEuro(g.gemiddelde)}/dag, ${g.n} dagstanden, prijspeil ${g.prijspeil}</title></rect>`).join('')}<text x="50" y="290">${data[0].label}</text><text x="850" y="290">${data[n-1].label}</text></svg><table class="tbl"><tr><th>Dag / periodebegin</th><th>Gemiddelde €/dag</th><th>Beschikbare dagen</th><th>Prijspeil</th></tr>${data.map(g=>`<tr><td>${g.label}</td><td>${kostenEuro(g.gemiddelde)}</td><td>${g.n}</td><td>${esc(g.prijspeil)}</td></tr>`).join('')}</table>`;
 }
 function kostenBasis(){
@@ -3026,7 +3049,7 @@ function sc67Valid(c){
  if(c.delayMode==='direct')return common&&sc67Num(c.minuten)!==null&&c.minuten>=0;
  return common&&['km','snelheid','reductie'].every(k=>sc67Num(c[k])!==null)&&c.km>0&&c.snelheid>0&&c.reductie>=0&&c.reductie<=90;
 }
-function sc67Severity(w){return Math.min(1,Math.max(0,...(w.meldingen||[]).map(m=>Number(m.avail||0)/100)));}
+function sc67Severity(w){return Math.min(1,maxGetal((w.meldingen||[]).map(m=>Number(m.avail||0)/100),0));}
 function sc67Fingerprint(){return JSON.stringify([STATE?.peildatum,(kostenDagRows()).map(w=>[w.key,w.meldingen.map(m=>[m.assetKey,m.avail,m.googleLink]),sc67Config(w)])]);}
 function sc67Route(w){if(!SC67_CACHE.fingerprint)return null;return SC67_CACHE.fingerprint===sc67Fingerprint()?(SC67_CACHE.routes[w.key]||null):null;}
 function kostenDagResultaat(w){
@@ -3067,7 +3090,7 @@ function kostenModelEditor(w){
  const z=kostenDagResultaat(w);
  return `<section class="kosten-blok"><h3>Verkeersberekening voor ${esc(w.key)}</h3><p><b>Status ${v68KostenStatusLabel(z.status)}</b>. ${z.kosten===null?'Vul de resterende verkeerswaarden en de onderbouwing in.':`${kostenEuro(z.kosten)} per brondag. ${sc67Format(z.vvu)} VVU maal ${kostenEuro(z.tarief)} per VVU.`}</p><p><button onclick="tmc70Open('weg',decodeURIComponent('${encodeURIComponent(w.key).replace(/'/g,'%27')}'))">Monte Carlo voor dit wegdeel</button></p>${ndw69Editor(w)}<p>${sc67Format(z.m.q,0)} voertuigen/uur maal ${sc67Format(sc67Num(z.m.uren))} hinderuren maal ${sc67Format(z.minuten)} extra minuten / 60. Bronpeildatum storingen ${esc(sc67Datum())}.</p><p>${esc(z.route?`OSM-kandidaatroute, ${sc67Format(z.route.km)} km. Afstand tot gekozen weg ${sc67Format(z.route.distance,0)} meter. Controleer locatie en rijrichting.`:z.routeMelding)}</p>${z.route?sc67Kaart(z.route):''}<div class="kosten-invoer" data-sc67-key="${esc(w.key)}">${sc67Fields(z.m)}<button onclick="sc67Bewaar(this)">Wegdeelinvoer opslaan en herberekenen</button><p>Je kunt onvolledige invoer opslaan. Het bedrag blijft onbekend totdat alle benodigde velden en de onderbouwing zijn ingevuld.</p></div>${sc67Uitleg()}</section>`;
 }
-function sc67Kaart(r){const points=[...r.base,...r.affected];if(!points.length)return '';let xs=points.map(p=>p[0]),ys=points.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);const width=Math.max((x1-x0)*.62,y1-y0,.001),cx=(x0+x1)/2,cy=(y0+y1)/2;const path=a=>a.map(p=>`${300+(p[0]-cx)*.62/width*500},${180-(p[1]-cy)/width*300}`).join(' ');return `<svg viewBox="0 0 600 360" role="img" aria-label="Referentieroute blauw en route met storing oranje" style="width:100%;max-height:360px;background:#f4f7fa"><polyline points="${path(r.base)}" fill="none" stroke="#003082" stroke-width="7"/><polyline points="${path(r.affected)}" fill="none" stroke="#e17000" stroke-width="3" stroke-dasharray="7 3"/></svg><p>Blauw is de route zonder assetstoring. Oranje is de route met de aangenomen snelheidsreductie. Dit is een routeschets zonder achtergrondkaart.</p>`;}
+function sc67Kaart(r){const points=[...r.base,...r.affected];if(!points.length)return '';let xs=points.map(p=>p[0]),ys=points.map(p=>p[1]),x0=minGetal(xs),x1=maxGetal(xs),y0=minGetal(ys),y1=maxGetal(ys);const width=Math.max((x1-x0)*.62,y1-y0,.001),cx=(x0+x1)/2,cy=(y0+y1)/2;const path=a=>a.map(p=>`${300+(p[0]-cx)*.62/width*500},${180-(p[1]-cy)/width*300}`).join(' ');return `<svg viewBox="0 0 600 360" role="img" aria-label="Referentieroute blauw en route met storing oranje" style="width:100%;max-height:360px;background:#f4f7fa"><polyline points="${path(r.base)}" fill="none" stroke="#003082" stroke-width="7"/><polyline points="${path(r.affected)}" fill="none" stroke="#e17000" stroke-width="3" stroke-dasharray="7 3"/></svg><p>Blauw is de route zonder assetstoring. Oranje is de route met de aangenomen snelheidsreductie. Dit is een routeschets zonder achtergrondkaart.</p>`;}
 function sc67MemoAannames(rows){
  return `<h4>Onderbouwing dagscenario</h4><p>Per wegdeel wordt één representatief traject doorgerekend. VVU = voertuigen/uur maal hinderuren maal extra minuten / 60. Bij rechtstreekse invoer gebruik je de extra minuten door de huidige uitval. Bij het trajectmodel bepaalt de hoogste impact van een open storing de aangenomen snelheidsreductie. Er wordt geen wachtrij of causale verkeersschade uit de NDW-snelheid afgeleid. Controleer overlap tussen wegdelen.</p><table class="tbl"><tr><th>Wegdeel</th><th>Voertuigen/uur</th><th>Hinderuren</th><th>Extra minuten</th><th>Model</th><th>Tarief/VVU</th><th>Onderbouwing</th></tr>${rows.map(w=>{const z=kostenDagResultaat(w),c=z.m;return `<tr><td>${esc(w.key)}</td><td>${esc(c.q)}</td><td>${esc(c.uren)}</td><td>${sc67Format(z.minuten)}</td><td>${c.delayMode==='direct'?'Rechtstreekse vertraging':`${sc67Format(z.route?.km??c.km)} km; ${esc(c.snelheid)} km/u; ${esc(c.reductie)}% maximale reductie`}</td><td>${sc67Format(z.tarief,4)}</td><td>${esc(c.bron)}. ${c.ndwUsed?'Intensiteit uit NDW-momentopname.':''}</td></tr>`;}).join('')}</table>${ndw69Memo(rows)}`;
 }
@@ -3821,7 +3844,7 @@ function histogram(sorted,bins){
   const span=Math.max(hi-lo,1e-6), w=span/bins;
   const h=new Array(bins).fill(0);
   sorted.forEach(v=>{ let b=Math.floor((v-lo)/w); if(b>=bins)b=bins-1; if(b<0)b=0; h[b]++; });
-  return { lo,hi,w,counts:h,max:Math.max(...h) };
+  return { lo,hi,w,counts:h,max:maxGetal(h) };
 }
 
 /* Netwerkbrede MC: som per run over alle wegdelen, areaalgewogen naar N. */
@@ -3865,7 +3888,7 @@ function chartDienstNorm(items){
   const W=560,rowH=46,padL=150,padR=70,padT=10;
   const H=padT*2+items.length*rowH;
   const alle=items.flatMap(i=>[i.val,i.norm]);
-  let min=Math.min(...alle), max=Math.max(...alle,100);
+  let min=minGetal(alle), max=maxGetal(alle,100);
   min=Math.floor((min-0.3)*10)/10; if(min<0)min=0; max=100;
   const sx=v=>padL+((v-min)/(max-min))*(W-padL-padR);
   let s=`<svg viewBox="0 0 ${W} ${H}" class="chart" role="img">`;
@@ -3920,7 +3943,7 @@ function chartStatusStack(rows){
 function chartPareto(items){
   const W=560,rowH=34,padL=90,padR=54,padT=10;
   const H=padT*2+items.length*rowH+16;
-  const max=Math.max(...items.map(i=>i.uren),1);
+  const max=maxGetal(items.map(i=>i.uren),1);
   const totaal=items.reduce((a,b)=>a+b.uren,0);
   let cum=0;
   let s=`<svg viewBox="0 0 ${W} ${H}" class="chart" role="img">`;
@@ -3946,7 +3969,7 @@ function chartPareto(items){
 function chartVcGroepen(vcRows){
   const W=580,H=230,padL=44,padR=10,padT=14,padB=48;
   const alle=vcRows.flatMap(r=>DIENSTEN.map(d=>r.d[d.id]));
-  let min=Math.min(...alle); min=Math.floor((min-0.2)*10)/10; if(min<0)min=0;
+  let min=minGetal(alle); min=Math.floor((min-0.2)*10)/10; if(min<0)min=0;
   const max=100;
   const sy=v=>padT+(1-(v-min)/(max-min))*(H-padT-padB);
   const groepW=(W-padL-padR)/vcRows.length;
