@@ -63,10 +63,12 @@ test('NDW loader maakt verschil tussen gemeten intensiteit en scenarioaannames z
 });
 
 
-test('NDW loader exposeert een directe file-handler voor DVM bronbeheer',()=>{
+test('NDW loader exposeert directe file-handlers voor één of twee bronbestanden',()=>{
   const source=read('site/core/ndw-loader.js');
+  assert.match(source,/globalThis\.bidashLaadNdwFiles=async function\(files\)/);
   assert.match(source,/globalThis\.bidashLaadNdwFile=async function\(file\)/);
-  assert.match(source,/await globalThis\.bidashLaadNdwFile\(file\)/);
+  assert.match(source,/bidashLaadNdwFiles\(file\?\[file\]:\[\]\)/);
+  assert.match(source,/multiple style="display:none"/);
 });
 
 
@@ -89,4 +91,32 @@ test('NDW v3 configuratie zonder meetwaarden geeft gerichte fout',()=>{
   assert.match(source,/ndwMonibasLocation/);
   assert.match(source,/ndwWgs84ToRd/);
   assert.match(source,/ndwAssetGrid/);
+});
+
+
+test('NDW DATEX II v2.3 combineert measurement_current en trafficspeed',()=>{
+  const source=read('site/core/ndw-loader.js');
+  assert.match(source,/snapshotFromV23Pair/);
+  assert.match(source,/measurement_current/);
+  assert.match(source,/trafficspeed/);
+  assert.match(source,/ndwConfigUitDoc/);
+  assert.match(source,/ndwMetingenUitDoc/);
+  assert.match(source,/vehicleFlowRate/);
+  assert.match(source,/speedSites/);
+  assert.match(source,/NDW DATEX II v2\.3: trafficspeed \+ measurement_current/);
+});
+
+test('één los v2.3 bestand geeft een gerichte melding dat beide nodig zijn',()=>{
+  const source=read('site/core/ndw-loader.js');
+  assert.match(source,/moet je measurement_current\.xml\.gz en trafficspeed\.xml\.gz tegelijk selecteren/);
+  assert.match(source,/Selecteer voor NDW DATEX II v2\.3 beide bestanden tegelijk/);
+});
+
+
+test('kostenmodel gebruikt NDW gemeten snelheid als automatische basissnelheid',()=>{
+  const source=read('site/engines/dvm-2.js');
+  assert.match(source,/useMeasuredSpeed/);
+  assert.match(source,/snelheid:Number\(s\.speed\),ndwSpeedAuto:true/);
+  assert.match(source,/Gemeten snelheid .*wordt als basissnelheid voorgesteld/);
+  assert.match(source,/snelheidsreductie door assetuitval blijven scenarioaannames/);
 });

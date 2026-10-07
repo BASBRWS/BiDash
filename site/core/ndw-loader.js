@@ -219,7 +219,7 @@ const PATCH_SOURCE=String.raw`
     return {measurementSites,sites,publication};
   }
   function ndwSnapshotUitOnderdelen(configInfo,metingInfo,fileNames,hashes,sourceLabel){
-    if(!metingInfo.measurementSites.length&&configInfo.configs.size)throw new Error('NDW-configuratie herkend met '+configInfo.configs.size.toLocaleString('nl-NL')+' meetlocaties, maar zonder actuele meetwaarden.');
+    if(!metingInfo.measurementSites.length&&configInfo.configs.size)throw new Error('NDW-configuratiebestand herkend met '+configInfo.configs.size.toLocaleString('nl-NL')+' meetlocaties, maar zonder actuele meetwaarden.');
     if(!metingInfo.sites.length)throw new Error('Geen gekoppelde NDW meetgegevens gevonden.');
     const grid=ndwAssetGrid(),gekoppeldeSites=metingInfo.sites.map(s=>ndwEnrichLocation({...s,locationMethod:s.locationMethod||sourceLabel},grid));
     const validSites=gekoppeldeSites.filter(s=>s.q!==null).length;
