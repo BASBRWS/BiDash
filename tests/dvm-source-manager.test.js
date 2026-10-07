@@ -9,6 +9,8 @@ test('DVM-bronbeheer heeft voor elke bronsoort een eigen uploadroute',()=>{
   const expected={
     assetregister:['dripInput','leesDripBestand'],
     ndwVerkeer:['ndwTrafficInput','ndw:verkeer'],
+    ndwMeetlocaties:['ndwConfigInput','ndw:config'],
+    ndwTrafficspeed:['ndwTrafficspeedInput','ndw:traffic'],
     windDrips:['windDripListInput','special:wind'],
     ria4Drips:['ria4DripListInput','special:ria4'],
     storingshistorie:['autoLogInput','leesStoringsBestanden'],
@@ -113,7 +115,7 @@ test('secundaire bronbeheerknoppen zijn zichtbaar op witte kaarten',()=>{
 
 test('NDW verkeersdata staat als eigen meervoudige DVM-bron in bronbeheer',()=>{
   assert.match(source,/ndwVerkeer:\{input:'ndwTrafficInput'.*multiple:true.*handler:'ndw:verkeer'.*accept:'\.xml,\.gz,\.json,\.html,\.htm'/);
-  assert.match(source,/NDW verkeersdata voor kosten/);
+  assert.match(source,/NDW trafficspeed \/ verkeersdata voor kosten/);
   assert.match(source,/window\.bidashLaadNdwFiles\(files\)/);
   assert.match(source,/Gebruik uit werkruimte/);
   assert.match(source,/meetlocatieconfiguratie/);

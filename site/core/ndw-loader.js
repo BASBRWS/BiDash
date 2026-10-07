@@ -5,11 +5,12 @@ const PATCH_SOURCE=String.raw`
 
   const originalSummary=ndw69Summary;
   const DEFAULT_BRON='NDW verkeersintensiteit; hinderuren: spits 07:00–10:00 en 16:00–19:00; generieke snelheidsreductie 30%';
+  let loading=false,loadName='NDW verkeersdata';
 
   function loaderHtml(){
     return '<div class="bidash-ndw-loader" style="margin:12px 0;padding:12px;background:#fff;border:1px solid #b7c9d8;border-radius:6px">'
       +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button type="button" class="tb-btn primary" id="bidashNdwLoadButton" onclick="bidashLaadNdw()">Gebruik NDW uit werkruimte</button><button type="button" class="tb-btn" id="bidashNdwChooseButton" onclick="bidashKiesNdwBestand()">Kies export met NDW</button></div>'
-      +'<p class="muted" style="margin:8px 0 0">Voor de verkeerskosten wordt NDW-verkeersintensiteit gebruikt. Dit is een andere bron dan de NDW CMDB-import van MSI- en DRIP-areaal. Voor DATEX II v2.3 selecteer je de meetlocatieconfiguratie en trafficspeed tegelijk. De bestandsnaam hoeft niet exact measurement_current.xml.gz te zijn; de app herkent gzip en de XML-inhoud. DATEX II v3 via het gecombineerde snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz blijft ook bruikbaar.</p>'
+      +'<p class="muted" style="margin:8px 0 0">Voor de verkeerskosten wordt NDW-verkeersintensiteit gebruikt. Dit is een andere bron dan de NDW CMDB-import van MSI- en DRIP-areaal. Laad in Bronbeheer eerst NDW meetlocaties en daarna NDW trafficspeed. Dat mag ook andersom of via één selectie. De bestandsnaam hoeft niet exact measurement_current.xml.gz te zijn; de app herkent gzip en de XML-inhoud. DATEX II v3 via het gecombineerde snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz blijft ook bruikbaar.</p>'
       +'<p class="muted" style="margin:6px 0 0"><b>Let op:</b> NDW levert het voertuigaantal. De standaard 6 hinderuren en 30% snelheidsreductie zijn scenarioaannames en geen NDW-metingen. Controleer die per wegdeel als je kosten gebruikt.</p>'
       +'<input id="bidashNdwSourceFile" type="file" accept=".xml,.gz,.json,.html,.htm" multiple style="display:none" onchange="bidashNdwBestand(this)">'
       +'<div id="bidashNdwProgress" style="margin-top:8px;display:none"><div style="height:8px;background:#dbe5ec;border-radius:6px;overflow:hidden"><span id="bidashNdwProgressBar" style="display:block;height:100%;width:0;background:#007bc7;transition:width .15s"></span></div><div id="bidashNdwProgressLabel" style="font-size:12px;margin-top:5px">Nog niet gestart</div></div>'
@@ -28,6 +29,7 @@ const PATCH_SOURCE=String.raw`
     if(root)root.style.display='block';
     if(bar){bar.style.width=Math.max(0,Math.min(100,Number(pct)||0))+'%';bar.style.background=error?'#d52b1e':'#007bc7';}
     if(text)text.textContent=label||'';
+    if(typeof zetImportVoortgang==='function')zetImportVoortgang(loadName,pct,label,{actief:Number(pct)<100,fout:!!error,direct:true});
   }
   function buttonBusy(busy){for(const id of ['bidashNdwLoadButton','bidashNdwChooseButton']){const b=document.getElementById(id);if(b)b.disabled=!!busy;}}
   function hasValue(v){return v!==''&&v!==null&&v!==undefined&&Number.isFinite(Number(v));}
@@ -284,9 +286,10 @@ const PATCH_SOURCE=String.raw`
         if(!em){if(from>0)buffer=buffer.slice(from);break;}
         const end=from+em.index+em[0].length,block=buffer.slice(from,end);
         await onBlock(block,count++);buffer=buffer.slice(end);
-        if(onTick&&count%250===0)onTick(count);
+        if(count%250===0){if(onTick)onTick(count);await pause();}
       }
     }
+    if(startRe.test(buffer))throw new Error('NDW XML bevat een onvolledig '+tag+'-blok. Kies een volledig gedownload bestand.');
     return {count,publication,gzip:opened.gzip};
   }
   function ndwFragmentDoc(block){
@@ -329,51 +332,47 @@ const PATCH_SOURCE=String.raw`
     }
     const configFile=configProbe.file,trafficFile=trafficProbe.file;
     setProgress(8,'NDW meetlocatietabel herkend: '+configFile.name);
-    const configInfo=await ndwV23ConfigStream(configFile);
+    const pending=globalThis.__BIDASH_NDW_PENDING_V23__||{};
+    const cached=pending.config?.file===configFile?pending.config:null;
+    const configInfo=cached?.configInfo||await ndwV23ConfigStream(configFile);
     if(!configInfo.configs.size)throw new Error('Het configuratiebestand bevat geen herkenbare NDW-meetlocaties.');
     await pause();
     setProgress(45,configInfo.configs.size.toLocaleString('nl-NL')+' meetlocaties gevonden. Intensiteit en snelheid lezen: '+trafficFile.name);
     const metingInfo=await ndwV23TrafficStream(trafficFile,configInfo.configs);
-    const hashes=await Promise.all([ndwCompressedHash(configFile),ndwCompressedHash(trafficFile)]);
+    const hashes=await Promise.all([cached?.hash||ndwCompressedHash(configFile),ndwCompressedHash(trafficFile)]);
     const snapshot=ndwSnapshotUitOnderdelen(configInfo,metingInfo,[configFile.name,trafficFile.name],hashes,'NDW DATEX II v2.3');
     if(typeof ndw69ValidateData==='function')ndw69ValidateData(snapshot);
     return snapshot;
   }
   function ndwPendingLabel(kind){return kind==='config'?'meetlocatieconfiguratie':'trafficspeed';}
-  async function snapshotFromFiles(files){
+  async function snapshotFromFiles(files,expectedKind){
     files=[...(files||[])];if(!files.length)throw new Error('Geen NDW-bronbestand gekozen.');
-
-    if(files.length===1){
-      const probe=await ndwProbeFile(files[0]);
-      if(probe.kind==='combined')return snapshotFromFile(files[0]);
-      if(probe.kind==='config'||probe.kind==='traffic'){
-        const pending=globalThis.__BIDASH_NDW_PENDING_V23__||{};
-        pending[probe.kind]={file:files[0],name:files[0].name,gzip:probe.gzip,tijd:new Date().toISOString()};
+    const probes=[];for(const file of files)probes.push(await ndwProbeFile(file));
+    if(expectedKind&&probes.some(p=>p.kind!==expectedKind))throw new Error('Deze upload is voor '+ndwPendingLabel(expectedKind)+'. Kies de juiste bronkaart voor dit bestand.');
+    const configProbe=probes.find(p=>p.kind==='config'),trafficProbe=probes.find(p=>p.kind==='traffic');
+    if(configProbe||trafficProbe){
+      if(probes.some(p=>!['config','traffic'].includes(p.kind))||probes.filter(p=>p.kind==='config').length>1||probes.filter(p=>p.kind==='traffic').length>1)throw new Error('Kies maximaal één meetlocatieconfiguratie en één trafficspeedbestand.');
+      const pending=globalThis.__BIDASH_NDW_PENDING_V23__||{};
+      if(configProbe){
+        const file=configProbe.file;
+        setProgress(8,'Meetlocatieconfiguratie verwerken: '+file.name);await pause();
+        const configInfo=await ndwV23ConfigStream(file);
+        if(!configInfo.configs.size)throw new Error('Het configuratiebestand bevat geen herkenbare NDW-meetlocaties.');
+        pending.config={file,name:file.name,gzip:configProbe.gzip,tijd:new Date().toISOString(),configInfo,hash:await ndwCompressedHash(file)};
         globalThis.__BIDASH_NDW_PENDING_V23__=pending;
-        const other=probe.kind==='config'?'traffic':'config';
-        if(pending[other]?.file){
-          const pair=[pending.config.file,pending.traffic.file];
-          globalThis.__BIDASH_NDW_PENDING_V23__=null;
-          return snapshotFromV23Pair(pair);
-        }
-        return {pendingV23:true,kind:probe.kind,name:files[0].name,waitingFor:other};
       }
-    }
-
-    if(files.length>=2){
-      const probes=[];for(const file of files)probes.push(await ndwProbeFile(file));
-      const configProbe=probes.find(p=>p.kind==='config'),trafficProbe=probes.find(p=>p.kind==='traffic');
-      if(configProbe&&trafficProbe){
-        globalThis.__BIDASH_NDW_PENDING_V23__=null;
-        return snapshotFromV23Pair([configProbe.file,trafficProbe.file]);
+      if(trafficProbe){const file=trafficProbe.file;pending.traffic={file,name:file.name,gzip:trafficProbe.gzip,tijd:new Date().toISOString()};}
+      globalThis.__BIDASH_NDW_PENDING_V23__=pending;
+      if(pending.config?.file&&pending.traffic?.file){
+        const pair=[pending.config.file,pending.traffic.file];
+        return snapshotFromV23Pair(pair);
       }
-      const combined=probes.find(p=>p.kind==='combined');
-      if(combined&&files.length===1)return snapshotFromFile(combined.file);
-      const gezien=probes.map(p=>p.file.name+' = '+p.kind+(p.gzip?' (gzip)':'')).join(', ');
-      throw new Error('NDW DATEX II v2.3 niet compleet herkend. Laad de meetlocatieconfiguratie en trafficspeed; dat mag ook na elkaar. Herkend: '+gezien);
+      const kind=configProbe?'config':'traffic',other=kind==='config'?'traffic':'config';
+      return {pendingV23:true,kind,name:pending[kind].name,waitingFor:other};
     }
-
-    return snapshotFromFile(files[0]);
+    if(files.length===1)return snapshotFromFile(files[0]);
+    const gezien=probes.map(p=>p.file.name+' = '+p.kind+(p.gzip?' (gzip)':'')).join(', ');
+    throw new Error('NDW DATEX II v2.3 niet compleet herkend. Selecteer de meetlocatieconfiguratie en trafficspeed samen, of gebruik de losse bronkaarten. Herkend: '+gezien);
   }
 
   async function snapshotFromFile(file){
@@ -455,12 +454,14 @@ const PATCH_SOURCE=String.raw`
     c.scenarioWegen67=perRoad;c.ndw69=choices;RULES.kosten=c;
     if(typeof SC67_CACHE!=='undefined')SC67_CACHE={fingerprint:'',routes:{},busy:false,error:''};
     globalThis.__BIDASH_LAST_NDW_LOAD__={tijd:new Date().toISOString(),bron:bronNaam||'lokaal',sites:snapshot.sites.length,wegdelen:rows.length,gekoppeld:matched,nietGekoppeld:unmatched,hinderuren:6,snelheidsreductie:30};
-    setProgress(100,'Gereed. '+matched+' van '+rows.length+' wegdelen hebben een NDW-intensiteit. Het voertuigaantal komt uit NDW. Hinderuren en snelheidsreductie blijven scenario-invoer; standaard worden alleen ontbrekende waarden op 6 uur en 30% gezet.',matched===0);
+    setProgress(100,'Gereed. '+matched+' van '+rows.length+' wegdelen hebben een NDW-intensiteit. Het voertuigaantal komt uit NDW. Hinderuren en snelheidsreductie blijven scenario-invoer; standaard worden alleen ontbrekende waarden op 6 uur en 30% gezet.');
     if(typeof kostenDagVervers==='function')kostenDagVervers();
     try{if(parent!==globalThis)parent.postMessage({type:'hub:changed',engine:'dvm',sourceSpecific:true,bron:'ndw'},location.origin);}catch(error){}
   }
 
   globalThis.bidashLaadNdw=async function(){
+    if(loading)throw new Error('Een NDW-bron wordt nog verwerkt. Wacht tot deze upload klaar is.');
+    loading=true;loadName='NDW uit werkruimte';
     buttonBusy(true);
     try{
       setProgress(2,'NDW-verkeersdata zoeken in de huidige en lokaal opgeslagen werkruimte…');
@@ -469,7 +470,7 @@ const PATCH_SOURCE=String.raw`
       if(snapshot&&Array.isArray(snapshot.sites)&&snapshot.sites.length){await applySnapshot(snapshot,'lokale werkruimte');return;}
       setProgress(100,'Geen NDW-verkeerssnapshot gevonden in de huidige of lokaal opgeslagen werkruimte. Gebruik "Kies export met NDW" en selecteer een eerdere Business Intelligence Dashboard WVM/DVM JSON- of HTML-export met NDW-verkeersdata.',true);
     }catch(error){console.error(error);setProgress(100,error.message||String(error),true);alert(error.message||String(error));}
-    finally{buttonBusy(false);}
+    finally{loading=false;buttonBusy(false);}
   };
 
   globalThis.bidashKiesNdwBestand=function(){
@@ -479,12 +480,16 @@ const PATCH_SOURCE=String.raw`
     input.click();
   };
 
-  globalThis.bidashLaadNdwFiles=async function(files){
+  globalThis.bidashLaadNdwFiles=async function(files,expectedKind){
     files=[...(files||[])];if(!files.length)throw new Error('Geen NDW-bronbestand gekozen.');
+    if(loading)throw new Error('Een NDW-bron wordt nog verwerkt. Wacht tot deze upload klaar is.');
+    loading=true;loadName=files.map(f=>f.name).join(' + ');
+    globalThis.__BIDASH_LAST_NDW_ERROR__=null;
     buttonBusy(true);
     try{
       setProgress(5,'NDW-data laden: '+files.map(f=>f.name).join(' + '));
-      const snapshot=await snapshotFromFiles(files);
+      await pause();
+      const snapshot=await snapshotFromFiles(files,expectedKind);
       if(snapshot?.pendingV23){
         const wachtOp=ndwPendingLabel(snapshot.waitingFor);
         globalThis.__BIDASH_LAST_NDW_PENDING__={tijd:new Date().toISOString(),kind:snapshot.kind,naam:snapshot.name,waitingFor:snapshot.waitingFor};
@@ -492,11 +497,14 @@ const PATCH_SOURCE=String.raw`
         return {pending:true,kind:snapshot.kind,naam:snapshot.name,waitingFor:snapshot.waitingFor};
       }
       globalThis.__BIDASH_LAST_NDW_PENDING__=null;
-      await applySnapshot(snapshot,files.map(f=>f.name).join(' + '));
+      await applySnapshot(snapshot,snapshot.files.join(' + '));
+      const pending=globalThis.__BIDASH_NDW_PENDING_V23__;
+      if(pending?.traffic)pending.traffic.applied=true;
       return globalThis.__BIDASH_LAST_NDW_LOAD__||null;
     }catch(error){
+      globalThis.__BIDASH_LAST_NDW_ERROR__={kind:expectedKind||'traffic',message:error.message||String(error),bestand:loadName};
       console.error(error);setProgress(100,error.message||String(error),true);throw error;
-    }finally{buttonBusy(false);}
+    }finally{loading=false;buttonBusy(false);}
   };
   globalThis.bidashLaadNdwFile=async function(file){return globalThis.bidashLaadNdwFiles(file?[file]:[]);};
 

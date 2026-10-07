@@ -4,11 +4,13 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='120';
+  const DVM_VERSION='121';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
     ndwVerkeer:{input:'ndwTrafficInput',label:'NDW verkeersdata laden',multiple:true,requiresAsset:true,handler:'ndw:verkeer',accept:'.xml,.gz,.json,.html,.htm'},
+    ndwMeetlocaties:{input:'ndwConfigInput',label:'Meetlocaties laden',multiple:false,requiresAsset:true,handler:'ndw:config',accept:'.xml,.gz'},
+    ndwTrafficspeed:{input:'ndwTrafficspeedInput',label:'Trafficspeed laden',multiple:false,requiresAsset:true,handler:'ndw:traffic',accept:'.xml,.gz'},
     windDrips:{input:'windDripListInput',label:'Windwaarschuwing DRIP’s laden',multiple:false,requiresAsset:true,handler:'special:wind',accept:SPECIAL_ACCEPT},
     ria4Drips:{input:'ria4DripListInput',label:'RIA4 DRIP’s laden',multiple:false,requiresAsset:true,handler:'special:ria4',accept:SPECIAL_ACCEPT},
     storingshistorie:{input:'autoLogInput',label:'Storingshistorie toevoegen',multiple:true,requiresAsset:true,handler:'leesStoringsBestanden'},
@@ -20,10 +22,11 @@
     dripTotaal:{input:'dripTotaalInput',label:'DRIP totaal (JSON) laden',multiple:false,requiresAsset:true,handler:'leesDripTotaal',accept:'.json'},
     dripMap:{input:'dripMapInput',label:'DRIP uit map lezen (CDMS)',multiple:true,directory:true,requiresAsset:true,handler:'leesDripMap'}
   });
-  const SOURCE_ORDER=['assetregister','ndwVerkeer','windDrips','ria4Drips','storingshistorie','uRoutes','werkzaamheden','liveStoringen','signaalgeverTotaal','signaalgeverMap','dripTotaal','dripMap'];
+  const SOURCE_ORDER=['assetregister','ndwMeetlocaties','ndwVerkeer','windDrips','ria4Drips','storingshistorie','uRoutes','werkzaamheden','liveStoringen','signaalgeverTotaal','signaalgeverMap','dripTotaal','dripMap'];
   const PLACEHOLDERS={
     assetregister:{titel:'Assetregister / All Assets',meta:'Nog niet geladen. Laad dit stamregister als eerste.'},
-    ndwVerkeer:{titel:'NDW verkeersdata voor kosten',meta:'Nog geen NDW-verkeersdata geladen. DATEX II v2.3: selecteer de meetlocatieconfiguratie en trafficspeed tegelijk. De bestandsnamen mogen afwijken, de app herkent gzip en de XML-inhoud. De configuratie levert meetlocatie, rijstrookindeling en locatie; trafficspeed levert actuele intensiteit en snelheid. DATEX II v3: je kunt ook één gecombineerd snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz laden. All Assets moet eerst geladen zijn voor de wegdeel- en hectometerkoppeling.'},
+    ndwMeetlocaties:{titel:'NDW meetlocaties',meta:'Laad measurement_current of measurement via deze upload. De meetlocatietabel wordt direct verwerkt en blijft tijdens deze sessie beschikbaar voor volgende trafficspeedmetingen. Daarna koppel je de actuele intensiteit en snelheid via de aparte trafficspeedkaart. All Assets moet eerst geladen zijn.'},
+    ndwVerkeer:{titel:'NDW trafficspeed / verkeersdata voor kosten',meta:'Nog geen NDW-verkeersdata geladen. Laad trafficspeed via deze upload en de meetlocatieconfiguratie via NDW meetlocaties. De bestandsnamen mogen afwijken, de app herkent gzip en de XML-inhoud. DATEX II v3: je kunt ook één gecombineerd snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz laden via Gecombineerd bestand of export. All Assets moet eerst geladen zijn voor de wegdeel- en hectometerkoppeling.'},
     windDrips:{titel:'Windwaarschuwing DRIP’s',meta:'Nog geen referentielijst geladen. Deze bron markeert welke DRIP-assets bij windwaarschuwing horen.'},
     ria4Drips:{titel:'RIA4 DRIP’s',meta:'Nog geen referentielijst geladen. Deze bron markeert welke DRIP-assets bij RIA4 horen.'},
     storingshistorie:{titel:'Storingshistorie',meta:'Nog geen historische DVM-storingsbron geladen. Deze bron voedt alleen prognoses.'},
@@ -136,7 +139,7 @@
     try{
       const d=typeof ndw69Data==='function'?ndw69Data():null;
       const pending=window.__BIDASH_LAST_NDW_PENDING__||null;
-      if((!d||!Array.isArray(d.sites)||!d.sites.length)&&pending){
+      if(pending){
         return {pending:true,bestand:pending.naam||'NDW deelbron',waitingFor:pending.waitingFor||'',geladenOp:pending.tijd||null};
       }
       if(!d||!Array.isArray(d.sites)||!d.sites.length)return null;
@@ -147,6 +150,14 @@
         gekoppeldeWegdelen:Number(last?.gekoppeld)||0,totaalWegdelen:Number(last?.wegdelen)||0,
         publication:d.publication||null,geladenOp:last?.tijd||null};
     }catch(error){return null;}
+  }
+  function ndwMeetlocatiesMeta(){
+    const source=window.__BIDASH_NDW_PENDING_V23__?.config;
+    if(!source?.configInfo)return PLACEHOLDERS.ndwMeetlocaties.meta;
+    return '<div class="dataset-meta-section"><div class="dataset-meta-label">Meetlocaties geladen</div>'+
+      '<div>'+esc(source.name)+'</div><div>'+source.configInfo.configs.size.toLocaleString('nl-NL')+' meetlocaties</div>'+
+      '<div>Publicatie '+esc(datumTekst(source.configInfo.publication))+'</div></div>'+
+      '<div class="dataset-meta-note">Beschikbaar tijdens deze sessie. Een nieuwe trafficspeedupload gebruikt deze tabel opnieuw. Na herladen van de pagina laad je de losse bronnen opnieuw.</div>';
   }
   function ndwVerkeerMeta(s){
     if(s.pending){
@@ -234,8 +245,16 @@
       const ndw=ndwVerkeerState(),sgt=signaalgeverTotaalState(),drt=dripTotaalState();
       const current=originalDatasetItems().filter(item=>!isSignaalgeverTotaalItem(item)&&!isDripTotaalItem(item)),out=[];
       SOURCE_ORDER.forEach(type=>{
+        if(type==='ndwMeetlocaties'){
+          out.push({type,key:'',titel:PLACEHOLDERS[type].titel,aanwezig:!!window.__BIDASH_NDW_PENDING_V23__?.config?.configInfo,meta:ndwMeetlocatiesMeta()});
+          return;
+        }
         if(type==='ndwVerkeer'){
-          out.push({type,key:'',titel:PLACEHOLDERS[type].titel,aanwezig:!!ndw,meta:ndw?ndwVerkeerMeta(ndw):PLACEHOLDERS[type].meta});
+          let meta=ndw?ndwVerkeerMeta(ndw):PLACEHOLDERS[type].meta;
+          const source=window.__BIDASH_NDW_PENDING_V23__?.traffic,error=window.__BIDASH_LAST_NDW_ERROR__;
+          if(source&&!source.applied)meta+='<div class="dataset-meta-note">Trafficspeed gekozen: '+esc(source.name)+'. Wacht op een geslaagde koppeling met meetlocaties.</div>';
+          if(error)meta+='<div class="dataset-meta-note">Laatste upload mislukt: '+esc(error.message)+'. De eerder ingelezen meetlocatietabel blijft beschikbaar.</div>';
+          out.push({type,key:'',titel:PLACEHOLDERS[type].titel,aanwezig:!!ndw,zacht:!!ndw?.pending,meta});
           return;
         }
         if(type==='signaalgeverTotaal'){
@@ -291,9 +310,11 @@
     const originalDatasetItemCard=datasetItemCard;
     datasetItemCard=function(item){
       let html=originalDatasetItemCard(item);const c=config(item.type);if(!c)return html;
+      if(item.type==='ndwMeetlocaties'||item.type==='ndwVerkeer')html=html.replace(/<button class="dataset-del"[^>]*>[\s\S]*?<\/button>/g,'');
+      if(item.type==='ndwVerkeer'&&item.zacht)html=html.replace('<span class="pill groen">gereed</span>','<span class="pill oranje">wacht op tweede bron</span>');
       const disabled=bronGeblokkeerd(item.type),title=disabled?'Laad eerst Assetregister / All Assets.':'Deze knop gebruikt rechtstreeks de bron-specifieke DVM-parser.';
       let upload=`<button class="tb-btn primary dataset-upload" onclick="openDatasetUpload('${item.type}')" ${disabled?'disabled':''} title="${title}">⭱ ${knopTekst(item)}</button>`;
-      if(item.type==='ndwVerkeer')upload+=`<button class="tb-btn dataset-upload" onclick="bidashLaadNdw().then(()=>renderDatasetBeheer()).catch(error=>alert(error.message||String(error)))" title="Zoek een NDW-verkeerssnapshot in de actieve of lokaal opgeslagen werkruimte.">Gebruik uit werkruimte</button>`;
+      if(item.type==='ndwVerkeer')upload=`<button class="tb-btn primary dataset-upload" onclick="openDatasetUpload('ndwTrafficspeed')" ${disabled?'disabled':''}>⭱ Trafficspeed laden</button><button class="tb-btn dataset-upload" onclick="openDatasetUpload('ndwVerkeer')" ${disabled?'disabled':''}>Gecombineerd bestand of export</button><button class="tb-btn dataset-upload" onclick="bidashLaadNdw().then(()=>renderDatasetBeheer()).catch(error=>alert(error.message||String(error)))" title="Zoek een NDW-verkeerssnapshot in de actieve of lokaal opgeslagen werkruimte.">Gebruik uit werkruimte</button>`;
       if(item.type==='dripTotaal'&&item.aanwezig)upload+=`<button class="tb-btn dataset-upload" onclick="openDripTotaalToevoegen()" ${disabled?'disabled':''} title="Voeg een extra DRIP totaal JSON complementair toe; bestaande DRIP-bronnen blijven staan.">＋ Voeg JSON toe</button>`;
       if(isSpecial(item.type)&&item.aanwezig)upload+=`<button class="tb-btn" onclick="clearSpecialDripSource('${item.type}')">Wissen</button>`;
       html=html.replace('<div class="dataset-actions">','<div class="dataset-actions">'+upload);return html;
@@ -309,7 +330,7 @@
         [...actions.querySelectorAll('button')].forEach(button=>{if((button.getAttribute('onclick')||'').includes('totaalImportInput'))button.remove();});
         if(!host.querySelector('.bron-specifiek-uitleg')){
           const uitleg=document.createElement('p');uitleg.className='dataset-note bron-specifiek-uitleg';
-          uitleg.innerHTML='<b>Bron-specifiek laden:</b> gebruik hieronder per onderdeel de eigen uploadknop. NDW verkeersdata voor kosten heeft een eigen bronkaart. Voor DATEX II v2.3 laad je de meetlocatieconfiguratie en trafficspeed. Dat mag tegelijk of na elkaar. Deze bron staat los van de NDW MSI/DRIP-areaalimport. Een gecombineerd DRIP-bestand met aparte kolommen RIA4 en Windwaarschuwing wordt automatisch per gemarkeerde regel gesplitst. Losse referentielijsten blijven via hun eigen knop bruikbaar. De koppeling gebruikt eerst de identifier en controleert VC, weg, richting en hectometer.';
+          uitleg.innerHTML='<b>Bron-specifiek laden:</b> gebruik hieronder per onderdeel de eigen uploadknop. NDW meetlocaties en NDW trafficspeed hebben aparte bronkaarten. Voor DATEX II v2.3 laad je de meetlocatieconfiguratie en trafficspeed. Dat mag tegelijk of na elkaar. De meetlocatietabel blijft deze sessie beschikbaar voor nieuwe verkeersmetingen. Deze bron staat los van de NDW MSI/DRIP-areaalimport. Een gecombineerd DRIP-bestand met aparte kolommen RIA4 en Windwaarschuwing wordt automatisch per gemarkeerde regel gesplitst. Losse referentielijsten blijven via hun eigen knop bruikbaar. De koppeling gebruikt eerst de identifier en controleert VC, weg, richting en hectometer.';
           actions.insertAdjacentElement('afterend',uitleg);
         }
       }
@@ -333,6 +354,8 @@
       case 'ndw:verkeer':
         if(typeof window.bidashLaadNdwFiles!=='function')throw new Error('NDW-verkeersloader voor meerdere bestanden is nog niet gereed. Herlaad de pagina en probeer opnieuw.');
         result=await window.bidashLaadNdwFiles(files);break;
+      case 'ndw:config': result=await window.bidashLaadNdwFiles(files,'config');break;
+      case 'ndw:traffic': result=await window.bidashLaadNdwFiles(files,'traffic');break;
       case 'leesStoringsBestanden': result=await leesStoringsBestanden(files);break;
       case 'leesURouteBestand': result=await leesURouteBestand(files[0]);break;
       case 'leesWerkBestand': result=await leesWerkBestand(files[0]);break;
