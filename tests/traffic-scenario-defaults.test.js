@@ -34,10 +34,12 @@ test('browserpatch doet niets in Node',()=>{
   assert.equal(installTrafficScenarioDefaults(globalThis),false);
 });
 
-test('uitgestelde zware restore behoudt eerder opgeslagen NDW verkeerscontext',()=>{
+test('uitgestelde zware restore activeert opgeslagen NDW niet stilzwijgend',()=>{
   const source=read('site/engines/dvm-adapter.js');
-  assert.match(source,/bundle\?\.parameters\?\.kosten/);
-  assert.match(source,/RULES\.kosten=\{\.\.\.\(RULES\.kosten\|\|\{\}\),\.\.\.kosten\}/);
-  assert.match(source,/__BIDASH_DVM_TRAFFIC_RESTORED__/);
+  assert.match(source,/delete schoon\.ndw69Snapshot/);
+  assert.match(source,/delete schoon\.ndw69/);
+  assert.match(source,/__BIDASH_DVM_TRAFFIC_AVAILABLE__/);
+  assert.match(source,/__BIDASH_DVM_TRAFFIC_RESTORED__=null/);
+  assert.match(source,/ndwSpeedAuto/);
   assert.ok(source.indexOf('herstelVerkeerscontext(bundle)')<source.indexOf('return legeSamenvatting()'));
 });
