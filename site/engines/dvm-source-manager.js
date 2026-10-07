@@ -4,11 +4,11 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='116';
+  const DVM_VERSION='117';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
-    ndwVerkeer:{input:'ndwTrafficInput',label:'NDW verkeersdata laden',multiple:false,requiresAsset:true,handler:'ndw:verkeer',accept:'.xml,.gz,.json,.html,.htm'},
+    ndwVerkeer:{input:'ndwTrafficInput',label:'NDW verkeersdata laden',multiple:true,requiresAsset:true,handler:'ndw:verkeer',accept:'.xml,.gz,.json,.html,.htm'},
     windDrips:{input:'windDripListInput',label:'Windwaarschuwing DRIP’s laden',multiple:false,requiresAsset:true,handler:'special:wind',accept:SPECIAL_ACCEPT},
     ria4Drips:{input:'ria4DripListInput',label:'RIA4 DRIP’s laden',multiple:false,requiresAsset:true,handler:'special:ria4',accept:SPECIAL_ACCEPT},
     storingshistorie:{input:'autoLogInput',label:'Storingshistorie toevoegen',multiple:true,requiresAsset:true,handler:'leesStoringsBestanden'},
@@ -23,7 +23,7 @@
   const SOURCE_ORDER=['assetregister','ndwVerkeer','windDrips','ria4Drips','storingshistorie','uRoutes','werkzaamheden','liveStoringen','signaalgeverTotaal','signaalgeverMap','dripTotaal','dripMap'];
   const PLACEHOLDERS={
     assetregister:{titel:'Assetregister / All Assets',meta:'Nog niet geladen. Laad dit stamregister als eerste.'},
-    ndwVerkeer:{titel:'NDW verkeersintensiteit voor kosten',meta:'Nog geen NDW-verkeersdata geladen. Laad snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz van NDW Open Data. Het bestand zonder meetgegevens_en_ is alleen configuratie en bevat geen actuele intensiteiten. All Assets moet eerst geladen zijn voor de locatiekoppeling. Een eerdere Dashboard WVM/DVM export met ndw69Snapshot blijft bruikbaar.'},
+    ndwVerkeer:{titel:'NDW verkeersdata voor kosten',meta:'Nog geen NDW-verkeersdata geladen. DATEX II v2.3: selecteer measurement_current.xml.gz en trafficspeed.xml.gz tegelijk. measurement_current levert meetlocatie, rijstrookindeling en locatie; trafficspeed levert actuele intensiteit en snelheid. DATEX II v3: je kunt ook één gecombineerd snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz laden. All Assets moet eerst geladen zijn voor de wegdeel- en hectometerkoppeling.'},
     windDrips:{titel:'Windwaarschuwing DRIP’s',meta:'Nog geen referentielijst geladen. Deze bron markeert welke DRIP-assets bij windwaarschuwing horen.'},
     ria4Drips:{titel:'RIA4 DRIP’s',meta:'Nog geen referentielijst geladen. Deze bron markeert welke DRIP-assets bij RIA4 horen.'},
     storingshistorie:{titel:'Storingshistorie',meta:'Nog geen historische DVM-storingsbron geladen. Deze bron voedt alleen prognoses.'},
@@ -138,7 +138,10 @@
       if(!d||!Array.isArray(d.sites)||!d.sites.length)return null;
       const last=window.__BIDASH_LAST_NDW_LOAD__||null;
       return {bestand:last?.bron||((d.files||[]).filter(Boolean).join(' + '))||'NDW verkeerssnapshot',
-        sites:d.sites.length,validSites:Number(d.stats?.validSites)||0,publication:d.publication||null,geladenOp:last?.tijd||null};
+        sites:d.sites.length,validSites:Number(d.stats?.validSites)||0,speedSites:Number(d.stats?.speedSites)||d.sites.filter(s=>s.speed!=null).length,
+        lanes:d.sites.reduce((n,s)=>n+(Array.isArray(s.lanes)?s.lanes.length:0),0),locationSites:Number(d.stats?.locationSites)||0,
+        gekoppeldeWegdelen:Number(last?.gekoppeld)||0,totaalWegdelen:Number(last?.wegdelen)||0,
+        publication:d.publication||null,geladenOp:last?.tijd||null};
     }catch(error){return null;}
   }
   function ndwVerkeerMeta(s){
@@ -146,6 +149,10 @@
     return '<div class="dataset-meta-section"><div class="dataset-meta-label">Inhoud</div>'+
       '<div>'+Number(s.sites||0).toLocaleString('nl-NL')+' meetlocaties</div>'+
       '<div>'+Number(s.validSites||0).toLocaleString('nl-NL')+' met bruikbare verkeersintensiteit</div>'+
+      '<div>'+Number(s.speedSites||0).toLocaleString('nl-NL')+' met bruikbare snelheid</div>'+
+      '<div>'+Number(s.lanes||0).toLocaleString('nl-NL')+' geldige rijstrookintensiteiten</div>'+
+      '<div>'+Number(s.locationSites||0).toLocaleString('nl-NL')+' meetlocaties met weg/richting/hectometer</div>'+
+      (s.totaalWegdelen?'<div>'+Number(s.gekoppeldeWegdelen||0).toLocaleString('nl-NL')+' van '+Number(s.totaalWegdelen).toLocaleString('nl-NL')+' actuele wegdelen gekoppeld</div>':'')+
       (pub?'<div>Publicatie '+pub+'</div>':'')+
       (s.bestand?'<div>Bron '+String(s.bestand).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))+'</div>':'')+
       '</div><div class="dataset-meta-note">Voedt voertuigen per uur in de verkeerskosten. Hinderuren en snelheidsreductie blijven scenarioaannames.</div>';
@@ -292,7 +299,7 @@
         [...actions.querySelectorAll('button')].forEach(button=>{if((button.getAttribute('onclick')||'').includes('totaalImportInput'))button.remove();});
         if(!host.querySelector('.bron-specifiek-uitleg')){
           const uitleg=document.createElement('p');uitleg.className='dataset-note bron-specifiek-uitleg';
-          uitleg.innerHTML='<b>Bron-specifiek laden:</b> gebruik hieronder per onderdeel de eigen uploadknop. NDW verkeersintensiteit voor kosten heeft een eigen bronkaart en staat los van de NDW MSI/DRIP-areaalimport. Een gecombineerd DRIP-bestand met aparte kolommen RIA4 en Windwaarschuwing wordt automatisch per gemarkeerde regel gesplitst. Losse referentielijsten blijven via hun eigen knop bruikbaar. De koppeling gebruikt eerst de identifier en controleert VC, weg, richting en hectometer.';
+          uitleg.innerHTML='<b>Bron-specifiek laden:</b> gebruik hieronder per onderdeel de eigen uploadknop. NDW verkeersdata voor kosten heeft een eigen bronkaart. Voor DATEX II v2.3 selecteer je measurement_current.xml.gz en trafficspeed.xml.gz tegelijk. Deze bron staat los van de NDW MSI/DRIP-areaalimport. Een gecombineerd DRIP-bestand met aparte kolommen RIA4 en Windwaarschuwing wordt automatisch per gemarkeerde regel gesplitst. Losse referentielijsten blijven via hun eigen knop bruikbaar. De koppeling gebruikt eerst de identifier en controleert VC, weg, richting en hectometer.';
           actions.insertAdjacentElement('afterend',uitleg);
         }
       }
@@ -314,8 +321,8 @@
     switch(c.handler){
       case 'leesDripBestand': result=await leesDripBestand(files[0]);break;
       case 'ndw:verkeer':
-        if(typeof window.bidashLaadNdwFile!=='function')throw new Error('NDW-verkeersloader is nog niet gereed. Herlaad de pagina en probeer opnieuw.');
-        result=await window.bidashLaadNdwFile(files[0]);break;
+        if(typeof window.bidashLaadNdwFiles!=='function')throw new Error('NDW-verkeersloader voor meerdere bestanden is nog niet gereed. Herlaad de pagina en probeer opnieuw.');
+        result=await window.bidashLaadNdwFiles(files);break;
       case 'leesStoringsBestanden': result=await leesStoringsBestanden(files);break;
       case 'leesURouteBestand': result=await leesURouteBestand(files[0]);break;
       case 'leesWerkBestand': result=await leesWerkBestand(files[0]);break;
