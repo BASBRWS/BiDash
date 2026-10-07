@@ -109,7 +109,8 @@ test('NDW DATEX II v2.3 combineert measurement_current en trafficspeed',()=>{
 test('één los v2.3 bestand geeft een gerichte melding dat beide nodig zijn',()=>{
   const source=read('site/core/ndw-loader.js');
   assert.match(source,/moet je measurement_current\.xml\.gz en trafficspeed\.xml\.gz tegelijk selecteren/);
-  assert.match(source,/Selecteer voor NDW DATEX II v2\.3 beide bestanden tegelijk/);
+  assert.match(source,/NDW DATEX II v2\.3 niet compleet herkend/);
+  assert.match(source,/Selecteer de meetlocatieconfiguratie en trafficspeed samen/);
 });
 
 
