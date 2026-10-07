@@ -11,7 +11,7 @@ const PATCH_SOURCE=String.raw`
       +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button type="button" class="tb-btn primary" id="bidashNdwLoadButton" onclick="bidashLaadNdw()">Gebruik NDW uit werkruimte</button><button type="button" class="tb-btn" id="bidashNdwChooseButton" onclick="bidashKiesNdwBestand()">Kies export met NDW</button></div>'
       +'<p class="muted" style="margin:8px 0 0">Voor de verkeerskosten wordt NDW-verkeersintensiteit gebruikt. Dit is een andere bron dan de NDW CMDB-import van MSI- en DRIP-areaal. Laad bij voorkeur het actuele NDW DATEX II v3 bestand snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz. Een eerdere Business Intelligence Dashboard WVM/DVM JSON- of HTML-export met ndw69Snapshot blijft ook bruikbaar.</p>'
       +'<p class="muted" style="margin:6px 0 0"><b>Let op:</b> NDW levert het voertuigaantal. De standaard 6 hinderuren en 30% snelheidsreductie zijn scenarioaannames en geen NDW-metingen. Controleer die per wegdeel als je kosten gebruikt.</p>'
-      +'<input id="bidashNdwSourceFile" type="file" accept=".xml,.gz,.json,.html,.htm" style="display:none" onchange="bidashNdwBestand(this)">'
+      +'<input id="bidashNdwSourceFile" type="file" accept=".xml,.gz,.json,.html,.htm" multiple style="display:none" onchange="bidashNdwBestand(this)">'
       +'<div id="bidashNdwProgress" style="margin-top:8px;display:none"><div style="height:8px;background:#dbe5ec;border-radius:6px;overflow:hidden"><span id="bidashNdwProgressBar" style="display:block;height:100%;width:0;background:#007bc7;transition:width .15s"></span></div><div id="bidashNdwProgressLabel" style="font-size:12px;margin-top:5px">Nog niet gestart</div></div>'
       +'</div>';
   }
@@ -134,10 +134,13 @@ const PATCH_SOURCE=String.raw`
     }catch(error){}
     return {text,hash};
   }
-  function ndwXmlSnapshot(xml,fileName,hash){
+  function ndwParseDoc(xml){
     if(typeof DOMParser!=='function')throw new Error('XML-parser is niet beschikbaar in deze browser.');
     const doc=new DOMParser().parseFromString(xml,'application/xml');
     if(xmlNodes(doc,'parsererror').length)throw new Error('NDW XML kon niet worden gelezen.');
+    return doc;
+  }
+  function ndwConfigUitDoc(doc){
     const configs=new Map();
     const configSites=[...xmlNodes(doc,'measurementSiteRecord'),...xmlNodes(doc,'measurementSite')];
     for(const site of configSites){
@@ -171,6 +174,12 @@ const PATCH_SOURCE=String.raw`
       }
       configs.set(id,{id,version,name,road,hm,direction,lat,lon,characteristics});
     }
+    let publication='';
+    const pubTimes=xmlNodes(doc,'publicationTime').map(xmlText).filter(t=>Number.isFinite(Date.parse(t))).sort((a,b)=>Date.parse(b)-Date.parse(a));
+    if(pubTimes.length)publication=pubTimes[0];
+    return {configs,publication};
+  }
+  function ndwMetingenUitDoc(doc,configs,sourceLabel){
     const measurementSites=xmlNodes(doc,'siteMeasurements'),sites=[];
     let publication='';
     const pubTimes=xmlNodes(doc,'publicationTime').map(xmlText).filter(t=>Number.isFinite(Date.parse(t))).sort((a,b)=>Date.parse(b)-Date.parse(a));
@@ -181,10 +190,7 @@ const PATCH_SOURCE=String.raw`
       const timeBox=xmlOne(sm,'measurementTimeDefault');
       const time=xmlFirstText(timeBox,['timeValue'])||xmlText(timeBox)||publication;
       if(!Number.isFinite(Date.parse(time)))continue;
-      const quantities=[
-        ...xmlNodes(sm,'physicalQuantity').filter(x=>x.hasAttribute('index')),
-        ...xmlNodes(sm,'measuredValue').filter(x=>x.hasAttribute('index'))
-      ];
+      const quantities=[...xmlNodes(sm,'physicalQuantity').filter(x=>x.hasAttribute('index')),...xmlNodes(sm,'measuredValue').filter(x=>x.hasAttribute('index'))];
       const laneFlows=new Map(),laneSpeeds=new Map(),issues=[];let period=60;
       for(const qn of quantities){
         const index=String(qn.getAttribute('index')),ch=cfg.characteristics.get(index)||{index,type:'',lane:index,anyVehicle:true,period:60};
@@ -208,17 +214,27 @@ const PATCH_SOURCE=String.raw`
       const speedValues=[...laneSpeeds.values()],speed=speedValues.length?speedValues.reduce((s,x)=>s+x,0)/speedValues.length:null;
       if(!lanes.length)issues.push('geen anyVehicle-intensiteit');
       sites.push({id,version:cfg.version||ref?.getAttribute('version')||'',name:cfg.name||id,time,road:cfg.road||'',direction:cfg.direction||'',hm:cfg.hm,lat:cfg.lat,lon:cfg.lon,
-        q,period,speed,lanes,issues,locationMethod:'NDW DATEX II v3 gecombineerd bestand; weg/richting/hectometer uit configuratie of herkenbare meetlocatienaam'});
+        q,period,speed,lanes,issues,locationMethod:sourceLabel});
     }
-    if(!measurementSites.length&&configs.size)throw new Error('NDW-configuratiebestand herkend met '+configs.size.toLocaleString('nl-NL')+' meetlocaties, maar zonder actuele meetwaarden. Dit bestand is alleen de meetlocatieconfiguratie. Kies snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz.');
-    if(!sites.length)throw new Error('Geen gekoppelde NDW meetgegevens gevonden. Kies het gecombineerde bestand snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz.');
-    const grid=ndwAssetGrid(),gekoppeldeSites=sites.map(s=>ndwEnrichLocation(s,grid));
+    return {measurementSites,sites,publication};
+  }
+  function ndwSnapshotUitOnderdelen(configInfo,metingInfo,fileNames,hashes,sourceLabel){
+    if(!metingInfo.measurementSites.length&&configInfo.configs.size)throw new Error('NDW-configuratie herkend met '+configInfo.configs.size.toLocaleString('nl-NL')+' meetlocaties, maar zonder actuele meetwaarden.');
+    if(!metingInfo.sites.length)throw new Error('Geen gekoppelde NDW meetgegevens gevonden.');
+    const grid=ndwAssetGrid(),gekoppeldeSites=metingInfo.sites.map(s=>ndwEnrichLocation({...s,locationMethod:s.locationMethod||sourceLabel},grid));
     const validSites=gekoppeldeSites.filter(s=>s.q!==null).length;
+    const speedSites=gekoppeldeSites.filter(s=>s.speed!=null).length;
     const locationSites=gekoppeldeSites.filter(s=>s.road&&s.hm!=null&&s.direction).length;
-    return {schema:1,publication:publication||new Date().toISOString(),configurationPublication:publication||'',files:[fileName],sha256:[hash||''],stats:{sites:gekoppeldeSites.length,validSites,locationSites,assetRegister:grid.count},sites:gekoppeldeSites};
+    return {schema:1,publication:metingInfo.publication||configInfo.publication||new Date().toISOString(),configurationPublication:configInfo.publication||'',files:fileNames,sha256:hashes,
+      stats:{sites:gekoppeldeSites.length,validSites,speedSites,locationSites,assetRegister:grid.count,configSites:configInfo.configs.size},sites:gekoppeldeSites};
+  }
+  function ndwXmlSnapshot(xml,fileName,hash){
+    const doc=ndwParseDoc(xml),configInfo=ndwConfigUitDoc(doc),metingInfo=ndwMetingenUitDoc(doc,configInfo.configs,'NDW DATEX II v3 gecombineerd bestand');
+    return ndwSnapshotUitOnderdelen(configInfo,metingInfo,[fileName],[hash||''],'NDW DATEX II v3 gecombineerd bestand');
   }
   async function snapshotFromRawNdw(file){
     const naam=String(file?.name||'').toLowerCase();
+    if(naam.includes('measurement_current')||naam.includes('trafficspeed'))throw new Error('Voor NDW DATEX II v2.3 moet je measurement_current.xml.gz en trafficspeed.xml.gz tegelijk selecteren.');
     if(naam.includes('snelheden_en_intensiteiten_configuratie_meetlocaties')&&!naam.includes('meetgegevens_en_configuratie')){
       throw new Error('Dit is alleen het NDW-configuratiebestand met meetlocaties en bevat geen actuele intensiteiten. Kies snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz.');
     }
@@ -230,6 +246,29 @@ const PATCH_SOURCE=String.raw`
     const snapshot=ndwXmlSnapshot(raw.text,file.name,raw.hash);
     if(typeof ndw69ValidateData==='function')ndw69ValidateData(snapshot);
     return snapshot;
+  }
+  async function snapshotFromV23Pair(files){
+    const configFile=files.find(f=>/measurement_current(?:\.xml)?(?:\.gz)?$/i.test(String(f.name||''))||/measurement_current/i.test(String(f.name||'')));
+    const trafficFile=files.find(f=>/trafficspeed/i.test(String(f.name||'')));
+    if(!configFile||!trafficFile)throw new Error('Selecteer voor NDW DATEX II v2.3 beide bestanden tegelijk: measurement_current.xml.gz en trafficspeed.xml.gz.');
+    setProgress(8,'NDW meetlocatietabel lezen: '+configFile.name);
+    let raw=await ndwFileText(configFile),doc=ndwParseDoc(raw.text),configInfo=ndwConfigUitDoc(doc),configHash=raw.hash;
+    if(!configInfo.configs.size)throw new Error('measurement_current.xml.gz bevat geen herkenbare NDW-meetlocaties.');
+    raw=null;doc=null;
+    await pause();
+    setProgress(45,configInfo.configs.size.toLocaleString('nl-NL')+' meetlocaties gevonden. Snelheden en intensiteiten lezen: '+trafficFile.name);
+    raw=await ndwFileText(trafficFile);doc=ndwParseDoc(raw.text);
+    const metingInfo=ndwMetingenUitDoc(doc,configInfo.configs,'NDW DATEX II v2.3: trafficspeed + measurement_current'),trafficHash=raw.hash;
+    const snapshot=ndwSnapshotUitOnderdelen(configInfo,metingInfo,[configFile.name,trafficFile.name],[configHash||'',trafficHash||''],'NDW DATEX II v2.3');
+    if(typeof ndw69ValidateData==='function')ndw69ValidateData(snapshot);
+    return snapshot;
+  }
+  async function snapshotFromFiles(files){
+    files=[...(files||[])];if(!files.length)throw new Error('Geen NDW-bronbestand gekozen.');
+    const hasV23=files.some(f=>/measurement_current|trafficspeed/i.test(String(f.name||'')));
+    if(hasV23)return snapshotFromV23Pair(files);
+    if(files.length>1)throw new Error('Selecteer één gecombineerd DATEX II v3 bestand, of precies measurement_current.xml.gz plus trafficspeed.xml.gz.');
+    return snapshotFromFile(files[0]);
   }
 
   async function snapshotFromFile(file){
@@ -335,22 +374,23 @@ const PATCH_SOURCE=String.raw`
     input.click();
   };
 
-  globalThis.bidashLaadNdwFile=async function(file){
-    if(!file)throw new Error('Geen NDW-bronbestand gekozen.');
+  globalThis.bidashLaadNdwFiles=async function(files){
+    files=[...(files||[])];if(!files.length)throw new Error('Geen NDW-bronbestand gekozen.');
     buttonBusy(true);
     try{
-      setProgress(5,'NDW-data uit '+file.name+' halen…');
-      const snapshot=await snapshotFromFile(file);
-      await applySnapshot(snapshot,file.name);
+      setProgress(5,'NDW-data laden: '+files.map(f=>f.name).join(' + '));
+      const snapshot=await snapshotFromFiles(files);
+      await applySnapshot(snapshot,files.map(f=>f.name).join(' + '));
       return globalThis.__BIDASH_LAST_NDW_LOAD__||null;
     }catch(error){
       console.error(error);setProgress(100,error.message||String(error),true);throw error;
     }finally{buttonBusy(false);}
   };
+  globalThis.bidashLaadNdwFile=async function(file){return globalThis.bidashLaadNdwFiles(file?[file]:[]);};
 
   globalThis.bidashNdwBestand=async function(input){
-    const file=input?.files?.[0];if(!file)return;
-    try{await globalThis.bidashLaadNdwFile(file);}
+    const files=[...(input?.files||[])];if(!files.length)return;
+    try{await globalThis.bidashLaadNdwFiles(files);}
     catch(error){alert(error.message||String(error));}
     finally{if(input)input.value='';}
   };
