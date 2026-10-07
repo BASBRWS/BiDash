@@ -1,14 +1,14 @@
-import {installDvmLiveSnapshotPatch} from './live-snapshot.js';
-import {installDvmImportProgressBridge} from './import-progress-bridge.js';
-import {installDvmAnalysisRebuildPerformance} from './dvm-analysis-rebuild-performance.js';
-import {installDvmCombiPerformance} from './dvm-combi-performance.js';
-import {installTrafficScenarioDefaults} from './traffic-scenario-defaults.js';
-import {installNdwLoader} from './ndw-loader.js';
-import {installDripOpenFromHistory} from './drip-open-from-history.js';
-import {installFaultHubExtensionLoader} from './fault-hub-extension-loader.js';
-import {installOpenFaultParentUi} from './open-fault-parent-ui.js';
-export * from './signal-forecast-original.js';
-export * from './live-filter.js';
+import {installDvmLiveSnapshotPatch} from './live-snapshot.js?v=20261007-1045';
+import {installDvmImportProgressBridge} from './import-progress-bridge.js?v=20261007-1045';
+import {installDvmAnalysisRebuildPerformance} from './dvm-analysis-rebuild-performance.js?v=20261007-1045';
+import {installDvmCombiPerformance} from './dvm-combi-performance.js?v=20261007-1045';
+import {installTrafficScenarioDefaults} from './traffic-scenario-defaults.js?v=20261007-1045';
+import {installNdwLoader} from './ndw-loader.js?v=20261007-1045';
+import {installDripOpenFromHistory} from './drip-open-from-history.js?v=20261007-1045';
+import {installFaultHubExtensionLoader} from './fault-hub-extension-loader.js?v=20261007-1045';
+import {installOpenFaultParentUi} from './open-fault-parent-ui.js?v=20261007-1045';
+export * from './signal-forecast-original.js?v=20261007-1045';
+export * from './live-filter.js?v=20261007-1045';
 
 // Eerst stabiliteit van de bron-specifieke import. De live-overzichtsfilters
 // zijn tijdelijk niet actief: ze vergrootten de kolomset van de geheugenarme
