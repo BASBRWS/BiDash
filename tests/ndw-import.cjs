@@ -102,6 +102,30 @@ const file=(name,xml,gzip=true)=>({name,mimeType:gzip?'application/gzip':'text/x
   await clear();
   assert.equal((await load(monibas('vwa'))).result.gekoppeld,0,'richting van aansluitingen niet verzinnen');
   assert.equal((await snapshot()).sites[0].direction,'');
+  // Alle passende wegdelen tellen mee, ook als hun meting verder dan één kilometer ligt.
+  await clear();
+  await page.evaluate(()=>{
+   window.allRoads=Array.from({length:50},(_,i)=>({key:'TEST_'+i,weg:'A15',richting:'RE',meldingen:[{hm:25+i*2,avail:80}]}));
+   kostenDagRows=()=>allRoads;
+  });
+  assert.equal((await load([configFile,trafficFile])).result.gekoppeld,50);
+  assert.equal(await page.evaluate(()=>allRoads.filter(w=>kostenDagResultaat(w).kosten!=null).length),50,'elk gekoppeld wegdeel komt in de kostenberekening');
+  assert.equal(await page.evaluate(()=>__BIDASH_LAST_NDW_LOAD__.ruimer),49);
+  await page.evaluate(()=>renderDatasetBeheer());
+  let card=await page.evaluate(()=>datasetItems().find(x=>x.type==='ndwVerkeer'));
+  assert(card.meta.includes('50 van 50 actuele wegdelen gekoppeld'));
+  assert(card.meta.includes('49 ruimere koppelingen'));
+  assert.match(await page.evaluate(()=>ndw69Editor(allRoads[49])),/Ruimere koppeling/);
+  assert.match(await page.evaluate(()=>ndw69Memo(allRoads)),/Ruimere koppeling/);
+  // De bronkaart volgt een gewijzigde wegdeelselectie zonder opnieuw uploaden.
+  await page.evaluate(()=>{
+   allRoads.push({key:'NO_SITE',weg:'A99',richting:'RE',meldingen:[{hm:25,avail:80}]});
+  });
+  card=await page.evaluate(()=>datasetItems().find(x=>x.type==='ndwVerkeer'));
+  assert(card.meta.includes('50 van 51 actuele wegdelen gekoppeld'));
+  assert(card.meta.includes('1 zonder passende meting'));
+  assert.equal(await page.evaluate(()=>kostenDagResultaat(allRoads[50]).kosten),null);
+  assert.match(await page.evaluate(()=>ndw69Summary(allRoads)),/Geen meetlocatie op dezelfde weg en rijrichting/);
   // Bedien de twee echte broninputs, inclusief de bronkaartstatus.
   await clear();
   await page.locator('#ndwConfigInput').setInputFiles(configFile);
