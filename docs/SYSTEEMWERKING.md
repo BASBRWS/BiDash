@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.28 en DVM 112, bijgewerkt op 28 september 2026 voor bewerkbare assetafhankelijkheden in expertinvoer, compact bronbeheer en laden uit en exporteren naar een lokaal gesynchroniseerde SharePoint-map.
+Status: beschrijving van BiDash 2.37 en DVM 121, bijgewerkt op 7 oktober 2026 voor aparte NDW-meetlocatie- en trafficspeeduploads, hergebruik van de configuratie en zichtbare importvoortgang.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -213,6 +213,14 @@ Bij een mislukte import blijft de vorige opgeslagen werkruimte behouden;
 `failedImport` blokkeert verdere opslag/export van de deels gewijzigde runtime.
 Herlaad dan om de opgeslagen toestand terug te zetten. Dit is geen volledige
 rollback van ieder al gewijzigd moduleobject in het geheugen.
+
+### NDW-verkeersbronnen
+
+DVM blijft eigenaar van de NDW-verkeerssnapshot in `RULES.kosten.ndw69Snapshot`. Bronbeheer toont een kaart voor meetlocaties en een voor trafficspeed/verkeerskosten. De twee expliciete uploads controleren de bronsoort op XML-inhoud. De configuratie wordt direct streaming verwerkt en in de sessiecache bewaard. Verkeersmetingen worden gekoppeld op meetlocatie-ID en meetindex; categorieën worden niet nogmaals bij anyVehicle-rijstrooktotalen geteld. Volgende trafficspeeduploads hergebruiken de verwerkte configuratie. Een mislukte parse laat de configuratie en vorige geldige snapshot beschikbaar. Onvolledige meetblokken geven een fout; parallelle NDW-uploads worden geweigerd zolang een upload loopt.
+
+De voortgang loopt via `zetImportVoortgang` en de bestaande brug naar de hoofdschil. Na ieder blok van 250 locaties geeft de parser de browser gelegenheid de status te tekenen. Losse bronbestanden en de configuratiecache blijven uitsluitend in de huidige runtime; alleen de gecombineerde snapshot wordt met de kostenparameters opgeslagen en geëxporteerd. Na refresh wordt die oude snapshot niet automatisch actief. Bestaande meervoudige XML-, gecombineerde DATEX II v3- en JSON/HTML-exportuploads blijven beschikbaar.
+
+`tests/ndw-import.cjs` verifieert beide laadvolgordes, de twee echte broninputs, hergebruik, herstel na een afgebroken verkeersbestand, behoud van de vorige geldige meting, rijstrooktotalen en de bestaande meervoudige upload met synthetische bronnen. Het script hoort bij `npm run test:browser`; `npm test` controleert de overige bestaande contracten.
 
 ### Selectiecontract
 

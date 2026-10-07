@@ -98,6 +98,19 @@ dan laad je het opnieuw.
 
 Historische storingen en actuele open storingen zijn twee verschillende gegevensstromen. Historische meldingen mogen het live dashboard niet beïnvloeden. Bij DRIP-historie leidt BiDash alleen incidenten af die aantoonbaar aan het actuele einde van hun eigen bron nog open staan. Oude gecensureerde incidenten worden niet als huidige storing meegenomen.
 
+### NDW meetlocaties en trafficspeed
+
+Laad eerst All Assets. Bronbeheer heeft twee aparte NDW-kaarten.
+
+1. **NDW meetlocaties** leest `measurement_current.xml.gz` of `measurement.xml.gz`. De meetlocatietabel wordt direct verwerkt. De kaart toont het bestand, het aantal locaties en de publicatiedatum.
+2. **NDW trafficspeed / verkeersdata voor kosten** leest `trafficspeed.xml.gz`. Deze bron levert de actuele intensiteit en snelheid. De app koppelt beide bronnen automatisch via meetlocatie-ID en meetindex.
+
+Je mag trafficspeed ook eerst laden. Dan wacht de bron op meetlocaties. De bestandsnamen mogen afwijken en gzip wordt op inhoud herkend. Beide uploads tonen voortgang. Een nieuwe trafficspeedmeting gebruikt de al verwerkte meetlocatietabel. Na een mislukte verkeersupload kun je alleen trafficspeed opnieuw kiezen; de meetlocatietabel en de vorige geldige verkeerssnapshot blijven beschikbaar.
+
+Losse bronbestanden blijven alleen tijdens de huidige sessie beschikbaar. Na herladen van de pagina laad je ze opnieuw. Een opgeslagen verkeerssnapshot kun je bewust terughalen met **Gebruik uit werkruimte**. De knop **Gecombineerd bestand of export** ondersteunt daarnaast de bestaande meervoudige upload, BiDash/DVM-export en het gecombineerde DATEX II v3-bestand `snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz`.
+
+Intensiteit en snelheid komen uit NDW. Hinderuren en snelheidsreductie blijven scenario-invoer. Een minuutmeting is geen gemeten spitsgemiddelde.
+
 ### Signaalgevers totaal (JSON)
 
 Wil je open storingen én historie in één keer laden, gebruik dan de knop **Signaalgevers totaal (JSON)** in Datasetbeheer. Dat is één gecombineerd exportbestand waarin de open alarmen en de historische storingen al bij elkaar staan. BiDash haalt de open storingen en de historie er zelf uit en koppelt ze aan All Assets, net als bij de losse bestanden.

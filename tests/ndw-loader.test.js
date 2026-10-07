@@ -65,7 +65,7 @@ test('NDW loader maakt verschil tussen gemeten intensiteit en scenarioaannames z
 
 test('NDW loader exposeert directe file-handlers voor één of twee bronbestanden',()=>{
   const source=read('site/core/ndw-loader.js');
-  assert.match(source,/globalThis\.bidashLaadNdwFiles=async function\(files\)/);
+  assert.match(source,/globalThis\.bidashLaadNdwFiles=async function\(files,expectedKind\)/);
   assert.match(source,/globalThis\.bidashLaadNdwFile=async function\(file\)/);
   assert.match(source,/bidashLaadNdwFiles\(file\?\[file\]:\[\]\)/);
   assert.match(source,/multiple style="display:none"/);
