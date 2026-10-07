@@ -111,12 +111,13 @@ test('secundaire bronbeheerknoppen zijn zichtbaar op witte kaarten',()=>{
 });
 
 
-test('NDW verkeersintensiteit staat als eigen DVM-bron in bronbeheer',()=>{
-  assert.match(source,/ndwVerkeer:\{input:'ndwTrafficInput'.*handler:'ndw:verkeer'.*accept:'\.xml,\.gz,\.json,\.html,\.htm'/);
-  assert.match(source,/NDW verkeersintensiteit voor kosten/);
-  assert.match(source,/window\.bidashLaadNdwFile\(files\[0\]\)/);
+test('NDW verkeersdata staat als eigen meervoudige DVM-bron in bronbeheer',()=>{
+  assert.match(source,/ndwVerkeer:\{input:'ndwTrafficInput'.*multiple:true.*handler:'ndw:verkeer'.*accept:'\.xml,\.gz,\.json,\.html,\.htm'/);
+  assert.match(source,/NDW verkeersdata voor kosten/);
+  assert.match(source,/window\.bidashLaadNdwFiles\(files\)/);
   assert.match(source,/Gebruik uit werkruimte/);
-  assert.match(source,/Voedt voertuigen per uur in de verkeerskosten/);
+  assert.match(source,/measurement_current\.xml\.gz/);
+  assert.match(source,/trafficspeed\.xml\.gz/);
   assert.match(source,/snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties\.xml\.gz/);
 });
 
@@ -125,4 +126,12 @@ test('NDW verkeersdata vereist All Assets en noemt exact het gecombineerde besta
   assert.match(source,/ndwVerkeer:\{input:'ndwTrafficInput'.*requiresAsset:true.*handler:'ndw:verkeer'/);
   assert.match(source,/snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties\.xml\.gz/);
   assert.match(source,/All Assets moet eerst geladen zijn/);
+});
+
+
+test('NDW bronkaart toont intensiteit snelheid rijstroken en koppeling',()=>{
+  assert.match(source,/speedSites/);
+  assert.match(source,/geldige rijstrookintensiteiten/);
+  assert.match(source,/meetlocaties met weg\/richting\/hectometer/);
+  assert.match(source,/actuele wegdelen gekoppeld/);
 });
