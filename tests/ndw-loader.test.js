@@ -111,3 +111,12 @@ test('één los v2.3 bestand geeft een gerichte melding dat beide nodig zijn',()
   assert.match(source,/moet je measurement_current\.xml\.gz en trafficspeed\.xml\.gz tegelijk selecteren/);
   assert.match(source,/Selecteer voor NDW DATEX II v2\.3 beide bestanden tegelijk/);
 });
+
+
+test('kostenmodel gebruikt NDW gemeten snelheid als automatische basissnelheid',()=>{
+  const source=read('site/engines/dvm-2.js');
+  assert.match(source,/useMeasuredSpeed/);
+  assert.match(source,/snelheid:Number\(s\.speed\),ndwSpeedAuto:true/);
+  assert.match(source,/Gemeten snelheid .*wordt als basissnelheid voorgesteld/);
+  assert.match(source,/snelheidsreductie door assetuitval blijven scenarioaannames/);
+});
