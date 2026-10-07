@@ -28,18 +28,39 @@
     try{
       const kosten=bundle?.parameters?.kosten;
       if(!kosten||typeof kosten!=='object'||typeof RULES==='undefined'||!RULES)return null;
-      RULES.kosten={...(RULES.kosten||{}),...kosten};
       const snapshot=kosten.ndw69Snapshot;
+      const schoon={...kosten};
+      delete schoon.ndw69Snapshot;
+      delete schoon.ndw69;
+      if(schoon.scenario67&&typeof schoon.scenario67==='object'){
+        schoon.scenario67={...schoon.scenario67};
+        if(schoon.scenario67.ndwSpeedAuto===true){delete schoon.scenario67.snelheid;delete schoon.scenario67.ndwSpeedAuto;}
+        delete schoon.scenario67.ndwUsed;
+      }
+      if(schoon.scenarioWegen67&&typeof schoon.scenarioWegen67==='object'){
+        const wegen={};
+        for(const [key,value] of Object.entries(schoon.scenarioWegen67)){
+          const v={...(value||{})};
+          if(v.ndwAuto===true){v.q='';delete v.ndwAuto;}
+          if(v.ndwSpeedAuto===true){delete v.snelheid;delete v.ndwSpeedAuto;}
+          delete v.ndwUsed;
+          wegen[key]=v;
+        }
+        schoon.scenarioWegen67=wegen;
+      }
+      RULES.kosten={...(RULES.kosten||{}),...schoon};
       const info={
+        beschikbaar:!!snapshot,
         sites:Array.isArray(snapshot?.sites)?snapshot.sites.length:0,
         validSites:Number(snapshot?.stats?.validSites)||0,
         publication:snapshot?.publication||null,
         files:Array.isArray(snapshot?.files)?snapshot.files.slice():[]
       };
-      window.__BIDASH_DVM_TRAFFIC_RESTORED__=info;
+      window.__BIDASH_DVM_TRAFFIC_AVAILABLE__=info;
+      window.__BIDASH_DVM_TRAFFIC_RESTORED__=null;
       return info;
     }catch(error){
-      console.warn('BiDash: verkeerscontext uit uitgestelde werkruimte kon niet worden hersteld.',error);
+      console.warn('BiDash: verkeerscontext uit uitgestelde werkruimte kon niet worden beoordeeld.',error);
       return null;
     }
   }
