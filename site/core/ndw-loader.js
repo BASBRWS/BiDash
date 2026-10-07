@@ -264,9 +264,9 @@ const PATCH_SOURCE=String.raw`
       while(text.length<262144){const r=await reader.read();if(r.done)break;text+=r.value||'';}
     }finally{try{await reader.cancel();}catch(error){}}
     const lower=text.toLowerCase();
-    let kind='unknown';
-    if(lower.includes('measurementsitetablepublication')||lower.includes('<measurementsiterecord'))kind='config';
-    if(lower.includes('measureddatapublication')||lower.includes('<sitemeasurements')||lower.includes('<vehicleflowrate'))kind='traffic';
+    const hasConfig=lower.includes('measurementsitetablepublication')||lower.includes('<measurementsiterecord');
+    const hasTraffic=lower.includes('measureddatapublication')||lower.includes('<sitemeasurements')||lower.includes('<vehicleflowrate');
+    const kind=hasConfig&&hasTraffic?'combined':hasConfig?'config':hasTraffic?'traffic':'unknown';
     return {file,kind,gzip:opened.gzip,head:text};
   }
   async function ndwScanXmlBlocks(file,tag,onBlock,onTick){
@@ -339,15 +339,40 @@ const PATCH_SOURCE=String.raw`
     if(typeof ndw69ValidateData==='function')ndw69ValidateData(snapshot);
     return snapshot;
   }
+  function ndwPendingLabel(kind){return kind==='config'?'meetlocatieconfiguratie':'trafficspeed';}
   async function snapshotFromFiles(files){
     files=[...(files||[])];if(!files.length)throw new Error('Geen NDW-bronbestand gekozen.');
-    if(files.length===2){
-      const probes=[];for(const file of files)probes.push(await ndwProbeFile(file));
-      if(probes.some(p=>p.kind==='config')&&probes.some(p=>p.kind==='traffic'))return snapshotFromV23Pair(files);
+
+    if(files.length===1){
+      const probe=await ndwProbeFile(files[0]);
+      if(probe.kind==='combined')return snapshotFromFile(files[0]);
+      if(probe.kind==='config'||probe.kind==='traffic'){
+        const pending=globalThis.__BIDASH_NDW_PENDING_V23__||{};
+        pending[probe.kind]={file:files[0],name:files[0].name,gzip:probe.gzip,tijd:new Date().toISOString()};
+        globalThis.__BIDASH_NDW_PENDING_V23__=pending;
+        const other=probe.kind==='config'?'traffic':'config';
+        if(pending[other]?.file){
+          const pair=[pending.config.file,pending.traffic.file];
+          globalThis.__BIDASH_NDW_PENDING_V23__=null;
+          return snapshotFromV23Pair(pair);
+        }
+        return {pendingV23:true,kind:probe.kind,name:files[0].name,waitingFor:other};
+      }
     }
-    const hasV23=files.some(f=>/measurement_current|measurement(?:\.xml)?|trafficspeed/i.test(String(f.name||'')));
-    if(hasV23)return snapshotFromV23Pair(files);
-    if(files.length>1)throw new Error('Selecteer één gecombineerd DATEX II v3 bestand, of twee DATEX II v2.3 bestanden: meetlocatieconfiguratie plus trafficspeed.');
+
+    if(files.length>=2){
+      const probes=[];for(const file of files)probes.push(await ndwProbeFile(file));
+      const configProbe=probes.find(p=>p.kind==='config'),trafficProbe=probes.find(p=>p.kind==='traffic');
+      if(configProbe&&trafficProbe){
+        globalThis.__BIDASH_NDW_PENDING_V23__=null;
+        return snapshotFromV23Pair([configProbe.file,trafficProbe.file]);
+      }
+      const combined=probes.find(p=>p.kind==='combined');
+      if(combined&&files.length===1)return snapshotFromFile(combined.file);
+      const gezien=probes.map(p=>p.file.name+' = '+p.kind+(p.gzip?' (gzip)':'')).join(', ');
+      throw new Error('NDW DATEX II v2.3 niet compleet herkend. Laad de meetlocatieconfiguratie en trafficspeed; dat mag ook na elkaar. Herkend: '+gezien);
+    }
+
     return snapshotFromFile(files[0]);
   }
 
@@ -460,6 +485,13 @@ const PATCH_SOURCE=String.raw`
     try{
       setProgress(5,'NDW-data laden: '+files.map(f=>f.name).join(' + '));
       const snapshot=await snapshotFromFiles(files);
+      if(snapshot?.pendingV23){
+        const wachtOp=ndwPendingLabel(snapshot.waitingFor);
+        globalThis.__BIDASH_LAST_NDW_PENDING__={tijd:new Date().toISOString(),kind:snapshot.kind,naam:snapshot.name,waitingFor:snapshot.waitingFor};
+        setProgress(100,ndwPendingLabel(snapshot.kind)+' opgeslagen: '+snapshot.name+'. Laad nu '+wachtOp+'. Beide bestanden hoeven niet tegelijk geselecteerd te worden.');
+        return {pending:true,kind:snapshot.kind,naam:snapshot.name,waitingFor:snapshot.waitingFor};
+      }
+      globalThis.__BIDASH_LAST_NDW_PENDING__=null;
       await applySnapshot(snapshot,files.map(f=>f.name).join(' + '));
       return globalThis.__BIDASH_LAST_NDW_LOAD__||null;
     }catch(error){

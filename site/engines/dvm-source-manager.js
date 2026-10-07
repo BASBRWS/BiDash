@@ -4,7 +4,7 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='119';
+  const DVM_VERSION='120';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
@@ -135,6 +135,10 @@
   function ndwVerkeerState(){
     try{
       const d=typeof ndw69Data==='function'?ndw69Data():null;
+      const pending=window.__BIDASH_LAST_NDW_PENDING__||null;
+      if((!d||!Array.isArray(d.sites)||!d.sites.length)&&pending){
+        return {pending:true,bestand:pending.naam||'NDW deelbron',waitingFor:pending.waitingFor||'',geladenOp:pending.tijd||null};
+      }
       if(!d||!Array.isArray(d.sites)||!d.sites.length)return null;
       const last=window.__BIDASH_LAST_NDW_LOAD__||null;
       return {bestand:last?.bron||((d.files||[]).filter(Boolean).join(' + '))||'NDW verkeerssnapshot',
@@ -145,6 +149,12 @@
     }catch(error){return null;}
   }
   function ndwVerkeerMeta(s){
+    if(s.pending){
+      const wacht=s.waitingFor==='traffic'?'trafficspeed':'meetlocatieconfiguratie';
+      return '<div class="dataset-meta-section"><div class="dataset-meta-label">Deelbron geladen</div>'+
+        '<div>'+String(s.bestand||'NDW deelbron').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))+'</div>'+
+        '<div>Wacht op '+wacht+'. Je mag het tweede bestand apart laden.</div></div>';
+    }
     const pub=datumTekst(s.publication);
     return '<div class="dataset-meta-section"><div class="dataset-meta-label">Inhoud</div>'+
       '<div>'+Number(s.sites||0).toLocaleString('nl-NL')+' meetlocaties</div>'+
@@ -299,7 +309,7 @@
         [...actions.querySelectorAll('button')].forEach(button=>{if((button.getAttribute('onclick')||'').includes('totaalImportInput'))button.remove();});
         if(!host.querySelector('.bron-specifiek-uitleg')){
           const uitleg=document.createElement('p');uitleg.className='dataset-note bron-specifiek-uitleg';
-          uitleg.innerHTML='<b>Bron-specifiek laden:</b> gebruik hieronder per onderdeel de eigen uploadknop. NDW verkeersdata voor kosten heeft een eigen bronkaart. Voor DATEX II v2.3 selecteer je measurement_current.xml.gz en trafficspeed.xml.gz tegelijk. Deze bron staat los van de NDW MSI/DRIP-areaalimport. Een gecombineerd DRIP-bestand met aparte kolommen RIA4 en Windwaarschuwing wordt automatisch per gemarkeerde regel gesplitst. Losse referentielijsten blijven via hun eigen knop bruikbaar. De koppeling gebruikt eerst de identifier en controleert VC, weg, richting en hectometer.';
+          uitleg.innerHTML='<b>Bron-specifiek laden:</b> gebruik hieronder per onderdeel de eigen uploadknop. NDW verkeersdata voor kosten heeft een eigen bronkaart. Voor DATEX II v2.3 laad je de meetlocatieconfiguratie en trafficspeed. Dat mag tegelijk of na elkaar. Deze bron staat los van de NDW MSI/DRIP-areaalimport. Een gecombineerd DRIP-bestand met aparte kolommen RIA4 en Windwaarschuwing wordt automatisch per gemarkeerde regel gesplitst. Losse referentielijsten blijven via hun eigen knop bruikbaar. De koppeling gebruikt eerst de identifier en controleert VC, weg, richting en hectometer.';
           actions.insertAdjacentElement('afterend',uitleg);
         }
       }
