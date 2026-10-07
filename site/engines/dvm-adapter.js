@@ -113,12 +113,12 @@
 
   window.addEventListener('load',installeerImportGuard,{once:true});
 
-  document.write('<script src="dvm-adapter-original.js?v=20261007-1015"></script>');
-  document.write('<script src="dvm-fault-rule-manager.js?v=20261007-1015"></script>');
+  document.write('<script src="dvm-adapter-original.js?v=20261007-1045"></script>');
+  document.write('<script src="dvm-fault-rule-manager.js?v=20261007-1045"></script>');
   // Classificatielijsten zijn aparte lichte bronnen en worden vóór bronbeheer geladen.
-  document.write('<script src="dvm-special-drip-lists.js?v=20261007-1015"></script>');
+  document.write('<script src="dvm-special-drip-lists.js?v=20261007-1045"></script>');
   // De signaalgeverbundelaar (maplezen) definieert leesSignaalgeverMap vóór bronbeheer.
-  document.write('<script src="dvm-storingsbundelaar.js?v=20261007-1015"></script>');
-  document.write('<script src="dvm-source-manager.js?v=20261007-1015"></script>');
-  document.write('<script src="dvm-source-export-completeness.js?v=20261007-1015"></script>');
+  document.write('<script src="dvm-storingsbundelaar.js?v=20261007-1045"></script>');
+  document.write('<script src="dvm-source-manager.js?v=20261007-1045"></script>');
+  document.write('<script src="dvm-source-export-completeness.js?v=20261007-1045"></script>');
 })();
