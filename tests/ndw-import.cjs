@@ -117,6 +117,19 @@ const file=(name,xml,gzip=true)=>({name,mimeType:gzip?'application/gzip':'text/x
   assert(card.meta.includes('49 ruimere koppelingen'));
   assert.match(await page.evaluate(()=>ndw69Editor(allRoads[49])),/Ruimere koppeling/);
   assert.match(await page.evaluate(()=>ndw69Memo(allRoads)),/Ruimere koppeling/);
+  // Bevestigen werkt de controle-tellers bij; de intensiteit telde al mee.
+  await page.evaluate(()=>kostenOpenWeg(encodeURIComponent(allRoads[1].key)));
+  await page.locator('#kostenDialog input[onchange="ndw69Confirm(this)"]').check();
+  let coverage=await page.evaluate(()=>ndw69Coverage(allRoads));
+  assert.equal(coverage.confirmed,1);assert.equal(coverage.pending,49);assert.equal(coverage.extendedPending,48);
+  card=await page.evaluate(()=>datasetItems().find(x=>x.type==='ndwVerkeer'));
+  assert(card.meta.includes('NDW locaties bevestigd: 1'));
+  assert(card.meta.includes('49 ruimere koppelingen, waarvan 48 nog te controleren'));
+  assert.equal(await page.evaluate(()=>allRoads.filter(w=>kostenDagResultaat(w).kosten!=null).length),50);
+  await page.locator('#kostenDialog input[onchange="ndw69Confirm(this)"]').uncheck();
+  coverage=await page.evaluate(()=>ndw69Coverage(allRoads));
+  assert.equal(coverage.confirmed,0);assert.equal(coverage.pending,50);
+  await page.evaluate(()=>document.getElementById('kostenDialog').close());
   // De bronkaart volgt een gewijzigde wegdeelselectie zonder opnieuw uploaden.
   await page.evaluate(()=>{
    allRoads.push({key:'NO_SITE',weg:'A99',richting:'RE',meldingen:[{hm:25,avail:80}]});
@@ -136,6 +149,6 @@ const file=(name,xml,gzip=true)=>({name,mimeType:gzip?'application/gzip':'text/x
   const cards=await page.evaluate(()=>datasetItems().filter(x=>x.type==='ndwMeetlocaties'||x.type==='ndwVerkeer'));
   assert.equal(cards.length,2);assert(cards.every(x=>x.aanwezig));assert(cards[0].meta.includes(configFile.name));assert(cards[1].meta.includes(trafficFile.name));
   assert.deepEqual(errors,[]);assert.deepEqual(requests,[]);
-  console.log('NDW: aparte uploads, beide laadvolgordes, hergebruik, herstel na fout, rijstrooktotalen en bestaande meervoudige upload geslaagd.');
+  console.log('NDW: aparte uploads, beide laadvolgordes, hergebruik, herstel na fout, rijstrooktotalen, wegdeelkoppeling, bevestigingstellers en bestaande meervoudige upload geslaagd.');
  }finally{if(browser)await browser.close();await new Promise(r=>server.close(r));}
 })().catch(error=>{console.error(error);process.exitCode=1;});
