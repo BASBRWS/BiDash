@@ -37,7 +37,7 @@ const file=(name,xml,gzip=true)=>({name,mimeType:gzip?'application/gzip':'text/x
    return page.evaluate(async kind=>{try{return {result:await bidashLaadNdwFiles([...document.getElementById('ndwTestInput').files],kind)};}catch(error){return {error:error.message};}},kind);
   };
   const snapshot=()=>page.evaluate(()=>JSON.parse(JSON.stringify(ndw69Data())));
-  const clear=()=>page.evaluate(()=>{window.__BIDASH_NDW_PENDING_V23__=null;window.__BIDASH_LAST_NDW_PENDING__=null;window.__BIDASH_LAST_NDW_ERROR__=null;RULES.kosten.ndw69Snapshot=null;});
+  const clear=()=>page.evaluate(()=>{window.__BIDASH_NDW_PENDING_V23__=null;window.__BIDASH_LAST_NDW_PENDING__=null;window.__BIDASH_LAST_NDW_ERROR__=null;RULES.kosten.ndw69Snapshot=null;RULES.kosten.ndw69={};});
   const configFile=file('renamed-config.xml.gz.xml',config),trafficFile=file('trafficspeed.xml.gz (1).xml',traffic());
   assert.equal((await load(configFile,'config')).result.pending,true);
   assert.equal(await page.evaluate(()=>__BIDASH_NDW_PENDING_V23__.config.configInfo.configs.size),1);
@@ -72,6 +72,36 @@ const file=(name,xml,gzip=true)=>({name,mimeType:gzip?'application/gzip':'text/x
   const v3Traffic=traffic().replace(/<measuredValue index=/g,'<physicalQuantity index=').replace(/<\/measuredValue><\/measuredValue>/g,'</measuredValue></physicalQuantity>');
   assert.equal((await load(file('snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz',`<root>${v3Config}${v3Traffic}</root>`))).error,undefined);
   assert.equal((await snapshot()).sites[0].q,900,'gecombineerd bestand met v3-meetvelden blijft werken');
+  // Controleer de hele keten tot het echte wegdeelscenario, niet alleen de parser.
+  await clear();
+  await page.evaluate(()=>{
+   window.testRoad={key:'TEST|A15|RE',weg:'A15',richting:'RE',meldingen:[{hm:25,avail:80}]};
+   kostenDagRows=()=>[window.testRoad];
+  });
+  assert.equal((await load([configFile,trafficFile])).result.gekoppeld,1);
+  assert.equal(await page.evaluate(()=>sc67Config(testRoad).q),900);
+  assert.equal(await page.evaluate(()=>sc67Config(testRoad).ndwUsed.id),'TEST_SITE');
+  await clear();
+  await page.evaluate(()=>{ASSET_REGISTER_STATE.assets=[{weg:'A15',richting:'LI',hm:25.2,rdX:155000,rdY:463000}];});
+  const located=config.replace('</measurementSiteName>','</measurementSiteName><measurementSiteLocation><latitude>52.15517440</latitude><longitude>5.38720621</longitude></measurementSiteLocation>');
+  assert.equal((await load([file('synthetic-located.xml',located,false),trafficFile])).result.gekoppeld,1);
+  assert.equal((await snapshot()).sites[0].direction,'RE','expliciete bronrichting niet overschrijven met dichtstbijzijnde asset');
+  assert.equal((await snapshot()).sites[0].hm,25);
+  await page.evaluate(()=>{ASSET_REGISTER_STATE.assets=[];});
+  const monibas=(token)=>{
+   const id='RWS01_MONIBAS_0151'+token+'0250ra';
+   return [file('synthetic-config.xml',config.replaceAll('TEST_SITE',id).replace('A15 km 25.000 Re',id),false),file('synthetic-traffic.xml',traffic().replaceAll('TEST_SITE',id),false)];
+  };
+  await clear();
+  assert.equal((await load(monibas('hrr'))).result.gekoppeld,1);
+  data=await snapshot();assert.equal(data.sites[0].road,'A15');assert.equal(data.sites[0].hm,25);assert.equal(data.sites[0].direction,'RE');
+  assert.equal(await page.evaluate(()=>sc67Config(testRoad).q),900);
+  await clear();
+  assert.equal((await load(monibas('hrl'))).result.gekoppeld,0,'tegengestelde MONIBAS-rijbaan niet koppelen');
+  assert.equal((await snapshot()).sites[0].direction,'LI');
+  await clear();
+  assert.equal((await load(monibas('vwa'))).result.gekoppeld,0,'richting van aansluitingen niet verzinnen');
+  assert.equal((await snapshot()).sites[0].direction,'');
   // Bedien de twee echte broninputs, inclusief de bronkaartstatus.
   await clear();
   await page.locator('#ndwConfigInput').setInputFiles(configFile);

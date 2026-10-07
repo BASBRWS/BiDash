@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.37 en DVM 121, bijgewerkt op 7 oktober 2026 voor aparte NDW-meetlocatie- en trafficspeeduploads, hergebruik van de configuratie en zichtbare importvoortgang.
+Status: beschrijving van BiDash 2.38 en DVM 122, bijgewerkt op 7 oktober 2026 voor correcte NDW-wegdeelkoppeling naast de aparte meetlocatie- en trafficspeeduploads.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -221,6 +221,8 @@ DVM blijft eigenaar van de NDW-verkeerssnapshot in `RULES.kosten.ndw69Snapshot`.
 De voortgang loopt via `zetImportVoortgang` en de bestaande brug naar de hoofdschil. Na ieder blok van 250 locaties geeft de parser de browser gelegenheid de status te tekenen. Losse bronbestanden en de configuratiecache blijven uitsluitend in de huidige runtime; alleen de gecombineerde snapshot wordt met de kostenparameters opgeslagen en geëxporteerd. Na refresh wordt die oude snapshot niet automatisch actief. Bestaande meervoudige XML-, gecombineerde DATEX II v3- en JSON/HTML-exportuploads blijven beschikbaar.
 
 `tests/ndw-import.cjs` verifieert beide laadvolgordes, de twee echte broninputs, hergebruik, herstel na een afgebroken verkeersbestand, behoud van de vorige geldige meting, rijstrooktotalen en de bestaande meervoudige upload met synthetische bronnen. Het script hoort bij `npm run test:browser`; `npm test` controleert de overige bestaande contracten.
+
+De NDW-index en de zoekroute voor wegdelen gebruiken dezelfde normalisatie van weg en richting. `A015`, `A15` en een kaal `15` worden `A15`; `N15` blijft een afzonderlijke weg. Rechts/R/RE en links/L/LI volgen de bestaande assetnormalisatie. Kandidaten blijven beperkt tot dezelfde weg en rijrichting en maximaal één kilometer van de representatieve zwaarste storing. MONIBAS-codes leveren weg en hectometer; alleen expliciete hoofdbaancodes `hrr` en `hrl` leveren de richting. Voor aansluitingscodes wordt geen richting uit het cijfer 0/1 verzonnen. Complete bronlocaties worden niet overschreven door een nabijgelegen asset op de andere rijbaan. `tests/ndw-road-matching.test.js` en de uitgebreide browsertest controleren dat de gekoppelde intensiteit daadwerkelijk in het wegdeelscenario terechtkomt.
 
 ### Selectiecontract
 

@@ -111,6 +111,8 @@ Losse bronbestanden blijven alleen tijdens de huidige sessie beschikbaar. Na her
 
 Intensiteit en snelheid komen uit NDW. Hinderuren en snelheidsreductie blijven scenario-invoer. Een minuutmeting is geen gemeten spitsgemiddelde.
 
+De wegdeelkoppeling vergelijkt dezelfde weg en rijrichting, binnen één kilometer van de zwaarste storing. Voorloopnullen en rechts/R/RE of links/L/LI maken geen verschil. A- en N-wegen blijven gescheiden. MONIBAS-hoofdbaancodes leveren weg, hectometer en richting. Een ontbrekende richting bij een aansluiting wordt niet ingevuld als gok. Zonder passend meetpunt blijft het wegdeel ongekoppeld; bekijk dan de koppeling per wegdeel in het NDW-blok.
+
 ### Signaalgevers totaal (JSON)
 
 Wil je open storingen én historie in één keer laden, gebruik dan de knop **Signaalgevers totaal (JSON)** in Datasetbeheer. Dat is één gecombineerd exportbestand waarin de open alarmen en de historische storingen al bij elkaar staan. BiDash haalt de open storingen en de historie er zelf uit en koppelt ze aan All Assets, net als bij de losse bestanden.

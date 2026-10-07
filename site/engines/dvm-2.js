@@ -2976,7 +2976,7 @@ function ndw69Data(){return RULES.kosten?.ndw69Snapshot||NDW69_DATA;}
 function ndw69Index(){
  const d=ndw69Data();if(NDW69_INDEX.has(d))return NDW69_INDEX.get(d);
  const byRoad=new Map(),byId=new Map();
- for(const s of d.sites){byId.set(s.id,s);if(s.road&&s.direction&&s.hm!=null){const k=s.road+'|'+s.direction;if(!byRoad.has(k))byRoad.set(k,[]);byRoad.get(k).push(s);}}
+ for(const s of d.sites){byId.set(s.id,s);if(s.road&&s.direction&&s.hm!=null){const k=ndw69Road(s.road)+'|'+ndw69Direction(s.direction);if(!byRoad.has(k))byRoad.set(k,[]);byRoad.get(k).push(s);}}
  const index={byRoad,byId};NDW69_INDEX.set(d,index);return index;
 }
 function ndw69ExportKosten(){return {...kostenBasis(),ndw69Snapshot:ndw69Data()};}
@@ -2989,8 +2989,8 @@ function ndw69ValidateData(d){
  return d;
 }
 const NDW69_MATCHES=new WeakMap();
-function ndw69Road(x){return String(x||'').toUpperCase().replace(/^[AN]0*/,'').replace(/^0+/,'');}
-function ndw69Direction(x){const s=String(x||'').toUpperCase();return s==='R'?'RE':s==='L'?'LI':s;}
+function ndw69Road(x){const s=String(x||'').trim().toUpperCase().replace(/\s+/g,''),m=s.match(/^([AN]?)0*(\d{1,3})$/);return m?(m[1]||'A')+String(Number(m[2])):s;}
+function ndw69Direction(x){return normAssetRichting(x);}
 function ndw69Date(t){if(!t)return 'onbekend';return new Date(t).toLocaleString('nl-NL',{timeZone:'Europe/Amsterdam',day:'numeric',month:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});}
 function ndw69Day(t){if(!t||!Number.isFinite(new Date(t).getTime()))return '';return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Amsterdam',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(t));}
 function ndw69Mismatch(){return ndw69Day(STATE?.peildatum)!==ndw69Day(ndw69Data().publication);}
