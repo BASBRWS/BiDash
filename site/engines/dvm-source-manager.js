@@ -4,7 +4,7 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='122';
+  const DVM_VERSION='123';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
@@ -144,10 +144,13 @@
       }
       if(!d||!Array.isArray(d.sites)||!d.sites.length)return null;
       const last=window.__BIDASH_LAST_NDW_LOAD__||null;
+      const rows=typeof kostenDagRows==='function'?kostenDagRows():[];
+      const links=rows.map(w=>ndw69Link(w)).filter(l=>l.s?.q!=null);
+      const extended=links.filter(l=>l.found.distance>1).length;
       return {bestand:last?.bron||((d.files||[]).filter(Boolean).join(' + '))||'NDW verkeerssnapshot',
         sites:d.sites.length,validSites:Number(d.stats?.validSites)||0,speedSites:Number(d.stats?.speedSites)||d.sites.filter(s=>s.speed!=null).length,
         lanes:d.sites.reduce((n,s)=>n+(Array.isArray(s.lanes)?s.lanes.length:0),0),locationSites:Number(d.stats?.locationSites)||0,
-        gekoppeldeWegdelen:Number(last?.gekoppeld)||0,totaalWegdelen:Number(last?.wegdelen)||0,
+        gekoppeldeWegdelen:links.length,totaalWegdelen:rows.length,ruimereWegdelen:extended,nietGekoppeldeWegdelen:rows.length-links.length,
         publication:d.publication||null,geladenOp:last?.tijd||null};
     }catch(error){return null;}
   }
@@ -174,6 +177,7 @@
       '<div>'+Number(s.lanes||0).toLocaleString('nl-NL')+' geldige rijstrookintensiteiten</div>'+
       '<div>'+Number(s.locationSites||0).toLocaleString('nl-NL')+' meetlocaties met weg/richting/hectometer</div>'+
       (s.totaalWegdelen?'<div>'+Number(s.gekoppeldeWegdelen||0).toLocaleString('nl-NL')+' van '+Number(s.totaalWegdelen).toLocaleString('nl-NL')+' actuele wegdelen gekoppeld</div>':'')+
+      (s.totaalWegdelen?'<div>'+Number(s.ruimereWegdelen||0).toLocaleString('nl-NL')+' ruimere koppelingen, controle nodig</div><div>'+Number(s.nietGekoppeldeWegdelen||0).toLocaleString('nl-NL')+' zonder passende meting, blijven in het overzicht</div>':'')+
       (pub?'<div>Publicatie '+pub+'</div>':'')+
       (s.bestand?'<div>Bron '+String(s.bestand).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))+'</div>':'')+
       '</div><div class="dataset-meta-note">Voedt voertuigen per uur in de verkeerskosten. Hinderuren en snelheidsreductie blijven scenarioaannames.</div>';

@@ -435,7 +435,7 @@ const PATCH_SOURCE=String.raw`
 
     const rows=kostenDagRows();
     setProgress(70,snapshot.sites.length.toLocaleString('nl-NL')+' NDW-meetlocaties gevonden. '+rows.length.toLocaleString('nl-NL')+' wegdelen koppelen…');
-    const perRoad={...(c.scenarioWegen67||{})},choices={...(c.ndw69||{})};let matched=0,unmatched=0;
+    const perRoad={...(c.scenarioWegen67||{})},choices={...(c.ndw69||{})};let matched=0,unmatched=0,localMatches=0,extendedMatches=0;
     for(let i=0;i<rows.length;i++){
       const w=rows[i],link=ndw69Link(w),local={...(perRoad[w.key]||{})};
       if(!hasValue(local.uren))local.uren=6;
@@ -444,7 +444,7 @@ const PATCH_SOURCE=String.raw`
       local.status='scenario';
       if(link?.s&&link.s.q!==null&&link.s.q!==undefined&&Number.isFinite(Number(link.s.q))){
         local.q='';local.ndwAuto=true;
-        choices[w.key]={...(choices[w.key]||{}),siteId:link.s.id,disabled:false,confirmed:false,confirmationKey:''};matched++;
+        choices[w.key]={...(choices[w.key]||{}),siteId:link.s.id,disabled:false,confirmed:false,confirmationKey:''};matched++;if(link.found.distance>1)extendedMatches++;else localMatches++;
       }else unmatched++;
       perRoad[w.key]=local;
       if(i%8===0||i===rows.length-1){
@@ -454,8 +454,8 @@ const PATCH_SOURCE=String.raw`
     }
     c.scenarioWegen67=perRoad;c.ndw69=choices;RULES.kosten=c;
     if(typeof SC67_CACHE!=='undefined')SC67_CACHE={fingerprint:'',routes:{},busy:false,error:''};
-    globalThis.__BIDASH_LAST_NDW_LOAD__={tijd:new Date().toISOString(),bron:bronNaam||'lokaal',sites:snapshot.sites.length,wegdelen:rows.length,gekoppeld:matched,nietGekoppeld:unmatched,hinderuren:6,snelheidsreductie:30};
-    setProgress(100,'Gereed. '+matched+' van '+rows.length+' wegdelen hebben een NDW-intensiteit. Het voertuigaantal komt uit NDW. Hinderuren en snelheidsreductie blijven scenario-invoer; standaard worden alleen ontbrekende waarden op 6 uur en 30% gezet.');
+    globalThis.__BIDASH_LAST_NDW_LOAD__={tijd:new Date().toISOString(),bron:bronNaam||'lokaal',sites:snapshot.sites.length,wegdelen:rows.length,gekoppeld:matched,nietGekoppeld:unmatched,lokaal:localMatches,ruimer:extendedMatches,hinderuren:6,snelheidsreductie:30};
+    setProgress(100,'Gereed. '+matched+' van '+rows.length+' wegdelen hebben een NDW-intensiteit, waarvan '+extendedMatches+' met een ruimere koppeling. '+unmatched+' zonder passende meting blijven zichtbaar. Het voertuigaantal komt uit NDW. Hinderuren en snelheidsreductie blijven scenario-invoer; standaard worden alleen ontbrekende waarden op 6 uur en 30% gezet.');
     if(typeof kostenDagVervers==='function')kostenDagVervers();
     try{if(parent!==globalThis)parent.postMessage({type:'hub:changed',engine:'dvm',sourceSpecific:true,bron:'ndw'},location.origin);}catch(error){}
   }
