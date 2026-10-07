@@ -619,14 +619,22 @@ async function leesLiveStoringsBestanden(fileList){
    hieronder hebben geen DOM- of statusafhankelijkheid, zodat een test ze los kan
    uitvoeren op de verzonden implementatie. */
 function signaalgeverOpenActief(a){
-  if(a&&a.meenemen===false)return false;
+  // Oudere MTM-bundels sloten detectoren uit met meenemen:false. De DVM-keten
+  // ondersteunt LUS inmiddels; beoordeel die categorie opnieuw, ook zonder regel.
+  if(a&&a.meenemen===false&&signaalgeverAssetType(a)!=='LUS')return false;
   return String(a&&a.eindstatus||'').trim().toLowerCase()==='open_aan_einde';
 }
 function signaalgeverAssetType(a){
   a=a||{};
+  const expliciet=canoniekAssetType(a.assetTypeHint||a.assetType||a.assettype||a.categorie);
+  if(expliciet==='CAM'||expliciet==='LUS')return expliciet;
   const aanwijzing=[a.assetType,a.assettype,a.categorie,a.unit,a.asset,a.signaalgever,a.impact,a.impactklasse,a.description,a.omschrijving]
     .map(v=>String(v||'').trim().toLowerCase()).filter(Boolean).join(' ');
-  return canoniekAssetType(aanwijzing)==='LUS'?'LUS':'MSI';
+  if(canoniekAssetType(aanwijzing)==='LUS')return 'LUS';
+  // Deze drie bestaande foutcodes horen uitsluitend bij de LUS-regels.
+  const codes=String(a.code||a.foutcode||a.foutcodes||'').trim().split(/[\s,;|]+/).filter(Boolean);
+  if(codes.length&&codes.every(c=>['1006','1007','5004'].includes(c)))return 'LUS';
+  return 'MSI';
 }
 function signaalgeverOpenRij(a){
   a=a||{};
@@ -706,11 +714,14 @@ async function pasSignaalgeverBundelToe(bestandsnaam,open,historie,versie){
   STORINGSBRONNEN=[{key:'signaalgever-totaal-historie',naam:bestandsnaam+' · historie',rijen:historie,size:0,_signaalgeverTotaal:true,_signaalgeverBestand:bestandsnaam}];
   STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeStoringsRijen());
   MC_RESULT=null;
-  LIVE_STORINGSBRONNEN=[];LIVE_PEILDATUM=null;
+  // De DRIP-totaalbron is een onafhankelijke stroom. Een nieuwe MTM-bundel
+  // vervangt haar afgeleide open meldingen niet.
+  LIVE_STORINGSBRONNEN=LIVE_STORINGSBRONNEN.filter(b=>b.virtueel&&b.afgeleidVan==='dripHistorie');LIVE_PEILDATUM=null;
   await adem();
   if(open.length){
-    voegLiveBronnenToe([{key:'signaalgever-totaal-open',naam:bestandsnaam+' · open',rijen:open,size:0,_signaalgeverTotaal:true,_signaalgeverBestand:bestandsnaam}]);
+    voegLiveBronnenToe([...LIVE_STORINGSBRONNEN,{key:'signaalgever-totaal-open',naam:bestandsnaam+' · open',rijen:open,size:0,_signaalgeverTotaal:true,_signaalgeverBestand:bestandsnaam}]);
   }else{
+    LIVE_PEILDATUM=maxGetal(LIVE_STORINGSBRONNEN.map(b=>b.peildatum||0),0)||null;
     LIVE_STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeLiveStoringsRijen());
     ANALYSE_SIGNATURE='';herbouwAssetMatchBeeld();
   }
