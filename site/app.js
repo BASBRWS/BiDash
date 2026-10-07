@@ -14,7 +14,7 @@ const money=n=>Number.isFinite(n)?n.toLocaleString('nl-NL',{style:'currency',cur
 const date=s=>s?new Date(s).toLocaleDateString('nl-NL'):'geen bron geladen';
 let state=DEFAULT_STATE(),summaries={},busy=false,failedImport=false,timer,view='overview';const frames={},ready={};
 const engineVersies={};
-const APP_BUILD='20261007-1300';
+const APP_BUILD='20261007-1330';
 const LATEST_SNAPSHOT_DIRECTORY_KEY='latest-snapshot-directory';
 let latestSnapshotDirectory=null,latestSnapshotBusy=false;
 function status(s,error=false){$('#status').textContent=s;$('#status').classList.toggle('error',error);}

@@ -1,7 +1,7 @@
 /* Publieke adapter: alle uitkomsten komen uit de oorspronkelijke DVM-engine. */
 (() => {
  const notify=()=>parent!==window&&parent.postMessage({type:'hub:changed',engine:'dvm'},location.origin);
- const forecastLib=import('../core/signal-forecast.js?v=20261007-1300');
+ const forecastLib=import('../core/signal-forecast.js?v=20261007-1330');
  let FORECAST_RESULT=null,FORECAST_SUMMARY=null,FORECAST_TRIGGERS=[],FORECAST_RUNNING=false,FORECAST_CANCEL=false;
  const h=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const n=(v,d=1)=>Number.isFinite(Number(v))?Number(v).toLocaleString('nl-NL',{minimumFractionDigits:d,maximumFractionDigits:d}):'–';

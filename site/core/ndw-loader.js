@@ -93,8 +93,8 @@ const PATCH_SOURCE=String.raw`
   }
   function ndwMonibasLocation(){
     const s=Array.from(arguments).map(v=>String(v||'')).join(' ');
-    const m=s.match(/(?:^|[_\\s])(\\d{3})[01][a-z]{3}(\\d{4})r[a-z](?:$|[_\\s])/i);
-    return m?{road:'A'+String(Number(m[1])),hm:Number(m[2])/10}:{road:'',hm:null};
+    const m=s.match(/(?:^|[_\s])(\d{3})[01]([a-z]{3})(\d{4})r[a-z](?:$|[_\s])/i);
+    return m?{road:'A'+String(Number(m[1])),hm:Number(m[3])/10,direction:m[2].toLowerCase()==='hrr'?'RE':m[2].toLowerCase()==='hrl'?'LI':''}:{road:'',hm:null,direction:''};
   }
   function ndwWgs84ToRd(lat,lon){
     lat=Number(lat);lon=Number(lon);if(!Number.isFinite(lat)||!Number.isFinite(lon))return null;
@@ -110,6 +110,7 @@ const PATCH_SOURCE=String.raw`
     return {size,map,count:assets.length};
   }
   function ndwEnrichLocation(site,grid){
+    if(site.road&&site.direction&&site.hm!=null)return site;
     if(!grid?.map?.size||site.lat==null||site.lon==null)return site;
     const rd=ndwWgs84ToRd(site.lat,site.lon);if(!rd)return site;
     const gx=Math.floor(rd.x/grid.size),gy=Math.floor(rd.y/grid.size),hint=String(site.road||'').toUpperCase();let best=null,second=null;
@@ -158,7 +159,7 @@ const PATCH_SOURCE=String.raw`
       if(hmRaw&&Number.isFinite(Number(String(hmRaw).replace(',','.'))))hm=Number(String(hmRaw).replace(',','.'));
       if(hm==null)hm=ndwHmFromText(name,identification,id);
       if(hm==null)hm=monibas.hm;
-      const direction=ndwDirectionFromText(name,identification,id);
+      const direction=ndwDirectionFromText(name,identification,id)||monibas.direction;
       const latRaw=xmlFirstText(loc,['latitude']),lonRaw=xmlFirstText(loc,['longitude']);
       const lat=Number.isFinite(Number(latRaw))?Number(latRaw):null,lon=Number.isFinite(Number(lonRaw))?Number(lonRaw):null;
       const characteristics=new Map();let flowLane=0,speedLane=0;
