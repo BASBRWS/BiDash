@@ -116,8 +116,8 @@ test('NDW verkeersdata staat als eigen meervoudige DVM-bron in bronbeheer',()=>{
   assert.match(source,/NDW verkeersdata voor kosten/);
   assert.match(source,/window\.bidashLaadNdwFiles\(files\)/);
   assert.match(source,/Gebruik uit werkruimte/);
-  assert.match(source,/measurement_current\.xml\.gz/);
-  assert.match(source,/trafficspeed\.xml\.gz/);
+  assert.match(source,/meetlocatieconfiguratie/);
+  assert.match(source,/trafficspeed/);
   assert.match(source,/snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties\.xml\.gz/);
 });
 
