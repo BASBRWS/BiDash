@@ -138,7 +138,10 @@
       if(!d||!Array.isArray(d.sites)||!d.sites.length)return null;
       const last=window.__BIDASH_LAST_NDW_LOAD__||null;
       return {bestand:last?.bron||((d.files||[]).filter(Boolean).join(' + '))||'NDW verkeerssnapshot',
-        sites:d.sites.length,validSites:Number(d.stats?.validSites)||0,publication:d.publication||null,geladenOp:last?.tijd||null};
+        sites:d.sites.length,validSites:Number(d.stats?.validSites)||0,speedSites:Number(d.stats?.speedSites)||d.sites.filter(s=>s.speed!=null).length,
+        lanes:d.sites.reduce((n,s)=>n+(Array.isArray(s.lanes)?s.lanes.length:0),0),locationSites:Number(d.stats?.locationSites)||0,
+        gekoppeldeWegdelen:Number(last?.gekoppeld)||0,totaalWegdelen:Number(last?.wegdelen)||0,
+        publication:d.publication||null,geladenOp:last?.tijd||null};
     }catch(error){return null;}
   }
   function ndwVerkeerMeta(s){
@@ -146,6 +149,10 @@
     return '<div class="dataset-meta-section"><div class="dataset-meta-label">Inhoud</div>'+
       '<div>'+Number(s.sites||0).toLocaleString('nl-NL')+' meetlocaties</div>'+
       '<div>'+Number(s.validSites||0).toLocaleString('nl-NL')+' met bruikbare verkeersintensiteit</div>'+
+      '<div>'+Number(s.speedSites||0).toLocaleString('nl-NL')+' met bruikbare snelheid</div>'+
+      '<div>'+Number(s.lanes||0).toLocaleString('nl-NL')+' geldige rijstrookintensiteiten</div>'+
+      '<div>'+Number(s.locationSites||0).toLocaleString('nl-NL')+' meetlocaties met weg/richting/hectometer</div>'+
+      (s.totaalWegdelen?'<div>'+Number(s.gekoppeldeWegdelen||0).toLocaleString('nl-NL')+' van '+Number(s.totaalWegdelen).toLocaleString('nl-NL')+' actuele wegdelen gekoppeld</div>':'')+
       (pub?'<div>Publicatie '+pub+'</div>':'')+
       (s.bestand?'<div>Bron '+String(s.bestand).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))+'</div>':'')+
       '</div><div class="dataset-meta-note">Voedt voertuigen per uur in de verkeerskosten. Hinderuren en snelheidsreductie blijven scenarioaannames.</div>';
