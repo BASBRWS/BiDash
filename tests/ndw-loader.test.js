@@ -150,3 +150,12 @@ test('NDW runtimeketen cache-bust signal-forecast en ndw-loader',()=>{
   assert.match(forecast,/ndw-loader\.js\?v=\d{8}-\d{4}/);
   assert.doesNotMatch(forecast,/from '\.\/ndw-loader\.js';/);
 });
+
+
+test('NDW v2.3 deelbronnen mogen na elkaar worden geladen',()=>{
+  const source=read('site/core/ndw-loader.js');
+  assert.match(source,/__BIDASH_NDW_PENDING_V23__/);
+  assert.match(source,/pendingV23:true/);
+  assert.match(source,/Beide bestanden hoeven niet tegelijk geselecteerd te worden/);
+  assert.match(source,/return snapshotFromV23Pair\(pair\)/);
+});

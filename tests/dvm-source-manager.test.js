@@ -141,3 +141,10 @@ test('NDW bronbeheer meldt dat hernoemde gzipbestanden op inhoud worden herkend'
   assert.match(source,/bestandsnamen mogen afwijken/);
   assert.match(source,/herkent gzip en de XML-inhoud/);
 });
+
+
+test('NDW bronbeheer toont wachtstatus wanneer één v2.3 deelbron is geladen',()=>{
+  assert.match(source,/__BIDASH_LAST_NDW_PENDING__/);
+  assert.match(source,/Je mag het tweede bestand apart laden/);
+  assert.match(source,/Dat mag tegelijk of na elkaar/);
+});
