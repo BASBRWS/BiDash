@@ -120,3 +120,23 @@ test('kostenmodel gebruikt NDW gemeten snelheid als automatische basissnelheid',
   assert.match(source,/Gemeten snelheid .*wordt als basissnelheid voorgesteld/);
   assert.match(source,/snelheidsreductie door assetuitval blijven scenarioaannames/);
 });
+
+
+test('NDW v2.3 herkent hernoemde gzipbestanden op inhoud in plaats van alleen op naam',()=>{
+  const source=read('site/core/ndw-loader.js');
+  assert.match(source,/async function ndwProbeFile/);
+  assert.match(source,/head\[0\]===0x1f&&head\[1\]===0x8b/);
+  assert.match(source,/measurementsitetablepublication/);
+  assert.match(source,/measureddatapublication/);
+  assert.match(source,/ndwV23ConfigStream/);
+  assert.match(source,/ndwV23TrafficStream/);
+  assert.match(source,/De bestandsnaam hoeft niet exact measurement_current\.xml\.gz te zijn/);
+});
+
+test('grote v2.3 XML wordt blok voor blok verwerkt en niet als 350 MB DOM',()=>{
+  const source=read('site/core/ndw-loader.js');
+  assert.match(source,/ndwScanXmlBlocks/);
+  assert.match(source,/measurementSiteRecord/);
+  assert.match(source,/siteMeasurements/);
+  assert.match(source,/TextDecoderStream/);
+});

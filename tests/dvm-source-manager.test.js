@@ -135,3 +135,9 @@ test('NDW bronkaart toont intensiteit snelheid rijstroken en koppeling',()=>{
   assert.match(source,/meetlocaties met weg\/richting\/hectometer/);
   assert.match(source,/actuele wegdelen gekoppeld/);
 });
+
+
+test('NDW bronbeheer meldt dat hernoemde gzipbestanden op inhoud worden herkend',()=>{
+  assert.match(source,/bestandsnamen mogen afwijken/);
+  assert.match(source,/herkent gzip en de XML-inhoud/);
+});

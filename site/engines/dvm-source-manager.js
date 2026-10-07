@@ -4,7 +4,7 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='117';
+  const DVM_VERSION='118';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
@@ -23,7 +23,7 @@
   const SOURCE_ORDER=['assetregister','ndwVerkeer','windDrips','ria4Drips','storingshistorie','uRoutes','werkzaamheden','liveStoringen','signaalgeverTotaal','signaalgeverMap','dripTotaal','dripMap'];
   const PLACEHOLDERS={
     assetregister:{titel:'Assetregister / All Assets',meta:'Nog niet geladen. Laad dit stamregister als eerste.'},
-    ndwVerkeer:{titel:'NDW verkeersdata voor kosten',meta:'Nog geen NDW-verkeersdata geladen. DATEX II v2.3: selecteer measurement_current.xml.gz en trafficspeed.xml.gz tegelijk. measurement_current levert meetlocatie, rijstrookindeling en locatie; trafficspeed levert actuele intensiteit en snelheid. DATEX II v3: je kunt ook één gecombineerd snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz laden. All Assets moet eerst geladen zijn voor de wegdeel- en hectometerkoppeling.'},
+    ndwVerkeer:{titel:'NDW verkeersdata voor kosten',meta:'Nog geen NDW-verkeersdata geladen. DATEX II v2.3: selecteer de meetlocatieconfiguratie en trafficspeed tegelijk. De bestandsnamen mogen afwijken, de app herkent gzip en de XML-inhoud. De configuratie levert meetlocatie, rijstrookindeling en locatie; trafficspeed levert actuele intensiteit en snelheid. DATEX II v3: je kunt ook één gecombineerd snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz laden. All Assets moet eerst geladen zijn voor de wegdeel- en hectometerkoppeling.'},
     windDrips:{titel:'Windwaarschuwing DRIP’s',meta:'Nog geen referentielijst geladen. Deze bron markeert welke DRIP-assets bij windwaarschuwing horen.'},
     ria4Drips:{titel:'RIA4 DRIP’s',meta:'Nog geen referentielijst geladen. Deze bron markeert welke DRIP-assets bij RIA4 horen.'},
     storingshistorie:{titel:'Storingshistorie',meta:'Nog geen historische DVM-storingsbron geladen. Deze bron voedt alleen prognoses.'},
