@@ -141,3 +141,12 @@ test('grote v2.3 XML wordt blok voor blok verwerkt en niet als 350 MB DOM',()=>{
   assert.match(source,/siteMeasurements/);
   assert.match(source,/TextDecoderStream/);
 });
+
+
+test('NDW runtimeketen cache-bust signal-forecast en ndw-loader',()=>{
+  const forecast=read('site/core/signal-forecast.js');
+  const adapter=read('site/engines/dvm-adapter-original.js');
+  assert.match(adapter,/signal-forecast\.js\?v=\d{8}-\d{4}/);
+  assert.match(forecast,/ndw-loader\.js\?v=\d{8}-\d{4}/);
+  assert.doesNotMatch(forecast,/from '\.\/ndw-loader\.js';/);
+});
