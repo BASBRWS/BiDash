@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.39 en DVM 123, bijgewerkt op 7 oktober 2026 voor NDW-wegdeelkoppeling zonder vaste afstandsgrens naast de aparte meetlocatie- en trafficspeeduploads.
+Status: beschrijving van BiDash 2.40 en DVM 124, bijgewerkt op 7 oktober 2026 voor afzonderlijke NDW-bevestigingstellers naast de wegdeelkoppeling zonder vaste afstandsgrens en de aparte meetlocatie- en trafficspeeduploads.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -215,6 +215,8 @@ Herlaad dan om de opgeslagen toestand terug te zetten. Dit is geen volledige
 rollback van ieder al gewijzigd moduleobject in het geheugen.
 
 ### NDW-verkeersbronnen
+
+De telling van beschikbare of gebruikte intensiteiten staat los van de locatiebevestiging. `ndw69Coverage()` telt gekoppeld, bevestigd, nog te controleren, NDW-gebruik uitgezet en ontbrekende metingen uit de actuele wegdelen. De bronkaart en het NDW-overzicht delen deze telling; de DVM-adapter levert dezelfde bevestigingsstatus per wegdeel aan de schil. Verkeerskosten toont bevestigd en nog te controleren naast berekenbare wegdelen. Een bevestiging verandert geen intensiteit of kostenformule. Een andere meetlocatie of verkeersbron maakt een eerdere bevestiging ongeldig. `ndw69Write()` ververst de zichtbare bronkaart en kostenoverzichten en meldt de wijziging expliciet aan de bestaande opslagqueue. De schil ververst de zichtbare Verkeerskosten direct bij dat bericht. De bestaande herstelbeperking voor NDW in grote werkruimten blijft gelden: deze wijziging herstelt niet het verlies van verkeerscontext bij uitgesteld herstel. `tests/ndw-confirmation.test.js` controleert bevestigen, opslaan, opnieuw kiezen, parameters exporteren, bronkaart, adapter en directe schilverversing met synthetische gegevens.
 
 DVM blijft eigenaar van de NDW-verkeerssnapshot in `RULES.kosten.ndw69Snapshot`. Bronbeheer toont een kaart voor meetlocaties en een voor trafficspeed/verkeerskosten. De twee expliciete uploads controleren de bronsoort op XML-inhoud. De configuratie wordt direct streaming verwerkt en in de sessiecache bewaard. Verkeersmetingen worden gekoppeld op meetlocatie-ID en meetindex; categorieën worden niet nogmaals bij anyVehicle-rijstrooktotalen geteld. Volgende trafficspeeduploads hergebruiken de verwerkte configuratie. Een mislukte parse laat de configuratie en vorige geldige snapshot beschikbaar. Onvolledige meetblokken geven een fout; parallelle NDW-uploads worden geweigerd zolang een upload loopt.
 

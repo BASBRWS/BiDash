@@ -100,6 +100,10 @@ Historische storingen en actuele open storingen zijn twee verschillende gegevens
 
 ### NDW meetlocaties en trafficspeed
 
+**Berekenbare wegdelen** telt wegdelen met voldoende verkeersinvoer, ook als hun NDW-locatie nog niet is bevestigd. Controleer de koppeling via **Bekijk berekening** of **Bekijk / wijzig** en vink aan dat je weg, richting en toepasbaarheid hebt gecontroleerd. De teller **NDW locaties bevestigd** stijgt dan en **Nog te controleren** daalt direct. Opslaan houdt die bevestiging vast binnen de actieve werkruimte. Het berekenbare aantal blijft gelijk als de intensiteit al werd gebruikt. Een ander meetpunt kiezen maakt opnieuw controle nodig. Bevestigen maakt een ontbrekende intensiteit niet beschikbaar. De aparte tellers staan ook op de NDW-bronkaart.
+
+Let op: bij het bestaande uitgestelde herstel van een grote werkruimte wordt de NDW-verkeerscontext nog gewist. Deze tellerverbetering verandert dat niet. Maak een DVM-totaalexport als reservekopie voordat je herlaadt.
+
 Laad eerst All Assets. Bronbeheer heeft twee aparte NDW-kaarten.
 
 1. **NDW meetlocaties** leest `measurement_current.xml.gz` of `measurement.xml.gz`. De meetlocatietabel wordt direct verwerkt. De kaart toont het bestand, het aantal locaties en de publicatiedatum.
