@@ -49,6 +49,33 @@ test('opslaan behoudt bevestiging en een ander meetpunt maakt opnieuw controle n
  assert.equal(r.ndw69Coverage(r.rows).confirmed,0);assert.equal(r.ndw69Coverage(r.rows).pending,2);
 });
 
+test('bevestigen laat nog niet opgeslagen verkeersvelden staan, daarna opslaan herberekent',()=>{
+ const r=runtime(),w=r.rows[1],before=r.kostenDagResultaat(w).kosten;
+ let closes=0;const status={textContent:''},feedback={textContent:''};
+ const dialog={open:true,close(){closes++;},querySelector(){return null;}};
+ r.document.getElementById=id=>id==='kostenDialog'?dialog:null;
+ const section={querySelector:selector=>selector==='[data-ndw-status]'?status:feedback};
+ const fields=Object.entries(r.sc67Config(w)).filter(([key])=>['q','uren','reductie','km','snelheid','bron','status','delayMode'].includes(key)).map(([key,value])=>({dataset:{sc67:key},type:typeof value==='number'?'number':'text',value:String(key==='uren'?12:value)}));
+ r.ndw69Confirm({dataset:{weg:w.key},checked:true,closest:()=>section});
+ assert.equal(closes,0,'bevestigen sluit het formulier niet');
+ assert.equal(fields.find(f=>f.dataset.sc67==='uren').value,'12');
+ assert.match(status.textContent,/locatie bevestigd/);assert.match(feedback.textContent,/verkeersinvoer/);
+ assert.equal(r.kostenDagResultaat(w).kosten,before,'nog niet opgeslagen invoer verandert geen kosten');
+ dialog.open=false;
+ r.sc67Bewaar({closest:()=>({dataset:{sc67Key:w.key},querySelectorAll:()=>fields})});
+ assert.equal(r.ndw69Coverage(r.rows).confirmed,1);
+ assert.equal(r.kostenDagResultaat(w).kosten,before*2,'de opgeslagen hinderuren werken numeriek door');
+});
+
+test('kostenvenster noemt de ontbrekende invoer in plaats van alleen bevestiging te vragen',()=>{
+ const r=runtime();
+ assert.deepEqual(Array.from(r.sc67OntbrekendeInvoer({q:900,uren:'',delayMode:'direct',minuten:'',bron:''})),['hinderuren','extra minuten per voertuig','bron en onderbouwing']);
+ assert.deepEqual(Array.from(r.sc67OntbrekendeInvoer({q:0,uren:0,delayMode:'direct',minuten:0,bron:'Synthetisch'})),[]);
+ vm.runInContext('RULES.kosten.scenario67.uren=""',r);
+ assert.match(r.kostenModelEditor(r.rows[0]),/Nog nodig: hinderuren/);
+ assert.equal(r.kostenDagResultaat(r.rows[0]).kosten,null);
+});
+
 test('uitgezet gebruik en ontbrekende metingen zijn geen bevestigde of te controleren koppeling',()=>{
  const r=runtime();confirm(r,'LOCAL');
  r.ndw69Use({dataset:{weg:'LOCAL'},checked:false});

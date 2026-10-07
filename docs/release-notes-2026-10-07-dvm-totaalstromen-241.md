@@ -1,0 +1,17 @@
+# Business Intelligence Dashboard WVM 2.41, DVM 125
+
+Datum: 7 oktober 2026
+
+Het bevestigingsvinkje voor een NDW-locatie bouwde het kostenvenster opnieuw op. Daardoor verdwenen nog niet opgeslagen hinderuren, extra reistijd en onderbouwing. Bevestigen houdt het formulier nu intact en ververst de locatiestatus en overige tellers. Opslaan en herberekenen gebruikt daarna de ingevoerde verkeerswaarden. Het venster noemt de ontbrekende invoer wanneer de kosten nog onbekend zijn. Alleen bevestigen verandert geen intensiteit, kostenformule of bedrag.
+
+Oudere MTM-totaalexports markeerden detectorregels als uitgesloten met `meenemen:false`. Aantoonbare open Detectielusmeldingen worden nu ook uit die exports opgenomen. De bekende LUS-codes 1006, 1007 en 5004 leveren bij ontbrekende typewoorden de LUS-typehint. Code 1005 blijft zonder detectoraanwijzing MSI. Een expliciete camera blijft CAM. Een onbekende detectorcode blijft open zichtbaar zonder verzonnen impact. De bestaande LUS-foutregels, gewichten en koppeling naar detectie binnen dienstverlening blijven leidend.
+
+Signaalgevers totaal of een nieuwe losse live-momentopname kon de onafhankelijke open DRIP-selectie wissen. Beide totaalstromen blijven nu behouden, ook wanneer eerst DRIP en daarna MTM wordt geladen of wanneer een nieuwe MTM-bron geen open alarmen bevat. Dezelfde virtuele DRIP-bron wordt niet dubbel opgenomen.
+
+Bronbeheer toont gezamenlijke overzichten voor DVM open storingen en DVM storingshistorie. Camera, Detectielus, MSI en DRIP krijgen aparte aantallen. De kaarten lezen bestaande inspecties en unieke DRIP-incidenten; zij voeren geen storingen opnieuw in. De bestaande MSI- en DRIP-prognoses behouden hun eigen bronketen. Signaalgevers totaal levert MSI-/Detectielus-openmeldingen en historie; DRIP totaal levert DRIP-historie plus aantoonbaar open incidenten. Camerastoringen vereisen werkelijk aangeleverde cameraregels. Losse bronuploads blijven beschikbaar. Verwijderen gebeurt via de oorspronkelijke bronkaart.
+
+Validatie: `npm test`, 389 tests geslaagd. Acht nieuwe regressies controleren behoud van nog niet opgeslagen verkeersinvoer, numerieke herberekening na opslaan, ontbrekende waarden en echte MTM/LUS-doorrekening met beide live-runtimepatches. Ook beide laadvolgordes, lege MTM-openlijst, herhaald vervangen, onbekende detectorcodes, CAM/MSI-scheiding en de gezamenlijke bronkaarten zijn getest. De browserregressie controleert aanvullend behoud van een nog niet opgeslagen hinderurenveld na het echte vinkje. JavaScript-syntax en `git diff --check` zijn gecontroleerd. De browsertest kon niet starten omdat Chromium ontbreekt; geen geslaagde browsercontrole geclaimd.
+
+De aangeleverde oude totaalexport is lokaal onderzocht. Haar actuele lijst bevat alleen MSI-meldingen; de historische signaalgeverrijen missen omschrijving en foutcode. Die inhoud bewijst geen actuele LUS-dekking en wordt niet aangevuld met verzonnen storingen. De actuele MTM-/DRIP-totaalbestanden en NDW-snapshot van de gebruiker zijn niet beschikbaar voor een praktijktest. Geen operationele brongegevens opgenomen in Git.
+
+De bestaande beperking bij uitgesteld herstel van grote werkruimten na refresh is hiermee niet opgelost. De wijziging verhoogt Dashboard naar 2.41 en DVM naar 125 en vernieuwt de bestaande cacheketen. Na samenvoegen en geslaagde Pages-publicatie herladen en de totaalbronnen opnieuw laden; maak eerst een volledige export als reservekopie.

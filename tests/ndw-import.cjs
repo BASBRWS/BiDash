@@ -119,7 +119,11 @@ const file=(name,xml,gzip=true)=>({name,mimeType:gzip?'application/gzip':'text/x
   assert.match(await page.evaluate(()=>ndw69Memo(allRoads)),/Ruimere koppeling/);
   // Bevestigen werkt de controle-tellers bij; de intensiteit telde al mee.
   await page.evaluate(()=>kostenOpenWeg(encodeURIComponent(allRoads[1].key)));
+  const originalHours=await page.locator('#kostenDialog input[data-sc67="uren"]').inputValue();
+  await page.locator('#kostenDialog input[data-sc67="uren"]').fill('12');
   await page.locator('#kostenDialog input[onchange="ndw69Confirm(this)"]').check();
+  assert.equal(await page.locator('#kostenDialog input[data-sc67="uren"]').inputValue(),'12','bevestigen bewaart nog niet opgeslagen hinderuren');
+  await page.locator('#kostenDialog input[data-sc67="uren"]').fill(originalHours);
   let coverage=await page.evaluate(()=>ndw69Coverage(allRoads));
   assert.equal(coverage.confirmed,1);assert.equal(coverage.pending,49);assert.equal(coverage.extendedPending,48);
   card=await page.evaluate(()=>datasetItems().find(x=>x.type==='ndwVerkeer'));

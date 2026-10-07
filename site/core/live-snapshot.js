@@ -127,6 +127,8 @@ const PATCH_SOURCE=String.raw`
 
   function vervangLiveBronnen(bronnen){
     if(!bronnen.length)return {liveCount:0,archivedCount:0};
+    const keys=new Set(bronnen.map(b=>b.key));
+    bronnen=[...bronnen,...LIVE_STORINGSBRONNEN.filter(b=>b.virtueel&&b.afgeleidVan==='dripHistorie'&&!keys.has(b.key))];
     const oudeRijen=gecombineerdeLiveStoringsRijen().slice();
     bronnen.forEach(b=>{
       b.peildatum=bronPeildatum(b)||Number(b._fileLastModified)||Date.now();

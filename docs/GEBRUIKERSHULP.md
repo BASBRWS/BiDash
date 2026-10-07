@@ -100,6 +100,8 @@ Historische storingen en actuele open storingen zijn twee verschillende gegevens
 
 ### NDW meetlocaties en trafficspeed
 
+Vul jouw hinderuren, verkeerskundig effect en onderbouwing in. Het locatievinkje houdt deze nog niet opgeslagen velden nu intact. Klik daarna op **Wegdeelinvoer opslaan en herberekenen**. Het kostenvenster noemt welke invoer nog ontbreekt. Alleen het meetpunt bevestigen levert geen ontbrekende verkeerswaarden op.
+
 **Berekenbare wegdelen** telt wegdelen met voldoende verkeersinvoer, ook als hun NDW-locatie nog niet is bevestigd. Controleer de koppeling via **Bekijk berekening** of **Bekijk / wijzig** en vink aan dat je weg, richting en toepasbaarheid hebt gecontroleerd. De teller **NDW locaties bevestigd** stijgt dan en **Nog te controleren** daalt direct. Opslaan houdt die bevestiging vast binnen de actieve werkruimte. Het berekenbare aantal blijft gelijk als de intensiteit al werd gebruikt. Een ander meetpunt kiezen maakt opnieuw controle nodig. Bevestigen maakt een ontbrekende intensiteit niet beschikbaar. De aparte tellers staan ook op de NDW-bronkaart.
 
 Let op: bij het bestaande uitgestelde herstel van een grote werkruimte wordt de NDW-verkeerscontext nog gewist. Deze tellerverbetering verandert dat niet. Maak een DVM-totaalexport als reservekopie voordat je herlaadt.
@@ -418,3 +420,9 @@ De planning blijft daarmee zelf de bron van de terminologie. Nieuwe projectnamen
 Vraag BiDash gebruikt bij vragen als `Wat is het oudste asset?`, `Welke assets zijn het oudst?` en `Wat is het nieuwste asset?` de installatie-/ingebruiknamedatum uit All Assets. Als alleen een bruikbaar jaar beschikbaar is, gebruikt de chat dat jaar. Assets zonder bruikbare installatiedatum worden bij zo'n rangschikking niet stilzwijgend als oud of nieuw behandeld, maar buiten de rangschikking gehouden.
 
 Voor levensduur/prognose geldt de bronvolgorde: bewuste individuele of fabrikant×type-override, expliciete levensduur/EOL uit All Assets, daarna de zichtbare generieke assettypewaarde. Het EOL-jaar uit All Assets kan samen met het installatiejaar worden gebruikt om een levensduur af te leiden.
+
+### DVM open storingen en historie uit totaalbestanden
+
+Bronbeheer toont **DVM open storingen** en **DVM storingshistorie** als gezamenlijke overzichten. Beide laten MSI, Detectielus, camera en DRIP apart zien. Laad **Signaalgevers totaal** voor MSI- en lusmeldingen, zowel open als historisch. Laad **DRIP totaal** voor DRIP-historie en de daaruit afgeleide open incidenten. Je hoeft deze meldingen niet nogmaals als losse open storingen of historie te laden. De laadvolgorde wist de andere totaalbron niet. Camerastoringen moeten werkelijk in een eigen bron of als cameraregels in het bestand staan. Een MSI- of DRIP-bestand bewijst geen cameradekking.
+
+Oudere MTM-exports kunnen detectormeldingen als uitgesloten markeren. BiDash verwerkt aantoonbare open Detectielusmeldingen nu ook uit zulke exports. Een onbekende lusfout blijft zichtbaar en krijgt pas impact nadat een passende foutregel is ingesteld. De koppeling is Detectielus naar detectie binnen dienstverlening. Historische gesloten incidenten worden niet als actuele storingen opgeteld. Verwijder bronnen via hun eigen totaalkaart; de gezamenlijke kaarten geven alleen een overzicht.

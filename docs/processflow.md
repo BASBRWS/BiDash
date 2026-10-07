@@ -290,3 +290,11 @@ bestaand DRIP totaal
 Alleen de expliciete knop **Bron vervangen** op de kaart DRIP totaal wist de bestaande DRIP-historie. **Voeg JSON toe** en **DRIP uit map** zijn beide complementaire routes.
 
 De optionele basis-JSON in de mapdialoog is uitsluitend bedoeld om na afloop een bijgewerkt los `datasets.drip`-bestand te kunnen downloaden; die basis bepaalt niet welke reeds geladen bronnen in de huidige BiDash-werkruimte blijven staan.
+
+## Gezamenlijke DVM-stromen en verkeersinvoer
+
+Signaalgevers totaal levert open en historische MSI-/Detectielusmeldingen. DRIP totaal levert historische DRIP-incidenten en de daaruit afgeleide open selectie. Beide staan samen in DVM open storingen en DVM storingshistorie. De kaarten gebruiken bestaande inspecties en incidenten; er wordt geen tweede bron of doorrekening gemaakt. Camera blijft DVM, maar vereist werkelijk aangeleverde cameraregels. Losse imports blijven bruikbaar als aanvullende of alternatieve bron.
+
+Een MTM- of losse live-vervanging behoudt de onafhankelijke DRIP-selectie. Oudere MTM-uitsluitingen voor aantoonbare Detectielusregels blokkeren deze open regels niet meer. Bekende LUS-codes gebruiken de bestaande LUS-regels, onbekende detectorcodes blijven zichtbaar zonder impact. De route Detectielus naar detectie blijft behouden.
+
+Het NDW-locatievinkje behoudt het geopende verkeersformulier. Opslaan en herberekenen gebruikt daarna jouw hinderuren, extra reistijd en onderbouwing. Ontbrekende invoer wordt benoemd. Bevestigen wijzigt geen verkeerswaarde of kostenformule. De bestaande beperking bij uitgesteld herstel na refresh blijft gelden.
