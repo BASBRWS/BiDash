@@ -1,7 +1,7 @@
 import {GROUPS,ROUTES,resolveRoute} from './ui/routes.js';
 import {DEFAULT_STATE,DVM_PARTS,BI_RULE_KEYS,LABELS,validate,makeExport,mergeImport,combine} from './core/model.js';
 import {read,write,readValue,writeValue} from './core/storage.js';
-import {toonVersies} from './core/versie.js';
+import {toonVersies} from './core/versie.js?v=20261008-1410';
 import {nieuwsteMomentopnameUitBestanden,nieuwsteMomentopnameUitMap,mapToestemming,schrijfBestandNaarMap} from './core/latest-snapshot.js';
 import {runQualityAudit,QUALITY_CATEGORIES} from './core/quality-audit.js';
 import {applyQuery,operatorsFor} from './core/query-filter.js';
@@ -14,7 +14,7 @@ const money=n=>Number.isFinite(n)?n.toLocaleString('nl-NL',{style:'currency',cur
 const date=s=>s?new Date(s).toLocaleDateString('nl-NL'):'geen bron geladen';
 let state=DEFAULT_STATE(),summaries={},busy=false,failedImport=false,timer,view='overview';const frames={},ready={};
 const engineVersies={};
-const APP_BUILD='20261008-1000';
+const APP_BUILD='20261008-1410';
 const LATEST_SNAPSHOT_DIRECTORY_KEY='latest-snapshot-directory';
 let latestSnapshotDirectory=null,latestSnapshotBusy=false;
 function status(s,error=false){$('#status').textContent=s;$('#status').classList.toggle('error',error);}
@@ -353,6 +353,16 @@ $('#exportOptions').onchange=()=>{$('#dependencies').textContent=makeExport(stat
 $('#all').onclick=()=>document.querySelectorAll('[data-part]').forEach(x=>x.checked=true);$('#none').onclick=()=>document.querySelectorAll('[data-part]').forEach(x=>x.checked=false);
 $('#export').onclick=async()=>{try{if(busy)throw Error('Wacht tot import of opslag gereed is.');const snapshot=await exportSnapshot();const sel=selection();if(!sel.size)throw Error('Kies minstens één onderdeel.');const data=makeExport(snapshot,sel),name='bidash-integraal_'+new Date().toISOString().slice(0,10)+'.json';download(data,name);await schrijfExportOokNaarGekoppeldeMap(data,name);}catch(e){fail(e);}};
 for(const [id,key,basisnaam,type] of [['exportDvm','dvm','dvm-dienstimpact-totaal','application/json'],['exportBi','bi','bidash-wvm-dataset','application/json'],['exportXml','planning','planning','text/xml']])$( '#'+id).onclick=async()=>{try{if(busy)throw Error('Wacht tot de lopende bewerking gereed is.');const snapshot=key==='dvm'?await exportSnapshot():(await capture(),state);if(!snapshot[key])throw Error('Dit onderdeel is nog niet geladen.');const data=key==='planning'?snapshot.planning.xml:snapshot[key],name=`${basisnaam}_${new Date().toISOString().slice(0,10)}.${key==='planning'?'xml':'json'}`;download(data,name,type);await schrijfExportOokNaarGekoppeldeMap(data,name,type);}catch(e){fail(e);}};
+$('#exportPrimavera').onclick=async()=>{
+ const button=$('#exportPrimavera');button.disabled=true;
+ try{
+  if(busy||failedImport)throw Error('Wacht tot de werkruimte gereed is. Herlaad na een mislukte import.');
+  const planning=await ensurePlanning(),result=await planning.exportPrimavera();
+  download(result.text,result.name,result.type);
+  await schrijfExportOokNaarGekoppeldeMap(result.text,result.name,result.type);
+  status(`Primavera XML geëxporteerd. ${result.changedActivities} activiteiten verschoven. Controleer en herbereken de planning na import in P6.`);
+ }catch(error){fail(error);}finally{button.disabled=false;}
+};
 $('#save').onclick=sync;$('#refresh').onclick=sync;$('#signalFilter').onchange=render;
 $('#linkForm').onsubmit=e=>{e.preventDefault();const l={dienst:$('#linkService').value,functie:$('#linkFunction').value,eigenaar:$('#linkOwner').value.trim()};state.links=state.links.filter(x=>x.dienst!==l.dienst||x.functie!==l.functie);state.links.push(l);sync();};
 $('#links').onclick=e=>{if(e.target.dataset.remove!==undefined){state.links.splice(Number(e.target.dataset.remove),1);sync();}};
