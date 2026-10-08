@@ -2640,7 +2640,7 @@ function zwaarsteObj(afh){
 
 function renderWegdelen(){
   const vcs=groepeerWegdelenPerVc(STATE.wegdelen).map(g=>g.vc).filter(v=>v!=='ONBEKEND').sort();
-  let h=`<div class="card"><h3>Beschikbaarheid &amp; prestatie per wegdeel</h3>
+  let h=`<div class="card"><h3>Beschikbaarheid &amp; prestatie per ${window.netwerkschakelsActief?.()?'netwerkschakel en rijrichting':'wegdeel'}</h3>
     <div class="filterbar">
       <label>Verkeerscentrale</label>
       <select id="fVc" onchange="tekenWegtabel()"><option value="">Alle</option>${vcs.map(v=>`<option>${esc(v)}</option>`).join('')}</select>
@@ -2902,7 +2902,7 @@ function renderWegdeelverslag(){
     return la-lb;
   });
   if(!WV_SEL || !STATE.wegdelen.find(w=>w.key===WV_SEL)) WV_SEL = gesorteerd[0].key;
-  let h=`<div class="card"><h3>Wegdeel- &amp; dienstverslag ${tip('Een <b>compleet rapport per wegdeel</b>: een managementsamenvatting in gewone taal, de volledige areaaldoorrekening (beschikbaarheid én prestatie) en per dienst de ketenopbouw met alle tussengetallen. Kies bovenin een wegdeel — ze staan gesorteerd op kriticiteit.')}</h3>
+  let h=`<div class="card"><h3>${window.netwerkschakelsActief?.()?'Netwerkschakel-':'Wegdeel-'} &amp; dienstverslag ${tip('Een <b>compleet rapport per wegdeel</b>: een managementsamenvatting in gewone taal, de volledige areaaldoorrekening (beschikbaarheid én prestatie) en per dienst de ketenopbouw met alle tussengetallen. Kies bovenin een wegdeel — ze staan gesorteerd op kriticiteit.')}</h3>
     <p class="muted" style="margin:-6px 0 12px;font-size:12px">Volledig rekenverslag per wegdeel: managementduiding, de areaaldoorrekening (beschikbaarheid + prestatie) en per dienst de ketenopbouw met alle tussengetallen. Kies een wegdeel; ze staan op kriticiteit gesorteerd.</p>
     <div class="wv-nav" id="wvNav">${gesorteerd.map(w=>{
       const minB=minGetal(DIENSTEN.map(d=>w.diensten[d.id].besch));
@@ -5579,6 +5579,7 @@ function totaalExportOpties(){
   const dripSources=(DRIP_HIST_STATE&&DRIP_HIST_STATE.sources)||[];
   return [
     {id:'assetregister',label:'Assetregister / All Assets',aanwezig:!!(ASSET_REGISTER_STATE&&ASSET_REGISTER_STATE.ruweRegisterRijen),detail:ASSET_REGISTER_STATE?ASSET_REGISTER_STATE.bestand:'niet geladen'},
+    {id:'netwerkschakels',label:'Netwerkschakelmatrix',aanwezig:!!window.DVM_NETWERKSCHAKELS_STATE,detail:window.DVM_NETWERKSCHAKELS_STATE?.bestand||'niet geladen'},
     {id:'storingshistorie',label:'Storingshistorie',aanwezig:!!STORINGSBRONNEN.length,detail:`${STORINGSBRONNEN.length} bronbestand(en), prognosebron`},
     {id:'liveStoringen',label:'Open storingen',aanwezig:!!LIVE_STORINGSBRONNEN.length,detail:`${LIVE_STORINGSBRONNEN.length} momentopnamebestand(en), dashboardbron`},
     {id:'dripHistorie',label:'DRIP-storingshistorie',aanwezig:!!dripSources.length,detail:`${dripSources.length} bronbestand(en), DRIP Monte Carlo`},
@@ -5627,6 +5628,7 @@ function totaalExportBundle(selectie,opties){
     exportSelectie: selectie,
     assetregister: neem('assetregister')&&ASSET_REGISTER_STATE&&ASSET_REGISTER_STATE.ruweRegisterRijen
       ? {bestand:ASSET_REGISTER_STATE.bestand,rijen:ASSET_REGISTER_STATE.ruweRegisterRijen} : null,
+    netwerkschakels:neem('netwerkschakels')&&window.DVM_NETWERKSCHAKELS_STATE?{bestand:window.DVM_NETWERKSCHAKELS_STATE.bestand,rijen:window.DVM_NETWERKSCHAKELS_STATE.rijen}:null,
     storingshistorie: neem('storingshistorie') ? bron(STORINGSBRONNEN) : [],
     liveStoringen: neem('liveStoringen') ? bron(LIVE_STORINGSBRONNEN) : [],
     dripHistorie: neem('dripHistorie')&&(DRIP_HIST_STATE&&DRIP_HIST_STATE.sources)
@@ -5702,6 +5704,9 @@ async function totaalImportJson(file, hubModus){
       laadSubprocessenConfig(b.subprocessen);
       RULES.kosten=v68MigreerKosten(b.kosten);
     }
+
+    if(magImporteren('netwerkschakels')&&Object.hasOwn(bundle,'netwerkschakels'))window.herstelNetwerkschakels?.(bundle.netwerkschakels);
+    else if(magImporteren('netwerkschakels')&&modus==='vervang')window.herstelNetwerkschakels?.(null);
 
     importFase='DVM-assetregister herstellen';
     // 2) Assetregister (stamregister). EOL en levensduur komen uit All Assets.

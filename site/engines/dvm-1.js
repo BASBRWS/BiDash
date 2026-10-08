@@ -578,7 +578,11 @@ function setLabel(set,max){
    de Monte Carlo voor realistische rates en hersteltijden i.p.v. schatting
    uit één momentopname. Bron: 4.800 dagelijkse 'openstaande storingen'-logs. */
 const MC_HISTORIE={"periodeJr": 0, "wegdelen": {}};
-function mcHistVoor(vcRaw, weg, richting, doelN){
+function mcHistVoor(vcRaw, weg, richting, doelN, wd){
+  if(window.netwerkschakelsActief?.()){
+    const H=MC_HISTORIE_LIVE;const v=H?.wegdelen?.[wd?.bestuurKey];
+    return v?{...v,fallback:false,tailCensored:v.durP[v.durP.length-1]>=H.periodeJr*365.25*.9}:null;
+  }
   // Zodra de laadstraat voldoende historie heeft vastgesteld, is uitsluitend
   // die geladen historie de empirische bron. Zo kan een oude ingebedde
   // referentieset niet ongemerkt de nieuwe bron overschrijven.
@@ -665,9 +669,11 @@ function areaalAantalVoorType(ar,typeId,geschat){
   return Math.max(geschat||1,1);
 }
 function wegdeelBasisKey(m){
+  if(window.netwerkschakelsActief?.())return netwerkBasisKey(m);
   return (m&&m.weg?m.weg:'')+(m&&m.richting?(' '+m.richting):'');
 }
 function wegdeelBestuurKey(m){
+  if(window.netwerkschakelsActief?.())return netwerkBestuurKey(m);
   const basis=wegdeelBasisKey(m);
   const vc=normAssetVc(m&&m.vc)||'geen VC';
   /* Binnen het live dashboard is VC + weg + richting de unieke sleutel.
@@ -675,6 +681,7 @@ function wegdeelBestuurKey(m){
   return `${basis}|vc:${vc}`;
 }
 function wegdeelBestuurLabel(agg){
+  if(window.netwerkschakelsActief?.())return netwerkBasisKey(agg)+' · VC '+agg.vc;
   const basis=wegdeelBasisKey(agg);
   const vc=normAssetVc(agg&&agg.vc);
   const rd=normRd(agg&&agg.rd);

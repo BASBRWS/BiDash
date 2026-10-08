@@ -4,9 +4,10 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='125';
+  const DVM_VERSION='126';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
+    netwerkschakels:{input:'netwerkschakelInput',label:'Netwerkschakelmatrix laden',multiple:false,requiresAsset:false,handler:'leesNetwerkschakels',accept:'.xlsx,.xls'},
     assetregister:{input:'dripInput',label:'Assetregister laden',multiple:false,requiresAsset:false,handler:'leesDripBestand'},
     ndwVerkeer:{input:'ndwTrafficInput',label:'NDW verkeersdata laden',multiple:true,requiresAsset:true,handler:'ndw:verkeer',accept:'.xml,.gz,.json,.html,.htm'},
     ndwMeetlocaties:{input:'ndwConfigInput',label:'Meetlocaties laden',multiple:false,requiresAsset:true,handler:'ndw:config',accept:'.xml,.gz'},
@@ -22,8 +23,9 @@
     dripTotaal:{input:'dripTotaalInput',label:'DRIP totaal (JSON) laden',multiple:false,requiresAsset:true,handler:'leesDripTotaal',accept:'.json'},
     dripMap:{input:'dripMapInput',label:'DRIP uit map lezen (CDMS)',multiple:true,directory:true,requiresAsset:true,handler:'leesDripMap'}
   });
-  const SOURCE_ORDER=['assetregister','ndwMeetlocaties','ndwVerkeer','windDrips','ria4Drips','dvmOpen','dvmHistorie','signaalgeverTotaal','signaalgeverMap','dripTotaal','dripMap','storingshistorie','liveStoringen','uRoutes','werkzaamheden'];
+  const SOURCE_ORDER=['assetregister','netwerkschakels','ndwMeetlocaties','ndwVerkeer','windDrips','ria4Drips','dvmOpen','dvmHistorie','signaalgeverTotaal','signaalgeverMap','dripTotaal','dripMap','storingshistorie','liveStoringen','uRoutes','werkzaamheden'];
   const PLACEHOLDERS={
+    netwerkschakels:{titel:'Netwerkschakelmatrix',meta:'Laad jouw Excel met Code, Verkeerscentrale, Rijksweg, Netwerkschakel, HMP van en HMP tot. De matrix bepaalt de grenzen voor areaal, storingen, dienstverlening, NDW en kosten. HMP-richting is geen rijrichting. Voorlopige grenzen blijven herkenbaar.'},
     assetregister:{titel:'Assetregister / All Assets',meta:'Nog niet geladen. Laad dit stamregister als eerste.'},
     ndwMeetlocaties:{titel:'NDW meetlocaties',meta:'Laad measurement_current of measurement via deze upload. De meetlocatietabel wordt direct verwerkt en blijft tijdens deze sessie beschikbaar voor volgende trafficspeedmetingen. Daarna koppel je de actuele intensiteit en snelheid via de aparte trafficspeedkaart. All Assets moet eerst geladen zijn.'},
     ndwVerkeer:{titel:'NDW trafficspeed / verkeersdata voor kosten',meta:'Nog geen NDW-verkeersdata geladen. Laad trafficspeed via deze upload en de meetlocatieconfiguratie via NDW meetlocaties. De bestandsnamen mogen afwijken, de app herkent gzip en de XML-inhoud. DATEX II v3: je kunt ook één gecombineerd snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz laden via Gecombineerd bestand of export. All Assets moet eerst geladen zijn voor de wegdeel- en hectometerkoppeling.'},
@@ -273,6 +275,10 @@
       const ndw=ndwVerkeerState(),sgt=signaalgeverTotaalState(),drt=dripTotaalState();
       const current=originalDatasetItems().filter(item=>!isSignaalgeverTotaalItem(item)&&!isDripTotaalItem(item)&&item.key!=='__drip_open_from_history__'),out=[];
       SOURCE_ORDER.forEach(type=>{
+        if(type==='netwerkschakels'){
+          const S=window.DVM_NETWERKSCHAKELS_STATE,R=window.netwerkRapportRijen?.()||[];
+          out.push({type,key:'',titel:PLACEHOLDERS[type].titel,aanwezig:!!S,meta:S?esc(S.bestand)+'<br>'+R.length+' netwerkschakels, '+S.schakels.length+' grensregels.<br>'+R.reduce((n,r)=>n+r.assets,0)+' actieve assets gekoppeld.<br>Status: '+esc([...new Set(S.schakels.map(r=>r.status))].join(', '))+'<br>Niet gekoppelde assets en storingen blijven apart zichtbaar.':PLACEHOLDERS[type].meta});return;
+        }
         if(type==='dvmOpen'||type==='dvmHistorie'){out.push(dvmStroomItem(type));return;}
         if(type==='ndwMeetlocaties'){
           out.push({type,key:'',titel:PLACEHOLDERS[type].titel,aanwezig:!!window.__BIDASH_NDW_PENDING_V23__?.config?.configInfo,meta:ndwMeetlocatiesMeta()});
@@ -308,6 +314,12 @@
   if(typeof verwijderDataset==='function'){
     const originalVerwijderDataset=verwijderDataset;
     verwijderDataset=async function(type,keyEnc){
+      if(type==='netwerkschakels'){
+        if(!confirm('Netwerkschakelmatrix verwijderen? De berekening gebruikt daarna weer de bestaande wegindeling.'))return;
+        window.herstelNetwerkschakels(null);
+        await datasetNaMutatie('Netwerkschakelmatrix verwijderd.');
+        meldWijzigingAanSchil(type,[]);return;
+      }
       if(type==='signaalgeverTotaal'){
         if(!confirm('Signaalgevers totaal (JSON) verwijderen? De open storingen en historie uit dit bestand worden gewist.'))return;
         try{
@@ -375,7 +387,7 @@
   }
 
   if(typeof tabToegestaan==='function'){
-    const originalTabToegestaan=tabToegestaan;tabToegestaan=function(tab){return tab==='datasets'?true:originalTabToegestaan.apply(this,arguments);};
+    const originalTabToegestaan=tabToegestaan;tabToegestaan=function(tab){return tab==='datasets'?true:tab==='wegdelen'&&!!window.DVM_NETWERKSCHAKELS_STATE?true:originalTabToegestaan.apply(this,arguments);};
   }
   if(typeof renderDataGereedheid==='function'){
     const originalRenderDataGereedheid=renderDataGereedheid;
@@ -386,6 +398,7 @@
     if(!files.length)return null;
     let result;
     switch(c.handler){
+      case 'leesNetwerkschakels': result=await window.leesNetwerkschakelBestand(files[0]);break;
       case 'leesDripBestand': result=await leesDripBestand(files[0]);break;
       case 'ndw:verkeer':
         if(typeof window.bidashLaadNdwFiles!=='function')throw new Error('NDW-verkeersloader voor meerdere bestanden is nog niet gereed. Herlaad de pagina en probeer opnieuw.');

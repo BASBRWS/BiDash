@@ -135,6 +135,7 @@ function compactExpertReviews(reviews=[]){
 
 function sourceInventory({dvm={},bi={},state={}}){
   return [
+    ['netwerkschakels',!!state.dvm?.netwerkschakels,Number(state.dvm?.netwerkschakels?.rijen?.length||0)],
     ['assetregister',!!state.dvm?.assetregister,Number(state.dvm?.assetregister?.rijen?.length||0)],
     ['openStoringen',Array.isArray(state.dvm?.liveStoringen)&&state.dvm.liveStoringen.length>0,(state.dvm?.liveStoringen||[]).reduce((s,b)=>s+Number(b.rijen?.length||0),0)],
     ['storingshistorie',Array.isArray(state.dvm?.storingshistorie)&&state.dvm.storingshistorie.length>0,(state.dvm?.storingshistorie||[]).reduce((s,b)=>s+Number(b.rijen?.length||0),0)],
