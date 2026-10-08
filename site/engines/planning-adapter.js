@@ -3,6 +3,7 @@ document.body.dataset.module='planning';
 window.HUB={
  open(screen='s16'){if(!['s16','s11','s17','s18','s19','s20','s15'].includes(screen))throw Error('Onbekend planningscherm');showScreen(screen);},
  fullscreen(active){document.body.classList.toggle('hub-planning-focus',!!active);document.getElementById('main').scrollTop=0;requestAnimationFrame(()=>{renderIPL();});},
+ exportPrimavera(){return ipl_createPrimaveraExport();},
  summary(){return {geladen:!!IPL_MODEL,naam:IPL_RAW_FILENAME||'',activiteiten:IPL_MODEL?.regels?.length||0};}
 };
 const originalPlanningScreen=showScreen;

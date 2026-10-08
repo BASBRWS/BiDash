@@ -50,6 +50,14 @@ De terugval waarbij je in een andere browser iedere keer een map uploadt kan die
 map niet beschrijven. Automatisch terugschrijven werkt daarom in Edge of Chrome
 met de moderne mapkoppeling.
 
+## Planning exporteren naar Primavera
+
+Laad jouw Primavera P6-XML en pas de planning aan. Kies **Exporteer Primavera P6 XML** bij de tijdlijn of onder **Data & export**. De export houdt de structuur van jouw bronbestand aan, inclusief P6-versie, WBS, relaties, kalenders en codes. Alle activiteiten gaan mee, ook wanneer je groepen inklapt of een filter gebruikt.
+
+De huidige verschuivingen, inclusief doorwerking naar opvolgers, worden als kalendermaanden in de bestaande planningsdatums verwerkt. Actuals, constraintdatums, peildatum, uren en kosten blijven zoals ze in de bron staan. Lege datums worden niet ingevuld. Het bestand krijgt de bronnaam met een scenariodatum. Controleer en herbereken de planning na import in Primavera, zodat P6 haar eigen kalenders en constraints toepast.
+
+**Oorspronkelijke planning-XML** downloadt de onbewerkte bron. De integrale JSON-back-up bewaart die bron samen met jouw instellingen, zodat je het scenario kunt hervatten. De P6-export werkt met een geladen P6-bron; een MS Project-bron blijft beschikbaar via de oorspronkelijke XML-export. Met een gekoppelde map wordt de export uit Data & export ook naar die map geschreven.
+
 ## Planning en triggers laden
 
 De planningmodule bevatte eerder een vaste, in de code opgenomen planning met
