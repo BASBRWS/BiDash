@@ -298,3 +298,9 @@ Signaalgevers totaal levert open en historische MSI-/Detectielusmeldingen. DRIP 
 Een MTM- of losse live-vervanging behoudt de onafhankelijke DRIP-selectie. Oudere MTM-uitsluitingen voor aantoonbare Detectielusregels blokkeren deze open regels niet meer. Bekende LUS-codes gebruiken de bestaande LUS-regels, onbekende detectorcodes blijven zichtbaar zonder impact. De route Detectielus naar detectie blijft behouden.
 
 Het NDW-locatievinkje behoudt het geopende verkeersformulier. Opslaan en herberekenen gebruikt daarna jouw hinderuren, extra reistijd en onderbouwing. Ontbrekende invoer wordt benoemd. Bevestigen wijzigt geen verkeerswaarde of kostenformule. De bestaande beperking bij uitgesteld herstel na refresh blijft gelden.
+
+## Netwerkschakelmatrix, 2.42 / DVM 126
+
+Bronbeheer, Netwerkschakelmatrix laden, matrixblad valideren, grenzen lokaal bewaren, All Assets per grens en richting tellen, actuele en historische meldingen koppelen, dienstimpact en verkeerskosten herberekenen, schakeloverzicht en rekenverslag tonen.
+
+Geen eenduidige grens betekent een afzonderlijke groep met koppelreden. Elke schakelcode blijft zichtbaar, ook zonder gekoppeld areaal. Totaalexport bewaart de matrix als eigen sectie. Een gewijzigde grens krijgt een andere scenariosleutel. De matrix verandert geen foutimpact, tarief of routecontextregel.

@@ -59,7 +59,7 @@ export function localEolModel(asset,startPct,allAssets,referenceYear,defaultLife
   let eol=explicit||null,bron=explicit?'Expliciete EoL':'';
   if(!eol&&finite(asset?.bouwjaar,0)>0){eol=finite(asset.bouwjaar,0)+life;bron='Bouwjaar + levensduur';}
   if(!eol){
-    const same=(allAssets||[]).filter(x=>finite(x?.bouwjaar,0)>0&&x.weg===asset.weg&&x.richting===asset.richting).map(x=>finite(x.bouwjaar,0)).sort((a,b)=>a-b);
+    const same=(allAssets||[]).filter(x=>finite(x?.bouwjaar,0)>0&&(asset.netwerkGroep?x.netwerkGroep===asset.netwerkGroep:x.weg===asset.weg&&x.richting===asset.richting)).map(x=>finite(x.bouwjaar,0)).sort((a,b)=>a-b);
     const all=(allAssets||[]).filter(x=>finite(x?.bouwjaar,0)>0).map(x=>finite(x.bouwjaar,0)).sort((a,b)=>a-b);
     const values=same.length?same:all;
     const proxy=values.length?values[Math.floor(values.length/2)]:referenceYear-life*.8;
@@ -124,12 +124,12 @@ export async function simulateSignalForecast(inputAssets,rulesInput={},options={
   const assets=(inputAssets||[]).filter(a=>(a?.tp||a?.assetType)==='MSI'&&a?.prognoseActief!==false).map(normalizeAsset);
   if(!assets.length)throw new Error('Geen signaalgevers beschikbaar.');
   const groups=new Map();
-  for(const a of assets){const key=[a.weg,a.richting,a.vc].join('|');if(!groups.has(key))groups.set(key,[]);groups.get(key).push(a);}
+  for(const a of assets){const key=a.netwerkGroep||[a.weg,a.richting,a.vc].join('|');if(!groups.has(key))groups.set(key,[]);groups.get(key).push(a);}
   const roads=[],entries=[...groups.entries()],totalWork=entries.length*rules.mcRuns;
   let completed=0;
   for(let gi=0;gi<entries.length;gi++){
     if(options.isCancelled?.())throw new Error('BEREKENING_GESTOPT');
-    const [key,roadAssets]=entries[gi],[weg,richting,vc]=key.split('|'),routeKm=routeLengthKm(roadAssets,rules.fallbackKmPerLocation),before=completed;
+    const [key,roadAssets]=entries[gi],{weg,richting,vc}=roadAssets[0],routeKm=roadAssets[0].netwerkLengte>0?roadAssets[0].netwerkLengte:routeLengthKm(roadAssets,rules.fallbackKmPerLocation),before=completed;
     const years=await simulateRoad(roadAssets,assets,rules,gi*7919,done=>{
       completed=before+done;
       options.onProgress?.({completed,totalWork,pct:100*completed/Math.max(1,totalWork),roadIndex:gi+1,roadCount:entries.length,weg,richting});
@@ -149,7 +149,7 @@ export async function simulateSignalForecast(inputAssets,rulesInput={},options={
       v.fte=Math.max(0,v.modelFte-base.modelFte);
       v.cost=v.fte*rules.fteCostYear;
     }
-    roads.push({weg,richting,vc,n:roadAssets.length,routeKm,years});
+    roads.push({key,netwerkschakel:roadAssets[0].netwerkschakel||'',naam:roadAssets[0].netwerkLabel||'',weg,richting,vc,n:roadAssets.length,routeKm,years});
   }
   const annual=[];let previousTotal=rules.baseFte;
   for(let year=rules.startYear;year<=rules.endYear;year++){
@@ -184,14 +184,14 @@ function severityWeight(asset){
 
 export function buildAssetForecast(assets,roads,rulesInput={}){
   const rules=normalizeForecastRules(rulesInput),counts={};
-  for(const a of assets){const key=[a.weg,a.richting].join('|');counts[key]=(counts[key]||0)+1;}
+  for(const a of assets){const key=a.netwerkGroep||[a.weg,a.richting].join('|');counts[key]=(counts[key]||0)+1;}
   const endYear=rules.endYear;
   return assets.map(a=>{
     const eol=localEolModel(a,rules.degradeStartPct,assets,rules.referenceYear,rules.defaultLifeYears);
-    const road=roads.find(r=>r.weg===a.weg&&r.richting===a.richting&&r.vc===a.vc),end=road?.years?.find(v=>v.year===endYear);
+    const road=roads.find(r=>a.netwerkGroep?r.key===a.netwerkGroep:r.weg===a.weg&&r.richting===a.richting&&r.vc===a.vc),end=road?.years?.find(v=>v.year===endYear);
     const prob=end?end.modelAffected/Math.max(1,road.n):0,permProb=end?end.permanent/Math.max(1,road.n):0;
     const urgency=eol.eol<=rules.referenceYear?1:clamp(1-(eol.eol-rules.referenceYear)/Math.max(1,rules.endYear-rules.referenceYear+1),0,1);
-    const share=1/Math.max(1,counts[[a.weg,a.richting].join('|')]);
+    const share=1/Math.max(1,counts[a.netwerkGroep||[a.weg,a.richting].join('|')]);
     const severity=severityWeight(a),score=100*(.4*urgency+.3*prob+.2*severity+.1*Math.min(1,share*20));
     return {key:a.key||a._assetKey||'',naam:a.naam||a.asset||a.code||'Signaalgever',weg:a.weg,richting:a.richting,vc:a.vc,hm:a.hm,bouwjaar:a.bouwjaar||null,eolYear:eol.eol,onsetYear:eol.onset,eolSource:eol.bron,lifeYears:eol.life,probability:prob,permanentProbability:permProb,severity,share,score};
   }).sort((a,b)=>b.score-a.score);

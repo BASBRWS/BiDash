@@ -426,3 +426,15 @@ Voor levensduur/prognose geldt de bronvolgorde: bewuste individuele of fabrikant
 Bronbeheer toont **DVM open storingen** en **DVM storingshistorie** als gezamenlijke overzichten. Beide laten MSI, Detectielus, camera en DRIP apart zien. Laad **Signaalgevers totaal** voor MSI- en lusmeldingen, zowel open als historisch. Laad **DRIP totaal** voor DRIP-historie en de daaruit afgeleide open incidenten. Je hoeft deze meldingen niet nogmaals als losse open storingen of historie te laden. De laadvolgorde wist de andere totaalbron niet. Camerastoringen moeten werkelijk in een eigen bron of als cameraregels in het bestand staan. Een MSI- of DRIP-bestand bewijst geen cameradekking.
 
 Oudere MTM-exports kunnen detectormeldingen als uitgesloten markeren. BiDash verwerkt aantoonbare open Detectielusmeldingen nu ook uit zulke exports. Een onbekende lusfout blijft zichtbaar en krijgt pas impact nadat een passende foutregel is ingesteld. De koppeling is Detectielus naar detectie binnen dienstverlening. Historische gesloten incidenten worden niet als actuele storingen opgeteld. Verwijder bronnen via hun eigen totaalkaart; de gezamenlijke kaarten geven alleen een overzicht.
+
+## Rapporteren op netwerkschakels, BiDash 2.42 / DVM 126
+
+Open Data & export, Bronbeheer en laad bij Netwerkschakelmatrix jouw XLSX. Laad daarnaast All Assets en jouw actuele storingsbronnen. De matrix mag ook eerst worden geladen. Het matrixblad bevat Code, Verkeerscentrale, Rijksweg, Netwerkschakel, HMP van en HMP tot. De overige werkbladen worden niet als netwerkschakels verwerkt.
+
+Assetmanagement, Netwerkschakels toont alle codes uit de matrix. De app telt assets en storingen binnen de HMP-grenzen. Rijrichtingen blijven apart voor dienstimpact, NDW en verkeerskosten. Kies de richtingknop voor het rekenverslag. Zonder gekoppeld areaal of actuele bron blijft de uitkomst onbekend. De bronstatus en controlepunten uit Excel blijven zichtbaar.
+
+Ontbrekende HMP, afwijkende VC en overlappende grenzen leveren geen verzonnen koppeling. De betreffende assets en meldingen blijven apart zichtbaar. HMP-richting, oplopend of aflopend, is geen rijrichting. Voeg desgewenst kolommen Zijde/Rijrichting of Hectoletter toe om bijzondere grenzen te onderscheiden. Een gedeelde grens wordt één keer toegewezen aan de schakel die daar als ondergrens begint.
+
+Verkeerskosten gebruikt de HMP-lengte als voorstel. Controleer de representatieve NDW-meting, de lengte, hinderuren, reductie en overlap voordat je kosten gebruikt. Een expliciet opgeslagen trajectlengte gaat voor. De bestaande regel voor ruimere NDW-koppelingen blijft gelden. Kosten en dienstpercentages blijven scenario-uitkomsten.
+
+Totaalexport en integrale export bevatten Netwerkschakelmatrix als apart selecteerbaar onderdeel. Je kunt de matrix onafhankelijk van rekenparameters bewaren en herladen. Een deelimport zonder matrix behoudt de huidige matrix. Bron vervangen herberekent alle afhankelijkheden. Verwijderen van de matrix herstelt de oude wegindeling. Maak een volledige back-up vóór een volledige vervanging.

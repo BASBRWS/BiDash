@@ -1,5 +1,5 @@
-const DVM_PARTS=['assetregister','storingshistorie','liveStoringen','dripHistorie','uRoutes','werkzaamheden','parameters','dripSelectie'];
-const PART_LABELS={assetregister:'Assetregister',storingshistorie:'Storingshistorie',liveStoringen:'Open storingen',dripHistorie:'DRIP-historie',uRoutes:'U-routes',werkzaamheden:'Werkzaamheden'};
+const DVM_PARTS=['assetregister','netwerkschakels','storingshistorie','liveStoringen','dripHistorie','uRoutes','werkzaamheden','parameters','dripSelectie'];
+const PART_LABELS={netwerkschakels:'Netwerkschakelmatrix',assetregister:'Assetregister',storingshistorie:'Storingshistorie',liveStoringen:'Open storingen',dripHistorie:'DRIP-historie',uRoutes:'U-routes',werkzaamheden:'Werkzaamheden'};
 
 export function normHeader(value){
   return String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/&/g,' en ').replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');

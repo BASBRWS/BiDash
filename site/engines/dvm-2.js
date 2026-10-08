@@ -353,7 +353,7 @@ function bouwLiveMcHistorie(st){
     const ms=wd.meldingen.filter(m=>m.typeId==='MSI'&&(!ASSET_INDEX||m.assetKey));if(!ms.length)return;
     const lokaal=ms.filter(m=>m.duurBetrouwbaar).map(m=>m.duurUren/24).sort((a,b)=>a-b);
     const fvc=VC_MAP[String(wd.vc||'').toUpperCase()]||String(wd.vc||'').toUpperCase();
-    const key=fvc+'|'+wd.weg+(wd.richting?(' '+wd.richting):'');
+    const key=typeof window!=='undefined'&&window.netwerkschakelsActief?.()?wd.bestuurKey:fvc+'|'+wd.weg+(wd.richting?(' '+wd.richting):'');
     wegdelen[key]={events:ms.length,rate:ms.length/dekkingJr,durP:lokaal.length>=DATA_DREMPELS.assetDuren?ankers(lokaal):globaal,bron:lokaal.length>=DATA_DREMPELS.assetDuren?'geladen-log-wegdeel':'geladen-log-groepsduur'};
   });
   return {periodeJr:dekkingJr,wegdelen,bronbestanden:STORINGSBRONNEN.map(b=>b.naam)};
@@ -709,7 +709,7 @@ function renderDataGereedheid(){
 }
 
 function heeftDatasetData(){
-  return !!(ASSET_REGISTER_STATE||STORINGSBRONNEN.length||LIVE_STORINGSBRONNEN.length||DRIP_HIST_STATE||U_ROUTE_STATE||WERK_STATE);
+  return !!(window.DVM_NETWERKSCHAKELS_STATE||ASSET_REGISTER_STATE||STORINGSBRONNEN.length||LIVE_STORINGSBRONNEN.length||DRIP_HIST_STATE||U_ROUTE_STATE||WERK_STATE);
 }
 function datasetAantalBron(bron){
   if(Array.isArray(bron?.rijen))return bron.rijen.length;
@@ -791,13 +791,13 @@ async function verwijderDataset(type,keyEnc){
 }
 async function verwijderAlleDatasets(){
   if(!confirm('Alle ingeladen datasets verwijderen? Parameters en handmatige rule-engine instellingen blijven staan.'))return;
-  ASSET_REGISTER_STATE=null;ASSET_INDEX=null;DVM_LEEFTIJD_STATE=null;DRIP_STATE=null;
+  ASSET_REGISTER_STATE=null;ASSET_INDEX=null;DVM_LEEFTIJD_STATE=null;DRIP_STATE=null;window.herstelNetwerkschakels?.(null);
   STORINGSBRONNEN=[];STORINGS_INSPECTIE=null;LIVE_STORINGSBRONNEN=[];LIVE_STORINGS_INSPECTIE=null;LIVE_PEILDATUM=null;DRIP_HIST_STATE=null;U_ROUTE_STATE=null;WERK_STATE=null;
   await datasetNaMutatie('Alle datasets verwijderd. Laad opnieuw All Assets om verder te rekenen.');
 }
 
 function analyseSignatuur(){
-  return [STORINGSBRONNEN.map(b=>b.key+':'+b.rijen.length).sort().join(','),LIVE_STORINGSBRONNEN.map(b=>b.key+':'+b.rijen.length).sort().join(','),ASSET_REGISTER_STATE?ASSET_REGISTER_STATE.bestand+':'+ASSET_REGISTER_STATE.assets.length:'',U_ROUTE_STATE?U_ROUTE_STATE.bestand+':'+U_ROUTE_STATE.totaal:'',WERK_STATE?WERK_STATE.bestand+':'+WERK_STATE.totaal:'',ASSET_CONFIG_VERSIE].join('|');
+  return [JSON.stringify(window.DVM_NETWERKSCHAKELS_STATE?.schakels||null),STORINGSBRONNEN.map(b=>b.key+':'+b.rijen.length).sort().join(','),LIVE_STORINGSBRONNEN.map(b=>b.key+':'+b.rijen.length).sort().join(','),ASSET_REGISTER_STATE?ASSET_REGISTER_STATE.bestand+':'+ASSET_REGISTER_STATE.assets.length:'',U_ROUTE_STATE?U_ROUTE_STATE.bestand+':'+U_ROUTE_STATE.totaal:'',WERK_STATE?WERK_STATE.bestand+':'+WERK_STATE.totaal:'',ASSET_CONFIG_VERSIE].join('|');
 }
 
 function probeerAnalyseActiveren(voorkeur,opties){
@@ -1127,11 +1127,12 @@ function doorrekenen(rijenRaw,opties){
   // stap 6: aggregatie per wegdeel (weg+richting), op basis van getelde signaalgevers.
   // Aantal signaalgevers per wegdeel wordt geschat uit het aantal unieke (hm,strook)-
   // posities in de lijst zelf (proxy voor areaalomvang), met een ondergrens.
-  const perWeg={};
+  if(window.netwerkschakelsActief?.())nietDoorgerekend.forEach(netwerkClassificeer);
+  const perWeg=window.netwerkschakelsActief?.()?netwerkPrepare(M):{};
   M.forEach(m=>{
     const key = wegdeelBestuurKey(m);
-    const agg = perWeg[key] = perWeg[key] || {weg:m.weg,richting:m.richting,n:0,availUren:0,perfUren:0,
-      posities:new Set(), typePosities:{}, typeLoss:{}, typen:{}, meldingen:[], rd:m.rd,district:m.district,vc:normAssetVc(m.vc),basisKey:wegdeelBasisKey(m),bestuurKey:key};
+    const agg = perWeg[key] = perWeg[key] || (window.netwerkschakelsActief?.()?netwerkLeegAggregate(m,key):{weg:m.weg,richting:m.richting,n:0,availUren:0,perfUren:0,
+      posities:new Set(), typePosities:{}, typeLoss:{}, typen:{}, meldingen:[], rd:m.rd,district:m.district,vc:normAssetVc(m.vc),basisKey:wegdeelBasisKey(m),bestuurKey:key});
     agg.n++;
     agg.typen[m.typeId]=(agg.typen[m.typeId]||0)+1;
     agg.posities.add(m.hm+'|'+m.strook);
@@ -1153,7 +1154,9 @@ function doorrekenen(rijenRaw,opties){
     tl.n++;
     tp.add(m.hm+'|'+m.strook);
     // trace: leg de bijdrage van deze melding aan het areaal vast
-    m.trace.wegdeel = agg.basisKey;
+    m.trace.wegdeel = window.netwerkschakelsActief?.()?wegdeelBestuurLabel(agg):agg.basisKey;
+    m.trace.netwerkschakel=agg.netwerkschakel||'';
+    m.wegKey=window.netwerkschakelsActief?.()?wegdeelBestuurLabel(agg):m.wegKey;
     m.trace.bestuurKey = key;
     m.trace.duurRaw = duurRaw;
     m.trace.duurGeclampt = duur;
@@ -1168,7 +1171,7 @@ function doorrekenen(rijenRaw,opties){
   Object.values(perWeg).forEach(agg=>{
     // Werkelijk aantal signaalgevers uit het RWS asset-register; valt terug op
     // schatting (unieke posities, min 8) als het wegdeel niet in het register staat.
-    const ar = areaalVoor(agg.vc, agg.weg, agg.richting);
+    const ar = window.netwerkschakelsActief?.()?netwerkAreaalVoor(agg):areaalVoor(agg.vc, agg.weg, agg.richting);
     const geschat = Math.max(agg.posities.size, 8);
     const typeBron={};
     ['MSI','CAM','LUS','DRIP','WISSELBORD'].forEach(tp=>{
@@ -1185,6 +1188,7 @@ function doorrekenen(rijenRaw,opties){
     const prest = typeBron.MSI.perf;
     wegdelen.push({
       key: wegdeelBestuurLabel(agg),
+      ...(window.netwerkschakelsActief?.()?netwerkAggregateInfo(agg):{}),
       basisKey: agg.basisKey,
       bestuurKey: agg.bestuurKey,
       weg:agg.weg, richting:agg.richting, rd:agg.rd, district:agg.district, vc:agg.vc,
@@ -1208,7 +1212,7 @@ function doorrekenen(rijenRaw,opties){
     const items=wd.meldingen.filter(m=>m.hm!=null).slice().sort((a,b)=>a.hm-b.hm);
     // weglengte schatten uit de spreiding van alle hm's op dit wegdeel
     const alleHm=items.map(m=>m.hm);
-    const wegLen = alleHm.length? Math.max(alleHm[alleHm.length-1]-alleHm[0], 1) : 1;
+    const wegLen = wd.netwerkLengte>0?wd.netwerkLengte:alleHm.length? Math.max(alleHm[alleHm.length-1]-alleHm[0], 1) : 1;
     const clusters=[]; let cur=null;
     items.forEach(m=>{
       if(cur && (m.hm-cur.hmMax)<=CHOKE_VENSTER){ cur.leden.push(m); cur.hmMax=m.hm; }
@@ -1300,10 +1304,12 @@ function doorrekenen(rijenRaw,opties){
       wisselbord:M.filter(m=>m.typeId==='WISSELBORD').length,
       combiHits, actueel, periodeJr:actueel?periodeJr:Math.round(periodeJr*100)/100,
       periodeUren:Math.round(periodeUren),
-      areaalDirect: wegdelen.filter(w=>w.areaalBron==='direct'||w.areaalBron==='geladen-register').length,
+      areaalDirect: wegdelen.filter(w=>w.areaalBron==='direct'||w.areaalBron==='geladen-register'||w.areaalBron==='geladen-netwerkschakelregister').length,
       areaalWeg: wegdelen.filter(w=>w.areaalBron==='weg-totaal'||w.areaalBron==='geladen-register-weg').length,
       areaalSchat: wegdelen.filter(w=>w.areaalBron==='schatting').length,
       totaalSig: wegdelen.reduce((s,w)=>s+w.N,0),
+      netwerkschakels:window.netwerkschakelsActief?.()?new Set(wegdelen.map(w=>w.netwerkschakel).filter(Boolean)).size:null,
+      nietGekoppeldeNetwerkmeldingen:window.netwerkschakelsActief?.()?M.filter(m=>!m.netwerkschakel).length:0,
       wegdelen:wegdelen.length }
   };
 }
@@ -2599,7 +2605,7 @@ function tmc71Config(config,source){
  const c={...config,version71:true,note:config.note||'Vooringevuld scenario. Voertuigen per uur uit opgeslagen invoer of NDW, anders 1.000. Hinderuren uit invoer, anders 6. Extra minuten uit verkeersmodel, anders 0,5. Marges zijn aannames, geen gemeten spitsprofiel.'};
  c.rows=source.rows.map(s=>{const old=config.rows.find(x=>x.key===s.key),r=tmc71Default(s);if(old)for(const k of ['q','uren','minuten']){if(old[k]?.every(Number.isFinite)){r[k]=old[k][0]===old[k][2]?tmc71Range(old[k][1],k==='minuten'?.5:.2,k==='uren'?24:Infinity):old[k];}}return r;});return c;
 }
-function f71GroupKey(a){return [a.weg,normAssetRichting(a.richting),normAssetVc(a.vc)].join('|');}
+function f71GroupKey(a){if(window.netwerkschakelsActief?.()){netwerkClassificeer(a);return netwerkBestuurKey(a);}return [a.weg,normAssetRichting(a.richting),normAssetVc(a.vc)].join('|');}
 function f71Iso(ms){return new Date(ms).toISOString().slice(0,10);}
 function f71Year(ms){const d=new Date(ms),y=d.getUTCFullYear();return y+(ms-Date.UTC(y,0,1))/(Date.UTC(y+1,0,1)-Date.UTC(y,0,1));}
 function f71Build(){
@@ -2614,8 +2620,8 @@ function f71Build(){
  }if(Number.isFinite(from))sources.push({name:b.naam,from:f71Iso(from),to:f71Iso(to)});}
  for(const g of groups.values()){
   const cohorts=new Map();for(const a of g.assets){const rel=assetReliability(a),k=[a.bouwjaar||0,rel.L,rel.beta,rel.bron].join('|');if(!cohorts.has(k))cohorts.set(k,{year:a.bouwjaar||null,L:rel.L,beta:rel.beta,n:0,source:rel.bron});cohorts.get(k).n++;if(!['assettype','standaard','standaard-terugval'].includes(rel.bron))diag.explicit++;}g.cohorts=[...cohorts.values()];
-  const current=kostenDagRows().find(w=>w.weg===g.weg&&normAssetRichting(w.richting)===g.richting&&normAssetVc(w.vc)===g.vc),middle=g.assets.filter(a=>Number.isFinite(a.hm)).sort((a,b)=>a.hm-b.hm),hm=middle[Math.floor(middle.length/2)]?.hm;
-  const w=current||{key:g.weg+' '+g.richting+' · VC '+g.vc,weg:g.weg,richting:g.richting,vc:g.vc,meldingen:hm==null?[]:[{hm,avail:100,typeId:'MSI'}]};const z=kostenDagResultaat(w);g.label=w.key;g.current=!!current;g.traffic={q:Number.isFinite(sc67Num(z.m.q))?Number(z.m.q):1000,minuten:Number.isFinite(z.minuten)?z.minuten:.5,bron:z.bron||'',ndw:z.m.ndwUsed||null,fallbackQ:sc67Num(z.m.q)===null,fallbackDelay:!Number.isFinite(z.minuten)};
+  const current=kostenDagRows().find(w=>window.netwerkschakelsActief?.()?w.bestuurKey===g.key:w.weg===g.weg&&normAssetRichting(w.richting)===g.richting&&normAssetVc(w.vc)===g.vc),middle=g.assets.filter(a=>Number.isFinite(a.hm)).sort((a,b)=>a.hm-b.hm),hm=middle[Math.floor(middle.length/2)]?.hm;
+  const w=current||{key:window.netwerkschakelsActief?.()?wegdeelBestuurLabel(g.assets[0]):g.weg+' '+g.richting+' · VC '+g.vc,...(window.netwerkschakelsActief?.()?netwerkAggregateInfo({...g.assets[0],bestuurKey:g.key}):{}),weg:g.weg,richting:g.richting,vc:g.vc,meldingen:hm==null?[]:[{hm,avail:100,typeId:'MSI'}]};const z=kostenDagResultaat(w);g.label=w.key;g.current=!!current;g.traffic={q:Number.isFinite(sc67Num(z.m.q))?Number(z.m.q):1000,minuten:Number.isFinite(z.minuten)?z.minuten:.5,bron:z.bron||'',ndw:z.m.ndwUsed||null,fallbackQ:sc67Num(z.m.q)===null,fallbackDelay:!Number.isFinite(z.minuten)};
  }
  return {groups:[...groups.values()].sort((a,b)=>a.key.localeCompare(b.key)),diag,sources,first:Number.isFinite(first)?Math.floor(first/F71_DAY)*F71_DAY:null,last:Number.isFinite(last)?Math.floor(last/F71_DAY)*F71_DAY:null,liveDate:sc67Datum()};
 }
@@ -2740,7 +2746,7 @@ function mc72Keys(event,el){if(!['ArrowLeft','ArrowRight','Home','End'].includes
 function mc72Pointer(event,svg){if(event.type==='pointermove'&&event.pointerType==='touch')return;const {p,o}=mc72Context(svg),point=svg.createSVGPoint();point.x=event.clientX;point.y=event.clientY;const matrix=svg.getScreenCTM();if(!matrix)return;const pos=point.matrixTransform(matrix.inverse());if(pos.y<30||pos.y>290)return;let i;if(p.type==='hist'){if(pos.x<130||pos.x>930)return;i=Math.min(p.hist.bins.length-1,Math.floor((pos.x-130)/800*p.hist.bins.length));}else{if(pos.x<130||pos.x>970)return;const m=mc72Model(p,o);i=m.lo+Math.round((pos.x-130)/840*(m.hi-m.lo));}mc72Pick(svg,i);}
 function mc72Reset(el){const {root,p,o}=mc72Context(el);o.lo=0;o.hi=p[o.period].length-1;o.selected=0;mc72Draw(root,p,o,'period');}
 
-function kostenDagRows(){return typeof STATE!=='undefined'&&STATE?.stats?.actueel?[...new Map((STATE.wegdelen||[]).map(w=>[w.key,w])).values()]:[];}
+function kostenDagRows(){return typeof STATE!=='undefined'&&STATE?.stats?.actueel?[...new Map((STATE.wegdelen||[]).filter(w=>!window.netwerkschakelsActief?.()||w.n>0).map(w=>[w.key,w])).values()]:[];}
 
 
 function kostenModelBewaar(el){
@@ -3080,7 +3086,7 @@ function ndw69Memo(rows){
 /* V67: deterministisch verkeersscenario. In versie 72 alleen actief na invoer. */
 const SC67_DEFAULT={q:'',uren:'',km:2,snelheid:100,reductie:'',status:'scenario',bron:''};
 let SC67_CACHE={fingerprint:'',routes:{},busy:false,error:''};
-function sc67Config(w){return ndw69Enrich(w,{...SC67_DEFAULT,delayMode:'speed',minuten:'',...(kostenBasis().scenario67||{}),...((kostenBasis().scenarioWegen67||{})[w?.key]||{})});}
+function sc67Config(w){return ndw69Enrich(w,{...SC67_DEFAULT,...(w?.netwerkLengte>0?{km:w.netwerkLengte}:{}),delayMode:'speed',minuten:'',...(kostenBasis().scenario67||{}),...((kostenBasis().scenarioWegen67||{})[w?.key]||{})});}
 function sc67Num(v){return v!==''&&v!==null&&v!==undefined&&Number.isFinite(Number(v))?Number(v):null;}
 function sc67Valid(c){
  const common=['q','uren'].every(k=>sc67Num(c[k])!==null)&&c.q>=0&&c.uren>=0&&c.uren<=24;
@@ -3710,6 +3716,11 @@ function decimaalJaar(ms){
 }
 
 function mcCohortVoor(wd,typeId){
+  if(window.netwerkschakelsActief?.()){
+    const assets=netwerkRegister()?.groups.get(wd.bestuurKey)?.assets.filter(a=>a.tp===typeId)||[],jaren={};
+    assets.filter(a=>a.bouwjaar).forEach(a=>{jaren[a.bouwjaar]=(jaren[a.bouwjaar]||0)+1;});
+    return assets.length?{totaal:assets.length,metJaar:assets.filter(a=>a.bouwjaar).length,jaren}:null;
+  }
   if(!DVM_LEEFTIJD_STATE) return null;
   const vc=VC_MAP[String(wd.vc||'').toUpperCase()]||String(wd.vc||'').toUpperCase();
   return DVM_LEEFTIJD_STATE.exact[[vc,wd.weg,wd.richting||'',typeId].join('|')]
@@ -3724,6 +3735,7 @@ function mcLeeftijdEquivalent(wd,vanMs,totMs,histPeriodeJr){
   const vcLive=normAssetVc(wd.vc),richtingLive=normAssetRichting(wd.richting);
   let live=ASSET_INDEX?(ASSET_INDEX.byTypeRoad.get(['MSI',wd.weg].join('|'))||[]):[];
   live=live.filter(a=>a.prognoseActief&&(!vcLive||!a.vc||normAssetVc(a.vc)===vcLive)&&(!richtingLive||!a.richting||normAssetRichting(a.richting)===richtingLive));
+  if(window.netwerkschakelsActief?.())live=netwerkRegister()?.groups.get(wd.bestuurKey)?.assets.filter(a=>a.tp==='MSI')||[];
   const liveMetJaar=live.filter(a=>a.bouwjaar);
   if(liveMetJaar.length&&horizon>0){
     const nu=Date.now(),histStart=nu-histPeriodeJr*365.25*24*3600e3;
@@ -3768,7 +3780,7 @@ function mcPriorContext(wegdelen,histPeriodeJr){
   const histBron=mcHistorieBron();
   let events=0, bloot=0;
   wegdelen.filter(w=>w.meldingen&&w.meldingen.length).forEach(w=>{
-    const h=mcHistVoor(w.vc,w.weg,w.richting,w.N);
+    const h=mcHistVoor(w.vc,w.weg,w.richting,w.N,w);
     const jr=h&&h.events>0?histBron.periodeJr:histPeriodeJr;
     const ev=h&&h.events>0?h.events:w.n;
     events+=ev; bloot+=(w.N||1)*jr;
@@ -3778,7 +3790,7 @@ function mcPriorContext(wegdelen,histPeriodeJr){
 
 function mcRateInfo(wd,histPeriodeJr,prior){
   const histBron=mcHistorieBron();
-  const hist=mcHistVoor(wd.vc,wd.weg,wd.richting,wd.N);
+  const hist=mcHistVoor(wd.vc,wd.weg,wd.richting,wd.N,wd);
   const gebruikLogs=!!hist&&hist.events>0;
   const events=gebruikLogs?hist.events:wd.n;
   const obsJr=gebruikLogs?histBron.periodeJr:histPeriodeJr;
