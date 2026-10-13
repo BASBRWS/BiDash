@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.42 en DVM 126, bijgewerkt op 8 oktober 2026 voor een aparte netwerkschakelmatrix en grensgebonden rapportage en doorrekening.
+Status: beschrijving van BiDash 2.43 en DVM 126, bijgewerkt op 8 oktober 2026 voor terugexport van planningsscenario’s in de oorspronkelijke Primavera P6-structuur.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -277,8 +277,13 @@ worden samengevoegd.
 
 DVM-export gebruikt intern formaatversie 54; dat is niet de UI-versie 2.3.
 Oude DVM-totaalbestanden blijven via de bestaande importer ondersteund.
-Native hub-XML-export levert de originele XML. De planningknop voor terugexport
-van een scenario past de datums toe in een kopie. Verwar deze twee exports niet.
+De oorspronkelijke planning-XML-export levert de onbewerkte bron. **Exporteer Primavera P6 XML** staat zowel bij de tijdlijn als onder Data & export. Beide gebruiken `ipl_createPrimaveraExport()` en `site/core/primavera-export.js`. De geladen P6-XML is het sjabloon: de oorspronkelijke P6-versienamespace, schemaLocation, ProjectList, projectvelden, WBS, kalender, OBS, codes, relaties, kosten, resourcegegevens en elementvolgorde blijven behouden. Er wordt geen nieuwe of ingesloten operationele template gebruikt. MS Project wordt niet als P6-bestand aangeboden; daarvoor blijft de oorspronkelijke XML-export bestaan.
+
+Vóór export wordt een hangende sleepbeweging verwerkt en de bestaande volledige cascade opnieuw berekend. De export gebruikt alle modelactiviteiten, los van filters en ingeklapte groepen. Scenarioverschuivingen blijven hele kalendermaanden, met maandultimo-klemming en behoud van tijd, fractieseconden en tijdzone. Gevulde geplande, effectieve, vroege, late, resterende en verwachte datumvelden van verschoven activiteiten schuiven mee, evenals de bestaande geplande datumvelden van hun resourcetoewijzingen. Actuals, constraintdatums, DataDate, baselines, WBS-budgetten, duur, uren en kosten blijven bronwaarden. Lege en xsi:nil-datums worden niet ingevuld; ontbrekende velden worden niet toegevoegd. Veldnamen in vreemde namespaces worden niet bewerkt. De tijdlijn blijft een benadering in fractiejaren en vormt geen vervanging van de P6-kalenderberekening.
+
+Een bestand met meerdere projecten bewaart alle projecten; alleen het laatste project met activiteiten, hetzelfde project dat de importer selecteert, volgt het actieve scenario. Ongeldige XML, dubbele of ontbrekende activiteit-ID’s, afwijkende model-ID’s en ongeldige verschoven datums stoppen de export. Een nulscenario behoudt de brontekst, afgezien van een noodzakelijke UTF-8-declaratie. Bij wijzigingen kan de XML-serialisatie schrijfdetails zoals de notatie van lege elementen wijzigen, maar de objectstructuur en attributen blijven staan. De bron en opgeslagen scenariostaat worden niet overschreven.
+
+De export onder Data & export gebruikt de bestaande download- en gekoppelde-maproute. De tijdlijnknop downloadt lokaal. Het bestand krijgt de bronnaam met `-scenario-<datum>.xml`. Herimport in BiDash wordt getest; import en herberekening in een echte Primavera-omgeving zijn nog niet uitgevoerd. De melding vraagt daarom om controle en herberekening in P6 in plaats van gegarandeerde acceptatie.
 
 `history` bestaat in het integrale model en wordt programmatisch ondersteund,
 maar staat niet in de huidige hub-selectievakken. DVM-kostendagstanden zijn een
@@ -528,6 +533,7 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 | Expertduiding dienstverlening | `tests/service-expert-input.test.js`: generiek schema, begeleide keuzes, optionele uitleg, tooltips, gesloten subprocessaandelen, technische vinkjes, statusovergangen, akkoord, geïsoleerde opslag per dienst en zichtbare route; `tests/model.test.js` en `tests/context-api.test.js` bewaken export/import en read-only context |
 | Navigatie/import/opslag | `tests/browser.cjs`: MS Project, P6, zichtbare tijdlijn, export/herstel, mobiel |
 | Datalaadvoortgang | `tests/data-load-progress.test.js`: byteaggregatie, begrenzing, FileReader-pad, paint-yield en DVM-voortgangsbrug |
+| Primavera-terugexport | `tests/primavera-export.test.js` en `npm run test:primavera`: datumranden, behoud van objectstructuur, namespaces, actuals, nil, resourcegegevens, cascade, nulscenario, downloads, originele bron en herstel; echte P6-import blijft een aparte controle |
 | Canvas/tijdschaal/drag | `tests/planning-large.cjs`: grote synthetische planning, scrollen, slepen, resizen |
 | Formatie/BI-brug/fullscreen | `tests/planning-formation.cjs`: overlappende taken, regelwijziging, reload, grafieken |
 | Live storingsmomentopname | `tests/live-snapshot.test.js`: identiteit, dubbelen, verdwijnen en afsluiten |

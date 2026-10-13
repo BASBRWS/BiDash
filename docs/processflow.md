@@ -304,3 +304,7 @@ Het NDW-locatievinkje behoudt het geopende verkeersformulier. Opslaan en herbere
 Bronbeheer, Netwerkschakelmatrix laden, matrixblad valideren, grenzen lokaal bewaren, All Assets per grens en richting tellen, actuele en historische meldingen koppelen, dienstimpact en verkeerskosten herberekenen, schakeloverzicht en rekenverslag tonen.
 
 Geen eenduidige grens betekent een afzonderlijke groep met koppelreden. Elke schakelcode blijft zichtbaar, ook zonder gekoppeld areaal. Totaalexport bewaart de matrix als eigen sectie. Een gewijzigde grens krijgt een andere scenariosleutel. De matrix verandert geen foutimpact, tarief of routecontextregel.
+
+### Primavera-scenario terugexporteren
+
+Planning-XML laden, verschuiving instellen en **Exporteer Primavera P6 XML** kiezen bij de tijdlijn of Data & export. De bestaande cascade wordt vóór de export opnieuw berekend. De exporter kopieert de geladen P6-XML en verschuift alleen gevulde planningsdatumvelden bij de bijbehorende activiteiten en resourcetoewijzingen. De oorspronkelijke P6-versie, veldvolgorde, object-ID’s, relaties, kalenders, codes, actuals, constraints, uren en kosten blijven behouden. Filters beperken de export niet. De oorspronkelijke bron en scenario-instellingen blijven beschikbaar voor back-up en herstel. Na download controleert en herberekent de planner het bestand in P6. MS Project krijgt geen P6-label; de oorspronkelijke XML-export blijft werken.

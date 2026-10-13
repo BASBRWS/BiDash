@@ -1469,10 +1469,10 @@
         <div style="background:#e8f0fb;border:1px solid #b0c8ec;border-radius:6px;padding:10px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
           <span style="font-size:18px;">📤</span>
           <div style="flex:1;min-width:220px;">
-            <div style="font-size:12px;font-weight:700;color:#003082;">Scenario geaccepteerd? Exporteer terug naar Primavera</div>
-            <div style="font-size:10px;color:#4a6a9a;">Schrijft de huidige verschuivingen als nieuwe datums in een kopie van de originele XML — direct opnieuw te importeren in Primavera P6.</div>
+            <div style="font-size:12px;font-weight:700;color:#003082;">Planning exporteren naar Primavera P6</div>
+            <div style="font-size:10px;color:#4a6a9a;">Behoudt de structuur van jouw P6-bron, inclusief WBS, relaties, kalenders en codes. De huidige verschuivingen gaan mee. Controleer en herbereken de planning na import in P6.</div>
           </div>
-          <button onclick="ipl_exportXML()" style="padding:8px 18px;background:#003082;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">📥 Exporteer naar Primavera XML</button>
+          <button id="ipl-export-primavera" onclick="ipl_exportXML()" title="Exporteert de volledige geladen P6-planning met alle scenarioverschuivingen, ook van ingeklapte of gefilterde activiteiten. De originele bron blijft bewaard." style="padding:8px 18px;background:#003082;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">Exporteer Primavera P6 XML</button>
         </div>
 
         <!-- CONTROLS -->
@@ -5412,29 +5412,37 @@ function ipl_parseMSProject(xml){
 function ipl_parseXML(xmlText){
   var parser=new DOMParser();
   var xml=parser.parseFromString(xmlText,'text/xml');
-  var perr=xml.getElementsByTagName('parsererror');
+  var perr=xml.getElementsByTagNameNS('*','parsererror');
   if(perr.length) throw new Error('XML kon niet worden gelezen (parsererror).');
   if(xml.getElementsByTagName('Tasks').length && xml.getElementsByTagName('Task').length) return ipl_parseMSProject(xml);
 
   // helper: tekst van direct kind-element
   function childText(el,tag){
-    for(var i=0;i<el.children.length;i++){ if(el.children[i].tagName===tag) return el.children[i].textContent.trim(); }
+    for(var i=0;i<el.children.length;i++){ if(el.children[i].namespaceURI===el.namespaceURI && el.children[i].localName===tag) return el.children[i].textContent.trim(); }
     return '';
   }
   // pak laatste Project (de echte planning)
-  var projects=xml.getElementsByTagName('Project');
+  var projects=xml.getElementsByTagNameNS('*','Project');
   if(!projects.length) throw new Error('Geen <Project> gevonden in XML.');
-  var proj=projects[projects.length-1];
+  var proj=null;
+  for(var pi=0;pi<projects.length;pi++){
+    if(projects[pi].parentElement!==xml.documentElement)continue;
+    for(var pj=0;pj<projects[pi].children.length;pj++){
+      if(projects[pi].children[pj].namespaceURI===projects[pi].namespaceURI && projects[pi].children[pj].localName==='Activity') {proj=projects[pi];break;}
+    }
+  }
+  if(!proj)throw new Error('Geen Primavera-project met activiteiten gevonden.');
 
   // directe kinderen verzamelen per type
   var wbsEls=[], actEls=[], relEls=[], codeTypeEls=[], codeValEls=[];
   for(var i=0;i<proj.children.length;i++){
     var c=proj.children[i];
-    if(c.tagName==='WBS') wbsEls.push(c);
-    else if(c.tagName==='Activity') actEls.push(c);
-    else if(c.tagName==='Relationship') relEls.push(c);
-    else if(c.tagName==='ActivityCodeType') codeTypeEls.push(c);
-    else if(c.tagName==='ActivityCode') codeValEls.push(c);
+    if(c.namespaceURI!==proj.namespaceURI)continue;
+    if(c.localName==='WBS') wbsEls.push(c);
+    else if(c.localName==='Activity') actEls.push(c);
+    else if(c.localName==='Relationship') relEls.push(c);
+    else if(c.localName==='ActivityCodeType') codeTypeEls.push(c);
+    else if(c.localName==='ActivityCode') codeValEls.push(c);
   }
 
   // ── ActivityCodeType/ActivityCode: Primavera's eigen categorisatiemechanisme ──
@@ -5484,12 +5492,13 @@ function ipl_parseXML(xmlText){
     // per-activiteit ActivityCode-toewijzingen (Primavera's eigen <Code>-lijst, indien aanwezig)
     var codes={}; // typeOid -> waarde-omschrijving
     for(var ci=0;ci<ae.children.length;ci++){
-      if(ae.children[ci].tagName==='Code'){
+      if(ae.children[ci].namespaceURI===ae.namespaceURI && ae.children[ci].localName==='Code'){
         var codeEl=ae.children[ci];
         var ctid='', vid='';
         for(var cj=0;cj<codeEl.children.length;cj++){
-          if(codeEl.children[cj].tagName==='CodeTypeObjectId') ctid=codeEl.children[cj].textContent.trim();
-          if(codeEl.children[cj].tagName==='ValueObjectId') vid=codeEl.children[cj].textContent.trim();
+          if(codeEl.children[cj].namespaceURI!==codeEl.namespaceURI)continue;
+          if(codeEl.children[cj].localName==='CodeTypeObjectId') ctid=codeEl.children[cj].textContent.trim();
+          if(codeEl.children[cj].localName==='ValueObjectId') vid=codeEl.children[cj].textContent.trim();
         }
         if(ctid && vid && codeValById[vid]){ codes[ctid]=codeValById[vid]; totaalCodeToewijzingen++; }
       }
@@ -5949,81 +5958,33 @@ function ipl_expandAll(v){
 // overige Primavera-velden blijven ongewijzigd (round-trip veilig).
 // ══════════════════════════════════════════════════════════
 
-// tel N kalendermaanden op bij een ISO-datumstring, met behoud van tijdstip.
-// Klemt de dag op de laatste dag van de doelmaand (geen overflow naar de
-// volgende maand bij bv. 31 januari + 1 maand).
-function ipl_addMonthsISO(iso, months){
-  if(!iso) return iso;
-  var m=iso.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2}:\d{2})/);
-  if(!m) return iso;
-  var y=parseInt(m[1]), mo=parseInt(m[2])-1, d=parseInt(m[3]), time=m[4];
-  var totaalMaand=y*12+mo+Math.round(months);
-  var ny=Math.floor(totaalMaand/12);
-  var nmIdx=totaalMaand-ny*12; // 0-11
-  var laatsteDag=new Date(Date.UTC(ny,nmIdx+1,0)).getUTCDate();
-  var nd=Math.min(d,laatsteDag);
-  var nmStr=('0'+(nmIdx+1)).slice(-2), ndStr=('0'+nd).slice(-2);
-  return ny+'-'+nmStr+'-'+ndStr+'T'+time;
+async function ipl_createPrimaveraExport(){
+  if(!IPL_MODEL || !IPL_RAW_XML) throw new Error('Laad eerst een Primavera P6-planning.');
+  var api=await import('../core/primavera-export.js?v=20261008-1410');
+  // Verwerk ook de laatste sleepbeweging en bereken de volledige cascade
+  // opnieuw; een verborgen tijdlijn mag geen verouderde datums exporteren.
+  if(IPL_DRAG_PENDING || IPL_DRAG_RAF) ipl_finishDrag(null,'Planning verschoven');
+  ipl_computeCascade();
+  return api.createPrimaveraExport({xml:IPL_RAW_XML,filename:IPL_RAW_FILENAME,
+    regels:IPL_MODEL.regels,cascade:IPL_CASCADE});
 }
 
-function ipl_exportXML(){
-  if(!IPL_MODEL || !IPL_RAW_XML){ alert('Laad eerst een planning voordat je kunt exporteren.'); return; }
+async function ipl_exportXML(){
   var status=document.getElementById('ipl-status');
+  var button=document.getElementById('ipl-export-primavera');
+  if(button)button.disabled=true;
   try{
-    var parser=new DOMParser();
-    var xml=parser.parseFromString(IPL_RAW_XML,'text/xml');
-    var projects=xml.getElementsByTagName('Project');
-    var proj=projects[projects.length-1];
-    var actEls=[];
-    for(var i=0;i<proj.children.length;i++){ if(proj.children[i].tagName==='Activity') actEls.push(proj.children[i]); }
-
-    function setChildText(el,tag,val){
-      for(var i=0;i<el.children.length;i++){
-        if(el.children[i].tagName===tag){ el.children[i].textContent=val; el.children[i].removeAttribute('xsi:nil'); return; }
-      }
-    }
-    function getChildText(el,tag){
-      for(var i=0;i<el.children.length;i++){ if(el.children[i].tagName===tag) return el.children[i].textContent; }
-      return '';
-    }
-
-    var gewijzigd=0;
-    for(var a=0;a<actEls.length;a++){
-      var ae=actEls[a];
-      var oid=getChildText(ae,'ObjectId');
-      var r=ipl_regelById(oid); if(!r) continue;
-      var shiftMaanden=Math.round((IPL_CASCADE[r.id]||0)*12);
-      if(shiftMaanden===0) continue; // ongewijzigd, laat originele datums staan
-      gewijzigd++;
-      var nieuwS=ipl_addMonthsISO(r.raw0,shiftMaanden);
-      var nieuwF=ipl_addMonthsISO(r.raw1,shiftMaanden);
-      setChildText(ae,r.startField,nieuwS);
-      setChildText(ae,r.finishField,nieuwF);
-      // vroege/late data meeschuiven zodat het bestand consistent oogt vóór Primavera herberekent
-      ['EarlyStartDate','EarlyFinishDate','LateStartDate','LateFinishDate'].forEach(function(tag){
-        var cur=getChildText(ae,tag);
-        if(cur) setChildText(ae,tag,ipl_addMonthsISO(cur,shiftMaanden));
-      });
-    }
-
-    var serializer=new XMLSerializer();
-    var outText=serializer.serializeToString(xml);
-    // XML-declaratie toevoegen indien afwezig
-    if(outText.indexOf('<?xml')!==0) outText='<?xml version="1.0" encoding="UTF-8"?>\n'+outText;
-
-    var blob=new Blob([outText],{type:'application/xml'});
+    var result=await ipl_createPrimaveraExport();
+    var blob=new Blob([result.text],{type:result.type});
     var url=URL.createObjectURL(blob);
     var link=document.createElement('a');
-    var basisNaam=(IPL_RAW_FILENAME||'planning.xml').replace(/\.xml$/i,'');
-    var stamp=new Date().toISOString().slice(0,10);
-    link.href=url; link.download=basisNaam+'-scenario-'+stamp+'.xml';
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    if(status){ status.textContent='Geëxporteerd: '+gewijzigd+' activiteit(en) met nieuwe datums, klaar voor import in Primavera.'; status.style.color='#1a8a4a'; }
+    link.href=url; link.download=result.name;
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(function(){URL.revokeObjectURL(url);},1000);
+    if(status){status.textContent='Primavera XML geëxporteerd. '+result.changedActivities+' activiteit(en) verschoven. Controleer en herbereken de planning na import in P6.';status.style.color='#1a8a4a';}
   }catch(e){
-    if(status){ status.textContent='Export mislukt: '+e.message; status.style.color='#c0121f'; }
-  }
+    if(status){status.textContent='Export mislukt: '+e.message;status.style.color='#c0121f';}
+  }finally{if(button)button.disabled=false;}
 }
 
 // ── Projecten verschuiven via vinkje op de WBS-groepsregel + floating slider ──
@@ -8506,5 +8467,5 @@ window.addEventListener('resize', ()=>{
 </script>
 
 <script src="planning-canvas.js"></script>
-<script src="planning-adapter.js"></script></body>
+<script src="planning-adapter.js?v=20261008-1410"></script></body>
 </html>
