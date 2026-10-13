@@ -299,7 +299,7 @@ Een MTM- of losse live-vervanging behoudt de onafhankelijke DRIP-selectie. Ouder
 
 Het NDW-locatievinkje behoudt het geopende verkeersformulier. Opslaan en herberekenen gebruikt daarna jouw hinderuren, extra reistijd en onderbouwing. Ontbrekende invoer wordt benoemd. Bevestigen wijzigt geen verkeerswaarde of kostenformule. De bestaande beperking bij uitgesteld herstel na refresh blijft gelden.
 
-## Netwerkschakelmatrix, 2.42 / DVM 126
+## Netwerkschakelmatrix, 2.46 / DVM 127
 
 Bronbeheer, Netwerkschakelmatrix laden, matrixblad valideren, grenzen lokaal bewaren, All Assets per grens en richting tellen, actuele en historische meldingen koppelen, dienstimpact en verkeerskosten herberekenen, schakeloverzicht en rekenverslag tonen.
 
@@ -316,3 +316,7 @@ De Primavera-export meldt naast de knop dat het XML-bestand wordt voorbereid. Na
 ### Planning berekenen en tekenen
 
 Bij een wijziging wordt één verversing gepland. De pure planninganalyse kiest per taak alleen de actieve meetmomenten en levert één weekreeks voor de formatiegrafieken. De tekenlaag gebruikt diezelfde reeks voor diensten en VWM-rollen. Scrollen gebruikt de bestaande gesorteerde rijvolgorde en tekent alleen de viewport. Een ander scherm toont de resultaten via dezelfde leesbrug, maar start geen verborgen grafiekberekening. De BI-achtergrondcontrole vergelijkt eerst de invoer en bouwt capaciteit pas opnieuw op wanneer die is gewijzigd. XML, scenario’s, bronvermelding, export en herstel volgen de bestaande route.
+
+### Netwerkschakelkoppelingen herstellen
+
+Weg, HMP, zijde en hectoletter vergelijken, één passende code koppelen, matrix-VC gebruiken en bron-VC bewaren. Bij overlap de bron-VC als extra onderscheid gebruiken; zonder unieke uitkomst geen code toekennen. Bronbeheer, Koppelingen en grenzen controleren, koppelreden en kandidaten bekijken, gecontroleerde grensregels aanpassen of toevoegen, volledige matrix valideren, oorspronkelijke rijen eenmalig bewaren, afhankelijke berekeningen opnieuw opbouwen, schil informeren. Totaalexport bewaart effectieve en oorspronkelijke matrixrijen. Herstel of nieuwe Excel-upload rekent opnieuw. Geen automatisch verzonnen geografie.

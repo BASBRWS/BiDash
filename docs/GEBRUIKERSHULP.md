@@ -445,14 +445,22 @@ Bronbeheer toont **DVM open storingen** en **DVM storingshistorie** als gezamenl
 
 Oudere MTM-exports kunnen detectormeldingen als uitgesloten markeren. BiDash verwerkt aantoonbare open Detectielusmeldingen nu ook uit zulke exports. Een onbekende lusfout blijft zichtbaar en krijgt pas impact nadat een passende foutregel is ingesteld. De koppeling is Detectielus naar detectie binnen dienstverlening. Historische gesloten incidenten worden niet als actuele storingen opgeteld. Verwijder bronnen via hun eigen totaalkaart; de gezamenlijke kaarten geven alleen een overzicht.
 
-## Rapporteren op netwerkschakels, BiDash 2.42 / DVM 126
+## Rapporteren op netwerkschakels, BiDash 2.46 / DVM 127
 
 Open Data & export, Bronbeheer en laad bij Netwerkschakelmatrix jouw XLSX. Laad daarnaast All Assets en jouw actuele storingsbronnen. De matrix mag ook eerst worden geladen. Het matrixblad bevat Code, Verkeerscentrale, Rijksweg, Netwerkschakel, HMP van en HMP tot. De overige werkbladen worden niet als netwerkschakels verwerkt.
 
 Assetmanagement, Netwerkschakels toont alle codes uit de matrix. De app telt assets en storingen binnen de HMP-grenzen. Rijrichtingen blijven apart voor dienstimpact, NDW en verkeerskosten. Kies de richtingknop voor het rekenverslag. Zonder gekoppeld areaal of actuele bron blijft de uitkomst onbekend. De bronstatus en controlepunten uit Excel blijven zichtbaar.
 
-Ontbrekende HMP, afwijkende VC en overlappende grenzen leveren geen verzonnen koppeling. De betreffende assets en meldingen blijven apart zichtbaar. HMP-richting, oplopend of aflopend, is geen rijrichting. Voeg desgewenst kolommen Zijde/Rijrichting of Hectoletter toe om bijzondere grenzen te onderscheiden. Een gedeelde grens wordt één keer toegewezen aan de schakel die daar als ondergrens begint.
+De locatie bepaalt de koppeling. Als precies één schakel past, blokkeert een afwijkende bron-VC niet meer. Het resultaat gebruikt de matrix-VC en bewaart de bron-VC. Bij meerdere passende codes helpt de bron-VC alleen als daarmee één code overblijft. Ontbrekende HMP en onbesliste overlap blijven apart zichtbaar. HMP-richting, oplopend of aflopend, is geen rijrichting. Voeg desgewenst kolommen Zijde/Rijrichting of Hectoletter toe om bijzondere grenzen te onderscheiden. Een gedeelde grens wordt één keer toegewezen aan de schakel die daar als ondergrens begint.
 
 Verkeerskosten gebruikt de HMP-lengte als voorstel. Controleer de representatieve NDW-meting, de lengte, hinderuren, reductie en overlap voordat je kosten gebruikt. Een expliciet opgeslagen trajectlengte gaat voor. De bestaande regel voor ruimere NDW-koppelingen blijft gelden. Kosten en dienstpercentages blijven scenario-uitkomsten.
 
 Totaalexport en integrale export bevatten Netwerkschakelmatrix als apart selecteerbaar onderdeel. Je kunt de matrix onafhankelijk van rekenparameters bewaren en herladen. Een deelimport zonder matrix behoudt de huidige matrix. Bron vervangen herberekent alle afhankelijkheden. Verwijderen van de matrix herstelt de oude wegindeling. Maak een volledige back-up vóór een volledige vervanging.
+
+### Koppelingen en grenzen controleren
+
+Open Bronbeheer, Netwerkschakelmatrix en kies **Koppelingen en grenzen controleren**. Dezelfde knop staat bij het schakeloverzicht. Je ziet per weg en zijde de HMP, bron-VC, precieze koppelreden, passende schakelcodes, actieve assets en meldingen uit de huidige analyse. Een VC-verschil staat ook hier wanneer de locatie al is gekoppeld.
+
+Zoek een weg, code of naam in de grensregels. Corrigeer de gecontroleerde HMP-grenzen of VC. Voeg Zijde en Hectoletter toe waar de bron die gebruikt. Voeg een ontbrekend vak toe met een eigen code en naam; meerdere grensregels bij dezelfde code moeten dezelfde weg, VC en naam hebben. HMP-richting uit Excel is geen bewijs voor LI of RE. Kies **Opslaan en opnieuw doorrekenen**. Ongeldige invoer vervangt de vorige matrix niet.
+
+De grenscorrectie geldt voor areaal, storingen en afhankelijke rapportages. Handmatige grenzen blijven herkenbaar als niet NWB-gecontroleerd. Je kunt de oorspronkelijke Excel-grenzen herstellen. Je Excel op schijf verandert niet. Maak een totaalexport met Netwerkschakelmatrix aangevinkt; die bewaart zowel de correcties als de oorspronkelijke grenzen. Een nieuwe Excel-upload vervangt de lokale correcties.

@@ -5628,7 +5628,7 @@ function totaalExportBundle(selectie,opties){
     exportSelectie: selectie,
     assetregister: neem('assetregister')&&ASSET_REGISTER_STATE&&ASSET_REGISTER_STATE.ruweRegisterRijen
       ? {bestand:ASSET_REGISTER_STATE.bestand,rijen:ASSET_REGISTER_STATE.ruweRegisterRijen} : null,
-    netwerkschakels:neem('netwerkschakels')&&window.DVM_NETWERKSCHAKELS_STATE?{bestand:window.DVM_NETWERKSCHAKELS_STATE.bestand,rijen:window.DVM_NETWERKSCHAKELS_STATE.rijen}:null,
+    netwerkschakels:neem('netwerkschakels')?window.exportNetwerkschakels?.()||null:null,
     storingshistorie: neem('storingshistorie') ? bron(STORINGSBRONNEN) : [],
     liveStoringen: neem('liveStoringen') ? bron(LIVE_STORINGSBRONNEN) : [],
     dripHistorie: neem('dripHistorie')&&(DRIP_HIST_STATE&&DRIP_HIST_STATE.sources)

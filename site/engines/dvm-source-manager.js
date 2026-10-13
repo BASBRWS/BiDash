@@ -4,7 +4,7 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='126';
+  const DVM_VERSION='127';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     netwerkschakels:{input:'netwerkschakelInput',label:'Netwerkschakelmatrix laden',multiple:false,requiresAsset:false,handler:'leesNetwerkschakels',accept:'.xlsx,.xls'},
@@ -277,7 +277,7 @@
       SOURCE_ORDER.forEach(type=>{
         if(type==='netwerkschakels'){
           const S=window.DVM_NETWERKSCHAKELS_STATE,R=window.netwerkRapportRijen?.()||[];
-          out.push({type,key:'',titel:PLACEHOLDERS[type].titel,aanwezig:!!S,meta:S?esc(S.bestand)+'<br>'+R.length+' netwerkschakels, '+S.schakels.length+' grensregels.<br>'+R.reduce((n,r)=>n+r.assets,0)+' actieve assets gekoppeld.<br>Status: '+esc([...new Set(S.schakels.map(r=>r.status))].join(', '))+'<br>Niet gekoppelde assets en storingen blijven apart zichtbaar.':PLACEHOLDERS[type].meta});return;
+          out.push({type,key:'',titel:PLACEHOLDERS[type].titel,aanwezig:!!S,meta:S?esc(S.bestand)+'<br>'+R.length+' netwerkschakels, '+S.schakels.length+' grensregels.<br>'+R.reduce((n,r)=>n+r.assets,0)+' actieve assets gekoppeld.<br>Status: '+esc([...new Set(S.schakels.map(r=>r.status))].join(', '))+'<br>Niet gekoppelde assets en storingen blijven apart zichtbaar.<br><button type="button" onclick="openNetwerkschakelBeheer()">Koppelingen en grenzen controleren</button>':PLACEHOLDERS[type].meta});return;
         }
         if(type==='dvmOpen'||type==='dvmHistorie'){out.push(dvmStroomItem(type));return;}
         if(type==='ndwMeetlocaties'){
