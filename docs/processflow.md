@@ -312,3 +312,7 @@ Planning-XML laden, verschuiving instellen en **Exporteer Primavera P6 XML** kie
 ### Download beschikbaar houden
 
 De Primavera-export meldt naast de knop dat het XML-bestand wordt voorbereid. Na succesvolle voorbereiding staat daar een downloadlink met bestandsnaam en wordt een automatische download geprobeerd. Als die niet begint kan de gebruiker dezelfde link rechtstreeks aanklikken. De link wordt niet na enkele seconden ingetrokken. Een volgende export of nieuwe planningimport vervangt de eerdere lokale download. Fouten staan bij de knop en wissen de vorige link. De melding claimt geen opgeslagen bestand; alleen een geslaagde schrijfactie naar de gekoppelde map wordt als opslag bevestigd.
+
+### Planning berekenen en tekenen
+
+Bij een wijziging wordt één verversing gepland. De pure planninganalyse kiest per taak alleen de actieve meetmomenten en levert één weekreeks voor de formatiegrafieken. De tekenlaag gebruikt diezelfde reeks voor diensten en VWM-rollen. Scrollen gebruikt de bestaande gesorteerde rijvolgorde en tekent alleen de viewport. Een ander scherm toont de resultaten via dezelfde leesbrug, maar start geen verborgen grafiekberekening. De BI-achtergrondcontrole vergelijkt eerst de invoer en bouwt capaciteit pas opnieuw op wanneer die is gewijzigd. XML, scenario’s, bronvermelding, export en herstel volgen de bestaande route.

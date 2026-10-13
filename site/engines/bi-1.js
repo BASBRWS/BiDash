@@ -635,8 +635,19 @@ function bridgeCapaciteit(){
   }catch(e){return null}
 }
 
+/* Alleen gewijzigde invoer vraagt nieuwe capaciteitsberekeningen. De lichte
+   sleutel bevat geen XML, activiteitkopieën of berekende kwartaalmatrices. */
+let IPL_WATCH_MODEL=null,IPL_WATCH_KEY=null,IPL_WATCH_P6=null;
+function ipl_bridgeInvoerGewijzigd(){
+  const W=iplWin(),model=W?.IPL_MODEL||null;
+  const key=model?JSON.stringify([W.IPL_RAW_FILENAME,W.app_collectState().ipl,DB.vwmFte,DB.cap,DB.vwmRolCap,DB.civFormatie,DB.capgrens]):'';
+  const p6=DB.p6Capaciteit||null;
+  if(model===IPL_WATCH_MODEL&&key===IPL_WATCH_KEY&&p6===IPL_WATCH_P6)return false;
+  IPL_WATCH_MODEL=model;IPL_WATCH_KEY=key;IPL_WATCH_P6=p6;return true;
+}
 /* wijzigingen in het iframe (import, shifts) automatisch doorzetten naar de driehoek */
 setInterval(()=>{
+  if(!ipl_bridgeInvoerGewijzigd())return;
   const m=bridgeModel();
   const c=bridgeCapaciteit();
   const sig=(m?m.bestand+'|'+m.regels.length+'|'+m.shift+'|'+m.t0+'|'+m.t1:'')+(c&&c.geconfig?('|cap'+c.totFte.toFixed(1)+'-'+c.nMetFte):'');

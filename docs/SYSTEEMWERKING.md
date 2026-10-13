@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.44 en DVM 126, bijgewerkt op 13 oktober 2026 voor zichtbare foutmeldingen en herhaalbare downloads bij de Primavera-export.
+Status: beschrijving van BiDash 2.45 en DVM 126, bijgewerkt op 13 oktober 2026 voor een gedeelde planningsberekening, hergebruik van de tijdlijnvolgorde en lichte achtergrondcontroles.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -43,6 +43,7 @@ Een leeswijzer bij deze tekening staat in [architectuur.md](architectuur.md). De
 | BI | `site/engines/bi.html`, `bi-1.js` t/m `bi-3.js` | Formatie, capaciteit, contracten, interne bedienketens |
 | Planning | `site/engines/planning.html` | XML-model, WBS, afhankelijkheden, verschuivingen, planninggrafieken; begint leeg, alle projectgegevens komen uit geladen bestanden |
 | Bruggen | `*-adapter.js` | Expliciete gegevensuitwisseling via `window.HUB` |
+| Planninganalyse | `site/engines/planning-analysis.js` | Pure weekberekening met selectie van actieve meetmomenten, gedeeld door de formatiegrafieken |
 | Canvas | `site/engines/planning-canvas.js` | Begrensd tekenvlak en scrollcoördinaten |
 | Gedeelde modulestijl | `site/engines/component.css` | Vormgeving binnen de frames |
 | Lokale bibliotheek | `site/vendor/` | Spreadsheetverwerking zonder externe CDN |
@@ -470,6 +471,18 @@ pixels en 4096 per dimensie; device-pixelratio wordt begrensd. Scrollen en point
 coördinaten moeten dezelfde transformatie gebruiken. Verwijder nooit activiteiten
 uit het model om een tekenprobleem op te lossen.
 
+### Berekening en tekenen gescheiden
+
+`planning-analysis.js` berekent de weekwaarden zonder DOM of canvas. Voor iedere taak wordt met een binaire zoekactie alleen het geraakte bereik van meetmomenten gekozen. Generieke FTE-toewijzingen behouden de bestaande 0,001-jaargrens; VWM-formatie behoudt de bestaande 0,0001-jaargrens, fasematching en rolregels. De optelvolgorde per meetmoment en rol blijft gelijk. VWM vervangt nog steeds de generieke VWM-waarde; CIV blijft haar eigen model gebruiken. Ook de bestaande kwartaalconflicten beperken hun scans tot actieve meetmomenten, met dezelfde bijdragen en volgorde.
+
+Eén geplande `requestAnimationFrame` bundelt de verzoeken voor formatie. `ipl_renderFteNow()` berekent één actuele reeks en deelt die met de gecombineerde grafiek, dienstgrafieken en geopende VWM-rollen. Er is geen langlevende FTE-cache die bron- of regelwijzigingen kan missen. Onzichtbare formatievakken voeren geen berekening uit en plannen geen herhaalde tekenpogingen. Openen of een werkelijke maatwijziging ververst de weergave. De resize-observer vergelijkt afmetingen en wordt eenmaal geïnstalleerd. Het dashboard krijgt geen tweede hertekening na een vaste timer.
+
+De activiteitenindex gebruikt de modelidentiteit en bewaart het eerste activiteit-ID, net als de oude zoekfunctie. De gesorteerde tijdlijnvolgorde wordt hergebruikt tot de modelidentiteit of inklapstatus verandert. Scenario’s wijzigen de effectieve datums maar niet de bronvolgorde. Scrollen blijft een aparte viewport-render en start geen formatieberekening. Nieuwe XML-imports vervangen het model en daarmee deze indices. De bronactiviteiten blijven alleen via import wijzigbaar; deze cache is geen API voor wijziging van bronactiviteiten in hetzelfde modelobject.
+
+De bestaande BI-intervalcontrole vergelijkt eerst een lichte invoersleutel met modelidentiteit, bestandsnaam, planninginstellingen, VWM-/CIV-regels, capaciteitsnormen en P6-capaciteitsbron. Alleen veranderde invoer vraagt om nieuwe model- en capaciteitsberekeningen. De aparte opslagmeldingen en leescontracten blijven beschikbaar. Er wordt geen XML of berekende kwartaalmatrix in die controlesleutel geserialiseerd.
+
+Dit is een snellere lokale berekening en weergave op de bestaande browserthread. Er is geen Web Worker of server toegevoegd. Grote eerste XML-imports, exports en het opbouwen van uitgebreide dashboards kunnen nog werk op die thread vragen. Performance moet daarom met de gebruikte bron en browser worden beoordeeld; een lokale synthetische meting is geen universele snelheidsgrens.
+
 Standaardschaal is Hele periode. Volledig scherm houdt tijdlijn én formatiepaneel
 beschikbaar; op smalle schermen onder elkaar. Sluiten, Escape, scrollen, resizen,
 uit-/inklappen en slepen moeten blijven werken. Fullscreen verandert geen taken.
@@ -536,6 +549,7 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 | Navigatie/import/opslag | `tests/browser.cjs`: MS Project, P6, zichtbare tijdlijn, export/herstel, mobiel |
 | Datalaadvoortgang | `tests/data-load-progress.test.js`: byteaggregatie, begrenzing, FileReader-pad, paint-yield en DVM-voortgangsbrug |
 | Primavera-terugexport | `tests/primavera-export.test.js` en `npm run test:primavera`: datumranden, behoud van objectstructuur, namespaces, actuals, nil, resourcegegevens, cascade, nulscenario, downloads, zichtbare fouten, onderdrukte automatische download met een echte gebruikersklik, smalle schermen, originele bron en herstel; `tests/file-download.test.js` bewaakt behoud en intrekken van de lokale download-URL; echte P6-import blijft een aparte controle |
+| Planningsprestaties | `tests/planning-analysis.test.js` vergelijkt alle weekwaarden exact met de vorige volledige scan en bewaakt toleranties en invoerwijzigingen; `npm run test:planning-performance` controleert één gedeelde reeks, geen FTE bij scrollen/verbergen, indices, positieve VWM-vraag, rollen en rustige BI-intervalticks |
 | Canvas/tijdschaal/drag | `tests/planning-large.cjs`: grote synthetische planning, scrollen, slepen, resizen |
 | Formatie/BI-brug/fullscreen | `tests/planning-formation.cjs`: overlappende taken, regelwijziging, reload, grafieken |
 | Live storingsmomentopname | `tests/live-snapshot.test.js`: identiteit, dubbelen, verdwijnen en afsluiten |
