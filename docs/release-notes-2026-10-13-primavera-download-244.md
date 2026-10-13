@@ -1,0 +1,9 @@
+# BiDash 2.44, Primavera-download en zichtbare terugmelding
+
+De planningexport schreef haar status en fouten in het uploadvak, dat na het laden wordt verborgen. De gebruiker kon daardoor een exportfout niet zien. De status staat nu direct bij de exportknop, zowel in de tijdlijn als onder Data & export.
+
+Een voorbereide export krijgt een zichtbare Download XML-link met bestandsnaam. De automatische download blijft beschikbaar; als de browser die niet start kan de gebruiker het bestand rechtstreeks aanklikken. De lokale object-URL blijft geldig tot een volgende voorbereiding, een nieuwe planningimport of het verlaten van de pagina. Bij een mislukte export wordt een eerdere link gewist. Gereedmeldingen zeggen dat het bestand klaarstaat, zonder te claimen dat de browser het heeft opgeslagen. De bestaande gekoppelde-maproute blijft behouden.
+
+De oorspronkelijke P6-structuur, datumverwerking en integrale back-up blijven ongewijzigd. Schil 2.44; DVM blijft 126. Er zijn geen operationele bronnen toegevoegd.
+
+Validatie: 411 unit-/regressietests geslaagd. De Primavera-browsercontrole slaagt voor automatische downloads, onderdrukte automatische klikken gevolgd door echte gebruikersklikken, een download na de eerdere vijfsecondenlimiet, zichtbare foutmeldingen en smalle schermen. De aangeleverde lokale P6-XML behoudt haar structuur en kan opnieuw worden ingelezen. De bestaande browsersuite voor planning, MS Project/P6, selectieve export, mobiel, grote tijdlijn, slepen, zoom, fullscreen, formatie, herstel en NDW is geslaagd. Syntaxcontrole en git diff --check zijn geslaagd. De browserspecifieke oorzaak bij de gebruiker is niet bevestigd; de verborgen foutmelding is lokaal gereproduceerd. De downloadcontrole onderdrukt de automatische klik en controleert daarna de echte gebruikersklik. Import in een echte Primavera-omgeving blijft een afzonderlijke controle.

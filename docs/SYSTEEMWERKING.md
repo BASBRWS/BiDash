@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.43 en DVM 126, bijgewerkt op 8 oktober 2026 voor terugexport van planningsscenario’s in de oorspronkelijke Primavera P6-structuur.
+Status: beschrijving van BiDash 2.44 en DVM 126, bijgewerkt op 13 oktober 2026 voor zichtbare foutmeldingen en herhaalbare downloads bij de Primavera-export.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -283,7 +283,9 @@ Vóór export wordt een hangende sleepbeweging verwerkt en de bestaande volledig
 
 Een bestand met meerdere projecten bewaart alle projecten; alleen het laatste project met activiteiten, hetzelfde project dat de importer selecteert, volgt het actieve scenario. Ongeldige XML, dubbele of ontbrekende activiteit-ID’s, afwijkende model-ID’s en ongeldige verschoven datums stoppen de export. Een nulscenario behoudt de brontekst, afgezien van een noodzakelijke UTF-8-declaratie. Bij wijzigingen kan de XML-serialisatie schrijfdetails zoals de notatie van lege elementen wijzigen, maar de objectstructuur en attributen blijven staan. De bron en opgeslagen scenariostaat worden niet overschreven.
 
-De export onder Data & export gebruikt de bestaande download- en gekoppelde-maproute. De tijdlijnknop downloadt lokaal. Het bestand krijgt de bronnaam met `-scenario-<datum>.xml`. Herimport in BiDash wordt getest; import en herberekening in een echte Primavera-omgeving zijn nog niet uitgevoerd. De melding vraagt daarom om controle en herberekening in P6 in plaats van gegarandeerde acceptatie.
+De export onder Data & export gebruikt de bestaande gekoppelde-maproute. Zowel deze knop als de tijdlijnknop bereiden via `site/core/file-download.js` een echte downloadlink voor en doen één automatische klikpoging. Een browser kan die poging weigeren zonder een JavaScript-fout te geven; de melding zegt daarom dat het bestand klaarstaat, niet dat het is opgeslagen. De link staat direct naast de knop en kan met een gewone gebruikersklik opnieuw worden gebruikt. De object-URL blijft beschikbaar tot de volgende voorbereiding, een nieuwe planningimport of het verlaten van de pagina. Voorbereiden gebeurt telkens opnieuw vanuit de originele XML en actuele cascade; klikken op de link herhaalt de laatst voorbereide export.
+
+Voortgang, gereedmelding en fouten staan in afzonderlijke zichtbare statusvakken, buiten het uploadvak dat na import wordt verborgen. Bij een fout wordt de vorige downloadlink gewist. De algemene mapmelding gebruikt voor deze export eveneens “staat klaar” in plaats van een onbewezen downloadbevestiging. De bron en opgeslagen scenariostaat blijven behouden. Het bestand krijgt de bronnaam met `-scenario-<datum>.xml`. Herimport in BiDash wordt getest; import en herberekening in een echte Primavera-omgeving zijn nog niet uitgevoerd. De melding vraagt daarom om controle en herberekening in P6.
 
 `history` bestaat in het integrale model en wordt programmatisch ondersteund,
 maar staat niet in de huidige hub-selectievakken. DVM-kostendagstanden zijn een
@@ -533,7 +535,7 @@ worden vastgelegd met de consequenties voor data, uitkomsten en validatie.
 | Expertduiding dienstverlening | `tests/service-expert-input.test.js`: generiek schema, begeleide keuzes, optionele uitleg, tooltips, gesloten subprocessaandelen, technische vinkjes, statusovergangen, akkoord, geïsoleerde opslag per dienst en zichtbare route; `tests/model.test.js` en `tests/context-api.test.js` bewaken export/import en read-only context |
 | Navigatie/import/opslag | `tests/browser.cjs`: MS Project, P6, zichtbare tijdlijn, export/herstel, mobiel |
 | Datalaadvoortgang | `tests/data-load-progress.test.js`: byteaggregatie, begrenzing, FileReader-pad, paint-yield en DVM-voortgangsbrug |
-| Primavera-terugexport | `tests/primavera-export.test.js` en `npm run test:primavera`: datumranden, behoud van objectstructuur, namespaces, actuals, nil, resourcegegevens, cascade, nulscenario, downloads, originele bron en herstel; echte P6-import blijft een aparte controle |
+| Primavera-terugexport | `tests/primavera-export.test.js` en `npm run test:primavera`: datumranden, behoud van objectstructuur, namespaces, actuals, nil, resourcegegevens, cascade, nulscenario, downloads, zichtbare fouten, onderdrukte automatische download met een echte gebruikersklik, smalle schermen, originele bron en herstel; `tests/file-download.test.js` bewaakt behoud en intrekken van de lokale download-URL; echte P6-import blijft een aparte controle |
 | Canvas/tijdschaal/drag | `tests/planning-large.cjs`: grote synthetische planning, scrollen, slepen, resizen |
 | Formatie/BI-brug/fullscreen | `tests/planning-formation.cjs`: overlappende taken, regelwijziging, reload, grafieken |
 | Live storingsmomentopname | `tests/live-snapshot.test.js`: identiteit, dubbelen, verdwijnen en afsluiten |

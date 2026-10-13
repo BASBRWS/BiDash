@@ -1222,7 +1222,7 @@
     .dash-grid-2,.dash-grid-3,.dash-grid-4 { grid-template-columns: 1fr; }
   }
 </style>
-<link rel="stylesheet" href="component.css"></head>
+<link rel="stylesheet" href="component.css?v=20261013-1035"></head>
 <body>
 
 <!-- TOPBAR -->
@@ -1473,6 +1473,7 @@
             <div style="font-size:10px;color:#4a6a9a;">Behoudt de structuur van jouw P6-bron, inclusief WBS, relaties, kalenders en codes. De huidige verschuivingen gaan mee. Controleer en herbereken de planning na import in P6.</div>
           </div>
           <button id="ipl-export-primavera" onclick="ipl_exportXML()" title="Exporteert de volledige geladen P6-planning met alle scenarioverschuivingen, ook van ingeklapte of gefilterde activiteiten. De originele bron blijft bewaard." style="padding:8px 18px;background:#003082;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">Exporteer Primavera P6 XML</button>
+          <div class="planning-export-result"><div id="ipl-export-status" class="export-feedback" role="status" aria-live="polite"></div><a id="ipl-export-download" class="prepared-download" hidden></a></div>
         </div>
 
         <!-- CONTROLS -->
@@ -5960,7 +5961,7 @@ function ipl_expandAll(v){
 
 async function ipl_createPrimaveraExport(){
   if(!IPL_MODEL || !IPL_RAW_XML) throw new Error('Laad eerst een Primavera P6-planning.');
-  var api=await import('../core/primavera-export.js?v=20261008-1410');
+  var api=await import('../core/primavera-export.js?v=20261013-1035');
   // Verwerk ook de laatste sleepbeweging en bereken de volledige cascade
   // opnieuw; een verborgen tijdlijn mag geen verouderde datums exporteren.
   if(IPL_DRAG_PENDING || IPL_DRAG_RAF) ipl_finishDrag(null,'Planning verschoven');
@@ -5969,21 +5970,24 @@ async function ipl_createPrimaveraExport(){
     regels:IPL_MODEL.regels,cascade:IPL_CASCADE});
 }
 
+var IPL_EXPORT_DOWNLOAD=null;
+function ipl_exportStatus(message,error){
+  var status=document.getElementById('ipl-export-status');
+  if(status){status.textContent=message;status.classList.toggle('error',!!error);}
+}
 async function ipl_exportXML(){
-  var status=document.getElementById('ipl-status');
   var button=document.getElementById('ipl-export-primavera');
   if(button)button.disabled=true;
+  if(IPL_EXPORT_DOWNLOAD)IPL_EXPORT_DOWNLOAD.clear();
+  ipl_exportStatus('XML-bestand voorbereiden…');
   try{
+    var api=await import('../core/file-download.js?v=20261013-1035');
+    if(!IPL_EXPORT_DOWNLOAD)IPL_EXPORT_DOWNLOAD=api.createFileDownload(document.getElementById('ipl-export-download'));
     var result=await ipl_createPrimaveraExport();
-    var blob=new Blob([result.text],{type:result.type});
-    var url=URL.createObjectURL(blob);
-    var link=document.createElement('a');
-    link.href=url; link.download=result.name;
-    document.body.appendChild(link); link.click(); link.remove();
-    setTimeout(function(){URL.revokeObjectURL(url);},1000);
-    if(status){status.textContent='Primavera XML geëxporteerd. '+result.changedActivities+' activiteit(en) verschoven. Controleer en herbereken de planning na import in P6.';status.style.color='#1a8a4a';}
+    IPL_EXPORT_DOWNLOAD.prepare(result);IPL_EXPORT_DOWNLOAD.attempt();
+    ipl_exportStatus('Primavera XML staat klaar. '+result.changedActivities+' activiteit(en) verschoven. Begint de download niet, klik dan op de downloadlink hieronder. Controleer en herbereken de planning na import in P6.');
   }catch(e){
-    if(status){status.textContent='Export mislukt: '+e.message;status.style.color='#c0121f';}
+    ipl_exportStatus('Export mislukt. '+e.message,true);
   }finally{if(button)button.disabled=false;}
 }
 
@@ -6059,6 +6063,7 @@ function ipl_handleFile(input){
       IPL_MODEL=ipl_parseXML(ev.target.result);
       IPL_RAW_XML=ev.target.result;
       IPL_RAW_FILENAME=f.name;
+      if(IPL_EXPORT_DOWNLOAD)IPL_EXPORT_DOWNLOAD.clear();ipl_exportStatus('');
       IPL_SHIFT=0; IPL_MSHIFT={}; IPL_PROJSHIFT={}; IPL_COLLAPSED={};
       IPL_WBS_DIENST={}; ipl_initDienstMapping();
       setTimeout(function(){ipl_installFteObserver();ipl_scheduleFteRender();},80);
@@ -8467,5 +8472,5 @@ window.addEventListener('resize', ()=>{
 </script>
 
 <script src="planning-canvas.js"></script>
-<script src="planning-adapter.js?v=20261008-1410"></script></body>
+<script src="planning-adapter.js?v=20261013-1035"></script></body>
 </html>

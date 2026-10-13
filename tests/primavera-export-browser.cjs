@@ -82,10 +82,29 @@ async function compareStructure(frame,before,after){
   let waiting=page.waitForEvent('download');await page.locator('#exportPrimavera').click();let download=await waiting;
   assert.match(download.suggestedFilename(),/^testplanning-scenario-\d{4}-\d{2}-\d{2}\.xml$/);
   assert.equal(fs.readFileSync(await download.path(),'utf8'),result.text);
+  assert(await page.locator('#primaveraDownload').isVisible());assert.match(await page.locator('#primaveraExportStatus').innerText(),/staat klaar/);
+  // Een onderdrukte automatische klik mag de echte gebruikersklik niet blokkeren.
+  await page.evaluate(()=>{window.savedAnchorClick=HTMLAnchorElement.prototype.click;HTMLAnchorElement.prototype.click=function(){};});
+  const previousHref=await page.locator('#primaveraDownload').getAttribute('href');
+  await page.locator('#exportPrimavera').click();await page.waitForFunction(old=>document.querySelector('#primaveraDownload').href!==old&&document.querySelector('#primaveraDownload').getAttribute('href'),previousHref);
+  await page.waitForTimeout(5500);
+  waiting=page.waitForEvent('download');await page.locator('#primaveraDownload').click();download=await waiting;assert.equal(fs.readFileSync(await download.path(),'utf8'),result.text);
+  await page.evaluate(()=>{HTMLAnchorElement.prototype.click=window.savedAnchorClick;delete window.savedAnchorClick;});
   await page.locator('details:has(#exportXml) > summary').click();waiting=page.waitForEvent('download');await page.locator('#exportXml').click();download=await waiting;assert.equal(fs.readFileSync(await download.path(),'utf8'),fixture);
   await page.locator('#primaryNav [data-route=planning]').click();
   waiting=page.waitForEvent('download');await frame.locator('#ipl-export-primavera').click();download=await waiting;assert.equal(fs.readFileSync(await download.path(),'utf8'),result.text);
-  await page.locator('#primaryNav [data-route=data]').click();await page.locator('#none').click();await page.locator('[data-part=planning]').check();
+  assert(await frame.locator('#ipl-export-status').isVisible());assert(await frame.locator('#ipl-export-download').isVisible());
+  await frame.evaluate(()=>{window.savedAnchorClick=HTMLAnchorElement.prototype.click;HTMLAnchorElement.prototype.click=function(){};});
+  const oldFrameHref=await frame.locator('#ipl-export-download').getAttribute('href');
+  await frame.locator('#ipl-export-primavera').click();await frame.waitForFunction(old=>document.querySelector('#ipl-export-download').getAttribute('href')&&document.querySelector('#ipl-export-download').href!==old,oldFrameHref);
+  waiting=page.waitForEvent('download');await frame.locator('#ipl-export-download').click();download=await waiting;assert.equal(fs.readFileSync(await download.path(),'utf8'),result.text);
+  await frame.evaluate(()=>{HTMLAnchorElement.prototype.click=window.savedAnchorClick;delete window.savedAnchorClick;IPL_MSHIFT={'11':0.5};});
+  await frame.locator('#ipl-export-primavera').click();await frame.waitForFunction(()=>document.querySelector('#ipl-export-status').textContent.includes('Export mislukt'));
+  assert(await frame.locator('#ipl-export-status').isVisible());assert(await frame.locator('#ipl-export-download').isHidden());assert.match(await frame.locator('#ipl-export-status').innerText(),/Ongeldige scenarioverschuiving/);
+  await page.locator('#primaryNav [data-route=data]').click();await page.locator('#exportPrimavera').click();await page.waitForFunction(()=>document.querySelector('#primaveraExportStatus').textContent.includes('Export mislukt'));
+  assert(await page.locator('#primaveraExportStatus').isVisible());assert(await page.locator('#primaveraDownload').isHidden());
+  await frame.evaluate(()=>{IPL_MSHIFT={'11':1};});
+  await page.locator('#none').click();await page.locator('[data-part=planning]').check();
   waiting=page.waitForEvent('download');await page.locator('#export').click();download=await waiting;const bundle=JSON.parse(fs.readFileSync(await download.path(),'utf8'));
   assert.equal(bundle.delen.planning.xml,fixture);assert.equal(bundle.delen.planning.state.ipl.mshift['11'],1);
   await page.locator('#save').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Lokaal opgeslagen'));
@@ -101,6 +120,19 @@ async function compareStructure(frame,before,after){
    return [run('<Project><Tasks/></Project>',[{id:'11'}],{}),run('<APIBusinessObjects>',[{id:'11'}],{}),run(xml,[{id:'999'}],{}),run(xml,[{id:'11'}],{'11':0.5/12}),run(xml.replace('<ObjectId>12</ObjectId>','<ObjectId>11</ObjectId>'),[{id:'11'}],{})];
   },fixture);
   assert(failures.every(Boolean));assert.match(failures[0],/MS Project/);assert.match(failures[4],/dubbele/);
+  await page.setViewportSize({width:390,height:844});
+  await page.locator('#primaryNav [data-route=data]').click();
+  await page.evaluate(()=>{window.savedAnchorClick=HTMLAnchorElement.prototype.click;HTMLAnchorElement.prototype.click=function(){};});
+  await page.locator('#exportPrimavera').click();await page.waitForFunction(()=>!document.querySelector('#primaveraDownload').hidden);
+  assert(await page.locator('#primaveraDownload').isVisible());
+  waiting=page.waitForEvent('download');await page.locator('#primaveraDownload').click();download=await waiting;assert.equal(fs.readFileSync(await download.path(),'utf8'),result.text);
+  await page.evaluate(()=>{HTMLAnchorElement.prototype.click=window.savedAnchorClick;delete window.savedAnchorClick;});
+  await page.setViewportSize({width:1280,height:720});
+  // Ook laden via de eigen tijdlijn wist de eerder voorbereide hub-download.
+  await frame.getByLabel('Ander bestand laden').setInputFiles({name:'nieuwe-planning.xml',mimeType:'text/xml',buffer:Buffer.from(fixture)});
+  await frame.waitForFunction(()=>IPL_RAW_FILENAME==='nieuwe-planning.xml');
+  await page.waitForFunction(()=>document.querySelector('#primaveraDownload').hidden);
+  assert.equal(await page.locator('#primaveraExportStatus').innerText(),'');
   // Optionele lokale bronproef. Geen operationele bronwaarden in logs of Git.
   if(process.env.PRIVATE_PRIMAVERA_FILE){
    const source=fs.readFileSync(process.env.PRIVATE_PRIMAVERA_FILE,'utf8');frame=await load(source,'lokale-bron.xml');

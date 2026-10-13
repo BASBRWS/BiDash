@@ -73,3 +73,7 @@ body.planning-fullscreen{overflow:hidden}body.planning-fullscreen #engine-planni
 .qa-form{padding:8px 22px 12px;background:#fff;border-top:1px solid var(--border)}.qa-form>label{margin:0 0 5px}.qa-input-row{display:grid;grid-template-columns:1fr auto;gap:8px}.qa-input-row input{width:100%}.qa-input-row button{min-width:76px}
 .qa-disclaimer{margin:0;padding:0 22px 15px;background:#fff;color:#82919e;font-size:9px}
 @media(max-width:720px){.query-assistant-dialog{width:100vw;height:100vh;max-width:none;max-height:none;border-radius:0;border:0}.qa-header{padding:14px}.qa-header-actions{flex-direction:column}.qa-mode,.qa-messages,.qa-result-actions,.qa-suggestions,.qa-form,.qa-disclaimer{padding-left:14px;padding-right:14px}.qa-message{max-width:100%}.qa-result-actions{flex-wrap:wrap}}
+
+/* Zichtbare exportstatus en herhaalbare lokale download. */
+.export-feedback{font-size:12px;line-height:1.6;margin-top:10px;color:#365b76;overflow-wrap:anywhere}.export-feedback.error{color:#a32935}
+a.prepared-download:not([hidden]){display:inline-block;padding:10px 14px;margin:10px 0 16px;border:1px solid #b3cbdc;border-radius:6px;background:#eaf2fa;color:#123b61;font-weight:650;overflow-wrap:anywhere;max-width:100%}

@@ -1,7 +1,8 @@
 import {GROUPS,ROUTES,resolveRoute} from './ui/routes.js';
 import {DEFAULT_STATE,DVM_PARTS,BI_RULE_KEYS,LABELS,validate,makeExport,mergeImport,combine} from './core/model.js';
 import {read,write,readValue,writeValue} from './core/storage.js';
-import {toonVersies} from './core/versie.js?v=20261008-1410';
+import {createFileDownload} from './core/file-download.js?v=20261013-1035';
+import {toonVersies} from './core/versie.js?v=20261013-1035';
 import {nieuwsteMomentopnameUitBestanden,nieuwsteMomentopnameUitMap,mapToestemming,schrijfBestandNaarMap} from './core/latest-snapshot.js';
 import {runQualityAudit,QUALITY_CATEGORIES} from './core/quality-audit.js';
 import {applyQuery,operatorsFor} from './core/query-filter.js';
@@ -14,7 +15,7 @@ const money=n=>Number.isFinite(n)?n.toLocaleString('nl-NL',{style:'currency',cur
 const date=s=>s?new Date(s).toLocaleDateString('nl-NL'):'geen bron geladen';
 let state=DEFAULT_STATE(),summaries={},busy=false,failedImport=false,timer,view='overview';const frames={},ready={};
 const engineVersies={};
-const APP_BUILD='20261008-1410';
+const APP_BUILD='20261013-1035';
 const LATEST_SNAPSHOT_DIRECTORY_KEY='latest-snapshot-directory';
 let latestSnapshotDirectory=null,latestSnapshotBusy=false;
 function status(s,error=false){$('#status').textContent=s;$('#status').classList.toggle('error',error);}
@@ -77,7 +78,7 @@ async function importStap(naam,actie){
 }
 async function restore(next){
  if(next.bi)await importStap('BI-gegevens herstellen',async()=>{const b=await engine('bi');await b.import(next.bi);});
- if(next.planning)await importStap('Planning herstellen',async()=>{await ensurePlanning();const b=await engine('bi');await b.importPlanning(next.planning);});
+ if(next.planning)await importStap('Planning herstellen',async()=>{await ensurePlanning();const b=await engine('bi');await b.importPlanning(next.planning);primaveraDownload.clear();primaveraExportStatus('');});
  if(next.dvm?.assetregister?.rijen?.length)await importStap('DVM-bronnen herstellen',async()=>{const d=await engine('dvm');await d.import(next.dvm);});
 }
 async function capture(){
@@ -92,7 +93,7 @@ async function exportSnapshot(){
 }
 async function sync(){if(busy||failedImport)return;busy=true;status('Lokale gegevens en uitkomsten bijwerken…');try{await capture();await write(state);render();status('Lokaal opgeslagen · '+new Date().toLocaleTimeString('nl-NL'));}catch(e){fail(e);}finally{busy=false;}}
 function queue(){clearTimeout(timer);timer=setTimeout(sync,1800);}
-window.addEventListener('message',ev=>{if(ev.origin!==location.origin||!Object.values(frames).some(f=>f.contentWindow===ev.source))return;if(ev.data?.type==='hub:planning-loaded'&&ev.source===frames.planning?.contentWindow){frames.bi?.contentWindow?.HUB?.syncPlanningRules();queue();}if(ev.data?.type==='hub:planning-fullscreen'&&ev.source===frames.planning?.contentWindow)setPlanningFullscreen(ev.data.active);if(ev.data?.type==='hub:version'&&ev.data.engine){engineVersies[ev.data.engine]=String(ev.data.versie??'');toonVersies(document,engineVersies);}if(ev.data?.type==='hub:changed'&&!busy){if(ev.source===frames.dvm?.contentWindow&&view==='costs'){summaries.dvm=ev.source.HUB.summary();renderCosts();}queue();}});
+window.addEventListener('message',ev=>{if(ev.origin!==location.origin||!Object.values(frames).some(f=>f.contentWindow===ev.source))return;if(ev.data?.type==='hub:planning-loaded'&&ev.source===frames.planning?.contentWindow){primaveraDownload.clear();primaveraExportStatus('');frames.bi?.contentWindow?.HUB?.syncPlanningRules();queue();}if(ev.data?.type==='hub:planning-fullscreen'&&ev.source===frames.planning?.contentWindow)setPlanningFullscreen(ev.data.active);if(ev.data?.type==='hub:version'&&ev.data.engine){engineVersies[ev.data.engine]=String(ev.data.versie??'');toonVersies(document,engineVersies);}if(ev.data?.type==='hub:changed'&&!busy){if(ev.source===frames.dvm?.contentWindow&&view==='costs'){summaries.dvm=ev.source.HUB.summary();renderCosts();}queue();}});
 
 function expertServices(){
  const map=new Map(DEFAULT_SERVICES.map(service=>[service.id,{...service}]));
@@ -234,15 +235,16 @@ function render(){
  $('#inventory').textContent=`Lokaal: DVM ${state.dvm?'geladen':'leeg'} · BI ${state.bi?'geladen':'leeg'} · planning ${state.planning?'geladen':'leeg'} · ${state.links.length} koppelingen · ${(state.expertReviews||[]).length} expertduidingen.`;
 }
 function download(obj,name,type='application/json'){const blob=new Blob([typeof obj==='string'?obj:JSON.stringify(obj)],{type}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);}
-async function schrijfExportOokNaarGekoppeldeMap(data,name,type='application/json'){
- if(!latestSnapshotDirectory){latestSnapshotStatus('Export gedownload. Koppel een gesynchroniseerde map om exports daar automatisch ook op te slaan.');return false;}
+async function schrijfExportOokNaarGekoppeldeMap(data,name,type='application/json',{prepared=false}={}){
+ const localStatus=prepared?'Export staat klaar via de downloadlink':'Export gedownload';
+ if(!latestSnapshotDirectory){latestSnapshotStatus(localStatus+'. Koppel een gesynchroniseerde map om exports daar automatisch ook op te slaan.');return false;}
  try{
   await schrijfBestandNaarMap(latestSnapshotDirectory,{name,data,type});
-  latestSnapshotStatus(`Export gedownload en ook opgeslagen in ${latestSnapshotDirectory.name||'de gekoppelde map'} als ${name}.`,'success');
+  latestSnapshotStatus(`${localStatus} en ook opgeslagen in ${latestSnapshotDirectory.name||'de gekoppelde map'} als ${name}.`,'success');
   status(`Export opgeslagen in de gekoppelde map: ${name}.`);return true;
  }catch(error){
-  latestSnapshotStatus(`Export is wel gedownload, maar niet in de gekoppelde map opgeslagen: ${error.message||String(error)}`,'error');
-  status('Export gedownload; opslaan in de gekoppelde map is mislukt.',true);console.error(error);return false;
+  latestSnapshotStatus(`${localStatus}; niet in de gekoppelde map opgeslagen: ${error.message||String(error)}`,'error');
+  status(localStatus+'; opslaan in de gekoppelde map is mislukt.',true);console.error(error);return false;
  }
 }
 function qualityDate(value){const d=new Date(value);return Number.isFinite(d.getTime())?d.toLocaleString('nl-NL'):'Onbekend';}
@@ -353,15 +355,23 @@ $('#exportOptions').onchange=()=>{$('#dependencies').textContent=makeExport(stat
 $('#all').onclick=()=>document.querySelectorAll('[data-part]').forEach(x=>x.checked=true);$('#none').onclick=()=>document.querySelectorAll('[data-part]').forEach(x=>x.checked=false);
 $('#export').onclick=async()=>{try{if(busy)throw Error('Wacht tot import of opslag gereed is.');const snapshot=await exportSnapshot();const sel=selection();if(!sel.size)throw Error('Kies minstens één onderdeel.');const data=makeExport(snapshot,sel),name='bidash-integraal_'+new Date().toISOString().slice(0,10)+'.json';download(data,name);await schrijfExportOokNaarGekoppeldeMap(data,name);}catch(e){fail(e);}};
 for(const [id,key,basisnaam,type] of [['exportDvm','dvm','dvm-dienstimpact-totaal','application/json'],['exportBi','bi','bidash-wvm-dataset','application/json'],['exportXml','planning','planning','text/xml']])$( '#'+id).onclick=async()=>{try{if(busy)throw Error('Wacht tot de lopende bewerking gereed is.');const snapshot=key==='dvm'?await exportSnapshot():(await capture(),state);if(!snapshot[key])throw Error('Dit onderdeel is nog niet geladen.');const data=key==='planning'?snapshot.planning.xml:snapshot[key],name=`${basisnaam}_${new Date().toISOString().slice(0,10)}.${key==='planning'?'xml':'json'}`;download(data,name,type);await schrijfExportOokNaarGekoppeldeMap(data,name,type);}catch(e){fail(e);}};
+const primaveraDownload=createFileDownload($('#primaveraDownload'));
+function primaveraExportStatus(message,error=false){
+ const host=$('#primaveraExportStatus');host.textContent=message;host.classList.toggle('error',error);
+}
 $('#exportPrimavera').onclick=async()=>{
  const button=$('#exportPrimavera');button.disabled=true;
+ primaveraDownload.clear();primaveraExportStatus('XML-bestand voorbereiden…');
  try{
   if(busy||failedImport)throw Error('Wacht tot de werkruimte gereed is. Herlaad na een mislukte import.');
   const planning=await ensurePlanning(),result=await planning.exportPrimavera();
-  download(result.text,result.name,result.type);
-  await schrijfExportOokNaarGekoppeldeMap(result.text,result.name,result.type);
-  status(`Primavera XML geëxporteerd. ${result.changedActivities} activiteiten verschoven. Controleer en herbereken de planning na import in P6.`);
- }catch(error){fail(error);}finally{button.disabled=false;}
+  primaveraDownload.prepare(result);primaveraDownload.attempt();
+  const message=`Primavera XML staat klaar. ${result.changedActivities} activiteiten verschoven. Begint de download niet, klik dan op de downloadlink hieronder.`;
+  primaveraExportStatus(message);status(message);
+  const saved=await schrijfExportOokNaarGekoppeldeMap(result.text,result.name,result.type,{prepared:true});
+  if(latestSnapshotDirectory)primaveraExportStatus(saved?message+' Ook opgeslagen in de gekoppelde map.':message+' Opslaan in de gekoppelde map is mislukt.');
+ }catch(error){primaveraExportStatus('Export mislukt. '+(error.message||String(error)),true);fail(error);}
+ finally{button.disabled=false;}
 };
 $('#save').onclick=sync;$('#refresh').onclick=sync;$('#signalFilter').onchange=render;
 $('#linkForm').onsubmit=e=>{e.preventDefault();const l={dienst:$('#linkService').value,functie:$('#linkFunction').value,eigenaar:$('#linkOwner').value.trim()};state.links=state.links.filter(x=>x.dienst!==l.dienst||x.functie!==l.functie);state.links.push(l);sync();};

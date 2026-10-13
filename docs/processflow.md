@@ -308,3 +308,7 @@ Geen eenduidige grens betekent een afzonderlijke groep met koppelreden. Elke sch
 ### Primavera-scenario terugexporteren
 
 Planning-XML laden, verschuiving instellen en **Exporteer Primavera P6 XML** kiezen bij de tijdlijn of Data & export. De bestaande cascade wordt vóór de export opnieuw berekend. De exporter kopieert de geladen P6-XML en verschuift alleen gevulde planningsdatumvelden bij de bijbehorende activiteiten en resourcetoewijzingen. De oorspronkelijke P6-versie, veldvolgorde, object-ID’s, relaties, kalenders, codes, actuals, constraints, uren en kosten blijven behouden. Filters beperken de export niet. De oorspronkelijke bron en scenario-instellingen blijven beschikbaar voor back-up en herstel. Na download controleert en herberekent de planner het bestand in P6. MS Project krijgt geen P6-label; de oorspronkelijke XML-export blijft werken.
+
+### Download beschikbaar houden
+
+De Primavera-export meldt naast de knop dat het XML-bestand wordt voorbereid. Na succesvolle voorbereiding staat daar een downloadlink met bestandsnaam en wordt een automatische download geprobeerd. Als die niet begint kan de gebruiker dezelfde link rechtstreeks aanklikken. De link wordt niet na enkele seconden ingetrokken. Een volgende export of nieuwe planningimport vervangt de eerdere lokale download. Fouten staan bij de knop en wissen de vorige link. De melding claimt geen opgeslagen bestand; alleen een geslaagde schrijfactie naar de gekoppelde map wordt als opslag bevestigd.
