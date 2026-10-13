@@ -60,6 +60,14 @@ De huidige verschuivingen, inclusief doorwerking naar opvolgers, worden als kale
 
 **Oorspronkelijke planning-XML** downloadt de onbewerkte bron. De integrale JSON-back-up bewaart die bron samen met jouw instellingen, zodat je het scenario kunt hervatten. De P6-export werkt met een geladen P6-bron; een MS Project-bron blijft beschikbaar via de oorspronkelijke XML-export. Met een gekoppelde map wordt de export uit Data & export ook naar die map geschreven.
 
+## Planning sneller weergeven
+
+Vanaf BiDash 2.45 delen de formatiegrafieken één berekening per verversing. Scrollen tekent het zichtbare deel van de tijdlijn en berekent de formatie niet opnieuw. De gesorteerde activiteitvolgorde wordt hergebruikt tot je groepen in- of uitklapt of een nieuwe planning laadt.
+
+Verschuivingen en gewijzigde formatieregels blijven in de resultaten doorwerken. De tijdlijn en grafieken blijven beschikbaar in volledig scherm. Wanneer je een ander onderdeel opent stopt het tekenwerk voor de verborgen planning. Achtergrondcontroles berekenen de capaciteit alleen opnieuw bij gewijzigde invoer.
+
+De gegevens blijven lokaal in jouw browser. Het eerste laden van een grote XML en het opbouwen van uitgebreide dashboards kan nog tijd kosten. Deze verbetering verandert de plannings- en formatieregels niet.
+
 ## Planning en triggers laden
 
 De planningmodule bevatte eerder een vaste, in de code opgenomen planning met

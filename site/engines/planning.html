@@ -1222,7 +1222,7 @@
     .dash-grid-2,.dash-grid-3,.dash-grid-4 { grid-template-columns: 1fr; }
   }
 </style>
-<link rel="stylesheet" href="component.css?v=20261013-1035"></head>
+<link rel="stylesheet" href="component.css?v=20261013-1620"></head>
 <body>
 
 <!-- TOPBAR -->
@@ -1740,7 +1740,7 @@ function showScreen(id, linkEl) {
   document.getElementById('main').scrollTop = 0;
   if (id === 's11') setTimeout(()=>renderIPLDash(), 30);
   if (id === 's15') setTimeout(()=>app_renderRestorePanel(), 30);
-  if (id === 's16') setTimeout(()=>{if(IPL_MODEL){renderIPL();ipl_installFteObserver();ipl_scheduleFteRender();setTimeout(ipl_scheduleFteRender,180);}},30);
+  if (id === 's16') ipl_installFteObserver();
   if (id === 's17') setTimeout(()=>renderIPLConfig(), 30);
   if (id === 's18') setTimeout(()=>renderDashConfig(), 30);
   if (id === 's19') setTimeout(()=>renderDashboardsOverzicht(), 30);
@@ -4944,7 +4944,7 @@ var IPL_PROJSHIFT = {};     // per top-WBS verschuiving
 var IPL_CASCADE = {};
 var IPL_DRAG = null;var IPL_DRAG_RAF=0,IPL_DRAG_PENDING=null,IPL_DRAG_ACTIVE=false,IPL_DRAG_CHANGED=false;
 function ipl_scheduleDragFrame(u){IPL_DRAG_PENDING=u;if(IPL_DRAG_RAF)return;IPL_DRAG_RAF=requestAnimationFrame(function(){IPL_DRAG_RAF=0;var x=IPL_DRAG_PENDING;IPL_DRAG_PENDING=null;if(!x)return;if(x.projId){if(x.value===0)delete IPL_PROJSHIFT[x.projId];else IPL_PROJSHIFT[x.projId]=x.value}else{if(x.value===0)delete IPL_MSHIFT[x.id];else IPL_MSHIFT[x.id]=x.value}IPL_DRAG_ACTIVE=true;renderIPL();IPL_DRAG_ACTIVE=false;IPL_DRAG_CHANGED=true;});}
-function ipl_finishDrag(canvas,label){if(IPL_DRAG_RAF){cancelAnimationFrame(IPL_DRAG_RAF);IPL_DRAG_RAF=0;var x=IPL_DRAG_PENDING;IPL_DRAG_PENDING=null;if(x){if(x.projId){if(x.value===0)delete IPL_PROJSHIFT[x.projId];else IPL_PROJSHIFT[x.projId]=x.value}else{if(x.value===0)delete IPL_MSHIFT[x.id];else IPL_MSHIFT[x.id]=x.value}IPL_DRAG_CHANGED=true}}var changed=IPL_DRAG_CHANGED;IPL_DRAG=null;IPL_DRAG_CHANGED=false;if(canvas)canvas.style.cursor='grab';if(changed){renderIPL();if(typeof refreshV==='function')refreshV();if(typeof renderIPLFormatieConflicten==='function')renderIPLFormatieConflicten();if(typeof app_autosave==='function')app_autosave(label)}}
+function ipl_finishDrag(canvas,label){if(IPL_DRAG_RAF){cancelAnimationFrame(IPL_DRAG_RAF);IPL_DRAG_RAF=0;var x=IPL_DRAG_PENDING;IPL_DRAG_PENDING=null;if(x){if(x.projId){if(x.value===0)delete IPL_PROJSHIFT[x.projId];else IPL_PROJSHIFT[x.projId]=x.value}else{if(x.value===0)delete IPL_MSHIFT[x.id];else IPL_MSHIFT[x.id]=x.value}IPL_DRAG_CHANGED=true}}var changed=IPL_DRAG_CHANGED;IPL_DRAG=null;IPL_DRAG_CHANGED=false;if(canvas)canvas.style.cursor='grab';if(changed){renderIPL();if(typeof refreshV==='function')refreshV();if(typeof app_autosave==='function')app_autosave(label)}}
 
 var IPL_LAYOUT = null;
 var IPL_SHOWREL = true;
@@ -5600,7 +5600,15 @@ function ipl_setTimeScale(v){IPL_TIMESCALE=v||'quarter';renderIPL();}
 
 function ipl_tToX(t,x0,w){ return x0+((t-IPL_TSTART)/(IPL_TEND-IPL_TSTART))*w; }
 function ipl_xToT(x,x0,w){ return IPL_TSTART+((x-x0)/w)*(IPL_TEND-IPL_TSTART); }
-function ipl_regelById(id){ if(!IPL_MODEL)return null; for(var i=0;i<IPL_MODEL.regels.length;i++) if(IPL_MODEL.regels[i].id===id) return IPL_MODEL.regels[i]; return null; }
+var IPL_REGEL_INDEX_MODEL=null,IPL_REGEL_INDEX=null;
+function ipl_regelById(id){
+  if(!IPL_MODEL)return null;
+  if(IPL_REGEL_INDEX_MODEL!==IPL_MODEL){
+    IPL_REGEL_INDEX_MODEL=IPL_MODEL;IPL_REGEL_INDEX=new Map();
+    IPL_MODEL.regels.forEach(function(r){if(!IPL_REGEL_INDEX.has(r.id))IPL_REGEL_INDEX.set(r.id,r);});
+  }
+  return IPL_REGEL_INDEX.get(id)||null;
+}
 
 // meest specifieke WBS-groep (het "project"/tunnel) van een regel — laatste element in het pad
 function ipl_regelProjectNaam(r){
@@ -5640,7 +5648,10 @@ function ipl_regelZichtbaar(r){
 }
 
 // bouw geordende rijenlijst met WBS-subgroep-koppen (inklapbaar)
+var IPL_ORDER_MODEL=null,IPL_ORDER_KEY='',IPL_ORDER_ROWS=null;
 function ipl_buildOrdered(){
+  var key=JSON.stringify(IPL_COLLAPSED);
+  if(IPL_ORDER_MODEL===IPL_MODEL&&IPL_ORDER_KEY===key)return IPL_ORDER_ROWS;
   var ordered=[];
   var wbs=IPL_MODEL.wbs;
   for(var b=0;b<IPL_MODEL.blokken.length;b++){
@@ -5680,6 +5691,7 @@ function ipl_buildOrdered(){
       if(!verborgen) ordered.push({type:'regel',regel:r});
     }
   }
+  IPL_ORDER_MODEL=IPL_MODEL;IPL_ORDER_KEY=key;IPL_ORDER_ROWS=ordered;
   return ordered;
 }
 
@@ -5851,7 +5863,7 @@ function renderIPL(viewportOnly){
   IPL_LAYOUT={offsetX:viewport.x,offsetY:viewport.y,layout:layout,hitGroups:hitGroups,X:X,xToT:function(x){return ipl_xToT(x,LBL,plotW);},LBL:LBL,cW:cW,plotW:plotW};
   ipl_attachEvents(canvas);
   ipl_positionFloat();
-  if(!viewportOnly&&!IPL_DRAG_ACTIVE){if(typeof renderIPLImpact==='function')renderIPLImpact();if(typeof ipl_refreshFormatie==='function')ipl_refreshFormatie();if(typeof renderIPLFormatieConflicten==='function')renderIPLFormatieConflicten();}
+  if(!viewportOnly&&!IPL_DRAG_ACTIVE){if(typeof renderIPLImpact==='function')renderIPLImpact();if(typeof ipl_refreshFormatie==='function')ipl_refreshFormatie();}
 }
 
 function ipl_attachEvents(canvas){
@@ -5961,7 +5973,7 @@ function ipl_expandAll(v){
 
 async function ipl_createPrimaveraExport(){
   if(!IPL_MODEL || !IPL_RAW_XML) throw new Error('Laad eerst een Primavera P6-planning.');
-  var api=await import('../core/primavera-export.js?v=20261013-1035');
+  var api=await import('../core/primavera-export.js?v=20261013-1620');
   // Verwerk ook de laatste sleepbeweging en bereken de volledige cascade
   // opnieuw; een verborgen tijdlijn mag geen verouderde datums exporteren.
   if(IPL_DRAG_PENDING || IPL_DRAG_RAF) ipl_finishDrag(null,'Planning verschoven');
@@ -5981,7 +5993,7 @@ async function ipl_exportXML(){
   if(IPL_EXPORT_DOWNLOAD)IPL_EXPORT_DOWNLOAD.clear();
   ipl_exportStatus('XML-bestand voorbereiden…');
   try{
-    var api=await import('../core/file-download.js?v=20261013-1035');
+    var api=await import('../core/file-download.js?v=20261013-1620');
     if(!IPL_EXPORT_DOWNLOAD)IPL_EXPORT_DOWNLOAD=api.createFileDownload(document.getElementById('ipl-export-download'));
     var result=await ipl_createPrimaveraExport();
     IPL_EXPORT_DOWNLOAD.prepare(result);IPL_EXPORT_DOWNLOAD.attempt();
@@ -6115,35 +6127,26 @@ if(typeof IPL_DASHCONFIG!=='undefined' && !IPL_DASHCONFIG.beschikbareFte){
 
 // ── FTE-tijdreeks per dienst, over de volledige geladen planning ──
 function ipl_computeDienstFteReeks(){
-  var buckets=[];
-  if(!IPL_MODEL) return {buckets:buckets};
-  var t0=IPL_MODEL.t0,t1=IPL_MODEL.t1,step=1/52.1775;
-  for(var t=t0;t<=t1+0.001;t+=step){ var b={t:t}; IPL_DIENSTEN.forEach(function(d){b[d]=0;}); buckets.push(b); }
-  for(var i=0;i<IPL_MODEL.regels.length;i++){
-    var r=IPL_MODEL.regels[i]; if(r.kind==='mile') continue;
-    var e=ipl_eff(r);
-    var rollen=(typeof ipl_dashTaakFteRollen==='function'?ipl_dashTaakFteRollen(r):[]);
-    if(!rollen.length) continue;
-    for(var bi=0;bi<buckets.length;bi++){
-      var bt=buckets[bi].t;
-      if(bt>=e.t0-0.001 && bt<e.t1-0.001){
-        rollen.forEach(function(a){
-          var d=a.dienst||ipl_regelDienst(r); // elke rol telt bij zijn EIGEN dienst, niet die van de taak
-          var f=parseFloat(a.fte)||0;
-          if(f>0) buckets[bi][d]=(buckets[bi][d]||0)+f;
-        });
-      }
-    }
-  }
-  for(let z of buckets)z.VWM=totalAt(z.t);
-  return {buckets:buckets, t0:t0, t1:t1};
+  if(!IPL_MODEL) return {buckets:[]};
+  var tasks=IPL_MODEL.regels.filter(function(r){return r.kind!=='mile';}).map(function(r){
+    var e=ipl_eff(r),rollen=ipl_dashTaakFteRollen(r);
+    return {start:e.t0,finish:e.t1,allocations:rollen.map(function(a){
+      return {service:a.dienst||ipl_regelDienst(r),fte:parseFloat(a.fte)||0};
+    })};
+  });
+  var vwm=vwmIndividueleTaken().map(function(r){
+    var e=ipl_eff(r),fase=vf(r),rates={};
+    VROLES.forEach(function(role){rates[role]=parseFloat((VCFG[fase]||{})[role])||0;});
+    return {start:e.t0,finish:e.t1,rates:rates};
+  });
+  return PlanningAnalysis.weekly({t0:IPL_MODEL.t0,t1:IPL_MODEL.t1,services:IPL_DIENSTEN,roles:VROLES,tasks:tasks,vwm:vwm});
 }
 
 // ── Grafiek 1: alle diensten in één lijngrafiek ──
-function renderIPLFormatieAlle(){
+function renderIPLFormatieAlle(series){
   if(!IPL_MODEL) return;
   var canvas=document.getElementById('ipl-fmt-alle'); if(!canvas) return;
-  var s=ipl_computeDienstFteReeks(); var buckets=s.buckets; if(!buckets.length){var st=document.getElementById('ipl-fmt-alle-legend');if(st)st.innerHTML='<span style="color:#c0121f">Geen FTE-reeks beschikbaar. Controleer taakfasen en formatie-instellingen.</span>';return;}
+  var s=series||ipl_computeDienstFteReeks(); var buckets=s.buckets; if(!buckets.length){var st=document.getElementById('ipl-fmt-alle-legend');if(st)st.innerHTML='<span style="color:#c0121f">Geen FTE-reeks beschikbaar. Controleer taakfasen en formatie-instellingen.</span>';return;}
   var dpr=window.devicePixelRatio||1;
   var cW=Math.max(260,canvas.parentElement.clientWidth-8), cH=150;
   var PADL=32,PADR=8,PADT=8,PADB=20;
@@ -6166,7 +6169,7 @@ function renderIPLFormatieAlle(){
 }
 
 // ── Grafiek 2: per dienst, FTE-inzet vs beschikbare FTE (small multiples) ──
-function renderIPLFormatiePerDienst(){
+function renderIPLFormatiePerDienst(series){
   if(!IPL_MODEL) return;
   var wrap=document.getElementById('ipl-fmt-perdienst'); if(!wrap) return;
   if(!wrap.children.length){
@@ -6175,7 +6178,7 @@ function renderIPLFormatiePerDienst(){
       +'<canvas id="ipl-fmt-'+d+'" style="display:block;width:100%;"></canvas>'
       +'<div id="ipl-fmt-'+d+'-status" style="font-size:9px;color:#6a7898;margin-top:4px;"></div></div>'; }).join('');
   }
-  var s=ipl_computeDienstFteReeks(); var buckets=s.buckets; if(!buckets.length) return;
+  var s=series||ipl_computeDienstFteReeks(); var buckets=s.buckets; if(!buckets.length) return;
   var cap=HCAP;
   IPL_DIENSTEN.forEach(function(d){
     var canvas=document.getElementById('ipl-fmt-'+d); if(!canvas) return;
@@ -6736,9 +6739,9 @@ function roleTaskStats(role){
   taken.forEach(function(r){var x=ipl_eff(r),fte=parseFloat((VCFG[vf(r)]||{})[role])||0,weken=Math.max(0,(x.t1-x.t0)*52.1775);uren+=fte*36*weken;});
   return {taken:taken.filter(function(r){return (parseFloat((VCFG[vf(r)]||{})[role])||0)>0;}).length,uren:uren};
 }
-function refreshV(){if(typeof renderIPLFormatieAlle==='function')renderIPLFormatieAlle();if(typeof renderIPLFormatiePerDienst==='function')renderIPLFormatiePerDienst();if(VOPEN)requestAnimationFrame(function(){requestAnimationFrame(drawRoles);});}
-function toggleRoles(){VOPEN=!VOPEN;let p=document.getElementById('vdetails');p.style.display=VOPEN?'grid':'none';let n=document.getElementById('vdetails-note');if(n)n.style.display=VOPEN?'block':'none';document.getElementById('vbtn').textContent=VOPEN?'Sluit rollen':'Toon VWM-rollen';if(VOPEN)requestAnimationFrame(()=>requestAnimationFrame(drawRoles))}
-function drawRoles(){let p=document.getElementById('vdetails');if(!p||!VOPEN)return;if(!p.children.length)p.innerHTML=VROLES.map((r,i)=>'<div style="border:1px solid #ccd5e3;padding:8px;border-radius:5px"><b>'+r+'</b><canvas id="rc'+i+'" style="display:block;width:100%;height:90px"></canvas><small id="rs'+i+'"></small></div>').join('');let S=ipl_computeDienstFteReeks(),bs=S.buckets;VROLES.forEach((r,j)=>{let cv=document.getElementById('rc'+j),W=Math.max(240,cv.parentElement.clientWidth-16),H=90,d=devicePixelRatio||1,L=28,R=5,T=5,B=14,vs=bs.map(x=>roleAt(x.t,r)),cap=+RCAP[r]||0,m=Math.max(cap,1,...vs)*1.12;cv.width=W*d;cv.height=H*d;cv.style.width=W+'px';cv.style.height=H+'px';let c=cv.getContext('2d');c.setTransform(d,0,0,d,0,0);let X=t=>L+(t-S.t0)/(S.t1-S.t0)*(W-L-R),Y=v=>H-B-v/m*(H-T-B);for(let i=0;i<vs.length-1;i++){let x1=X(bs[i].t),x2=X(bs[i+1].t),v1=vs[i],v2=vs[i+1];c.fillStyle='#00823c33';c.beginPath();c.moveTo(x1,Y(0));c.lineTo(x1,Y(Math.min(v1,cap)));c.lineTo(x2,Y(Math.min(v2,cap)));c.lineTo(x2,Y(0));c.fill();if(v1>cap||v2>cap){c.fillStyle='#c0121f66';c.beginPath();c.moveTo(x1,Y(Math.min(v1,cap)));c.lineTo(x1,Y(v1));c.lineTo(x2,Y(v2));c.lineTo(x2,Y(Math.min(v2,cap)));c.fill()}}c.strokeStyle='#00823c';c.beginPath();vs.forEach((v,i)=>i?c.lineTo(X(bs[i].t),Y(v)):c.moveTo(X(bs[i].t),Y(v)));c.stroke();c.strokeStyle='#c0121f';c.lineWidth=2;c.beginPath();c.moveTo(L,Y(cap));c.lineTo(W-R,Y(cap));c.stroke();var stat=roleTaskStats(r);document.getElementById('rs'+j).textContent='Piek '+Math.max.apply(null,vs).toFixed(2)+' FTE | capaciteit '+cap.toFixed(1)+' FTE | '+stat.taken+' taken | '+Math.round(stat.uren).toLocaleString('nl-NL')+' uur totaal'})}
+function refreshV(){if(typeof ipl_refreshFormatie==='function')ipl_refreshFormatie();}
+function toggleRoles(){VOPEN=!VOPEN;let p=document.getElementById('vdetails');p.style.display=VOPEN?'grid':'none';let n=document.getElementById('vdetails-note');if(n)n.style.display=VOPEN?'block':'none';document.getElementById('vbtn').textContent=VOPEN?'Sluit rollen':'Toon VWM-rollen';if(VOPEN)requestAnimationFrame(()=>requestAnimationFrame(()=>drawRoles()))}
+function drawRoles(series){if(!IPL_MODEL)return;let p=document.getElementById('vdetails');if(!p||!VOPEN)return;if(!p.children.length)p.innerHTML=VROLES.map((r,i)=>'<div style="border:1px solid #ccd5e3;padding:8px;border-radius:5px"><b>'+r+'</b><canvas id="rc'+i+'" style="display:block;width:100%;height:90px"></canvas><small id="rs'+i+'"></small></div>').join('');let S=series||ipl_computeDienstFteReeks(),bs=S.buckets;VROLES.forEach((r,j)=>{let cv=document.getElementById('rc'+j),W=Math.max(240,cv.parentElement.clientWidth-16),H=90,d=devicePixelRatio||1,L=28,R=5,T=5,B=14,vs=S.vwmRoles[r],cap=+RCAP[r]||0,m=Math.max(cap,1,...vs)*1.12;cv.width=W*d;cv.height=H*d;cv.style.width=W+'px';cv.style.height=H+'px';let c=cv.getContext('2d');c.setTransform(d,0,0,d,0,0);let X=t=>L+(t-S.t0)/(S.t1-S.t0)*(W-L-R),Y=v=>H-B-v/m*(H-T-B);for(let i=0;i<vs.length-1;i++){let x1=X(bs[i].t),x2=X(bs[i+1].t),v1=vs[i],v2=vs[i+1];c.fillStyle='#00823c33';c.beginPath();c.moveTo(x1,Y(0));c.lineTo(x1,Y(Math.min(v1,cap)));c.lineTo(x2,Y(Math.min(v2,cap)));c.lineTo(x2,Y(0));c.fill();if(v1>cap||v2>cap){c.fillStyle='#c0121f66';c.beginPath();c.moveTo(x1,Y(Math.min(v1,cap)));c.lineTo(x1,Y(v1));c.lineTo(x2,Y(v2));c.lineTo(x2,Y(Math.min(v2,cap)));c.fill()}}c.strokeStyle='#00823c';c.beginPath();vs.forEach((v,i)=>i?c.lineTo(X(bs[i].t),Y(v)):c.moveTo(X(bs[i].t),Y(v)));c.stroke();c.strokeStyle='#c0121f';c.lineWidth=2;c.beginPath();c.moveTo(L,Y(cap));c.lineTo(W-R,Y(cap));c.stroke();var stat=roleTaskStats(r);document.getElementById('rs'+j).textContent='Piek '+Math.max.apply(null,vs).toFixed(2)+' FTE | capaciteit '+cap.toFixed(1)+' FTE | '+stat.taken+' taken | '+Math.round(stat.uren).toLocaleString('nl-NL')+' uur totaal'})}
 
 
 var IPL_CIV_FORM_CFG={};
@@ -6759,23 +6762,26 @@ function ipl_fteCanvasReady(){
   return !!(IPL_MODEL&&wrap&&all&&wrap.getBoundingClientRect().width>40&&all.parentElement&&all.parentElement.getBoundingClientRect().width>40);
 }
 function ipl_renderFteNow(){
-  if(!IPL_MODEL)return;
-  if(!ipl_fteCanvasReady()){
-    if(IPL_FTE_RENDER_RETRY<8){IPL_FTE_RENDER_RETRY++;setTimeout(ipl_scheduleFteRender,60*IPL_FTE_RENDER_RETRY);}
-    return;
-  }
-  IPL_FTE_RENDER_RETRY=0;
-  renderIPLFormatieAlle();renderIPLFormatiePerDienst();
+  // Een verborgen frame blijft gereed voor export en de BI-brug, maar tekent
+  // niet. Openen of een echte maatwijziging plant vanzelf een nieuwe verversing.
+  if(!ipl_fteCanvasReady())return;
+  var series=ipl_computeDienstFteReeks();
+  renderIPLFormatieAlle(series);renderIPLFormatiePerDienst(series);
+  if(VOPEN)drawRoles(series);
   if(typeof renderIPLFormatieConflicten==='function')renderIPLFormatieConflicten();
 }
 function ipl_scheduleFteRender(){
-  if(IPL_FORM_REFRESH_PENDING)cancelAnimationFrame(IPL_FORM_REFRESH_PENDING);
-  IPL_FORM_REFRESH_PENDING=requestAnimationFrame(function(){IPL_FORM_REFRESH_PENDING=0;requestAnimationFrame(ipl_renderFteNow);});
+  if(IPL_FORM_REFRESH_PENDING)return;
+  IPL_FORM_REFRESH_PENDING=requestAnimationFrame(function(){IPL_FORM_REFRESH_PENDING=0;ipl_renderFteNow();});
 }
 function ipl_installFteObserver(){
-  var wrap=document.getElementById('ipl-fmt-perdienst');if(!wrap||!window.ResizeObserver)return;
-  if(IPL_FTE_RESIZE_OBSERVER)IPL_FTE_RESIZE_OBSERVER.disconnect();
-  IPL_FTE_RESIZE_OBSERVER=new ResizeObserver(function(){ipl_scheduleFteRender();});
+  var wrap=document.getElementById('ipl-fmt-perdienst');if(!wrap||!window.ResizeObserver||IPL_FTE_RESIZE_OBSERVER)return;
+  var sizes=new WeakMap();
+  IPL_FTE_RESIZE_OBSERVER=new ResizeObserver(function(entries){
+    var changed=false;
+    entries.forEach(function(entry){var size=entry.contentRect.width+'|'+entry.contentRect.height;if(sizes.get(entry.target)!==size){sizes.set(entry.target,size);changed=true;}});
+    if(changed)ipl_scheduleFteRender();
+  });
   IPL_FTE_RESIZE_OBSERVER.observe(wrap);if(wrap.parentElement)IPL_FTE_RESIZE_OBSERVER.observe(wrap.parentElement);
 }
 var IPL_FORM_REFRESH_PENDING=0;
@@ -8176,13 +8182,13 @@ function ipl_formatieConflicten(){
   for(var t=t0;t<=t1+0.001;t+=step){ var b={t:t}; IPL_DIENSTEN.forEach(function(d){b[d]={fte:0,items:[]};}); buckets.push(b); }
   IPL_MODEL.regels.forEach(function(r){
     if(r.kind==='mile') return;
-    var e=ipl_eff(r);
+    var e=ipl_eff(r),span=PlanningAnalysis.range(buckets,e.t0-0.001,e.t1-0.001),p1=ipl_niveau1ProjectVanRegel(r),fase=vf(r)||'Onbekende fase';
     var rollen=(typeof ipl_dashTaakFteRollen==='function'?ipl_dashTaakFteRollen(r):[]);
     rollen.forEach(function(a){
       var d=a.dienst||ipl_regelDienst(r); var f=parseFloat(a.fte)||0; if(f<=0) return;
-      buckets.forEach(function(b){
-        if(b.t>=e.t0-0.001 && b.t<e.t1-0.001){ if(!b[d]) return; b[d].fte+=f; var p1=ipl_niveau1ProjectVanRegel(r);b[d].items.push({naam:r.naam,fte:f,projectId:p1.id,project:p1.naam,fase:vf(r)||'Onbekende fase',regelId:r.id}); }
-      });
+      for(var bi=span[0];bi<span[1];bi++){
+        var b=buckets[bi];if(!b[d])continue; b[d].fte+=f;b[d].items.push({naam:r.naam,fte:f,projectId:p1.id,project:p1.naam,fase:fase,regelId:r.id});
+      }
     });
   });
   var cap=(typeof IPL_DASHCONFIG!=='undefined' && IPL_DASHCONFIG.beschikbareFte)||{};
@@ -8438,9 +8444,7 @@ function ipl_hostingRedrawAll(){
       }
     }catch(ex){console.error('Grafiek opnieuw tekenen mislukt',ex);}
   });
-  clearTimeout(IPL_HOST_RENDER_TIMER);IPL_HOST_RENDER_TIMER=setTimeout(function(){
-    try{if(IPL_MODEL&&document.getElementById('s11')&&document.getElementById('s11').classList.contains('active'))renderIPLDash();if(typeof ipl_drawAllSparklines==='function')ipl_drawAllSparklines();}catch(ex){}
-  },180);
+  clearTimeout(IPL_HOST_RENDER_TIMER);
 }
 function ipl_installHostingObservers(){
   // Geen ResizeObserver op hele schermen: canvas-resizes veroorzaakten een renderlus.
@@ -8471,6 +8475,7 @@ window.addEventListener('resize', ()=>{
 });
 </script>
 
+<script src="planning-analysis.js?v=20261013-1620"></script>
 <script src="planning-canvas.js"></script>
-<script src="planning-adapter.js?v=20261013-1035"></script></body>
+<script src="planning-adapter.js?v=20261013-1620"></script></body>
 </html>
