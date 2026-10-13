@@ -12,6 +12,7 @@ const fault=(hm,code='1003',extra={})=>({locatie:'A15 RE '+hm,weg:'A15',richting
 function runtime(rows=[row('T1',0,10),row('T2',10,20)]){
  const r=dvmRuntime();r.eval=s=>vm.runInContext(s,r);
  vm.runInContext(readFileSync(new URL('../site/engines/dvm-netwerkschakels.js',import.meta.url),'utf8'),r);
+ vm.runInContext(readFileSync(new URL('../site/engines/dvm-netwerkschakels-beheer.js',import.meta.url),'utf8'),r);
  r.fixture=rows;r.eval('herstelNetwerkschakels({bestand:"synthetic.xlsx",rijen:fixture})');return r;
 }
 function calculate(r,assets,faults){r.fixtureAssets=assets;r.fixtureFaults=faults;r.eval('ASSET_REGISTER_STATE={assets:fixtureAssets};bouwAssetIndex();STATE=doorrekenen(fixtureFaults,{actueel:true,peildatum:Date.parse("2026-01-02T06:00:00Z")})');return r.eval('STATE');}
@@ -22,7 +23,8 @@ test('matrixgrenzen, aflopende HMP, nul, VC en A/N zijn expliciet',()=>{
  assert.equal(r.koppelNetwerkschakel(asset('a',20)).schakel.code,'T2');
  assert.ok(r.koppelNetwerkschakel(asset('a',null)).reden);
  assert.ok(r.koppelNetwerkschakel(asset('a',5,'MSI','RE',{weg:'N15'})).reden);
- assert.ok(r.koppelNetwerkschakel(asset('a',5,'MSI','RE',{vc:'ZN'})).reden);
+ const mismatch=r.koppelNetwerkschakel(asset('a',5,'MSI','RE',{vc:'ZN'}));
+ assert.equal(mismatch.schakel.code,'T1');assert.match(mismatch.vcAfwijking,/Bron-VC ZN, matrix-VC ZWN/);
  const east=runtime([row('O1',0,10,{Verkeerscentrale:'VC Noord- en Oost-Nederland (Wolfheze)'})]);
  assert.equal(east.koppelNetwerkschakel(asset('e',5,'MSI','RE',{vc:'NON'})).schakel.code,'O1');
 });
@@ -38,6 +40,51 @@ test('zijdefilter is rijrichting, HMP-richting wordt daar niet voor gebruikt',()
  const r=runtime([row('T1',0,10,{Zijde:'R','Richting HMP':'aflopend'})]);
  assert.equal(r.koppelNetwerkschakel(asset('a',5)).schakel.code,'T1');
  assert.ok(r.koppelNetwerkschakel(asset('a',5,'MSI','LI')).reden);
+});
+test('VC is secundair, locatie blijft leidend en echte overlap blijft zichtbaar',()=>{
+ const r=runtime([row('T1',0,10),row('T2',0,10,{Verkeerscentrale:'MN'})]);
+ assert.equal(r.koppelNetwerkschakel(asset('a',5)).schakel.code,'T1');
+ assert.equal(r.koppelNetwerkschakel(asset('a',5,'MSI','RE',{vc:'MN'})).schakel.code,'T2');
+ assert.match(r.koppelNetwerkschakel(asset('a',5,'MSI','RE',{vc:'ZN'})).reden,/Meerdere/);
+ assert.equal(r.koppelNetwerkschakel(asset('a',25)).reden,'Hectometer valt buiten matrixgrenzen');
+ assert.equal(r.koppelNetwerkschakel(asset('a',5,'MSI','RE',{weg:'N15'})).reden,'Weg ontbreekt in matrix');
+ const both=runtime([row('T1',0,12),row('T2',10,20)]),m=both.koppelNetwerkschakel(asset('a',11));
+ assert.equal(m.kandidaten.map(s=>s.code).join(','),'T1,T2');assert.match(m.reden,/Meerdere/);
+});
+test('bron-VC blijft bewaard, areaal, storing, memoscope en prognose gebruiken matrix-VC',async()=>{
+ const r=runtime(),s=calculate(r,[asset('a',2,'MSI','RE',{vc:'MN'})],[fault(2,'1003',{vc:'MN'})]);
+ assert.equal(s.wegdelen.find(w=>w.netwerkschakel==='T1').vc,'ZWN');
+ assert.equal(s.wegdelen.find(w=>w.netwerkschakel==='T1').N,1);
+ assert.equal(s.meldingen[0].vc,'MN');assert.equal(s.meldingen[0].netwerkVc,'ZWN');
+ assert.equal(r.memoLiekeAssets({scope:'ZWN'}).length,1);assert.equal(r.memoLiekeAssets({scope:'MN'}).length,0);
+ assert.equal(r.f71Build().groups[0].vc,'ZWN');
+ const result=await simulateSignalForecast(r.eval('ASSET_REGISTER_STATE.assets'),{mcRuns:100,startYear:2026,endYear:2027,referenceYear:2026});
+ assert.equal(result.roads[0].vc,'ZWN');assert.equal(result.assets[0].vc,'ZWN');
+ const checks=r.netwerkKoppelControle();assert.equal(checks.length,1);assert.equal(checks[0].assets,1);assert.equal(checks[0].meldingen,1);
+});
+test('hectoletter uit register en storing bereikt de echte koppeling',()=>{
+ const r=runtime([row('T1',0,10,{Hectoletter:'A'}),row('T2',0,10,{Hectoletter:'B'})]);
+ r.fixture=[{'ci-type':'VKS signaalgevers',asset:'MSI A15 RE 2.000 1',wegnummer:'15',baanpositie:'R','hm-bord':2,regio:'ZWN',status:'Operationeel',hectoletter:'a'}];
+ r.eval('analyseerAssetRegister(fixture,"synthetic")');
+ r.fixtureFaults=[fault(2,'1003',{hectoletter:'a'})];
+ r.eval('STATE=doorrekenen(fixtureFaults,{actueel:true,peildatum:Date.parse("2026-01-02T06:00:00Z")})');
+ assert.equal(r.eval('ASSET_REGISTER_STATE.assets[0].hectoletter'),'A');
+ assert.equal(r.eval('STATE.meldingen[0].netwerkschakel'),'T1');
+ assert.equal(r.koppelNetwerkschakel(asset('a',2)).reden,'Hectoletter wijkt af of ontbreekt');
+});
+test('grenscorrecties herrekenen, bewaren origineel en overleven export en herstel',async()=>{
+ const r=runtime();calculate(r,[asset('a',25)],[fault(25)]);
+ r.datasetNaMutatie=async()=>{r.eval('STATE=doorrekenen(fixtureFaults,{actueel:true,peildatum:Date.parse("2026-01-02T06:00:00Z")})');};
+ await r.netwerkBewaarGrenzen([row('T1',0,10),row('T2',10,30)]);
+ assert.equal(r.eval('STATE.meldingen[0].netwerkschakel'),'T2');
+ assert.equal(r.eval('STATE.wegdelen.find(w=>w.netwerkschakel==="T2").N'),1);
+ const full=r.totaalExportBundle();assert.equal(full.netwerkschakels.oorspronkelijkeRijen[1]['HMP tot'],20);
+ assert.equal(full.netwerkschakels.rijen[1]['HMP tot'],30);
+ const merged=mergeImport(DEFAULT_STATE(),makeExport({...DEFAULT_STATE(),dvm:full},new Set(['netwerkschakels'])));
+ r.herstelNetwerkschakels(merged.dvm.netwerkschakels);assert.equal(r.koppelNetwerkschakel(asset('a',25)).schakel.code,'T2');
+ const saved=r.DVM_NETWERKSCHAKELS_STATE;
+ await assert.rejects(r.netwerkBewaarGrenzen([row('BAD','',10)]),/Ongeldige/);assert.equal(r.DVM_NETWERKSCHAKELS_STATE,saved);
+ r.herstelNetwerkschakels({bestand:'synthetic',rijen:full.netwerkschakels.oorspronkelijkeRijen});assert.ok(r.koppelNetwerkschakel(asset('a',25)).reden);
 });
 test('ongeldige matrix beschadigt de bestaande bron niet',()=>{
  const r=runtime(),before=r.DVM_NETWERKSCHAKELS_STATE;

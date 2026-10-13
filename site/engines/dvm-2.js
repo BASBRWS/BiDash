@@ -190,6 +190,7 @@ function pasAssetKoppelingToe(m,k){
   const a=k.asset;m.logWeg=m.weg;m.logRichting=m.richting;m.logHm=m.hm;
   m.assetKey=a.key;m.assetNaam=a.naam;m.assetEntityid=a.entityid;
   m.weg=a.weg||m.weg;m.richting=a.richting||m.richting;m.hm=a.hm!=null?a.hm:m.hm;
+  m.hectoletter=a.hectoletter||m.hectoletter||'';
   m.rd=a.rd||m.rd;m.district=a.district||m.district;m.districtBron=a.districtBron||m.districtBron;m.vc=a.vc||m.vc;
   m.rdX=a.rdX!=null?a.rdX:null;m.rdY=a.rdY!=null?a.rdY:null;
   m.assetBouwjaar=a.bouwjaar;m.assetEol=a.eolLevensduur;m.assetFabrikant=a.fabrikant;m.assetModel=a.model;
@@ -463,6 +464,7 @@ function analyseerAssetRegister(rijen,bestand){
     const bronRia4=tp==='DRIP'&&histBool(registerWaarde(row,['ria4','ria-4','ria 4']));
     assets.push({key,_assetKey:key,assetType:tp,tp,entityid,naam,asset:naam,code,strook,status,prognoseActief,
       rd:bestuur.rd,district:bestuur.district,districtBron:bestuur.districtBron,vc,weg:loc.weg,richting:loc.richting,hm:loc.hm,rdX,rdY,
+      hectoletter:String(registerWaarde(row,['hectoletter','hecto-letter','hm-letter'])||'').trim().toUpperCase(),
       ingebruikname:installatieBron.waarde,bouwjaar,bouwjaarBron:bouwjaar?installatieBron.kolom:'',eol,
       fabrikant,model,type:model,aannemer:contractCtx.aannemer,contract:contractCtx.contract,leverancier:contractCtx.leverancier,
       wind:bronWind,ria4:bronRia4,sourceWind:bronWind,sourceRia4:bronRia4,specialWind:bronWind,specialRia4:bronRia4});
@@ -879,6 +881,7 @@ function normRij(m){
     afgeleidUitHistorie:!!m._dripHistorieOpen,
     bronPeildatum:g('bronPeildatum')||null,
     bron:String(g('source_name')||g('bron')||m._bronBestand||''), locatieTekst, weg, richting, hm, strook, gevolg, melding,
+    hectoletter:String(g('hectoletter')||g('hecto-letter')||g('hm-letter')||'').trim().toUpperCase(),
     duurUren, dagen, tVan, tTot,
     /* Een storing die uit de nieuwe momentopname verdween is afgesloten op de
        peildatum van die lijst. De duur is dan een bovengrens, geen meting: het
@@ -2049,10 +2052,11 @@ function memoLiekeAssets(bron){
   if(bron&&bron.type==='drip-montecarlo'&&bron.mc&&Array.isArray(bron.mc.perDrip)){
     return memoLiekeDripPerDrip(bron.mc,bron).map(p=>p.d).filter(Boolean);
   }
+  if(window.netwerkschakelsActief?.())netwerkRegister();
   const assets=(ASSET_REGISTER_STATE&&ASSET_REGISTER_STATE.assets)||[];
   const scope=bron&&bron.scope?String(bron.scope):'landelijk';
   if(scope==='landelijk')return assets;
-  return assets.filter(a=>normAssetVc(a.vc)===scope);
+  return assets.filter(a=>normAssetVc(a.netwerkVc||a.vc)===scope);
 }
 function memoLiekeDienstRows(bron){
   const wds=memoLiekeWegdelen(bron);
@@ -2610,7 +2614,7 @@ function f71Iso(ms){return new Date(ms).toISOString().slice(0,10);}
 function f71Year(ms){const d=new Date(ms),y=d.getUTCFullYear();return y+(ms-Date.UTC(y,0,1))/(Date.UTC(y+1,0,1)-Date.UTC(y,0,1));}
 function f71Build(){
  const assets=[...new Map((ASSET_REGISTER_STATE?.assets||[]).filter(a=>a.tp==='MSI'&&a.prognoseActief).map(a=>[a.key,a])).values()],groups=new Map(),byRoad=new Map();
- for(const a of assets){const key=f71GroupKey(a);let g=groups.get(key);if(!g){g={key,weg:a.weg,richting:normAssetRichting(a.richting),vc:normAssetVc(a.vc),assets:[],events:[],cohorts:[]};groups.set(key,g);}g.assets.push(a);const rk=[a.weg,normAssetRichting(a.richting)].join('|');if(!byRoad.has(rk))byRoad.set(rk,[]);if(Number.isFinite(a.hm))byRoad.get(rk).push({hm:a.hm,key});}
+ for(const a of assets){const key=f71GroupKey(a);let g=groups.get(key);if(!g){g={key,weg:a.weg,richting:normAssetRichting(a.richting),vc:normAssetVc(a.netwerkVc||a.vc),assets:[],events:[],cohorts:[]};groups.set(key,g);}g.assets.push(a);const rk=[a.weg,normAssetRichting(a.richting)].join('|');if(!byRoad.has(rk))byRoad.set(rk,[]);if(Number.isFinite(a.hm))byRoad.get(rk).push({hm:a.hm,key});}
  byRoad.forEach(a=>a.sort((x,y)=>x.hm-y.hm));
  const seen=new Set(),diag={raw:0,duplicate:0,invalid:0,unmatched:0,matched:0,durations:0,years:assets.filter(a=>a.bouwjaar).length,explicit:0,assets:assets.length},sources=[];let first=Infinity,last=-Infinity;
  for(const b of STORINGSBRONNEN||[]){let from=Infinity,to=-Infinity;for(const r of b.rijen||[]){diag.raw++;const ms=parseDatum(r.start??r.Start??r.startdatum),loc=String(r.locatie||r.asset||'').toUpperCase(),m=loc.match(/\b([AN]\d+)\s*(LI|RE|L|R)\s+(\d+(?:[,.]\d+)?)/);if(!Number.isFinite(ms)||!m){diag.invalid++;continue;}const road=m[1],dir=normAssetRichting(m[2]),hm=Number(m[3].replace(',','.'));from=Math.min(from,ms);to=Math.max(to,ms);first=Math.min(first,ms);last=Math.max(last,ms);const signature=[road,dir,hm.toFixed(3),Math.round(ms/1000)].join('|');if(seen.has(signature)){diag.duplicate++;continue;}seen.add(signature);

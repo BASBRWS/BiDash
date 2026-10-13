@@ -47,18 +47,28 @@
     const S=state();if(!S)return null;
     const weg=road(a.weg),hm=number(a.hm),v=vc(a.vc),ri=normAssetRichting(a.richting);
     if(!weg||hm===null||!Number.isFinite(hm))return {reden:'Weg of hectometer ontbreekt'};
-    let candidates=S.schakels.filter(s=>s.weg===weg&&(!v||s.vc===v)&&(!s.richting||s.richting===ri)&&(!s.hectoletter||s.hectoletter===clean(a.hectoletter).toUpperCase())&&hm>=s.min&&hm<=s.max);
+    const onRoad=S.schakels.filter(s=>s.weg===weg),atHm=onRoad.filter(s=>hm>=s.min&&hm<=s.max);
+    const atSide=atHm.filter(s=>!s.richting||s.richting===ri);
+    let candidates=atSide.filter(s=>!s.hectoletter||s.hectoletter===clean(a.hectoletter).toUpperCase());
     // Een gedeelde grens hoort bij het vak dat op die HMP begint. Dit werkt ook
     // bij aflopende hectometrering. Overlap buiten een gedeelde grens blijft twijfel.
     candidates=candidates.filter(s=>!(hm===s.max&&candidates.some(t=>t!==s&&t.vc===s.vc&&t.min===hm&&t.max>hm&&t.richting===s.richting)));
-    const codes=new Set(candidates.map(s=>s.code));
-    if(codes.size===1)return {schakel:candidates[0],reden:''};
-    return {reden:codes.size?'Meerdere netwerkschakels passen':'Buiten matrix of afwijkende VC, zijde of hectoletter'};
+    const unique=rows=>[...new Map(rows.map(s=>[s.code,s])).values()];
+    const all=unique(candidates),regional=unique(candidates.filter(s=>s.vc===v));
+    // Een eenduidige fysieke locatie gaat vóór de administratieve bron-VC.
+    // VC mag alleen onderscheid maken tussen meerdere passende locaties.
+    const selected=all.length===1?all[0]:regional.length===1?regional[0]:null;
+    if(selected)return {schakel:selected,reden:'',methode:all.length===1?'Weg, HMP en zijde':'Weg, HMP, zijde en VC',
+      vcAfwijking:v&&v!==selected.vc?'Bron-VC '+v+', matrix-VC '+selected.vc:'',kandidaten:all};
+    const reden=all.length?'Meerdere netwerkschakels passen':!onRoad.length?'Weg ontbreekt in matrix':!atHm.length?'Hectometer valt buiten matrixgrenzen':!atSide.length?'Rijrichting wijkt af of ontbreekt':'Hectoletter wijkt af of ontbreekt';
+    return {reden,kandidaten:all.length?all:unique(atHm)};
   }
   function classify(a){
     const result=match(a);
     a.netwerkschakel=result?.schakel?.code||'';
     a.netwerkKoppeling=result?.reden||'';
+    a.netwerkVcAfwijking=result?.vcAfwijking||'';
+    a.netwerkVc=result?.schakel?.vc||'';
     a._netwerkSchakel=result?.schakel||null;
     a.netwerkGroep=state()?groupKey(a):'';
     a.netwerkLengte=result?.schakel?info(a).netwerkLengte:null;
@@ -122,7 +132,7 @@
   function reportHtml(){
     const rows=reportRows(),S=state();if(!S)return '<p>Laad de netwerkschakelmatrix via Bronbeheer om op netwerkschakels te rapporteren. Tot die tijd gebruikt de berekening de bestaande wegindeling.</p>';
     const rest=(typeof STATE==='undefined'?[]:STATE?.wegdelen||[]).filter(w=>!w.netwerkschakel);
-    return `<div class="card"><h3>Netwerkschakels uit de matrix</h3><p>Bron ${esc(S.bestand)}. ${rows.length} netwerkschakels. Rijrichtingen worden apart doorgerekend. Het schakelgemiddelde weegt met hetzelfde areaalgewicht als het netwerk. HMP-richting is geen rijrichting. Zonder gekoppeld areaal of actuele bron blijft het resultaat onbekend.</p><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Code</th><th>Netwerkschakel</th><th>VC</th><th>HMP-grenzen</th><th>Bronstatus</th><th>Actieve assets</th><th>Open herkende storingen</th><th>Niet doorgerekend</th><th>MSI beschikbaarheid</th>${DIENSTEN.map(d=>`<th>${esc(d.naam||d.id)}</th>`).join('')}<th>Kosten per brondag</th><th>Rekenverslag per richting</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.s.code)}</td><td>${esc(r.s.naam)}</td><td>${esc(r.s.vc)}</td><td>${S.schakels.filter(s=>s.code===r.s.code).map(s=>esc(s.van+' tot '+s.tot)).join('<br>')}</td><td>${esc(r.s.status)}<br>${esc(r.s.controlepunt)}</td><td>${r.assets}</td><td>${typeof STATE!=='undefined'&&STATE?.stats?.actueel?r.n+r.blinde:'Onbekend'}</td><td>${typeof STATE!=='undefined'&&STATE?.stats?.actueel?r.blinde:'Onbekend'}</td><td>${r.besch===null?'Onbekend':fmt(r.besch,2)+'%'}</td>${DIENSTEN.map(d=>`<td>${r.diensten[d.id]===null?'Onbekend':fmt(r.diensten[d.id],2)+'%'}</td>`).join('')}<td>${r.kosten===null?'Onbekend':kostenEuro(r.kosten)+(r.kostenCompleet?'':' bekend subtotaal')}</td><td>${r.parts.map(w=>`<button class="tb-btn" onclick="openNetwerkschakelVerslag('${encodeURIComponent(w.key).replace(/'/g,'%27')}')">${esc(w.richting||'Zijde onbekend')}</button>`).join('')||'Geen gekoppeld areaal'}</td></tr>`).join('')}</tbody></table></div><p>${rest.reduce((n,w)=>n+w.n,0)} doorgerekende meldingen vallen buiten een eenduidige netwerkschakelkoppeling. Ze blijven apart zichtbaar in de detailtabel en de kosten. Voorlopige grenzen blijven scenario-invoer. Dienstpercentages volgen de bestaande ketenformules, geen bewijs van volledige brondekking. De kosten zijn een som van richtingsscenario’s, controleer overlap.</p></div>`;
+    return `<div class="card"><h3>Netwerkschakels uit de matrix</h3><p><button type="button" onclick="openNetwerkschakelBeheer()">Koppelingen en grenzen controleren</button></p><p>Bron ${esc(S.bestand)}. ${rows.length} netwerkschakels. Rijrichtingen worden apart doorgerekend. Het schakelgemiddelde weegt met hetzelfde areaalgewicht als het netwerk. HMP-richting is geen rijrichting. Zonder gekoppeld areaal of actuele bron blijft het resultaat onbekend.</p><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Code</th><th>Netwerkschakel</th><th>VC</th><th>HMP-grenzen</th><th>Bronstatus</th><th>Actieve assets</th><th>Open herkende storingen</th><th>Niet doorgerekend</th><th>MSI beschikbaarheid</th>${DIENSTEN.map(d=>`<th>${esc(d.naam||d.id)}</th>`).join('')}<th>Kosten per brondag</th><th>Rekenverslag per richting</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.s.code)}</td><td>${esc(r.s.naam)}</td><td>${esc(r.s.vc)}</td><td>${S.schakels.filter(s=>s.code===r.s.code).map(s=>esc(s.van+' tot '+s.tot)).join('<br>')}</td><td>${esc(r.s.status)}<br>${esc(r.s.controlepunt)}</td><td>${r.assets}</td><td>${typeof STATE!=='undefined'&&STATE?.stats?.actueel?r.n+r.blinde:'Onbekend'}</td><td>${typeof STATE!=='undefined'&&STATE?.stats?.actueel?r.blinde:'Onbekend'}</td><td>${r.besch===null?'Onbekend':fmt(r.besch,2)+'%'}</td>${DIENSTEN.map(d=>`<td>${r.diensten[d.id]===null?'Onbekend':fmt(r.diensten[d.id],2)+'%'}</td>`).join('')}<td>${r.kosten===null?'Onbekend':kostenEuro(r.kosten)+(r.kostenCompleet?'':' bekend subtotaal')}</td><td>${r.parts.map(w=>`<button class="tb-btn" onclick="openNetwerkschakelVerslag('${encodeURIComponent(w.key).replace(/'/g,'%27')}')">${esc(w.richting||'Zijde onbekend')}</button>`).join('')||'Geen gekoppeld areaal'}</td></tr>`).join('')}</tbody></table></div><p>${rest.reduce((n,w)=>n+w.n,0)} doorgerekende meldingen vallen buiten een eenduidige netwerkschakelkoppeling. Ze blijven apart zichtbaar in de detailtabel en de kosten. Voorlopige grenzen blijven scenario-invoer. Dienstpercentages volgen de bestaande ketenformules, geen bewijs van volledige brondekking. De kosten zijn een som van richtingsscenario’s, controleer overlap.</p></div>`;
   }
   async function load(file){
     if(!window.XLSX)throw Error('De Excel-lezer is niet beschikbaar. Herlaad de pagina.');
@@ -155,7 +165,26 @@
   window.netwerkRapportRijen=reportRows;
   window.netwerkRapportHtml=reportHtml;
   window.leesNetwerkschakelBestand=load;
-  window.herstelNetwerkschakels=b=>{window.DVM_NETWERKSCHAKELS_STATE=b?parse(b.rijen,b.bestand):null;cache=null;window.invalidateDvmForecast?.();if(!b&&typeof ASSET_REGISTER_STATE!=='undefined')for(const a of ASSET_REGISTER_STATE?.assets||[])classify(a);};
+  window.exportNetwerkschakels=()=>{
+    const S=state();if(!S)return null;
+    return {bestand:S.bestand,rijen:S.rijen,...(S.oorspronkelijkeRijen?{oorspronkelijkeRijen:S.oorspronkelijkeRijen,aangepastOp:S.aangepastOp}:{})};
+  };
+  window.netwerkBewaarGrenzen=async rows=>{
+    const S=state();if(!S)throw Error('Laad eerst een netwerkschakelmatrix.');
+    const next=parse(rows,S.bestand);
+    next.oorspronkelijkeRijen=structuredClone(S.oorspronkelijkeRijen||S.rijen);
+    next.aangepastOp=new Date().toISOString();
+    window.DVM_NETWERKSCHAKELS_STATE=next;cache=null;window.invalidateDvmForecast?.();
+    await datasetNaMutatie('Netwerkschakelgrenzen aangepast; areaal en doorrekening opnieuw opgebouwd.');
+    if(parent!==window)parent.postMessage({type:'hub:changed',engine:'dvm',sourceSpecific:true,bron:'netwerkschakels',bestand:S.bestand},location.origin);
+    return next;
+  };
+  window.herstelNetwerkschakels=b=>{
+    const next=b?parse(b.rijen,b.bestand):null;
+    if(next&&b.oorspronkelijkeRijen){parse(b.oorspronkelijkeRijen,b.bestand);next.oorspronkelijkeRijen=structuredClone(b.oorspronkelijkeRijen);next.aangepastOp=clean(b.aangepastOp);}
+    window.DVM_NETWERKSCHAKELS_STATE=next;cache=null;window.invalidateDvmForecast?.();
+    if(!b&&typeof ASSET_REGISTER_STATE!=='undefined')for(const a of ASSET_REGISTER_STATE?.assets||[])classify(a);
+  };
   window.openNetwerkschakelVerslag=key=>{WV_SEL=decodeURIComponent(key);renderWegdeelverslag();toonTab('wegdeelverslag');};
   const render=renderWegdelen;
   renderWegdelen=function(){if(!STATE){document.getElementById('tab-wegdelen').innerHTML=reportHtml();return;}const result=render.apply(this,arguments);document.getElementById('tab-wegdelen')?.insertAdjacentHTML('afterbegin',reportHtml());return result;};

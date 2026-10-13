@@ -115,7 +115,7 @@ function routeLengthKm(assets,fallbackKm){
 function normalizeAsset(a){
   return {
     ...a,
-    weg:a?.weg||'Onbekend',richting:a?.richting||'',vc:a?.vc||'Onbekend'
+    weg:a?.weg||'Onbekend',richting:a?.richting||'',vc:a?.netwerkVc||a?.vc||'Onbekend'
   };
 }
 
