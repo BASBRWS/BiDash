@@ -14,7 +14,8 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   // Echte adapter, verrijking en statusfilters; uitsluitend de bronnen zijn synthetisch.
   await dvm.evaluate(()=>{
    ASSET_REGISTER_STATE={assets:Array.from({length:50000},(_,i)=>({key:'test:'+i,naam:'MSI '+i,tp:i===1||i===2?'DRIP':'MSI',weg:'A15',richting:'RE',hm:i/1000,vc:'ZWN',status:'Operationeel',prognoseActief:i!==0&&i!==49999,specialWind:i===1,specialRia4:i===2}))};
-   STATE={meldingen:Array.from({length:5000},(_,i)=>({eventId:'f:'+i,assetKey:'test:'+(45000+i),assetNaam:'MSI '+(45000+i),typeId:'MSI',weg:'A15',richting:'RE',hm:45+i/1000,vc:'ZWN',code:'1003',avail:100,perf:100,melding:'Lamp defect',duurUren:3})),nietDoorgerekend:[],wegdelen:[],peildatum:Date.UTC(2026,0,1),stats:{periodeUren:24}};
+   const bevestiging=new Date().toISOString();
+   STATE={meldingen:Array.from({length:5000},(_,i)=>({eventId:'f:'+i,assetKey:'test:'+(45000+i),assetNaam:'MSI '+(45000+i),typeId:'MSI',weg:'A15',richting:'RE',hm:45+i/1000,vc:'ZWN',code:'1003',avail:100,perf:100,melding:'Lamp defect',duurUren:3,levenscyclus_status:'OPEN_BEVESTIGD',laatste_gezien:bevestiging,bron_peildatum:bevestiging})),nietDoorgerekend:[],wegdelen:[],peildatum:Date.UTC(2026,0,1),stats:{periodeUren:24}};
    parent.postMessage({type:'hub:changed',engine:'dvm'},location.origin);
   });
   const cdp=await page.context().newCDPSession(page);await cdp.send('Emulation.setCPUThrottlingRate',{rate:4});

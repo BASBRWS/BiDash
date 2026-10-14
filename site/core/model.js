@@ -1,6 +1,6 @@
 import './import-known-json-fastpath.js';
 import './universal-importer.js';
-import './asset-register-special-filter.js?v=20261014-1151';
+import './asset-register-special-filter.js?v=20261014-1551';
 
 export const DVM_PARTS=['assetregister','netwerkschakels','storingshistorie','liveStoringen','dripHistorie','uRoutes','werkzaamheden','parameters','dripSelectie'];
 export const BI_RULE_KEYS=['config','configBron','richtlijnen','amRegels','impact','capgrens'];
@@ -20,6 +20,7 @@ export function makeExport(state,selection){
  if(state.dvm&&dvmKeys.length){
   const beheer=state.dvm.bronbeheer||{},bronbeheer={};
   if(selection.has('storingshistorie')&&selection.has('liveStoringen')&&beheer.signaalgeverTotaal)bronbeheer.signaalgeverTotaal=beheer.signaalgeverTotaal;
+  if(['storingshistorie','liveStoringen','dripHistorie'].some(k=>selection.has(k))&&beheer.levenscyclus)bronbeheer.levenscyclus=beheer.levenscyclus;
   if(selection.has('dripHistorie')&&beheer.dripTotaal)bronbeheer.dripTotaal=beheer.dripTotaal;
   parts.dvm={formaat:'DVM-dienstimpact-totaal',versie:54,exportSelectie:Object.fromEntries(DVM_PARTS.map(k=>[k,selection.has(k)])),...Object.fromEntries(dvmKeys.map(k=>[k,state.dvm[k]])),...(Object.keys(bronbeheer).length?{bronbeheer}:{})};
  }

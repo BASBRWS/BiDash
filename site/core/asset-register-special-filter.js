@@ -1,4 +1,4 @@
-import {OPERATIONAL_STATUS} from './asset-operational-status.js';
+import {OPERATIONAL_STATUS} from './asset-operational-status.js?v=20261014-1551';
 
 /* Alleen bediening. Status en speciale selectie worden in de gepagineerde
    presentatielijst toegepast; HUB.assets blijft het volledige bronregister. */
@@ -18,7 +18,7 @@ import {OPERATIONAL_STATUS} from './asset-operational-status.js';
   function statusControl(){
     const label=document.createElement('label');label.textContent='Operationele status';
     const select=document.createElement('select');select.id=IDS.status;
-    select.innerHTML=`<option value="">Alle statussen</option><option>${OPERATIONAL_STATUS.OPERATIONAL}</option><option>${OPERATIONAL_STATUS.FAULT_OUTAGE}</option><option>${OPERATIONAL_STATUS.NOT_OPERATIONAL}</option>`;
+    select.innerHTML=`<option value="">Alle statussen</option><option>${OPERATIONAL_STATUS.OPERATIONAL}</option><option>${OPERATIONAL_STATUS.FAULT_OUTAGE}</option><option>${OPERATIONAL_STATUS.NOT_OPERATIONAL}</option><option>${OPERATIONAL_STATUS.UNKNOWN}</option>`;
     select.addEventListener('change',rerender);label.append(select);return label;
   }
   function ensureControls(){

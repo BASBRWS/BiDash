@@ -108,6 +108,7 @@
       bron:row.bron||'Open-storingenmomentopname',wind:sp.wind,ria4:sp.ria4,
       matchMethode:resolved?.method||'',matchScore:resolved?.score||null
     };
+    if(globalThis.DVM_INCIDENT_LIFECYCLE)Object.assign(out,DVM_INCIDENT_LIFECYCLE.read(out,{peildatum:peil}));
     out.operationeleStatus=operationeleStatus(asset,out);
     return out;
   }

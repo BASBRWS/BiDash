@@ -1,5 +1,5 @@
 import {applyQuery} from './query-filter.js';
-import {operationalStatusForAsset} from './asset-operational-status.js';
+import {operationalStatusForAsset} from './asset-operational-status.js?v=20261014-1551';
 const yes=v=>v===true||v===1||/^(1|ja|yes|true|x)$/i.test(String(v??'').trim());
 
 const pause=()=>new Promise(resolve=>setTimeout(resolve,0));

@@ -14,6 +14,7 @@
         bron._signaalgeverBestand=status?.bestand||null;
       }
       bundle.bronbeheer={
+        levenscyclus:{versie:1,historieOmvatOokActieveIncidenten:true,totIsGeenBewezenHerstelZonderHersteldOp:true,dripEffectieveIncidenten:'dripHistorie.incidenten',bronnenZijnHerkomst:true},
         signaalgeverTotaal:lean?null:clone(status),
         dripTotaal:clone(window.__BIDASH_DRIP_TOTAAL__||null)
       };

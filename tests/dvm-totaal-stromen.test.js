@@ -26,7 +26,10 @@ async function load(r,records){const b=bundle(r,records);await r.pasSignaalgever
 
 test('oude MTM-uitsluiting verbergt Detectielus niet en de echte doorrekening voedt detectie',async()=>{
  const r=runtime(),b=await load(r,[alarm(),alarm({event_id:'CLOSED',eindstatus:'hersteld'}),alarm({event_id:'MSI-IGNORED',categorie:'MSI',unit:'MSI 1',description:'Lampcircuit',code:'1001'})]);
- assert.equal(b.open.length,1);
+ assert.equal(b.open.length,2);
+ assert.equal(b.open.find(x=>x.event_id==='MSI-IGNORED').bron_uitgesloten,true);
+ assert.equal(r.eval('STATE.nietDoorgerekend.length'),1);
+ assert.match(r.eval('STATE.nietDoorgerekend[0].rekenStatus'),/Uitgesloten bronregel/);
  const s=r.eval('STATE');assert.equal(s.meldingen.length,1);
  assert.equal(s.meldingen[0].typeId,'LUS');assert.equal(s.meldingen[0].assetKey,'L1');
  assert.equal(s.meldingen[0].avail,5,'25 procent foutimpact maal bestaand LUS-gewicht 0,2');

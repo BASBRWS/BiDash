@@ -1,3 +1,4 @@
+import './incident-lifecycle.js';
 export const DRIP_OPEN_VIRTUAL_KEY='__drip_open_from_history__';
 
 const OPEN_AT_SOURCE_END_TOLERANCE_MS=36*60*60*1000;
@@ -19,6 +20,7 @@ function sourceEnds(incidenten){
 
 export function isOpenDripIncident(x,sourceEnd=null){
   if(!x||typeof x!=='object')return false;
+  if(x.hersteld_op||['HERSTELD_BEVESTIGD','HERSTELD_AFGELEID'].includes(x.levenscyclus_status))return false;
   if(explicitOpenState(x))return true;
   // In de DRIP-historie wordt een ontbrekende eindtijd alleen als open
   // geïnterpreteerd wanneer ook geen afgeronde duur is vastgelegd.
@@ -56,7 +58,7 @@ function openIncidentKey(x){
   const weg=String(x?.weg||'').toUpperCase();
   const richting=String(x?.richting||'').toUpperCase();
   const hm=x?.hm??'';
-  return [id,vc,weg,richting,hm].join('|');
+  return [id,vc,weg,richting,hm,String(x?.conditie||'')].join('|');
 }
 
 /* Kies per open-sleutel het incident met de vroegste start (de meest volledige
@@ -89,6 +91,8 @@ export function dripOpenRow(x,index=0,plaats=null){
   const hm=x?.hm??p.hm??'';
   const vc=String(x?.vc||p.vc||'').trim();
   return {
+    ...globalThis.DVM_INCIDENT_LIFECYCLE.read({...x,_liveOpen:true},{peildatum:x?.bron_peildatum,now:x?.bron_peildatum||Date.now()}),
+    conditie:String(x?.conditie||''),
     event_id:`DRIP-OPEN-${code||'ONBEKEND'}-${x?.start||index}`,
     os_id:`DRIP ${identificatie}`,
     asset:`DRIP ${code||identificatie}`,
@@ -108,7 +112,7 @@ export function dripOpenRow(x,index=0,plaats=null){
     source_name:x?.sourceName||'',
     drip_code:code,
     storingsduur_uren:x?.duurUren??null,
-    duurBetrouwbaar:x?.duurBetrouwbaar!==false,
+    duurBetrouwbaar:false,
     bronPeildatum:iso(x?.einde),
     /* De functionele toestand en duurclassificatie bepalen in foutregel() de
        DRIP-impact (GESTOPT/IN-BEDRIJF, LANGDURIG/INTERMITTEREND). Zonder deze

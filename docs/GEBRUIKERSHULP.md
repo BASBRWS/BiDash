@@ -147,9 +147,9 @@ Naast een kant-en-klaar JSON-bestand kun je de ruwe storinglijsten rechtstreeks 
 
 De MTM-bron bevat zowel MSI- als detectoralarmen. De bronwoorden `lus`, `lussen`, `detectie`, `detector`, `detectielus`, `meetlus` en `inductielus` worden allemaal als **Detectielus** verwerkt. Intern gebruikt BiDash hiervoor de technische sleutel `LUS`. Deze sleutel voedt de schakel **detectie** binnen de subprocessen en dienstverlening. De bekende codes 1006, 1007 en 5004 gebruiken de ingestelde detectielusimpact. Een onbekende detectorcode blijft zichtbaar met de melding dat een passende foutregel ontbreekt. Leg daarvoor eerst een inhoudelijk onderbouwde LUS-regel vast; BiDash verzint geen impact.
 
-Bij een MTM-mapupdate gaan verdwenen MSI- en detectielusstoringen naar de historie. BiDash bewaart de laatste bewezen aanwezigheid en, bij voldoende korte afstand tussen de lijsten, het eerste afwezige meetmoment als bovengrens. Bij een datagat blijft het herstelmoment onbekend. Een onleesbaar of ongeldig bestand wordt niet als lege lijst verwerkt. Oude light-historie zonder VC, rijstrook en foutcode blijft behouden; de app kan die oude regels niet betrouwbaar vergelijken met rijkere nieuwe alarmen. Maak een handmatige export voor herstel na herladen, want zware signaalgeverrijen blijven buiten de compacte automatische opslag.
+Vanaf BiDash 2.56 / DVM 136 worden waarneming en herstel afzonderlijk vastgelegd. Een verdwenen melding is na één volledige MTM-snapshot nog niet hersteld. Pas twee volledige opeenvolgende snapshots zonder de melding geven **Herstel afgeleid**; de exacte hersteltijd blijft leeg. Bij een tijdgat, onvolledige snapshot of verdachte volumedaling blijft de toestand onbekend. Oude light-historie zonder VC, rijstrook of foutcode blijft behouden met haar onzekerheid. Maak een handmatige totaalexport voor herstel na herladen, want zware signaalgeverrijen blijven buiten de compacte automatische opslag.
 
-Bij het vervangen van een losse actuele lijst geldt de bestaande regel. Verdwijnt een MSI-storing uit de nieuwe momentopname, dan sluit BiDash die af op de peildatum van die lijst. De hersteltijd die daaruit volgt is een bovengrens: het herstel lag ergens tussen de vorige en de nieuwe lijst. Zo'n duur telt daarom niet mee in de herstelduurstatistiek en in de prognose, en wordt in memo's gemarkeerd als afgeleid. Laad je vaker een actuele lijst, dan worden die bovengrenzen scherper.
+Bij een losse actuele XLSX/XLS/CSV-lijst blijft een verdwenen melding zichtbaar als **Onbekend door brongat** en eenmaal in de historie. Een volgende import wist die onzekerheid niet. Verschijnt dezelfde melding opnieuw, dan wordt haar toestand bijgewerkt. Een onleesbaar bestand breekt de bestandenset af en behoudt de vorige stand.
 
 ### DRIP-storingshistorie: totaal-JSON of CDMS-map
 
@@ -186,16 +186,18 @@ Belangrijk: een voortgangsbalk voorkomt niet dat een zeer grote XML- of spreadsh
 
 De invoer Open storingen accepteert XLSX, XLS en CSV met herkenbare DVM-storingsregels. De gekozen lijst is een volledige nieuwe momentopname en vervangt de vorige actuele lijst, ook als de bestandsnaam anders is.
 
-BiDash vergelijkt de vorige en nieuwe momentopname. Een event-id heeft voorrang als identiteit. Zonder event-id gebruikt BiDash een stabiele combinatie van asset, starttijd, weg, richting, hectometer, strook, foutcode, melding en gevolg.
+BiDash vergelijkt de volledige vorige en nieuwe momentopname. De identiteit bevat VC, type, locatie, strook, foutcode en start, ook wanneer een event-ID aanwezig is. Een dubbele bron-ID op een andere locatie is daardoor niet automatisch hetzelfde incident.
 
 | Situatie | Actie |
 | --- | --- |
-| Storing staat in oude en nieuwe lijst | Blijft actueel open |
-| Storing staat alleen in nieuwe lijst | Wordt een nieuwe actuele open storing |
-| MSI-storing stond in oude lijst en ontbreekt in nieuwe lijst | Wordt afgesloten op de peildatum van de nieuwe lijst en toegevoegd aan storingshistorie |
-| Afgesloten storing staat al in historie | Niet opnieuw toevoegen |
+| Melding aanwezig in de bron | Bewaart werkelijke laatste waarneming en bronpeildatum |
+| Melding ontbreekt in een losse nieuwe lijst | Blijft zichtbaar als onbekend, herstel onbevestigd |
+| Melding ontbreekt eenmaal in volledige MTM-snapshot | Eenmaal afwezig, herstel onbevestigd |
+| Melding ontbreekt tweemaal achtereen in volledige MTM-snapshots | Herstel afgeleid, uitsluitend een herstelvenster |
+| Passende expliciete CDMS OK/AAN-melding | Hersteld met werkelijk bronmoment |
+| Bron ontbreekt of is onvolledig | Geen automatische herstelconclusie |
 
-Automatisch afgesloten MSI-storingen gaan alleen naar de historische stroom. De actuele dashboards gebruiken alleen de nieuwe open momentopname.
+De storingslijst toont technische meldingen en unieke geraakte assets apart, met type, toestand, laatste waarneming en bronpeildatum. Meerdere codes op één MSI zijn meerdere meldingen op één asset. SYSTEEM en onbekende categorieën blijven apart zichtbaar. Bij **Bronbewaking instellen** kun je de standaard 48 uur voor verouderde bevestiging en zes uur tussen volledige MTM-snapshots aanpassen. De instellingen gaan mee met Parameters. Een verouderde of onzekere melding bewijst geen gezonde asset en geen exact actueel beschikbaarheidspercentage. Ontbrekende bronhistorie kan de app niet achteraf reconstrueren.
 
 ## Filter wat meetelt in het actuele overzicht
 
@@ -229,9 +231,9 @@ Daarom hoeven bijvoorbeeld 657 open bronregels niet gelijk te zijn aan 657 doorg
 
 Het filter bewaart uitsluitingen in plaats van een vaste lijst met toegestane waarden. Daardoor telt een nieuwe, nog niet eerder geziene waarde in een volgende storingslijst standaard wél mee. Het filter blijft staan als je een nieuwe momentopname laadt en reist mee wanneer je de DVM-parameters in een totaalexport opneemt.
 
-![De volledige actuele momentopname gaat zowel naar de snapshot- en historielogica als naar het gebruikersfilter. Alleen de tweede route wordt gefilterd; de A-B-vergelijking en automatische MSI-historisering blijven altijd op de volledige bron werken.](afbeeldingen/storingsfilter-flow.svg)
+![De volledige actuele momentopname gaat zowel naar de snapshot- en historielogica als naar het gebruikersfilter. Alleen de tweede route wordt gefilterd; de A-B-vergelijking en historisering van onzekere meldingen blijven altijd op de volledige bron werken.](afbeeldingen/storingsfilter-flow.svg)
 
-Belangrijk: het filter verwijdert niets uit de geladen bronlijst. De vergelijking tussen oude lijst A en nieuwe lijst B gebruikt altijd de volledige momentopnamen. Een MSI-storing die uit B verdwijnt kan dus nog steeds correct worden afgesloten en aan de historie worden toegevoegd, ook wanneer die storing in het actuele overzicht was uitgefilterd. Historische analyses en prognosekalibratie worden eveneens niet door dit live-overzichtsfilter gewijzigd.
+Belangrijk: het filter verwijdert niets uit de geladen bronlijst. De vergelijking tussen oude lijst A en nieuwe lijst B gebruikt altijd de volledige momentopnamen. Een melding die uit B verdwijnt blijft dus herkenbaar als onbekend en wordt aan de historie toegevoegd, ook wanneer die storing in het actuele overzicht was uitgefilterd. Historische analyses en prognosekalibratie worden eveneens niet door dit live-overzichtsfilter gewijzigd.
 
 ## Hoofdproces en logische architectuur
 
