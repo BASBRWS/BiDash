@@ -1,0 +1,13 @@
+# BiDash 2.47 / DVM 128, actuele NDW ophalen
+
+Bronbeheer heeft op de meetlocatie- en trafficspeedkaart de knop **Haal laatste NDW op**. Dezelfde knop staat in het verkeerskostenoverzicht. Die laadt een gecombineerde openbare NDW DATEX II v3-feed met meetlocaties, snelheden en intensiteiten. Losse uploads en het ophalen uit de lokale werkruimte blijven beschikbaar.
+
+De NDW-bron gaf bij controle geen CORS-toestemming voor direct lezen vanuit het dashboard. De Pages-workflow haalt daarom uitsluitend de vaste openbare feed op bij websitepublicatie en op een vijfminutenschema. Gzip en een bronmanifest gaan alleen naar het Pages-artifact; er komen geen gebruikersgegevens of NDW-bronbestanden in Git. Er is geen derdepartijproxy, accounttoken of browserupload toegevoegd. De hoofdschil behoudt connect-src none; het DVM-frame laat uitsluitend verbindingen met de eigen origin toe.
+
+De knop controleert bron, omvang, SHA-256 en meettijd vóór toepassen. Een kopie ouder dan dertig minuten wordt geweigerd. Fouten behouden de vorige geladen meting. Bij een mislukte verversing kan een aantoonbaar geldige vorige openbare kopie worden gebruikt, met behoud van de oorspronkelijke tijden en een zichtbare melding. Dubbele NDW-acties worden geblokkeerd. Gzip en XML worden bij automatisch ophalen in blokken verwerkt, inclusief de XML-namespaces van DATEX II v3.
+
+De bronkaarten tonen meettijd, openbare ophaaltijd en ouderdom. De verkeerssnapshot bewaart de ophaalherkomst en neemt deze mee in de bestaande parameter- en totaalexport. Voorgestelde meetlocaties vragen dezelfde controle als bij een upload. Het NDW-meetmoment blijft apart van de storingspeildatum. Hinderuren en snelheidsreductie blijven scenario-invoer.
+
+Beperking: vijf minuten is het geplande schema, geen garantie op de nieuwste NDW-minuut. GitHub kan geplande runs vertragen of overslaan; publieke schema's stoppen na zestig dagen zonder repositoryactiviteit. De werkelijke ouderdom staat in de app. De Pages-workflow kan handmatig worden gestart. De eerste openbare kopie verschijnt na merge en geslaagde websitepublicatie. De productieplanning van GitHub Actions is vóór merge niet live gevalideerd.
+
+Validatie: 422 unit-/regressietests en zes offline Python-cachescenario's geslaagd. De nieuwe browserketen controleert beide bronknoppen, v3-namespaces, streaming, versheid, hash, onvolledige download, foutbehoud, blokkering van een parallelle upload en herkomst in export. Een lokale proef met de actuele openbare NDW-feed via de echte knop slaagde. De bestaande browsersuite voor planning en NDW en de netwerkschakel-browserketen slaagden. Syntaxcontrole en git diff --check geslaagd. Alleen synthetische fixtures in tests; geen gebruikersdata of afgeleide operationele tellingen gepubliceerd.

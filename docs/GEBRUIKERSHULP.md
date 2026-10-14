@@ -464,3 +464,13 @@ Open Bronbeheer, Netwerkschakelmatrix en kies **Koppelingen en grenzen controler
 Zoek een weg, code of naam in de grensregels. Corrigeer de gecontroleerde HMP-grenzen of VC. Voeg Zijde en Hectoletter toe waar de bron die gebruikt. Voeg een ontbrekend vak toe met een eigen code en naam; meerdere grensregels bij dezelfde code moeten dezelfde weg, VC en naam hebben. HMP-richting uit Excel is geen bewijs voor LI of RE. Kies **Opslaan en opnieuw doorrekenen**. Ongeldige invoer vervangt de vorige matrix niet.
 
 De grenscorrectie geldt voor areaal, storingen en afhankelijke rapportages. Handmatige grenzen blijven herkenbaar als niet NWB-gecontroleerd. Je kunt de oorspronkelijke Excel-grenzen herstellen. Je Excel op schijf verandert niet. Maak een totaalexport met Netwerkschakelmatrix aangevinkt; die bewaart zowel de correcties als de oorspronkelijke grenzen. Een nieuwe Excel-upload vervangt de lokale correcties.
+
+## Actuele NDW ophalen, BiDash 2.47 / DVM 128
+
+Laad jouw Assetregister / All Assets. Open Data & export, Bronbeheer. Kies bij NDW meetlocaties of NDW trafficspeed **Haal laatste NDW op**. De knop staat ook in het verkeerskostenoverzicht. De app haalt meetlocaties, snelheden en intensiteiten samen op; je hoeft daarvoor geen twee bestanden te kiezen.
+
+De openbare NDW-kopie wordt gepland elke vijf minuten ververst. Op de kaart staan de NDW-meettijd, de ophaaltijd en de ouderdom. GitHub kan de verversing vertragen; de knop haalt dus de laatste gepubliceerde kopie op, niet rechtstreeks de nieuwste minuut bij NDW. Een kopie ouder dan dertig minuten wordt geweigerd. Bij een mislukte download blijft de vorige geladen meting staan. Als een vorige openbare kopie wordt gebruikt, staat dat erbij.
+
+De eerste kopie verschijnt na merge en geslaagde websitepublicatie. Als verversing stopt kan de beheerder bij GitHub Actions de workflow Business Intelligence Dashboard WVM handmatig uitvoeren. Geplande runs kunnen in een publieke repository stoppen na zestig dagen zonder repositoryactiviteit. Zelf bestanden laden blijft beschikbaar.
+
+Controleer na ophalen de voorgestelde meetlocaties. Een andere meting kan een bestaande locatiebevestiging ongeldig maken. Actuele NDW en een oudere storingspeildatum zijn verschillende momenten; dat verschil staat bij de verkeerskosten. Hinderuren en snelheidsreductie blijven scenario-invoer. De verkeerssnapshot en ophaalherkomst gaan mee in de totaalexport met Parameters. Jouw eigen bestanden worden niet naar NDW of GitHub gestuurd.

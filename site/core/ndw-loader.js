@@ -9,8 +9,8 @@ const PATCH_SOURCE=String.raw`
 
   function loaderHtml(){
     return '<div class="bidash-ndw-loader" style="margin:12px 0;padding:12px;background:#fff;border:1px solid #b7c9d8;border-radius:6px">'
-      +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button type="button" class="tb-btn primary" id="bidashNdwLoadButton" onclick="bidashLaadNdw()">Gebruik NDW uit werkruimte</button><button type="button" class="tb-btn" id="bidashNdwChooseButton" onclick="bidashKiesNdwBestand()">Kies export met NDW</button></div>'
-      +'<p class="muted" style="margin:8px 0 0">Voor de verkeerskosten wordt NDW-verkeersintensiteit gebruikt. Dit is een andere bron dan de NDW CMDB-import van MSI- en DRIP-areaal. Laad in Bronbeheer eerst NDW meetlocaties en daarna NDW trafficspeed. Dat mag ook andersom of via één selectie. De bestandsnaam hoeft niet exact measurement_current.xml.gz te zijn; de app herkent gzip en de XML-inhoud. DATEX II v3 via het gecombineerde snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz blijft ook bruikbaar.</p>'
+      +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button type="button" class="tb-btn primary" id="bidashNdwLatestButton" onclick="bidashHaalLaatsteNdw().catch(error=>alert(error.message))">Haal laatste NDW op</button><button type="button" class="tb-btn primary" id="bidashNdwLoadButton" onclick="bidashLaadNdw()">Gebruik NDW uit werkruimte</button><button type="button" class="tb-btn" id="bidashNdwChooseButton" onclick="bidashKiesNdwBestand()">Kies export met NDW</button></div>'
+      +'<p class="muted" style="margin:8px 0 0">Voor de verkeerskosten wordt NDW-verkeersintensiteit gebruikt. Dit is een andere bron dan de NDW CMDB-import van MSI- en DRIP-areaal. Kies Haal laatste NDW op voor de openbare kopie met meetlocaties, snelheden en intensiteiten. Die kopie wordt gepland elke vijf minuten ververst; de meettijd blijft zichtbaar. Je kunt ook zelf bestanden laden, eerst NDW meetlocaties en daarna NDW trafficspeed. Dat mag ook andersom of via één selectie. De bestandsnaam hoeft niet exact measurement_current.xml.gz te zijn; de app herkent gzip en de XML-inhoud. DATEX II v3 via het gecombineerde snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz blijft ook bruikbaar.</p>'
       +'<p class="muted" style="margin:6px 0 0"><b>Let op:</b> NDW levert het voertuigaantal. De standaard 6 hinderuren en 30% snelheidsreductie zijn scenarioaannames en geen NDW-metingen. Controleer die per wegdeel als je kosten gebruikt.</p>'
       +'<input id="bidashNdwSourceFile" type="file" accept=".xml,.gz,.json,.html,.htm" multiple style="display:none" onchange="bidashNdwBestand(this)">'
       +'<div id="bidashNdwProgress" style="margin-top:8px;display:none"><div style="height:8px;background:#dbe5ec;border-radius:6px;overflow:hidden"><span id="bidashNdwProgressBar" style="display:block;height:100%;width:0;background:#007bc7;transition:width .15s"></span></div><div id="bidashNdwProgressLabel" style="font-size:12px;margin-top:5px">Nog niet gestart</div></div>'
@@ -29,9 +29,13 @@ const PATCH_SOURCE=String.raw`
     if(root)root.style.display='block';
     if(bar){bar.style.width=Math.max(0,Math.min(100,Number(pct)||0))+'%';bar.style.background=error?'#d52b1e':'#007bc7';}
     if(text)text.textContent=label||'';
+    document.querySelectorAll('[data-ndw-latest-status]').forEach(el=>{el.textContent=label||'';});
     if(typeof zetImportVoortgang==='function')zetImportVoortgang(loadName,pct,label,{actief:Number(pct)<100,fout:!!error,direct:true});
   }
-  function buttonBusy(busy){for(const id of ['bidashNdwLoadButton','bidashNdwChooseButton']){const b=document.getElementById(id);if(b)b.disabled=!!busy;}}
+  function buttonBusy(busy){
+    for(const id of ['bidashNdwLoadButton','bidashNdwChooseButton','bidashNdwLatestButton']){const b=document.getElementById(id);if(b)b.disabled=!!busy;}
+    document.querySelectorAll('[data-ndw-latest]').forEach(b=>b.disabled=!!busy);
+  }
   function hasValue(v){return v!==''&&v!==null&&v!==undefined&&Number.isFinite(Number(v));}
   function pause(){return new Promise(resolve=>setTimeout(resolve,0));}
 
@@ -267,39 +271,64 @@ const PATCH_SOURCE=String.raw`
       while(text.length<262144){const r=await reader.read();if(r.done)break;text+=r.value||'';}
     }finally{try{await reader.cancel();}catch(error){}}
     const lower=text.toLowerCase();
-    const hasConfig=lower.includes('measurementsitetablepublication')||lower.includes('<measurementsiterecord');
-    const hasTraffic=lower.includes('measureddatapublication')||lower.includes('<sitemeasurements')||lower.includes('<vehicleflowrate');
+    const hasConfig=lower.includes('measurementsitetablepublication')||/<(?:[\w.-]+:)?measurementsite(?:record)?\b/i.test(text);
+    const hasTraffic=lower.includes('measureddatapublication')||lower.includes('<sitemeasurements')||lower.includes('<vehicleflowrate')||String(file.name).includes('meetgegevens_en_configuratie_meetlocaties');
     const kind=hasConfig&&hasTraffic?'combined':hasConfig?'config':hasTraffic?'traffic':'unknown';
     return {file,kind,gzip:opened.gzip,head:text};
   }
   async function ndwScanXmlBlocks(file,tag,onBlock,onTick){
     const opened=await ndwOpenTextReader(file),reader=opened.reader;
     const startRe=new RegExp('<(?:[\\w.-]+:)?'+tag+'\\b','i'),endRe=new RegExp('<\\/(?:[\\w.-]+:)?'+tag+'>','i');
-    let buffer='',header='',publication='',count=0;
+    let buffer='',header='',publication='',count=0,timeCarry='',namespaces={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance'};
     while(true){
       const r=await reader.read();if(r.done)break;
       const part=r.value||'';buffer+=part;
-      if(!publication&&header.length<262144){header+=part;const pm=header.match(/<(?:[\\w.-]+:)?publicationTime\\b[^>]*>([^<]+)</i);if(pm)publication=pm[1].trim();}
+      if(header.length<262144){
+        header+=part;
+        for(const m of header.matchAll(/\b(xmlns(?::[\w.-]+)?)\s*=\s*["']([^"']+)["']/g))namespaces[m[1]]=m[2];
+      }
+      const times=timeCarry+part;timeCarry=times.slice(-512);
+      for(const m of times.matchAll(/<(?:[\w.-]+:)?publicationTime\b[^>]*>([^<]+)</ig)){
+        const t=m[1].trim();if(Number.isFinite(Date.parse(t))&&(!publication||Date.parse(t)>Date.parse(publication)))publication=t;
+      }
       while(true){
         const sm=startRe.exec(buffer);
         if(!sm){if(buffer.length>1024)buffer=buffer.slice(-1024);break;}
         const from=sm.index,tail=buffer.slice(from),em=endRe.exec(tail);
         if(!em){if(from>0)buffer=buffer.slice(from);break;}
         const end=from+em.index+em[0].length,block=buffer.slice(from,end);
-        await onBlock(block,count++);buffer=buffer.slice(end);
+        await onBlock(block,count++,namespaces);buffer=buffer.slice(end);
         if(count%250===0){if(onTick)onTick(count);await pause();}
       }
     }
     if(startRe.test(buffer))throw new Error('NDW XML bevat een onvolledig '+tag+'-blok. Kies een volledig gedownload bestand.');
     return {count,publication,gzip:opened.gzip};
   }
-  function ndwFragmentDoc(block){
-    return ndwParseDoc('<root xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'+block+'</root>');
+  function ndwFragmentDoc(block,namespaces={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance'}){
+    const attr=v=>String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    return ndwParseDoc('<root '+Object.entries(namespaces).map(([k,v])=>k+'="'+attr(v)+'"').join(' ')+'>'+block+'</root>');
+  }
+  async function ndwCombinedStream(file){
+    const configs=new Map(),sites=[];
+    setProgress(20,'NDW meetlocaties lezen uit het gecombineerde bestand.');
+    const configStat=await ndwScanXmlBlocks(file,'measurementSite(?:Record)?',async(block,count,ns)=>{
+      const info=ndwConfigUitDoc(ndwFragmentDoc(block,ns));
+      for(const [id,cfg] of info.configs)configs.set(id,cfg);
+    },count=>setProgress(Math.min(45,20+count/1200),'Meetlocaties verwerken: '+count.toLocaleString('nl-NL')));
+    if(!configs.size)throw new Error('Het gecombineerde NDW-bestand bevat geen meetlocaties.');
+    setProgress(48,'NDW snelheden en intensiteiten lezen.');await pause();
+    const trafficStat=await ndwScanXmlBlocks(file,'siteMeasurements',async(block,count,ns)=>{
+      const info=ndwMetingenUitDoc(ndwFragmentDoc(block,ns),configs,'NDW DATEX II gecombineerd bestand');
+      sites.push(...info.sites);
+    },count=>setProgress(Math.min(82,48+count/900),'Verkeersmetingen verwerken: '+count.toLocaleString('nl-NL')));
+    return ndwSnapshotUitOnderdelen({configs,publication:configStat.publication},
+      {sites,measurementSites:{length:trafficStat.count},publication:trafficStat.publication},
+      [file.name],[await ndwCompressedHash(file)],'NDW DATEX II gecombineerd bestand');
   }
   async function ndwV23ConfigStream(file){
     const configs=new Map();let publication='';
-    const stat=await ndwScanXmlBlocks(file,'measurementSiteRecord',async block=>{
-      const info=ndwConfigUitDoc(ndwFragmentDoc(block));
+    const stat=await ndwScanXmlBlocks(file,'measurementSite(?:Record)?',async(block,count,ns)=>{
+      const info=ndwConfigUitDoc(ndwFragmentDoc(block,ns));
       for(const [id,cfg] of info.configs)configs.set(id,cfg);
       if(info.publication)publication=info.publication;
     },count=>setProgress(Math.min(38,8+count/1200),'Meetlocatietabel lezen: '+count.toLocaleString('nl-NL')+' locaties'));
@@ -308,8 +337,9 @@ const PATCH_SOURCE=String.raw`
   }
   async function ndwV23TrafficStream(file,configs){
     const sites=[];let publication='';
-    const stat=await ndwScanXmlBlocks(file,'siteMeasurements',async block=>{
-      const info=ndwMetingenUitDoc(ndwFragmentDoc(block),configs,'NDW DATEX II v2.3: trafficspeed + measurement_current');
+    const stat=await ndwScanXmlBlocks(file,'siteMeasurements',async(block,count,ns)=>{
+      const sourceLabel=Object.values(ns).some(v=>String(v).includes('/schema/3/'))?'NDW DATEX II v3: snelheden en intensiteiten + meetlocaties':'NDW DATEX II v2.3: trafficspeed + measurement_current';
+      const info=ndwMetingenUitDoc(ndwFragmentDoc(block,ns),configs,sourceLabel);
       if(info.sites.length)sites.push(...info.sites);
       if(info.publication)publication=info.publication;
     },count=>setProgress(Math.min(82,45+count/900),'Trafficspeed lezen: '+count.toLocaleString('nl-NL')+' meetlocaties'));
@@ -479,6 +509,55 @@ const PATCH_SOURCE=String.raw`
     if(!input){setProgress(100,'Bestandskiezer voor NDW is niet beschikbaar. Herlaad de pagina.',true);return;}
     input.value='';
     input.click();
+  };
+
+  globalThis.bidashHaalLaatsteNdw=async function(){
+    if(loading)throw new Error('Een NDW-bron wordt nog verwerkt. Wacht tot deze klaar is.');
+    loading=true;loadName='Actuele NDW ophalen';buttonBusy(true);
+    globalThis.__BIDASH_LAST_NDW_ERROR__=null;
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
+    const options={method:'GET',cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',redirect:'error',signal:controller.signal};
+    const SOURCE='https://opendata.ndw.nu/snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz';
+    try{
+      setProgress(2,'Laatste gepubliceerde NDW-kopie zoeken.');
+      const meta=await fetch('../ndw/latest.json',options);
+      if(!meta.ok)throw new Error('De actuele NDW-kopie is nog niet beschikbaar. Probeer later opnieuw of laad zelf een bestand.');
+      const manifest=await meta.json(),pub=Date.parse(manifest.publication),retrieved=Date.parse(manifest.downloadedAt);
+      if(manifest.schema!==1||manifest.status!=='ready')throw new Error('NDW kon bij de laatste verversing niet worden opgehaald. De vorige geladen meting blijft staan.');
+      if(manifest.source!==SOURCE||!/^[a-f0-9]{64}$/.test(manifest.sha256||'')||manifest.file!=='snapshot-'+manifest.sha256+'.xml.gz'||!Number.isInteger(manifest.bytes)||manifest.bytes<1||manifest.bytes>25*1024*1024)throw new Error('De NDW-kopie heeft een ongeldig bronmanifest.');
+      if(!Number.isFinite(pub)||!Number.isFinite(retrieved)||Date.now()-pub>30*60000||pub-Date.now()>5*60000||retrieved-Date.now()>5*60000)throw new Error('De NDW-kopie is niet actueel, ouder dan 30 minuten of heeft een ongeldige tijd. De vorige meting blijft staan.');
+      const current=typeof ndw69Data==='function'?ndw69Data():null;
+      if(current?.online&&Date.parse(current.publication)>pub)throw new Error('De aangeboden NDW-kopie is ouder dan de al geladen meting. De nieuwere meting blijft staan.');
+      setProgress(5,'NDW meetlocaties, snelheden en intensiteiten downloaden.');
+      const response=await fetch('../ndw/'+manifest.file,options);
+      if(!response.ok)throw new Error('De NDW-kopie kon niet volledig worden opgehaald. Probeer opnieuw.');
+      const chunks=[];let size=0;
+      const reader=response.body.getReader();
+      while(true){
+        const part=await reader.read();if(part.done)break;
+        size+=part.value.length;
+        if(size>manifest.bytes){await reader.cancel();throw new Error('NDW-download wijkt af van het bronmanifest.');}
+        chunks.push(part.value);
+        setProgress(5+Math.min(13,13*size/manifest.bytes),'NDW downloaden, '+Math.round(100*size/manifest.bytes)+' procent.');
+      }
+      if(size!==manifest.bytes)throw new Error('NDW-download is onvolledig. De vorige meting blijft staan.');
+      clearTimeout(timer);
+      const file=new File(chunks,'snelheden_en_intensiteiten_meetgegevens_en_configuratie_meetlocaties.xml.gz',{type:'application/gzip'});
+      if(!globalThis.crypto?.subtle||await ndwCompressedHash(file)!==manifest.sha256)throw new Error('NDW-download heeft een afwijkende vingerafdruk. Probeer opnieuw.');
+      const snapshot=await ndwCombinedStream(file);
+      if(Date.parse(snapshot.publication)!==pub)throw new Error('De NDW-meettijd wijkt af van het bronmanifest.');
+      snapshot.online={source:SOURCE,downloadedAt:manifest.downloadedAt,fetchedAt:new Date().toISOString(),retained:manifest.retained===true,refreshMinutes:5};
+      await applySnapshot(snapshot,'NDW Open Data, automatisch opgehaald');
+      globalThis.__BIDASH_NDW_PENDING_V23__=null;globalThis.__BIDASH_LAST_NDW_PENDING__=null;
+      if(typeof renderDatasetBeheer==='function')renderDatasetBeheer();
+      const age=Math.max(0,Math.round((Date.now()-pub)/60000));
+      setProgress(100,'NDW geladen. Publicatie '+new Date(pub).toLocaleString('nl-NL',{timeZone:'Europe/Amsterdam'})+', '+age+' minuten oud. '+(manifest.retained?'De laatste verversing mislukte; de vorige geldige openbare kopie is gebruikt. ':'')+'Locaties en metingen zijn samen geladen. Controleer de locatiekeuzes voor de verkeerskosten.');
+      return globalThis.__BIDASH_LAST_NDW_LOAD__;
+    }catch(error){
+      const message=error.name==='AbortError'?'NDW ophalen duurde te lang. Probeer opnieuw.':error.message||String(error);
+      globalThis.__BIDASH_LAST_NDW_ERROR__={kind:'traffic',message,bestand:loadName};setProgress(100,message,true);
+      throw new Error(message);
+    }finally{clearTimeout(timer);loading=false;buttonBusy(false);}
   };
 
   globalThis.bidashLaadNdwFiles=async function(files,expectedKind){
