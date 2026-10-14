@@ -4,7 +4,7 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='132';
+  const DVM_VERSION='133';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     netwerkschakels:{input:'netwerkschakelInput',label:'Netwerkschakelmatrix laden',multiple:false,requiresAsset:false,handler:'leesNetwerkschakels',accept:'.xlsx,.xls'},
@@ -220,7 +220,7 @@
       '<div>'+(s.historie||0).toLocaleString('nl-NL')+' historisch ('+(s.herkendHist||0).toLocaleString('nl-NL')+' herkend)</div>'+
       (laatste?'<div>Laatste entry '+laatste+'</div>':'')+(peil?'<div>Peildatum open '+peil+'</div>':'')+'</div>';
     return samenvatting+regioUpdatesHtml(s.laatstePerVc)+
-      '<div class="dataset-meta-note">Voedt zowel het actuele dashboard als de prognose; vervangt de losse Open storingen en Storingshistorie.</div>';
+      '<div class="dataset-meta-note">Voedt het actuele dashboard en de prognose. De mapimport werkt per VC bij en voegt overlappende meldingen samen. JSON laden vervangt de signaalgeverbron.</div>';
   }
 
   /* De DRIP-totaalkaart toont de actuele DRIP-storingshistorie. Na een JSON- of

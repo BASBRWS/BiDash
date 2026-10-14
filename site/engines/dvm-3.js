@@ -644,6 +644,7 @@ function signaalgeverOpenRij(a){
      een passende foutregel bestaat. */
   const eenheid=a.unit||a.asset||a.signaalgever||'';
   return {
+    _mtmSleutel:a._syncKey||'',
     event_id:String(a.event_id||a.event_key||''),
     foutcode:String(a.code||a.foutcode||''),
     melding:[a.description||a.omschrijving,a.categorie,eenheid].map(v=>String(v||'').trim()).filter(Boolean).join(' · '),
@@ -672,6 +673,10 @@ function signaalgeverHistorieRij(s){
   const impact=s.impactklassen||s.impactklasse||'';
   const duur=s.incident_venster_uur||s.duur_min_uur||s.totale_storingsduur_uur||'';
   return {
+    _mtmSleutel:s._syncKey||'',
+    _mtmKwaliteit:String(s.kwaliteitsstatus||''),
+    _mtmEindeBovengrens:s.einde_bovengrens||null,
+    duurBetrouwbaar:s.kwaliteitsstatus?false:s.duurBetrouwbaar,
     incident_id:String(s.incident_id||s.event_id||''),
     foutcode:String(foutcode),
     /* Omschrijving indien aanwezig; anders signaalgever + impactklasse, zodat
@@ -706,20 +711,30 @@ function signaalgeverTotaalBronnen(json){
    bestandsformaat nooit met deze bundel mengt. De bronnen dragen _signaalgeverTotaal,
    zodat Datasetbeheer ze onder de eigen kaart toont; de doorrekening gebruikt
    onverminderd STORINGSBRONNEN en LIVE_STORINGSBRONNEN. */
-async function pasSignaalgeverBundelToe(bestandsnaam,open,historie,versie){
+async function pasSignaalgeverBundelToe(bestandsnaam,open,historie,versie,opties={}){
   /* Tussen de zware stappen (historie inspecteren, koppelen, doorrekenen) even de
      hoofdthread vrijgeven, zodat de browser bij grote datasets niet "pagina reageert
      niet" toont. De berekening zelf verandert niet. */
   const adem=()=>typeof uiPauze==='function'?uiPauze():Promise.resolve();
-  STORINGSBRONNEN=[{key:'signaalgever-totaal-historie',naam:bestandsnaam+' · historie',rijen:historie,size:0,_signaalgeverTotaal:true,_signaalgeverBestand:bestandsnaam}];
+  STORINGSBRONNEN=[...(opties.histRest||[]),{key:'signaalgever-totaal-historie',naam:bestandsnaam+' · historie',rijen:historie,size:0,_signaalgeverTotaal:true,_signaalgeverBestand:bestandsnaam}];
   STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeStoringsRijen());
   MC_RESULT=null;
   // De DRIP-totaalbron is een onafhankelijke stroom. Een nieuwe MTM-bundel
   // vervangt haar afgeleide open meldingen niet.
-  LIVE_STORINGSBRONNEN=LIVE_STORINGSBRONNEN.filter(b=>b.virtueel&&b.afgeleidVan==='dripHistorie');LIVE_PEILDATUM=null;
+  LIVE_STORINGSBRONNEN=opties.liveRest||LIVE_STORINGSBRONNEN.filter(b=>b.virtueel&&b.afgeleidVan==='dripHistorie');LIVE_PEILDATUM=null;
   await adem();
-  if(open.length){
-    voegLiveBronnenToe([...LIVE_STORINGSBRONNEN,{key:'signaalgever-totaal-open',naam:bestandsnaam+' · open',rijen:open,size:0,_signaalgeverTotaal:true,_signaalgeverBestand:bestandsnaam}]);
+  const mapPeil=maxGetal(Object.values(opties.laatstePerVc||{}),0)||null;
+  if(open.length||mapPeil){
+    const bron={key:'signaalgever-totaal-open',naam:bestandsnaam+' · open',rijen:open,size:0,_signaalgeverTotaal:true,_signaalgeverBestand:bestandsnaam,peildatum:mapPeil};
+    if(opties.bijwerken){
+      // De maplezer heeft al per VC gereconcilieerd. De landelijke live-patch
+      // zou nogmaals afsluiten, met de verkeerde (landelijke) peildatum.
+      bron.rijen=open.map(r=>({...r,_liveOpen:true,_bronBestand:bestandsnaam}));
+      LIVE_STORINGSBRONNEN.push(bron);
+      LIVE_PEILDATUM=maxGetal(LIVE_STORINGSBRONNEN.map(b=>b.peildatum||0),0)||null;
+      LIVE_STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeLiveStoringsRijen());
+      ANALYSE_SIGNATURE='';herbouwAssetMatchBeeld();
+    }else voegLiveBronnenToe([...LIVE_STORINGSBRONNEN,bron]);
   }else{
     LIVE_PEILDATUM=maxGetal(LIVE_STORINGSBRONNEN.map(b=>b.peildatum||0),0)||null;
     LIVE_STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeLiveStoringsRijen());
@@ -733,12 +748,12 @@ async function pasSignaalgeverBundelToe(bestandsnaam,open,historie,versie){
   const herkendHist=(STORINGS_INSPECTIE&&STORINGS_INSPECTIE.herkenbaar)||0;
   /* Laatste-entry-datum: het meest recente tijdstip uit open + historie, en per
      verkeerscentrale, zodat de gebruiker ziet tot wanneer de bron geladen is. */
-  const laatstePerVc={};let laatsteEntry=null;
-  for(const r of [...open,...historie]){
+  const laatstePerVc={...opties.laatstePerVc};let laatsteEntry=mapPeil;
+  for(const r of opties.bijwerken?[]:[...open,...historie]){
     const t=Math.max(Date.parse(r.tot)||0,Date.parse(r.van)||0);
     if(!t)continue;
     if(!laatsteEntry||t>laatsteEntry)laatsteEntry=t;
-    const vc=String(r.vc||'').toLowerCase();if(!vc)continue;
+    const vc=normAssetVc(r.vc).toLowerCase();if(!vc)continue;
     if(!laatstePerVc[vc]||t>laatstePerVc[vc])laatstePerVc[vc]=t;
   }
   window.__BIDASH_SIGNAALGEVER_TOTAAL__={bestand:bestandsnaam,versie,open:open.length,historie:historie.length,herkendOpen,herkendHist,peildatum:LIVE_PEILDATUM||null,laatsteEntry,laatstePerVc};
@@ -752,10 +767,16 @@ async function leesSignaalgeverTotaalBestand(file){
   try{json=JSON.parse(new TextDecoder('utf-8').decode(buffer));}
   catch(err){throw new Error('geen geldige JSON: '+(err.message||String(err)));}
   zetImportVoortgang(file.name,45,'Records omzetten naar storingsrijen',{direct:true});await uiPauze();
-  const {open,historie,versie}=signaalgeverTotaalBronnen(json);
-  if(!open.length&&!historie.length)throw new Error('geen datasets.mtm.alarm_episodes of datasets.mtm.storingen gevonden');
+  let {open,historie,versie}=signaalgeverTotaalBronnen(json),laatstePerVc;
+  if(json.formaat==='DVM-dienstimpact-totaal'){
+    const stand=window.__BIDASH_STORINGSBUNDELAAR__.sbSignaalgeverBasis(json);
+    open=stand.open;historie=stand.historie;laatstePerVc=stand.laatstePerVc;versie='DVM-totaal';
+  }else if(json.metadata?.watermarks?.mtm){
+    laatstePerVc=window.__BIDASH_STORINGSBUNDELAAR__.sbSignaalgeverBasis(json).laatstePerVc;
+  }
+  if(!open.length&&!historie.length&&!Object.keys(laatstePerVc||{}).length)throw new Error('geen signaalgevermomentopname of historie gevonden');
   zetImportVoortgang(file.name,80,'Open meldingen aan All Assets koppelen',{direct:true});await uiPauze();
-  const {herkendOpen,herkendHist}=await pasSignaalgeverBundelToe(file.name,open,historie,versie);
+  const {herkendOpen,herkendHist}=await pasSignaalgeverBundelToe(file.name,open,historie,versie,{laatstePerVc});
   importKlaar(file.name,`Signaalgevers totaal (JSON ${versie||'?'}) geladen: ${open.length.toLocaleString('nl-NL')} open (${herkendOpen.toLocaleString('nl-NL')} herkend), ${historie.length.toLocaleString('nl-NL')} historisch (${herkendHist.toLocaleString('nl-NL')} herkend). Vervangt de losse Open storingen- en Storingshistorie-bronnen.`);
   if(open.length&&!herkendOpen)alert('De open meldingen zijn geladen maar geen enkele werd als een bekend assettype (bv. MSI) herkend, dus het actuele dashboard blijft leeg. Controleer of de records een omschrijving, categorie of signaalgever dragen.');
   return {open:open.length,historie:historie.length,herkendOpen,herkendHist};
