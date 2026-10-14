@@ -3,7 +3,7 @@
   const clean=v=>String(v??'').trim();
   const header=v=>clean(v).toLowerCase().replace(/[^a-z0-9]/g,'');
   const number=v=>clean(v)===''?null:Number(clean(v).replace(',','.'));
-  const road=v=>{const m=clean(v).toUpperCase().match(/^([AN])\s*0*(\d{1,3})$/);return m?m[1]+Number(m[2]):'';};
+  const road=v=>{const m=clean(v).toUpperCase().match(/^([AN])\s*0*(\d{1,3})$/);return m&&Number(m[2])>0?m[1]+Number(m[2]):'';};
   const vc=v=>{
     const s=header(v).replace(/^vc/,'');
     if(s.startsWith('noordwestnederland'))return 'NWN';

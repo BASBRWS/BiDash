@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.48 en DVM 129, bijgewerkt op 14 oktober 2026 voor locatiecorrecties en zijbaankoppeling.
+Status: beschrijving van BiDash 2.49 en DVM 130, bijgewerkt op 14 oktober 2026 voor oplossen van netwerkschakelproblemen in Bronbeheer.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -175,6 +175,11 @@ Bij individuele assetconfiguratie kan de gebruiker weg, hoofdrijrichting, HM/HMP
 Een DRIP met handmatige locatiecorrectie accepteert bij een unieke identiteit/koppeling ook een bronlocatie die nog overeenkomt met de bewaarde oorspronkelijke locatie. De melding krijgt de gecorrigeerde locatie met een correctiemarkering. Een andere weg of conflicterende oorspronkelijke locatie blijft geweigerd. Individuele configuratie-import valideert locatiecorrecties vóór vervangen; een ongeldige correctie in oudere totaalparameters valt terug op de bronlocatie met zichtbare melding.
 
 Vanaf 2.46 opent Bronbeheer en het schakeloverzicht **Koppelingen en grenzen controleren**. De dialoog groepeert niet gekoppelde actieve assets en huidige doorgerekende/niet-doorgerekende meldingen met passende codes en VC-verschillen. Alleen de geladen bronnen en huidige analyse worden gecontroleerd. De gebruiker kan HMP, VC, code, naam, zijde en hectoletter aanpassen en grensregels toevoegen of verwijderen. Een volledig gevalideerde kopie vervangt de matrix pas bij opslaan; ongeldige invoer behoudt de vorige matrix. Een gewijzigde HMP krijgt een opnieuw afgeleide lengte. Handmatige grenzen krijgen een zichtbare ongecontroleerde status. Er worden geen geografische grenzen geraden of operationele waarden in de applicatie ingebed. Een nieuwe Excel-upload vervangt deze lokale correcties.
+
+
+Vanaf 2.49 / DVM 130 krijgt iedere probleemgroep **Oplossen**. De dialoog toont betrokken registerassets via hun stabiele sleutels en gekoppelde meldingen via `assetKey`. Locatiecorrecties gebruiken dezelfde validatie en herberekening als de individuele configuratie, maar blijven in de dialoog. De actuele schakel of foutreden staat bij elk asset; na opslaan wordt de probleemlijst vernieuwd. Grote groepen tonen maximaal twintig assetkaarten per pagina, met zoeken binnen de groep. Losse meldingen zonder registerkoppeling openen de bestaande assetkoppeling in Impactregels.
+
+**Matrixregels bekijken** filtert op de weg van het probleem. **Ontbrekende grensregel toevoegen** vult alleen bekende weg, VC en LI/RE in, met lege grenzen. Asset-HMP's worden niet als schakelgrenzen aangenomen. De matrixinvoer blijft tijdens assetcorrecties en sluiten/heropenen behouden zolang dezelfde matrixbron actief is; pas matrixopslaan vervangt de effectieve grenzen. Bediening en resultaatmelding blijven bovenaan zichtbaar. Nul als wegnummer, A0, N0 of RW/PW000 betekent een onbekende weg, geen snelweg A0. Een herkenbaar registerasset met naam of entity-id blijft behouden voor correctie; HM/HMP nul blijft geldig. De oorspronkelijke bronrij blijft intact.
 
 De effectieve `rijen`, optionele `oorspronkelijkeRijen` en `aangepastOp` gaan mee in de zelfstandige `netwerkschakels`-exportsectie. Oorspronkelijke rijen worden eenmalig bewaard en bij herstel ook gevalideerd. **Oorspronkelijke Excel-grenzen herstellen** verwijdert lokale correcties en rekent opnieuw. Opslaan maakt afhankelijke analyses en prognoses ongeldig en meldt de wijziging aan de schil voor lokale opslag. De originele XLSX op schijf verandert niet. De dialoog bouwt de controles alleen bij openen en opslaan, zonder achtergrondpolling.
 

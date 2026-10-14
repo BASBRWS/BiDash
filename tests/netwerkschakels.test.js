@@ -91,6 +91,16 @@ test('ongeldige matrix beschadigt de bestaande bron niet',()=>{
  assert.throws(()=>r.herstelNetwerkschakels({rijen:[row('BROKEN','',10)]}),/Ongeldige/);
  assert.equal(r.DVM_NETWERKSCHAKELS_STATE,before);
  assert.throws(()=>r.normaliseerNetwerkschakels([row('T',0,10),row('T',0,10)]),/Dubbele/);
+ assert.throws(()=>r.normaliseerNetwerkschakels([row('T',0,10,{Rijksweg:'A0'})]),/Ongeldige/);
+});
+test('koppelcontrole bewaart betrokken assets en losse meldingen voor oplossen',()=>{
+ const r=runtime();calculate(r,[asset('a',25,'MSI','RE',{entityid:'SYNTHETIC'})],[fault(25,'1003',{entityid:'SYNTHETIC'})]);
+ const issue=r.netwerkKoppelControle()[0];
+ assert.equal(issue.assets,1);assert.equal(issue.assetKeys[0],'a');
+ assert.equal(issue.losseMeldingen.length,0);
+ r.eval('STATE={meldingen:[{weg:"N31",richting:"RE",hm:2,vc:"ZWN",typeId:"MSI",logId:"SYNTHETIC"}]}');
+ const loose=r.netwerkKoppelControle().find(g=>g.weg==='N31');
+ assert.equal(loose.assetKeys.length,0);assert.equal(loose.losseMeldingen[0].logId,'SYNTHETIC');
 });
 test('doorrekening gebruikt lokaal schakelareaal, niet tweemaal het hele wegareaal',()=>{
  const r=runtime(),s=calculate(r,[asset('a',2),asset('b',3),asset('c',12),asset('d',13),asset('e',14),asset('f',15)],[fault(2),fault(12)]);

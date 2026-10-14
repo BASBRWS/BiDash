@@ -79,7 +79,7 @@ function normAssetRichting(v){
 }
 function dvmWeg(v){
   const s=String(v??'').trim().toUpperCase(),m=s.match(/^([AN])\s*0*(\d{1,3})$/);
-  return m?m[1]+Number(m[2]):/^\d{1,3}$/.test(s)?'A'+Number(s):'';
+  return m&&Number(m[2])>0?m[1]+Number(m[2]):/^\d{1,3}$/.test(s)&&Number(s)>0?'A'+Number(s):'';
 }
 function dvmLocGet(row,keys){
   for(const k of keys)for(const [name,v] of Object.entries(row||{})){
@@ -93,7 +93,7 @@ function dvmLeesLocatie(row,g=dvmLocGet){
   const tail=name?text.slice(name.index+name[0].length).match(/^[\s_]*(?:(LI|RE|[A-Z])(?![A-Z])[\s_-]*)?(?:HMP?[\s:]*|KM[\s:]*)?(\d+(?:[.,-]\d{1,3})?)\b/i):null;
   const bps=String(g(row,['bps-locatie'])||'').trim().toUpperCase(),b=bps.match(/^(RW|PW)0*(\d+)/);
   const field=String(g(row,['weg','wegnummer','rijksweg'])??'').trim();
-  const weg=name?name[1].toUpperCase()+Number(name[2]):/^[AN]/i.test(field)?dvmWeg(field):b?(b[1]==='PW'?'N':'A')+Number(b[2]):dvmWeg(field);
+  const weg=name?dvmWeg(name[1]+name[2]):/^[AN]/i.test(field)?dvmWeg(field):b?dvmWeg((b[1]==='PW'?'N':'A')+b[2]):dvmWeg(field);
   const richting=normAssetRichting(tail?.[1]||g(row,['richting','rijrichting','zijde','baanpositie'])||'');
   let hm=tail?num(tail[2].replace('-','.')):null;
   if(hm===null){
@@ -540,7 +540,7 @@ function analyseerAssetRegister(rijen,bestand){
     const loc=assetLocatie(row,registerWaarde);
     const naamBron=String(registerWaarde(row,['asset'])||'').trim();
     const codeBron=tp==='DRIP'?normDripCode(naamBron):'';
-    if(!loc.weg&&!codeBron)return;
+    if(!loc.weg&&!codeBron&&!naamBron&&!registerWaarde(row,['entityid']))return;
     if(!loc.weg)loc.weg='ONBEKEND';
     const bestuur=bestuurlijkeContextUitRow(row,registerWaarde);
     const contractCtx=contractContextUitRow(row,registerWaarde);
