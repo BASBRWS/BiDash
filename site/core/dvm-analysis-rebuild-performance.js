@@ -4,7 +4,8 @@ export function dvmAssetMatchMemoKey(m,typeId){
   return [
     norm(typeId),norm(m&&m.logId),norm(m&&m.code),norm(m&&m.osid),
     norm(m&&m.asset),norm(m&&m.idCdms),norm(m&&m.entityid),
-    norm(m&&m.weg),norm(m&&m.richting),hm,norm(m&&m.strook),norm(m&&m.vc)
+    norm(m&&m.weg),norm(m&&m.richting),norm(m&&m.zijdeBron),norm(m&&m.hectoletter),hm,norm(m&&m.strook),norm(m&&m.vc),
+    norm(m&&m.melding),norm(m&&m.gevolg)
   ].join('\u001f');
 }
 

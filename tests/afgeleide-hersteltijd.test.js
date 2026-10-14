@@ -27,7 +27,7 @@ function haalFunctie(tekst,naam){
   throw new Error('einde van '+naam+' niet gevonden');
 }
 function context(extra={}){
-  const ctx=vm.createContext({dvmLeesLocatie:locatieRuntime.dvmLeesLocatie,dvmHerleidZijde:locatieRuntime.dvmHerleidZijde,Math,Number,String,Object,Array,Date,isFinite,isNaN,parseFloat,parseInt,console,...extra});
+  const ctx=vm.createContext({meldingStrook:locatieRuntime.meldingStrook,dvmLeesLocatie:locatieRuntime.dvmLeesLocatie,dvmHerleidZijde:locatieRuntime.dvmHerleidZijde,Math,Number,String,Object,Array,Date,isFinite,isNaN,parseFloat,parseInt,console,...extra});
   for(const naam of ['lc','num','parseDatum','normRij','kwantielWaarde','bouwLiveMcHistorie'])
     vm.runInContext(haalFunctie(bron,naam),ctx,{filename:naam});
   vm.runInContext('function normAssetRichting(v){return String(v||"").trim().toUpperCase();}',ctx);

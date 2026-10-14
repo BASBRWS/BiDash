@@ -54,6 +54,21 @@ const site=path.join(__dirname,'../site');
   await corrected.getByRole('button',{name:'Herstel alleen bronlocatie',exact:true}).click();
   await page.waitForFunction(()=>ASSET_INDEX.byKey.get('ID:D').weg==='A31');
   assert.equal(await page.evaluate(()=>STATE.meldingen.find(m=>m.typeId==='DRIP').weg),'A31');
+  await page.evaluate(async()=>{
+   const rows=[1,2,3].map(lane=>({entityid:'LANE'+lane,asset:`MSI A15-RE-12,345 ${lane}`,'ci-type':'VKS signaalgevers',regio:'ZWN',status:'Operationeel'}));
+   rows.push({entityid:'CAM-HYPHEN',asset:'Camera 08-A4-Li-7,49','ci-type':'VID Cameras',regio:'ZWN',status:'Operationeel'});
+   analyseerAssetRegister(rows,'synthetic-hyphens');ASSET_REGISTER_STATE.ruweRegisterRijen=rows;
+   RULES.assetConfig.aliases.MSIA15RE12345='ID:LANE1';
+   herstelNetwerkschakels({rijen:[{Code:'CAM-X',Netwerkschakel:'Test camera',Verkeerscentrale:'ZWN',Rijksweg:'A4','HMP van':7,'HMP tot':8},
+    {Code:'MSI-X',Netwerkschakel:'Test MSI',Verkeerscentrale:'ZWN',Rijksweg:'A15','HMP van':12,'HMP tot':13}]});
+   const faults=[1,2,3].map(lane=>({locatie:'A15-RE-12,345',vc:'ZWN',melding:`Fatale fout bij MSI ${lane}`,foutcode:'1003',van:'2026-01-01',tot:'2026-01-02'}));
+   LIVE_STORINGSBRONNEN=[{key:'hyphens',naam:'synthetic',peildatum:Date.parse('2026-01-02'),rijen:[...faults,faults[1]]}];
+   LIVE_PEILDATUM=LIVE_STORINGSBRONNEN[0].peildatum;await datasetNaMutatie('Koppelingen controleren');
+  });
+  const checked=await page.evaluate(()=>({faults:HUB.faults(),camera:ASSET_REGISTER_STATE.assets.find(a=>a.entityid==='CAM-HYPHEN')}));
+  assert.equal(checked.faults.length,3);
+  assert.deepEqual(checked.faults.map(m=>m.assetKey).sort(),['ID:LANE1','ID:LANE2','ID:LANE3']);
+  assert.equal(checked.camera.hm,7.49);assert.equal(checked.camera.richting,'LI');assert.equal(checked.camera.netwerkschakel,'CAM-X');
   assert.deepEqual(errors,[]);
   console.log('Assetlocaties: individuele UI-correctie, zijbaan, areaal, DRIP, live doorrekening, export/herstel en terugzetten geslaagd.');
  }finally{await browser?.close();await new Promise(r=>server.close(r));}
