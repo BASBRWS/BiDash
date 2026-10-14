@@ -5046,18 +5046,21 @@ function openAssetConfigForLog(encoded){
 function assetCfgMelding(tekst,goed){
   const el=document.getElementById('assetCfgStatus');if(!el)return;el.textContent=tekst;el.style.color=goed===false?'var(--rood)':'var(--groen)';
 }
-function assetLocatieEditorHtml(a){
+function assetLocatieEditorHtml(a,opt={}){
   const key=encodeURIComponent(a.key).replace(/'/g,'%27'),bron=a.bronLocatie||a;
   const fields=[['weg','Weg, met A of N'],['hm','HM / HMP, km'],['hectoletter','Hectoletter'],['rdX','RD X, optioneel'],['rdY','RD Y, optioneel']];
+  const save=opt.netwerkBeheer?'data-netwerk-location-save="'+key+'"':'onclick="assetConfigLocatieOpslaan(this,\''+key+'\')"';
+  const reset=opt.netwerkBeheer?'data-netwerk-location-reset="'+key+'"':'onclick="assetConfigLocatieHerstellen(\''+key+'\').catch(error=>assetCfgMelding(error.message,false))"';
   return '<div data-asset-locatie><h4>Locatie wijzigen</h4><p class="muted">Bronlocatie '+esc(bron.weg||'')+' '+esc(bron.richting||'')+' '+esc(bron.hm??'onbekende HM/HMP')+'. '+(a.locatieCorrectie?'Je gebruikt een handmatige locatiecorrectie. ':'')+esc(a.zijdeKoppeling||'')+' De oorspronkelijke assetnaam en bronrij blijven bewaard.</p><div class="asset-config-fields">'+
     fields.map(([field,label])=>'<label>'+label+'<input data-asset-locatie-field="'+field+'" type="text" '+(['hm','rdX','rdY'].includes(field)?'inputmode="decimal"':'')+' value="'+esc(a[field]??'')+'"></label>').join('')+
-    '<label>Hoofdrijrichting<select data-asset-locatie-field="richting"><option value="">Automatisch / onbekend</option><option value="LI" '+(a.richting==='LI'?'selected':'')+'>LI, links</option><option value="RE" '+(a.richting==='RE'?'selected':'')+'>RE, rechts</option></select></label></div><p><button type="button" onclick="assetConfigLocatieOpslaan(this,\''+key+'\')">Locatie opslaan en herberekenen</button> <button type="button" onclick="assetConfigLocatieHerstellen(\''+key+'\').catch(error=>assetCfgMelding(error.message,false))">Herstel alleen bronlocatie</button></p><p class="muted">HM en HMP zijn dezelfde kilometereenheid. Vul bijvoorbeeld 12,345 in. Laat beide RD-velden leeg als je geen coördinaten hebt. Een eigen richting gaat vóór de automatische keuze.</p></div>';
+    '<label>Hoofdrijrichting<select data-asset-locatie-field="richting"><option value="">Automatisch / onbekend</option><option value="LI" '+(a.richting==='LI'?'selected':'')+'>LI, links</option><option value="RE" '+(a.richting==='RE'?'selected':'')+'>RE, rechts</option></select></label></div><p><button type="button" '+save+'>Locatie opslaan en herberekenen</button> <button type="button" '+reset+'>Herstel alleen bronlocatie</button></p><p class="muted">HM en HMP zijn dezelfde kilometereenheid. Vul bijvoorbeeld 12,345 in. Laat beide RD-velden leeg als je geen coördinaten hebt. Een eigen richting gaat vóór de automatische keuze.</p></div>';
 }
 async function assetConfigLocatieToepassen(key,bericht){
   ASSET_CONFIG_VERSIE++;ASSET_CFG_UI.subtab='assets';ASSET_CFG_UI.focusKey=key;window.invalidateDvmForecast?.();
   await datasetNaMutatie(bericht);
   if(ASSET_REGISTER_STATE?.ruweRegisterRijen)DVM_LEEFTIJD_STATE=verwerkDvmLeeftijd(ASSET_REGISTER_STATE.ruweRegisterRijen);
-  toonTab('regels');renderRegels();toonRuleSubtab('assets');assetCfgMelding(bericht);
+  if(document.getElementById('netwerkBeheerDialog')?.open&&window.netwerkVerversBeheer)window.netwerkVerversBeheer();
+  else{toonTab('regels');renderRegels();toonRuleSubtab('assets');assetCfgMelding(bericht);}
   if(parent!==window)parent.postMessage({type:'hub:changed',engine:'dvm',sourceSpecific:true,bron:'assetconfig'},location.origin);
 }
 async function assetConfigBewaarLocatie(keyEnc,loc){

@@ -332,3 +332,9 @@ All Assets laden, Bronbeheer, Haal laatste NDW op, manifest en gzip van eigen we
 Assetnaam en HM/HMP normaliseren, N-prefix en oorspronkelijke zijletter bewaren, hoofdbaanindex binnen dezelfde weg opbouwen, eenduidige nabije richting bepalen of keuze open laten. Feitelijke HMP blijft staan; de schakel gebruikt bij een afgeleide zijbaan de hoofdbaankandidaat.
 
 Individueel asset openen, locatie aanpassen, volledige invoer valideren, correctie aan bestaande asset-id bewaren, areaal/indices/context opnieuw opbouwen, DRIP-locatie bijwerken, historie/prognose ongeldig maken, actuele doorrekening verversen, schil informeren. Totaal- en assetconfiguratie-export bewaren de correctie. Alleen bronlocatie herstellen behoudt overige rekenwaarden. Een bestaande DRIP-bron die nog de oorspronkelijke gecorrigeerde locatie vermeldt kan bij een unieke identiteit meekomen; andere locatieconflicten blijven geblokkeerd.
+
+### Een netwerkschakelprobleem oplossen
+
+Bronbeheer, Netwerkschakelmatrix, Koppelingen en grenzen controleren, Oplossen bij probleemgroep. Betrokken asset-id's ophalen, maximaal twintig kaarten tonen, locatie aanpassen, volledig valideren, bestaande herberekenketen uitvoeren, dialoog openhouden, actuele koppeling en probleemlijst vernieuwen. Onbekende nulweg blijft een corrigeerbaar asset. Een losse melding opent de bestaande assetkoppeling.
+
+Bij ontbrekende grenzen of overlap, Matrixregels bekijken, wegfilter toepassen, gecontroleerde grenzen aanpassen of lege grensregel aanvullen, matrix opslaan en opnieuw doorrekenen. Niet opgeslagen matrixinvoer blijft tijdens assetcorrecties behouden. Bronlocaties en oorspronkelijke Excel-regels blijven apart bewaard; totaalexport neemt beide correctietypen mee.

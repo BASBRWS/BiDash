@@ -27,6 +27,18 @@ test('N-weg met iedere zijletter, HM/HMP en nul worden correct herkend',()=>{
  assert.equal(r.assetLocatie({'wegnummer':'31','bps-locatie':'PW031','hm-bord':2,'afstand-tot-hm-bord':47},r.registerWaarde).weg,'N31');
  assert.equal(r.assetLocatie({asset:'MSI A15 R 2.000',hm:9},r.registerWaarde).hm,2);
 });
+test('nulweg is onbekend, asset blijft corrigeerbaar en HM nul blijft geldig',async()=>{
+ const rows=[row('U','zonder weg',{wegnummer:'000',hm:0})],r=runtime(rows);
+ for(const weg of ['0','000','A0','A000','N0'])assert.equal(r.dvmWeg(weg),'');
+ assert.equal(r.assetLocatie({asset:'MSI A000 RE 0.000'},r.registerWaarde).weg,'');
+ assert.equal(r.assetLocatie({'bps-locatie':'RW000',hm:0},r.registerWaarde).weg,'');
+ assert.equal(r.eval('ASSET_REGISTER_STATE.assets[0].weg'),'ONBEKEND');
+ assert.equal(r.eval('ASSET_REGISTER_STATE.assets[0].hm'),0);
+ await assert.rejects(r.assetConfigBewaarLocatie('ID:U',{weg:'A0',hm:0}));
+ await r.assetConfigBewaarLocatie('ID:U',{weg:'A15',richting:'RE',hm:0});
+ assert.equal(r.eval('ASSET_INDEX.byKey.get("ID:U").weg'),'A15');
+ assert.equal(r.rows[0].wegnummer,'000');
+});
 test('zijbaan gebruikt unieke nabije hoofdbaan, bewaart letter en echte HMP',()=>{
  const r=runtime([row('R','A15 RE 2.000'),row('L','A15 LI 2.200'),row('G','A15G 2.050')]);
  const a=r.eval('ASSET_REGISTER_STATE.assets.find(a=>a.entityid==="G")');

@@ -482,3 +482,11 @@ Open Regels & signalen, Impactregels, Assets zoeken en individueel configureren.
 HM en HMP zijn beide kilometerposities. N-wegen blijven N-wegen, ook wanneer een verbindingsletter achter het wegnummer staat. Letters voor verbindingsbogen of parallelbanen krijgen een LI/RE-hoofdbaan wanneer er één duidelijke nabije kandidaat op dezelfde weg is. De bronletter en feitelijke HMP blijven zichtbaar in de assetconfiguratie. Als beide richtingen gelijk passen, kies je zelf de hoofdrijrichting. Een ontbrekende of foutieve matrixgrens moet nog bij Netwerkschakelmatrix worden gecorrigeerd.
 
 **Herstel alleen bronlocatie** zet de locatie terug en behoudt bijvoorbeeld jouw levensduur en zwaartefactor. **Herstel bron- en groepsregels** verwijdert alle individuele assetinstellingen. Locatiecorrecties gaan mee met Parameters in de totaalexport en met de losse assetconfiguratie-export. Bij hetzelfde entity-id blijven ze na herladen van All Assets van toepassing.
+
+## Koppelproblemen oplossen vanuit Bronbeheer, BiDash 2.49 / DVM 130
+
+Open bij Netwerkschakelmatrix **Koppelingen en grenzen controleren**. Klik op **Oplossen** naast een probleem. Open een betrokken asset en wijzig direct de locatie. Opslaan herberekent de koppeling en vernieuwt de probleemlijst; dit scherm blijft open. Grote groepen tonen twintig assets per pagina. Je kunt binnen de betrokken assets zoeken. Een nulweg wordt als ONBEKEND getoond; het asset blijft beschikbaar om de weg te corrigeren. HM/HMP nul blijft geldig.
+
+Gebruik **Matrixregels bekijken** voor ontbrekende grenzen of overlap. De matrix wordt gefilterd op de betrokken weg. **Ontbrekende grensregel toevoegen** zet de bekende weg, VC en zijde klaar; vul zelf gecontroleerde grenzen in. **Opslaan en opnieuw doorrekenen** bewaart de matrixwijzigingen. Nog niet opgeslagen matrixinvoer blijft staan tijdens een assetcorrectie en bij sluiten en opnieuw openen van dezelfde matrix.
+
+Bij meldingen zonder registerkoppeling opent **Assetkoppeling oplossen** de bestaande configuratie in Impactregels. Een bron-VC die afwijkt van de matrix-VC is een melding; de eenduidige locatiekoppeling wordt al gebruikt. Maak na je correcties een totaalexport met Parameters en Netwerkschakels.
