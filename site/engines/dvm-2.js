@@ -964,7 +964,7 @@ function normRij(m){
   const entityid=String(g('entityid')||'').trim();
   const osid = String(g('os_id')||g('osid')||g('asset')||g('object')||g('object_id')||g('assetnaam')||g('asset_name')||entityid||'').trim();
   const locatieTekst=String(g('locatie')||g('location')||'').trim();
-  const eventId = String(g('event_id')||g('melding_id')||g('incident_id')||g('storing_id')||'').trim();
+  const eventId = String(m._mtmSleutel||g('event_id')||g('melding_id')||g('incident_id')||g('storing_id')||'').trim();
   const loc=dvmLeesLocatie(m,(_row,keys)=>{for(const k of keys){const v=g(k);if(v!==null&&v!==undefined&&String(v).trim()!=='')return v;}return '';});
   loc.vc=String(g('vc')||g('regio')||'');loc.zijdeBron=loc.richting;dvmHerleidZijde(loc);
   const {weg,richting,hm}=loc;

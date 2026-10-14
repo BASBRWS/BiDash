@@ -346,3 +346,9 @@ De bestaande DVM- en BI-adapters leveren de registerweergave. De schil groepeert
 ## Assetmanagement vanaf BiDash 2.51 / DVM 131
 
 De DVM-adapter blijft het volledige register aanbieden. De schil groepeert meldingen vooraf per asset en leidt operationele status af met de bestaande regels. Registerfilters werken op die presentatielijst. Open storingen heeft één weergave-eigenaar, verwerkt nieuwe bronnen/filtering in korte blokken en toont 60 regels per pagina. Een verborgen storingsscherm wordt niet opgebouwd. De memo blijft over de volledige gefilterde selectie gaan. Bronmutaties maken beide presentatielijsten ongeldig; de rekenketen en exports blijven bij DVM.
+
+## Signaalgevers incrementeel bijwerken, 2.53 / DVM 133
+
+Signaalgevers uit map openen, actuele stand per VC bekijken, VC’s en periode kiezen, map lezen en valideren, aansluiten op de laatste complete momentopname per werkelijk gelezen VC, incidenten samenvoegen, verdwenen MSI-/LUS-meldingen historiseren, actuele dienstverlening herberekenen, voortgang per VC tonen en een bijgewerkte storings-JSON aanbieden.
+
+Andere VC’s en bronstromen blijven staan. Oudere mapsneden vullen historie aan zonder actuele gegevens terug te zetten. Dezelfde incidentidentiteit levert één rij per bronstroom. Lege gedateerde lijsten bewaren het VC-watermerk; leesfouten en tegenstrijdige bestanden wijzigen de stand niet. Een datagat levert geen bewezen herstelmoment. Oude light-historie mist soms VC, rijstrook en foutcode; behoud die regels en hun aantallen zonder een identiteit te verzinnen. De download en handmatige totaalexport bewaren de exacte VC-peildata voor de volgende update.

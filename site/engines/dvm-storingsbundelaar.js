@@ -15,7 +15,7 @@
   const SYSTEEM_CODES=new Set(['1011','2001','4006','4014','4015','4020','4021','4023','4027','6005']);
 
   function sbGroupBy(arr,fn){const uit={};for(const x of arr){const k=fn(x);(uit[k]||(uit[k]=[])).push(x);}return uit;}
-  function sbVcAlias(x){const k=String(x||'').toLowerCase().replace(/[^a-z0-9]/g,'');return ({mn:'mn',non:'non',nonzwn:'non',nwn:'nwn',wnn:'nwn',zwn:'zwn',wnz:'zwn',zn:'zn'})[k]||null;}
+  function sbVcAlias(x){const k=String(x||'').toLowerCase().replace(/^vc[\s_-]*/,'').replace(/[^a-z0-9]/g,'');return ({mn:'mn',ut:'mn',non:'non',on:'non',nonzwn:'non',nwn:'nwn',wnn:'nwn',zwn:'zwn',wnz:'zwn',zh:'zwn',zn:'zn'})[k]||null;}
   function sbGeldigeDatum(y,m,d){const x=new Date(y,m-1,d);return x.getFullYear()===y&&x.getMonth()===m-1&&x.getDate()===d?x:null;}
   function sbParseDT(s){const m=String(s).match(/(\d{2})[-/.](\d{2})[-/.](\d{2}|\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);if(!m)return null;let y=+m[3];if(y<100)y+=2000;return sbGeldigeDatum(y,+m[2],+m[1])?new Date(y,+m[2]-1,+m[1],+m[4],+m[5],+(m[6]||0)):null;}
   function sbMediaan(a){a=[...a].sort((x,y)=>x-y);return a.length?a[Math.floor(a.length/2)]:30;}
@@ -46,6 +46,7 @@
       const p=regel.replace(/^\||\|$/g,'').split('|');
       if(p.length<5)continue;
       const id=p[0].trim(),code=p[1].trim(),start=sbParseDT(p.at(-1)),loc=sbLocatie(p.at(-2));
+      if(!id||!/^\d+$/.test(code))continue; // kolomkoppen zijn geen alarmen
       const desc=p.slice(2,-2).join('|').replace(new RegExp('^\\s*'+code+'\\s+'),'').trim();
       const cat=sbMtmCategorie(code,desc);
       const m=desc.match(/\bMSI\s*(\d+)/i),unit=m?'MSI '+(+m[1]):cat[0]==='SYSTEEM'?'SYSTEEM':cat[0]==='DETECTIELUS'?'DETECTIELUS':'OVERIG';
@@ -94,11 +95,11 @@
     }
     const episodes=alarmRuns.filter(r=>r.meenemen).map(r=>{
       const start=r.start||r.eerste_snapshot,duur=Math.max(0,(new Date(r.laatste_snapshot)-new Date(start))/3600000);
-      return {systeem:'mtm',verkeerscentrale:r.verkeerscentrale,locatie:r.locatie,weg:r.weg,richting_kenmerk:r.richting_kenmerk,km:r.km,asset:r.unit,asset_key:r.asset_key,start,einde_bewezen:r.laatste_snapshot,einde_bovengrens:r.einde_bovengrens,duur_min_uur:+duur.toFixed(6),foutcode:r.code,impactklasse:r.impact,omschrijving:r.description,kwaliteitsstatus:r.eindstatus};
+      return {systeem:'mtm',event_id:r.event_id,_syncKey:r._syncKey,verkeerscentrale:r.verkeerscentrale,locatie:r.locatie,weg:r.weg,richting_kenmerk:r.richting_kenmerk,km:r.km,asset:r.unit,asset_key:r.asset_key,start,einde_bewezen:r.laatste_snapshot,einde_bovengrens:r.einde_bovengrens,duur_min_uur:+duur.toFixed(6),foutcode:r.code,impactklasse:r.impact,omschrijving:r.description,kwaliteitsstatus:r.eindstatus};
     });
     const storingen=sbClassificeer(episodes,opties);
     const open=alarmRuns.filter(r=>r.eindstatus==='open_aan_einde'&&r.meenemen);
-    return {open,storingen};
+    return {open,storingen,alarmRuns,episodes};
   }
   /* Bestandspad → MTM-context (vc, datum). Geen match = geen MTM-storinglijst. */
   function sbPadInfoMtm(pad){
@@ -241,6 +242,144 @@
     const rijen=Object.entries(wm||{}).sort();
     return rijen.length?rijen.map(([v,d])=>v.toUpperCase()+' '+d).join(', '):'geen datum herkend';
   }
+  // Gebruik bronkenmerken, geen opnieuw gegenereerde incidentnummers. Identieke
+  // nummers in twee VC's, of een hergebruikt alarmnummer, zijn verschillende meldingen.
+  function sbSignaalgeverSleutel(raw){
+    if(raw._mtmSleutel)return raw._mtmSleutel;
+    const m=normRij(raw),txt=String(m.melding||'').toUpperCase();
+    const lane=String(m.strook||txt.match(/\bMSI\s*(\d+)/)?.[1]||'').toUpperCase().replace(/^MSI\s*/, '');
+    const detail=txt.match(/\b(?:LAMP\s+\S+|DET\.?\s*\d+|LUS\s*\d+)/)?.[0]||'';
+    let code=m.code;
+    if(!code){const f=foutregel(m,classificeer(m));code=f?.code||'';}
+    const place=m.weg&&m.hm!=null?[m.weg,m.richting,m.hectoletter||'',Number(m.hm).toFixed(3)]:[String(m.locatieTekst||m.osid||'').toUpperCase()];
+    if(!m.tVan||!place.some(Boolean))return 'ONVOLLEDIG|'+JSON.stringify(Object.keys(raw).sort().map(k=>[k,raw[k]]));
+    return JSON.stringify([normAssetVc(m.vc),classificeer(m),...place,m.tVan,lane,String(code),detail]);
+  }
+  function sbSignaalgeverVoegSamen(oud,nieuw){
+    const map=new Map(),legacy=[],aantallen=new Map(),nieuwGezien=new Map();let dubbel=0;
+    for(const [lijst,isNieuw] of [[oud,false],[nieuw,true]])for(const r of lijst){
+      // Oude light-exports hebben alleen locatie/start. Meerdere rijstroken
+      // kunnen dezelfde waarden hebben. Behoud hun aantallen; alleen herhaalde
+      // exemplaren uit een tweede identieke basis worden multisetgewijs samengevoegd.
+      if(!r._mtmSleutel&&!Object.keys(r).some(k=>/^(vc|regio|foutcode|melding|msi|strook|assettypehint)$/i.test(k))){
+        const key=JSON.stringify(Object.keys(r).sort().map(k=>[k,r[k]]));
+        if(!isNieuw){legacy.push(r);aantallen.set(key,(aantallen.get(key)||0)+1);}
+        else{const n=(nieuwGezien.get(key)||0)+1;nieuwGezien.set(key,n);if(n>(aantallen.get(key)||0))legacy.push(r);else dubbel++;}
+        continue;
+      }
+      const key=sbSignaalgeverSleutel(r),vorige=map.get(key);
+      if(vorige){
+        dubbel++;
+        const tijd=x=>Math.max(normRij(x).tTot||0,Date.parse(x._afsluitPeildatum)||0);
+        if(tijd(r)<tijd(vorige))continue;
+        map.set(key,{...vorige,...r});
+      }else map.set(key,r);
+    }
+    return {rijen:[...legacy,...map.values()],dubbel};
+  }
+  function sbSignaalgeverStand(histBronnen,liveBronnen,status){
+    const splits=bronnen=>{
+      const rijen=[],rest=[];
+      for(const b of bronnen||[]){
+        const over=[],isMtm=b._signaalgeverTotaal||String(b.key||'').startsWith('signaalgever-totaal-')||/signaalgever|\bmtm\b/i.test(b.naam||b.name||'');
+        for(const r of b.rijen||[]){
+          if(isMtm){rijen.push(r);continue;}
+          const type=classificeer(normRij(r));
+          if(type==='MSI'||type==='LUS')rijen.push(r);else over.push(r);
+        }
+        if(over.length)rest.push({...b,rijen:over});
+      }
+      return {rijen,rest};
+    };
+    const h=splits(histBronnen),l=splits(liveBronnen),laatstePerVc={};
+    for(const [v,t] of Object.entries(status?.laatstePerVc||{})){
+      const vc=sbVcAlias(normAssetVc(v)),ts=typeof t==='number'?t:Date.parse(t);
+      if(vc&&ts>0)laatstePerVc[vc]=Math.max(laatstePerVc[vc]||0,ts);
+    }
+    // Historische begintijden bewijzen geen actuele dekking. Oudere exports zonder
+    // manifest kunnen alleen hun werkelijk aanwezige open peildata leveren.
+    for(const r of l.rijen){const m=normRij(r),vc=sbVcAlias(normAssetVc(m.vc));if(vc&&m.tTot)laatstePerVc[vc]=Math.max(laatstePerVc[vc]||0,m.tTot);}
+    return {open:l.rijen,historie:h.rijen,laatstePerVc,histRest:h.rest,liveRest:l.rest};
+  }
+  function sbSignaalgeverBasis(json){
+    if(json?.datasets?.mtm){
+      const b=signaalgeverTotaalBronnen(json),stand=sbSignaalgeverStand([{_signaalgeverTotaal:true,rijen:b.historie}],[{_signaalgeverTotaal:true,rijen:b.open}],null);
+      for(const [v,t] of Object.entries(json.metadata?.watermarks?.mtm||{})){
+        const vc=sbVcAlias(normAssetVc(v)),ts=typeof t==='number'?t:Date.parse(t);
+        if(vc&&ts)stand.laatstePerVc[vc]=Math.max(stand.laatstePerVc[vc]||0,ts);
+      }
+      return stand;
+    }
+    const d=json?.formaat==='BiDash-integraal'?json.delen?.dvm:json;
+    if(d?.formaat!=='DVM-dienstimpact-totaal')throw new Error('Kies een MTM-totaal of DVM-totaal JSON als basisbestand.');
+    return sbSignaalgeverStand(d.storingshistorie,d.liveStoringen,d.bronbeheer?.signaalgeverTotaal);
+  }
+  function sbSignaalgeverCombineerStand(a,b){
+    if(!b)return a;
+    const laatstePerVc={...a.laatstePerVc};
+    for(const [vc,t] of Object.entries(b.laatstePerVc))laatstePerVc[vc]=Math.max(laatstePerVc[vc]||0,t);
+    const kies=(stand,andere,gelijk)=>stand.open.filter(r=>{const vc=sbVcAlias(normAssetVc(normRij(r).vc)),x=stand.laatstePerVc[vc]||0,y=andere.laatstePerVc[vc]||0;return !vc||(gelijk?x>=y:x>y);});
+    const histRest=[...(a.histRest||[])];
+    for(const bron of b.histRest||[]){
+      const i=histRest.findIndex(x=>x.key===bron.key&&x.naam===bron.naam);
+      if(i<0)histRest.push(bron);else histRest[i]={...histRest[i],rijen:sbSignaalgeverVoegSamen(bron.rijen||[],histRest[i].rijen||[]).rijen};
+    }
+    return {...a,open:sbSignaalgeverVoegSamen(kies(b,a,false),kies(a,b,true)).rijen,historie:sbSignaalgeverVoegSamen(b.historie,a.historie).rijen,laatstePerVc,histRest};
+  }
+  function sbSignaalgeverSnapshot(text,file,info){
+    const datum=sbSnapshotDatum(text,file.name),rows=sbMtmRijenUitTekst(text,info.vc);
+    const headerDatum=String(text).split(/\r?\n/).slice(0,100).some(l=>!l.trim().startsWith('|')&&sbParseDT(l));
+    if(!rows.length&&!(headerDatum&&/storing(?:en|s)?lijst|geen[^\n]*(?:storingen|alarmen)/i.test(text)))throw new Error('geen herkenbare MTM-momentopname in '+sbPad(file));
+    const aantal=String(text).split(/\r?\n/).filter(l=>{if(!l.startsWith('|'))return false;const p=l.slice(1).split('|');return /^\s*\d+\s*$/.test(p[0]||'')||/^\s*\d+\s*$/.test(p[1]||'');}).length;
+    if(aantal!==rows.length||rows.some(r=>!r.start||!r.locatie||(headerDatum&&Date.parse(r.start)>+datum)))throw new Error('onvolledige alarmregel of ongeldige alarmdatum in '+sbPad(file));
+    for(const r of rows)r._syncKey=sbSignaalgeverSleutel(signaalgeverOpenRij({...r,verkeerscentrale:info.vc}));
+    return {vc:info.vc,snapshot:new Date(datum||info.datum).toISOString(),bestand:sbPad(file),rows};
+  }
+  function sbSignaalgeverSynchroniseer(basis,snapshots){
+    const uniek=new Map();
+    for(const s of snapshots){
+      const key=s.vc+'|'+s.snapshot,signature=s.rows.map(r=>r._syncKey||r.event_key).sort().join('\n');
+      if(uniek.has(key)&&uniek.get(key).signature!==signature)throw new Error('Tegenstrijdige momentopnamen voor '+s.vc.toUpperCase()+' op '+s.snapshot+'. De geladen stand is behouden.');
+      if(!uniek.has(key))uniek.set(key,{...s,signature,rows:s.rows.map(r=>({...r}))});
+    }
+    const perVc=sbGroupBy([...uniek.values()],s=>s.vc),laatstePerVc={...basis.laatstePerVc};
+    const open=[],historie=[],updates={};
+    for(const [vc,ss] of Object.entries(perVc)){
+      const laatste=ss.reduce((t,s)=>Math.max(t,Date.parse(s.snapshot)),0),vorige=laatstePerVc[vc]||0;
+      const oudeOpen=basis.open.filter(r=>sbVcAlias(normAssetVc(normRij(r).vc))===vc);
+      let reeks=[...ss];
+      if(vorige&&laatste>vorige){
+        const rows=oudeOpen.map(raw=>{
+          const m=normRij(raw),unit=m.strook||m.melding.match(/MSI\s*\d+/i)?.[0]||(classificeer(m)==='LUS'?'DETECTIELUS':'SYSTEEM');
+          return {event_id:m.eventId,event_key:sbSignaalgeverSleutel(raw),_syncKey:sbSignaalgeverSleutel(raw),code:m.code||foutregel(m,classificeer(m))?.code||'',start:m.tVan?new Date(m.tVan).toISOString():null,description:m.melding,locatie:m.locatieTekst||m.osid,weg:m.weg,richting_kenmerk:m.richting,km:m.hm,unit,asset_key:vc+'|'+m.weg+'|'+m.richting+'|'+m.hm+'|'+unit,meenemen:true,impact:m.gevolg,categorie:classificeer(m)==='LUS'?'DETECTIELUS':'MSI'};
+        });
+        // De vorige complete momentopname is het aansluitpunt. Alleen nieuwere
+        // bestanden kunnen de actuele toestand wijzigen.
+        reeks=[{vc,snapshot:new Date(vorige).toISOString(),rows},...ss.filter(s=>Date.parse(s.snapshot)>vorige)];
+      }
+      for(const s of reeks)for(const r of s.rows)r.event_key=r._syncKey||r.event_key;
+      const bundel=sbBouwBundel(reeks,{}),actief=new Set(bundel.open.map(r=>r._syncKey||r.event_key));
+      const hist=[...bundel.storingen];
+      const gezien=new Set(hist.map(r=>r._syncKey));
+      // Ook een korte verdwenen MSI- of lusstoring hoort in de historie. Een
+      // datagat levert uitsluitend laatste aanwezigheid, geen verzonnen herstel.
+      for(const e of bundel.episodes){
+        if(e.kwaliteitsstatus==='open_aan_einde'||actief.has(e._syncKey)||gezien.has(e._syncKey))continue;
+        hist.push({...e,classificatie:e.duur_min_uur>=4?'LANGDURIG':'KORTDURIG'});gezien.add(e._syncKey);
+      }
+      // Oudere mapsneden vullen historie aan zonder de actuele lijst terug te zetten.
+      if(vorige&&laatste<vorige)open.push(...oudeOpen);
+      else open.push(...bundel.open.map(signaalgeverOpenRij));
+      historie.push(...hist.map(signaalgeverHistorieRij));
+      // Historie uit bestanden vóór het aansluitpunt blijft eveneens beschikbaar.
+      if(vorige&&laatste>vorige){const ouder=ss.filter(s=>Date.parse(s.snapshot)<=vorige);if(ouder.length)historie.push(...sbBouwBundel(ouder,{}).storingen.map(signaalgeverHistorieRij));}
+      laatstePerVc[vc]=Math.max(vorige,laatste);
+      updates[vc]={van:vorige||null,tot:laatstePerVc[vc],ouder:laatste<vorige};
+    }
+    const nietBijgewerkt=basis.open.filter(r=>!perVc[sbVcAlias(normAssetVc(normRij(r).vc))]);
+    const live=sbSignaalgeverVoegSamen(nietBijgewerkt,open),hist=sbSignaalgeverVoegSamen(basis.historie,historie);
+    return {open:live.rijen,historie:hist.rijen,laatstePerVc,updates,dubbel:live.dubbel+hist.dubbel};
+  }
   const SG_VCS=[['mn','MN'],['non','NON'],['nwn','NWN / WNN'],['zwn','ZWN / WNZ'],['zn','ZN']];
   /* Configuratiedialoog: kies regio('s), optioneel een periode en optioneel een
      basisbestand, zodat niet in één keer te veel wordt gelezen. */
@@ -261,7 +400,8 @@
           <label>Vanaf<br><input type="date" id="sgVanaf" style="padding:6px;border:1px solid #9ca8b4;border-radius:5px"></label>
           <label>Tot en met<br><input type="date" id="sgTot" style="padding:6px;border:1px solid #9ca8b4;border-radius:5px"></label>
         </div>
-        <label style="display:block;margin-bottom:6px">Optioneel basisbestand (eerder totaal-JSON, alleen de gekozen regio's worden bijgewerkt)<br><input type="file" id="sgBasis" accept=".json"></label>
+        <p>De geladen stand wordt per VC aangevuld. Oudere historie en andere VC's blijven staan. Herhaald inlezen maakt geen dubbele meldingen.</p>
+        <label style="display:block;margin-bottom:6px">Optioneel basisbestand, MTM-totaal of DVM-totaal JSON<br><input type="file" id="sgBasis" accept=".json"></label>
         <p id="sgBasisInfo" style="margin:0 0 10px;font-size:12px;color:#107c10;min-height:15px"></p>
         <p id="sgMapMelding" style="color:#a4262c;min-height:16px;margin:0 0 10px"></p>
         <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -274,8 +414,8 @@
         const info=dlg.querySelector('#sgBasisInfo'),f=e.target.files[0];
         if(!f){info.textContent='';return;}
         info.style.color='#566574';info.textContent='Basisbestand lezen…';
-        try{const j=JSON.parse(await f.text());const wm=sbWatermerken((j&&j.datasets&&j.datasets.mtm)||{});info.style.color='#107c10';info.textContent='Basis geladen. Laatste datum per regio: '+sbWatermerkTekst(wm)+'.';}
-        catch(err){info.style.color='#a4262c';info.textContent='Het basisbestand is geen geldige JSON.';}
+        try{const stand=sbSignaalgeverBasis(JSON.parse(await f.text()));info.style.color='#107c10';info.textContent='Basis geladen. Per VC: '+Object.entries(stand.laatstePerVc).map(([v,t])=>v.toUpperCase()+' '+new Date(t).toLocaleString('nl-NL')).join(', ')+'.';}
+        catch(err){info.style.color='#a4262c';info.textContent=err.message;}
       });
       dlg.querySelector('#sgMapVerder').addEventListener('click',async()=>{
         const vcs=new Set([...dlg.querySelectorAll('.sgVc:checked')].map(x=>x.value));
@@ -286,8 +426,8 @@
         const config={vcs,vanaf,tot};
         const basisFile=dlg.querySelector('#sgBasis').files[0];
         if(basisFile){
-          try{const j=JSON.parse(await basisFile.text());config.basisMtm=(j&&j.datasets&&j.datasets.mtm)||{};}
-          catch(err){melding.textContent='Het basisbestand is geen geldige JSON.';return;}
+          try{config.basisStand=sbSignaalgeverBasis(JSON.parse(await basisFile.text()));}
+          catch(err){melding.textContent=err.message;return;}
         }
         window.__BIDASH_SG_MAP_CONFIG__=config;
         /* Voorkeur: showDirectoryPicker, die alleen mtm/<vc>/<periode> afloopt en de
@@ -316,12 +456,13 @@
     /* Toon wat er nu geladen is en tot welke datum, zodat de gebruiker weet wat de
        volgende te lezen regio/periode zou zijn. */
     const huidig=dlg.querySelector('#sgHuidig');
-    const s=window.__BIDASH_SIGNAALGEVER_TOTAAL__;
+    const geladen=sbSignaalgeverStand(STORINGSBRONNEN,LIVE_STORINGSBRONNEN,window.__BIDASH_SIGNAALGEVER_TOTAAL__);
+    const s={...window.__BIDASH_SIGNAALGEVER_TOTAAL__,open:geladen.open.length,historie:geladen.historie.length,laatstePerVc:geladen.laatstePerVc};
     if(s&&(s.open||s.historie)){
-      const dat=t=>t?new Date(t).toLocaleDateString('nl-NL'):'onbekend';
+      const dat=t=>t?new Date(t).toLocaleString('nl-NL'):'onbekend';
       const perVc=s.laatstePerVc&&Object.keys(s.laatstePerVc).length?Object.entries(s.laatstePerVc).sort().map(([v,t])=>v.toUpperCase()+' '+dat(t)).join(', '):'—';
       huidig.style.display='';
-      huidig.innerHTML=`<b>Nu geladen:</b> ${s.bestand||'signaalgeverbron'} · laatste entry ${dat(s.laatsteEntry)}.<br>Per regio: ${perVc}.`;
+      huidig.textContent='Nu geladen. '+s.open+' open, '+s.historie+' historisch. Per VC, '+perVc+'.';
     }else{huidig.style.display='none';huidig.textContent='';}
     dlg.showModal();
   }
@@ -382,6 +523,7 @@
   }
   async function leesSignaalgeverMapKern(fileList,config){
     config=config||window.__BIDASH_SG_MAP_CONFIG__||{};
+    sgLaatsteExport=null;
     if(typeof ASSET_REGISTER_STATE==='undefined'||!ASSET_REGISTER_STATE){alert('Laad eerst All Assets. De storingsmap wordt rechtstreeks aan dat stamregister gekoppeld.');if(typeof renderDataGereedheid==='function')renderDataGereedheid();return;}
     const alle=[...(fileList||[])];
     const bestanden=sbFilterBestanden(alle,config);
@@ -397,10 +539,8 @@
     for(let n=0;n<bestanden.length;n++){
       const f=bestanden[n],info=sbPadInfoMtm(sbPad(f));
       let text;
-      try{text=await sbLeesTekst(f);}catch(err){continue;}
-      const snap=sbSnapshotDatum(text,f.name)||info.datum;
-      const rows=sbMtmRijenUitTekst(text,info.vc);
-      if(rows.length)snapshots.push({vc:info.vc,snapshot:new Date(snap).toISOString(),bestand:sbPad(f),rows});
+      try{text=await sbLeesTekst(f);}catch(err){throw new Error('Niet gelezen, de geladen stand is behouden. '+sbPad(f)+': '+err.message);}
+      snapshots.push(sbSignaalgeverSnapshot(text,f,info));
       if(n%25===0){
         const pct=2+68*(n+1)/bestanden.length,fase=`Storinglijsten lezen: ${(n+1).toLocaleString('nl-NL')} / ${bestanden.length.toLocaleString('nl-NL')}`;
         sgMapVoortgang(pct,fase);
@@ -412,33 +552,35 @@
     sgMapVoortgang(74,'Alarmruns en storingen reconstrueren…');
     if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,74,'Alarmruns en storingen reconstrueren',{direct:true});
     if(typeof uiPauze==='function')await uiPauze();
-    const bundel=sbBouwBundel(snapshots,{});
-    /* Optioneel: combineer met een eerder totaal-JSON; alleen de gekozen regio's
-       worden vervangen, de overige regio's blijven ongewijzigd. */
-    const gecombineerd=config.basisMtm?sbCombineerMetBasis(config.basisMtm,bundel.open,bundel.storingen,config.vcs):{alarm_episodes:bundel.open,storingen:bundel.storingen};
-    /* Downloadbaar totaal-JSON (BiDash-lean: alleen open alarmen + storingen), bruikbaar
-       als basisbestand bij een volgende maplezing. */
+    const huidig=sbSignaalgeverStand(STORINGSBRONNEN,LIVE_STORINGSBRONNEN,window.__BIDASH_SIGNAALGEVER_TOTAAL__);
+    const extra=config.basisStand||(config.basisMtm?sbSignaalgeverBasis({datasets:{mtm:config.basisMtm}}):null);
+    const basis=sbSignaalgeverCombineerStand(huidig,extra);
+    const resultaat=sbSignaalgeverSynchroniseer(basis,snapshots);
+    const {open,historie,laatstePerVc,updates,dubbel}=resultaat;
+    const versie='maplezen-133';
     const tijdstip=new Date(),z=n=>String(n).padStart(2,'0');
     const stempel=`${tijdstip.getFullYear()}${z(tijdstip.getMonth()+1)}${z(tijdstip.getDate())}_${z(tijdstip.getHours())}${z(tijdstip.getMinutes())}`;
-    sgLaatsteExport={data:{metadata:{versie:'2.5',herkomst:'bidash-maplezer',aangemaakt:tijdstip.toISOString(),watermarks:{mtm:sbWatermerken(gecombineerd)}},datasets:{mtm:gecombineerd}},naam:`MTM_totaal_bidash_${stempel}.json`};
-    const pseudo={datasets:{mtm:gecombineerd},metadata:{versie:'maplezen'}};
-    const {open,historie,versie}=signaalgeverTotaalBronnen(pseudo);
     sgMapVoortgang(88,'Open meldingen aan All Assets koppelen en doorrekenen…');
     if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,86,'Open meldingen aan All Assets koppelen',{direct:true});
     if(typeof uiPauze==='function')await uiPauze();
     const naam='Signaalgevers uit map ('+regios+')';
-    const {herkendOpen,herkendHist,laatsteEntry}=await pasSignaalgeverBundelToe(naam,open,historie,versie);
+    const {herkendOpen,herkendHist,laatsteEntry}=await pasSignaalgeverBundelToe(naam,open,historie,versie,{bijwerken:true,laatstePerVc,histRest:basis.histRest,liveRest:huidig.liveRest});
+    // Een DVM-totaal bewaart de oorspronkelijke rijen, ook bij een oudere basis
+    // zonder MTM-schema. Dezelfde download kan weer als updatebasis worden gekozen.
+    const selectie=Object.fromEntries(totaalExportOpties().map(o=>[o.id,['storingshistorie','liveStoringen'].includes(o.id)]));
+    sgLaatsteExport={data:totaalExportBundle(selectie,{autosaveLean:false}),naam:`MTM_totaal_bidash_${stempel}.json`};
     window.__BIDASH_SG_MAP_CONFIG__=null;
     const laatste=laatsteEntry?new Date(laatsteEntry).toLocaleDateString('nl-NL'):'onbekend';
-    const klaarTekst=`Klaar (${regios}): ${bestanden.length.toLocaleString('nl-NL')} bestanden → ${open.length.toLocaleString('nl-NL')} open (${herkendOpen.toLocaleString('nl-NL')} herkend), ${historie.length.toLocaleString('nl-NL')} historisch (${herkendHist.toLocaleString('nl-NL')} herkend). Laatste entry ${laatste}.`;
+    const perVc=Object.entries(updates).map(([v,u])=>v.toUpperCase()+' tot '+new Date(u.tot).toLocaleString('nl-NL')+(u.ouder?' (oudere mapsnede, actuele stand behouden)':'')).join('; ');
+    const klaarTekst=`Klaar (${regios}): ${bestanden.length.toLocaleString('nl-NL')} bestanden, ${open.length.toLocaleString('nl-NL')} open (${herkendOpen.toLocaleString('nl-NL')} herkend), ${historie.length.toLocaleString('nl-NL')} historisch (${herkendHist.toLocaleString('nl-NL')} herkend). ${dubbel.toLocaleString('nl-NL')} overlappende regels samengevoegd. Per VC: ${perVc}.`;
     sgMapVoltooid(open.length&&!herkendOpen?klaarTekst+' Let op: geen enkele open melding werd als MSI herkend, dus het actuele dashboard blijft leeg.':klaarTekst,open.length&&!herkendOpen);
-    if(typeof importKlaar==='function')importKlaar(label,'Signaalgevers uit map gelezen. '+klaarTekst+' Vervangt de losse Open storingen- en Storingshistorie-bronnen.');
+    if(typeof importKlaar==='function')importKlaar(label,'Signaalgevers per VC bijgewerkt. '+klaarTekst);
     /* Ook bij de showDirectoryPicker-route (die niet via de bron-inputhandler loopt)
        Datasetbeheer verversen en de schil op de hoogte brengen, zodat de kaart
        Signaalgevers totaal en het overzicht meteen bijwerken. */
     try{if(typeof renderDatasetBeheer==='function')renderDatasetBeheer();}catch(err){}
     try{if(parent!==window)parent.postMessage({type:'hub:changed',engine:'dvm',sourceSpecific:true,bron:'signaalgeverMap'},location.origin);}catch(err){}
-    return {bestanden:bestanden.length,open:open.length,historie:historie.length,herkendOpen,herkendHist};
+    return {bestanden:bestanden.length,open:open.length,historie:historie.length,herkendOpen,herkendHist,updates,dubbel};
   }
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -767,5 +909,6 @@
   window.leesDripMap=leesDripMap;
   window.openDripMapDialog=openDripMapDialog;
   window.__BIDASH_STORINGSBUNDELAAR__={sbVcAlias,sbParseDT,sbLocatie,sbMtmCategorie,sbSnapshotDatum,sbMtmRijenUitTekst,sbClassificeer,sbBouwBundel,sbPadInfoMtm,sbBestandGeschikt,sbFilterBestanden,sbCombineerMetBasis,sbDuurTekst,sbMetWerkers,
+    sbSignaalgeverSleutel,sbSignaalgeverVoegSamen,sbSignaalgeverStand,sbSignaalgeverBasis,sbSignaalgeverCombineerStand,sbSignaalgeverSnapshot,sbSignaalgeverSynchroniseer,
     sbPadInfoDrip,sbDripBestandGeschikt,sbDripEventsUitTekst,sbBouwDripBundel,sbFilterDripBestanden,sbCombineerMetDripBasis,sbDripWatermerken,sgVolgendeCtxDrip};
 })();
