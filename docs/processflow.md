@@ -329,6 +329,8 @@ All Assets laden, Bronbeheer, Haal laatste NDW op, manifest en gzip van eigen we
 
 ### Locatiecorrectie en zijbaan
 
+Vanaf BiDash 2.54 / DVM 134 leest de gedeelde locatieparser ook streepjes tussen weg, zijde en HM/HMP. Voor MSI en Detectielus volgt een koppeling op type, VC, oorspronkelijke zijde, HMP en eenheid. Lees een unieke rijstrook uit de expliciete velden of meldtekst. Controleer ook opgeslagen aliassen op bronkenmerken; negeer een verkeerde alias en zoek een passende registereenheid. Zonder passend asset blijft de melding zichtbaar op de bronlocatie. Verschillende foutcodes blijven aparte meldingen, exacte dubbelen worden eenmaal verwerkt. De nieuwe koppelidentiteit en importcache bewaren het onderscheid tussen VC’s, zijbanen en eenheden. Oude aliassen blijven in parameters en exports staan.
+
 Assetnaam en HM/HMP normaliseren, N-prefix en oorspronkelijke zijletter bewaren, hoofdbaanindex binnen dezelfde weg opbouwen, eenduidige nabije richting bepalen of keuze open laten. Feitelijke HMP blijft staan; de schakel gebruikt bij een afgeleide zijbaan de hoofdbaankandidaat.
 
 Individueel asset openen, locatie aanpassen, volledige invoer valideren, correctie aan bestaande asset-id bewaren, areaal/indices/context opnieuw opbouwen, DRIP-locatie bijwerken, historie/prognose ongeldig maken, actuele doorrekening verversen, schil informeren. Totaal- en assetconfiguratie-export bewaren de correctie. Alleen bronlocatie herstellen behoudt overige rekenwaarden. Een bestaande DRIP-bron die nog de oorspronkelijke gecorrigeerde locatie vermeldt kan bij een unieke identiteit meekomen; andere locatieconflicten blijven geblokkeerd.

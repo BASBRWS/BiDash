@@ -50,7 +50,7 @@ function haalFoutcodes(){
   throw new Error('foutcodes-array niet gevonden');
 }
 
-const ctx=vm.createContext({dvmLeesLocatie:locatieRuntime.dvmLeesLocatie,dvmHerleidZijde:locatieRuntime.dvmHerleidZijde,Number,String,Object,Array,Math,Date,parseFloat,parseInt,isNaN,isFinite,console,RULES:{foutcodes:haalFoutcodes()}});
+const ctx=vm.createContext({meldingStrook:locatieRuntime.meldingStrook,dvmLeesLocatie:locatieRuntime.dvmLeesLocatie,dvmHerleidZijde:locatieRuntime.dvmHerleidZijde,Number,String,Object,Array,Math,Date,parseFloat,parseInt,isNaN,isFinite,console,RULES:{foutcodes:haalFoutcodes()}});
 for(const naam of ['lc','num','parseDatum','normAssetRichting','normRij','canoniekAssetType','classificeer','dripToestandImpact','dripRegel','foutregel'])
   vm.runInContext(haalFunctie(dvm2,naam),ctx,{filename:naam});
 for(const naam of ['signaalgeverOpenActief','signaalgeverAssetType','signaalgeverOpenRij','signaalgeverHistorieRij','signaalgeverTotaalBronnen'])

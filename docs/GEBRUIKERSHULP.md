@@ -483,6 +483,10 @@ Controleer na ophalen de voorgestelde meetlocaties. Een andere meting kan een be
 
 ## Assetlocaties corrigeren, BiDash 2.48 / DVM 129
 
+Vanaf BiDash 2.54 / DVM 134 worden locaties zoals **A4-Li-7,49** ook automatisch gelezen. Je hoeft het streepje niet door een spatie te vervangen. Dit geldt voor het register, de storingen en de netwerkschakelkoppeling.
+
+MSI- en detectielusmeldingen worden per locatie en eenheid gekoppeld. De rijstrook kan ook uit de meldtekst of het gevolg komen. Een oude opgeslagen koppeling naar een andere locatie, VC of rijstrook wordt overgeslagen. Als er geen passend registerasset is, blijft de melding op haar bronlocatie zichtbaar zonder assetsleutel. Open dan **Assetkoppeling oplossen** of corrigeer de registerlocatie. Zonder bekend rijstrooknummer blijft een locatie met meerdere eenheden onbeslist. Verschillende foutcodes op hetzelfde asset kunnen meerdere geldige open meldingen opleveren; dezelfde melding wordt niet dubbel geteld. Bestaande aliassen blijven bewaard in jouw export.
+
 Open Regels & signalen, Impactregels, Assets zoeken en individueel configureren. Zoek en open het asset. Bij **Locatie wijzigen** kun je de weg met A/N-prefix, richting, HM/HMP en hectoletter aanpassen. RD X/Y zijn optioneel; vul beide in of laat beide leeg. Kies **Locatie opslaan en herberekenen**. De app gebruikt de correctie in areaal, storingskoppeling, netwerkschakels en de afhankelijke analyses. De oorspronkelijke naam en bronrij blijven bewaard.
 
 HM en HMP zijn beide kilometerposities. N-wegen blijven N-wegen, ook wanneer een verbindingsletter achter het wegnummer staat. Letters voor verbindingsbogen of parallelbanen krijgen een LI/RE-hoofdbaan wanneer er één duidelijke nabije kandidaat op dezelfde weg is. De bronletter en feitelijke HMP blijven zichtbaar in de assetconfiguratie. Als beide richtingen gelijk passen, kies je zelf de hoofdrijrichting. Een ontbrekende of foutieve matrixgrens moet nog bij Netwerkschakelmatrix worden gecorrigeerd.
