@@ -3263,18 +3263,51 @@ function selecteerChokeOpKaart(index){
   const el=document.getElementById('chokeRijkswegKaart');if(el)el.scrollIntoView({block:'nearest',behavior:'smooth'});
 }
 
+/* PDOK BRT WMTS, RD New. Tegelmatrix uit de officiële capabilities:
+   https://service.pdok.nl/kadaster/brt-achtergrondkaart/wmts/v2_0?request=getcapabilities&service=WMTS
+   Alleen vaste publieke kaarttegels; geen assets of storingsgegevens in de URL. */
+function gebiedKaartTegels(view){
+  const {links,rechts,onder,boven,W,H,pad}=view;
+  const bw=rechts-links,bh=boven-onder;
+  if(![links,rechts,onder,boven,W,H,pad].every(Number.isFinite)||bw<=0||bh<=0||W<=2*pad||H<=2*pad)return [];
+  const metersPerPixel=Math.max(bw/(W-2*pad),bh/(H-2*pad));
+  const niveau=Math.max(0,Math.min(14,Math.round(Math.log2(3440.64/metersPerPixel))));
+  const resolution=3440.64/2**niveau,span=256*resolution,matrix=2**niveau;
+  const minX=links-pad*bw/(W-2*pad),maxX=rechts+pad*bw/(W-2*pad);
+  const minY=onder-pad*bh/(H-2*pad),maxY=boven+pad*bh/(H-2*pad);
+  const firstCol=Math.max(0,Math.floor((minX+285401.92)/span)),lastCol=Math.min(matrix-1,Math.floor((maxX+285401.92)/span));
+  const firstRow=Math.max(0,Math.floor((903401.92-maxY)/span)),lastRow=Math.min(matrix-1,Math.floor((903401.92-minY)/span));
+  if((lastCol-firstCol+1)*(lastRow-firstRow+1)>64)return [];
+  const tiles=[];
+  for(let col=firstCol;col<=lastCol;col++)for(let row=firstRow;row<=lastRow;row++){
+    const x=-285401.92+col*span,y=903401.92-row*span;
+    tiles.push({niveau,col,row,x:pad+(x-links)/bw*(W-2*pad),y:pad+(boven-y)/bh*(H-2*pad),
+      width:span/bw*(W-2*pad),height:span/bh*(H-2*pad),
+      url:'https://service.pdok.nl/kadaster/brt-achtergrondkaart/wmts/v2_0/standaard/EPSG:28992/'+String(niveau).padStart(2,'0')+'/'+col+'/'+row+'.png'});
+  }
+  return tiles;
+}
+function gebiedKaartTegelStatus(image,gelukt){
+  if(!image?.isConnected)return;
+  image.dataset.kaartStatus=gelukt?'geladen':'mislukt';
+  if(!gelukt)image.style.visibility='hidden';
+  const host=image.closest('.choke-map-box'),status=host?.querySelector('[data-kaart-status]');if(!status)return;
+  const tiles=[...host.querySelectorAll('[data-kaart-tegel]')],goed=tiles.filter(t=>t.dataset.kaartStatus==='geladen').length;
+  const fout=tiles.filter(t=>t.dataset.kaartStatus==='mislukt').length,pending=tiles.length-goed-fout;
+  status.textContent=pending?'Achtergrondkaart laden.':fout?(goed?'Een deel van de achtergrondkaart kon niet laden.':'Achtergrondkaart niet beschikbaar. Controleer je internetverbinding.'):'Achtergrondkaart geladen.';
+}
+
 function renderRijkswegKaart(chokes){
   GEBIED_KAART_CHOKES=chokes;
   const net=rijkswegNetwerkData(),regio=GEBIED_REGIO;
   const segmenten=net.segmenten;
-  const basisPunten=regio?(net.regioPunten.get(regio)||[]):net.punten;
+  const basisPunten=regio?(net.regioPunten.get(regio)||[]):[...net.regioPunten.values()].flat().concat(net.punten);
   const kaartChokes=chokes.map((c,i)=>({c,i,p:chokeKaartPunt(c)})).filter(x=>x.p);
-  if(!basisPunten.length&&!kaartChokes.length){
-    return `<div class="choke-map-box" id="chokeRijkswegKaart"><div class="choke-map-waarschuwing"><b>Regionale uitsnede nog niet beschikbaar.</b> De NWB-wegassen zijn geladen, maar de assetlijst bevat voor ${esc(regio?gebiedRegioNaam(regio):'deze selectie')} geen bruikbare RD-coördinaten om de uitsnede en choke-points te verankeren. De tabellen blijven wel werken.</div></div>`;
-  }
+  const zonderPosities=!basisPunten.length&&!kaartChokes.length;
   let gekozen=chokes.find(c=>chokeKaartId(c)===GEBIED_KAART_SELECTIE);
   if(!gekozen&&kaartChokes.length){gekozen=kaartChokes.slice().sort((a,b)=>a.c.beschLok-b.c.beschLok)[0].c;GEBIED_KAART_SELECTIE=chokeKaartId(gekozen);}
   const allePunten=basisPunten.concat(kaartChokes.map(x=>x.p));
+  if(zonderPosities)allePunten.push({x:0,y:300000},{x:280000,y:625000});
   let minX=minGetal(allePunten.map(p=>p.x)),maxX=maxGetal(allePunten.map(p=>p.x));
   let minY=minGetal(allePunten.map(p=>p.y)),maxY=maxGetal(allePunten.map(p=>p.y));
   const W=900,H=530,pad=22,doel=(W-2*pad)/(H-2*pad);
@@ -3289,6 +3322,8 @@ function renderRijkswegKaart(chokes){
   const zichtbareSegmenten=segmenten.filter(s=>s.maxX>=links&&s.minX<=rechts&&s.maxY>=onder&&s.minY<=boven);
   let svg=`<svg viewBox="0 0 ${W} ${H}" class="choke-map-svg" role="img" aria-label="Rijkswegennet met ${kaartChokes.length} gepositioneerde choke-points in ${esc(regio?gebiedRegioNaam(regio):'Nederland')}">`;
   svg+=`<defs><clipPath id="chokeKaartClip"><rect x="0" y="0" width="${W}" height="${H}"/></clipPath></defs><g clip-path="url(#chokeKaartClip)">`;
+  const tegels=gebiedKaartTegels({links,rechts,onder,boven,W,H,pad});
+  for(const t of tegels)svg+=`<image data-kaart-tegel="${t.niveau}/${t.col}/${t.row}" href="${t.url}" x="${t.x.toFixed(3)}" y="${t.y.toFixed(3)}" width="${(t.width+.02).toFixed(3)}" height="${(t.height+.02).toFixed(3)}" preserveAspectRatio="none" crossorigin="anonymous" referrerpolicy="no-referrer" onload="gebiedKaartTegelStatus(this,true)" onerror="gebiedKaartTegelStatus(this,false)"/>`;
   zichtbareSegmenten.forEach(s=>{
     const pts=s.punten.map(p=>`${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join(' ');
     svg+=`<polyline class="${s.weg.startsWith('A')?'rijksweg-a':'rijksweg-n'}" points="${pts}"><title>${esc(s.weg)}, NWB-segment ${s.nr}</title></polyline>`;
@@ -3306,7 +3341,11 @@ function renderRijkswegKaart(chokes){
   const plaatsDetail=gekozenPunt?(gekozenPunt.gesnapt?`<span>NWB-snap: ${Math.round(gekozenPunt.afstandNwb)} m vanaf ${esc(gekozenPunt.basisBron)}</span>`:`<span>Assetpositie: geen veilige NWB-match binnen 250 m</span>`):'';
   const detail=gekozen?`<b>${esc(gekozen.key)} hm ${gekozen.hmMin.toFixed(1)}${gekozen.hmMax>gekozen.hmMin?'-'+gekozen.hmMax.toFixed(1):''}</b><span>${gekozen.n} storingen</span><span>${gekozen.dichtheid.toFixed(1)} per km</span><span style="color:${chokeKleur(gekozen.beschLok)};font-weight:700">${fmt(gekozen.beschLok,1)}% lokaal beschikbaar</span>${plaatsDetail}`:`<span>Geen choke-point met een betrouwbare kaartpositie in deze selectie.</span>`;
   const snapN=kaartChokes.filter(x=>x.p.gesnapt).length,ankerN=((regio&&net.perRegioN[regio])||(!regio&&net.coordN)||0);
-  return `<div class="choke-map-box" id="chokeRijkswegKaart">${svg}<div class="choke-map-detail">${detail}</div></div><div class="choke-map-meta">Kaartbasis: ${esc(NWB_HOOFDWEGEN.meta.bron)}, ${NWB_HOOFDWEGEN.meta.wegen} wegen en ${NWB_HOOFDWEGEN.meta.segmenten} segmenten, vereenvoudigd tot maximaal ${NWB_HOOFDWEGEN.meta.vereenvoudigingM} m geometrische afwijking. ${ankerN.toLocaleString('nl-NL')} actieve assets leveren het geografische anker. ${snapN} van ${kaartChokes.length} geplaatste choke-points zijn binnen 250 m op dezelfde NWB-weg gesnapt. Niet-gekoppelde locaties en andere wegen worden niet gegokt.</div>`;
+  const ontbrekend=chokes.length-kaartChokes.length;
+  const status=tegels.length?'Achtergrondkaart laden.':'Achtergrondkaart niet beschikbaar voor deze uitsnede.';
+  const waarschuwing=zonderPosities?`<div class="choke-map-waarschuwing">Geen bruikbare RD-coördinaten voor ${esc(regio?gebiedRegioNaam(regio):'deze selectie')}. De landelijke kaart is zichtbaar; knelpunten zonder locatie staan alleen in de ranglijst.</div>`:'';
+  const nwb=net.segmenten.length?` ${snapN} knelpunten zijn binnen 250 m op dezelfde geladen NWB-weg gesnapt.`:'';
+  return `<div class="choke-map-box" id="chokeRijkswegKaart">${svg}<div class="choke-map-bron"><span data-kaart-status role="status">${status}</span><a href="https://www.pdok.nl/introductie/-/article/basisregistratie-topografie-achtergrondkaarten-brt-a-" target="_blank" rel="noopener noreferrer">Kaart: Kadaster / PDOK, BRT Achtergrondkaart</a></div>${waarschuwing}<div class="choke-map-detail">${detail}</div></div><div class="choke-map-meta">${ankerN.toLocaleString('nl-NL')} actieve assets met coördinaten. ${kaartChokes.length} van ${chokes.length} knelpunten geplaatst.${ontbrekend?' '+ontbrekend+' zonder bruikbare locatie; deze blijven in de ranglijst.':''}${nwb} De achtergrondkaart wordt online geladen; jouw assets en storingsgegevens blijven lokaal.</div>`;
 }
 
 function renderGebied(){
@@ -3321,7 +3360,7 @@ function renderGebied(){
   const alle=GEBIED_REGIO?alleNet.filter(c=>c.vc===GEBIED_REGIO):alleNet;
   const selectieNaam=GEBIED_REGIO?gebiedRegioNaam(GEBIED_REGIO):'Heel Nederland';
 
-  let h=`<div class="card"><h3 style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span>Choke-points, ruimtelijke concentratie van storingen ${tip('Een lange weg met een goed gemiddelde kan lokaal toch een storingsconcentratie bevatten. De analyse clustert storingen op hm-positie en berekent per cluster een lokale beschikbaarheid. All Assets levert het geografische anker; de kaart projecteert dat anker veilig op dezelfde wegas uit NWB-2025.')}</span><button class="memo-knop" onclick="opentMemo('gebied')">📄 Memo genereren</button></h3>
+  let h=`<div class="card"><h3 style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span>Choke-points, ruimtelijke concentratie van storingen ${tip('Een lange weg met een goed gemiddelde kan lokaal toch een storingsconcentratie bevatten. De analyse clustert storingen op hm-positie en berekent per cluster een lokale beschikbaarheid. All Assets levert de kaartpositie. Geladen NWB-wegassen worden alleen gebruikt voor een veilige projectie op dezelfde weg.')}</span><button class="memo-knop" onclick="opentMemo('gebied')">📄 Memo genereren</button></h3>
     <p class="muted" style="margin:-6px 0 12px;font-size:12px">Clusters van ≥2 storingen binnen ${(RULES.cfg.chokeVenster||2)} km. De lokale beschikbaarheid deelt de verliesuren door alleen de signaalgevers in het segment. Het venster is instelbaar in de rule engine, sectie 0.</p>`;
 
   const ernstig=alle.filter(c=>c.beschLok<80).length;
@@ -3334,7 +3373,7 @@ function renderGebied(){
     <div class="wv-kpi"><div class="v mono" style="color:var(--rws-blauw);font-size:16px">${zwaarste?esc(zwaarste.key)+' hm'+zwaarste.hmMin.toFixed(0):'–'}</div><div class="l">Zwaarste choke-point</div></div>
   </div></div>`;
 
-  h+=`<div class="card"><h3>Choke-points op het Rijkswegennet ${tip('De grijze lijnen zijn de echte wegassen uit NWB-2025. Een gekleurd choke-point start bij de gekoppelde assetpositie en wordt alleen op dezelfde weg gesnapt als de afstand maximaal 250 meter is. Klik op een punt of een rij in de ranglijst om in te zoomen.')}</h3>
+  h+=`<div class="card"><h3>Choke-points op het Rijkswegennet ${tip('De achtergrondkaart toont wegen, plaatsen en water. Gekleurde punten tonen de knelpunten uit jouw selectie. Klik op een punt of een rij in de ranglijst om in te zoomen. Als NWB-wegassen geladen zijn, wordt alleen binnen 250 meter op dezelfde weg gesnapt.')}</h3>
     <div class="choke-map-toolbar"><div class="map-keuze"><label>Gebied<select onchange="wijzigGebiedRegio(this.value)"><option value=""${!GEBIED_REGIO?' selected':''}>Heel Nederland</option>${regioCodes.map(v=>`<option value="${esc(v)}"${GEBIED_REGIO===v?' selected':''}>${esc(gebiedRegioNaam(v))}</option>`).join('')}</select></label></div>
     <div class="choke-map-buttons"><button type="button" onclick="wijzigGebiedZoom(-1)" aria-label="Uitzoomen">−</button><button type="button" onclick="wijzigGebiedZoom(1)" aria-label="Inzoomen">+</button><button type="button" onclick="herstelGebiedKaart()">Hele regio</button></div></div>
     ${renderRijkswegKaart(alle)}

@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="nl">
-<head><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self' blob: about:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'">
+<head><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://service.pdok.nl/kadaster/brt-achtergrondkaart/wmts/v2_0/; font-src 'self' data:; connect-src 'self'; frame-src 'self' blob: about:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'">
 <meta charset="UTF-8">
+<meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dienstimpact-analyse DVM-storingen | RWS WVM | versie 72</title>
 <script src="../vendor/xlsx.full.min.js"></script>
@@ -515,6 +516,8 @@ h3 .tip,h4 .tip{font-size:10px}
 .choke-map-svg .choke-punt{stroke:var(--wit);stroke-width:1.5;cursor:pointer}
 .choke-map-svg .choke-punt.geselecteerd{stroke:var(--rws-blauw-dark);stroke-width:3}
 .choke-map-svg .kaart-label{fill:var(--text);font-size:11px;font-weight:700;paint-order:stroke;stroke:var(--wit);stroke-width:3px;stroke-linejoin:round}
+.choke-map-bron{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:7px 11px;background:var(--wit);font-size:11px;color:var(--sub)}
+.choke-map-bron a{color:var(--rws-blauw)}
 .choke-map-detail{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:9px 11px;border-top:1px solid var(--border);background:var(--wit);font-size:12px;color:var(--sub)}
 .choke-map-detail b{color:var(--text)}
 .choke-map-waarschuwing{padding:16px;color:var(--sub);font-size:12px;line-height:1.5}
@@ -573,7 +576,7 @@ h3 .tip,h4 .tip{font-size:10px}
     </div>
     <button class="login-knop" onclick="probeerLogin()">Inloggen</button>
     <div id="loginFout" class="login-fout"></div>
-    <div class="login-voet">VWM · Rijkswaterstaat · lokale verwerking, geen data verlaat de browser</div>
+    <div class="login-voet">VWM · Rijkswaterstaat · lokale verwerking van jouw gegevens; de achtergrondkaart wordt online geladen</div>
   </div>
 </div>
 
@@ -761,7 +764,7 @@ h3 .tip,h4 .tip{font-size:10px}
 
 <footer>
   Dienstimpact-analyse · Rijkswaterstaat Wegverkeersmanagement · rekenregels conform rule engine (demo5) &amp; taakanalyse IV WVL ·
-  lokale verwerking, geen data verlaat de browser
+  lokale verwerking van jouw gegevens; de achtergrondkaart wordt online geladen
 </footer>
 </div><!-- /appRoot -->
 
@@ -769,7 +772,7 @@ h3 .tip,h4 .tip{font-size:10px}
 
 <script src="dvm-2.js?v=20261014-0915"></script>
 
-<script src="dvm-3.js?v=20261014-0915"></script>
+<script src="dvm-3.js?v=20261014-1536"></script>
 <style>@media print{.kosten-invoer{display:none!important}.kosten-blok{break-inside:avoid}} .kosten-blok{border-left:4px solid #003082;padding:12px;margin-top:16px}.kosten-blok p{font-size:12px;line-height:1.5}</style>
-<script src="dvm-adapter.js?v=20261014-1151"></script></body>
+<script src="dvm-adapter.js?v=20261014-1536"></script></body>
 </html>
