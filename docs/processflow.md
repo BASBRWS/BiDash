@@ -342,3 +342,7 @@ Bij ontbrekende grenzen of overlap, Matrixregels bekijken, wegfilter toepassen, 
 ## Assetregister vanaf BiDash 2.50
 
 De bestaande DVM- en BI-adapters leveren de registerweergave. De schil groepeert actuele foutcodes per DVM-asset en bouwt een lokale presentatielijst in korte blokken. Zoeken en queryfilters gebruiken alle geladen assets; de tabel tekent alleen 60 regels per pagina. Bladeren hergebruikt dezelfde selectie. Bronwijzigingen, herstel en Uitkomsten vernieuwen verversen de lijst. Dit voegt geen tweede doorrekening, opslag of exportsectie toe.
+
+## Assetmanagement vanaf BiDash 2.51 / DVM 131
+
+De DVM-adapter blijft het volledige register aanbieden. De schil groepeert meldingen vooraf per asset en leidt operationele status af met de bestaande regels. Registerfilters werken op die presentatielijst. Open storingen heeft één weergave-eigenaar, verwerkt nieuwe bronnen/filtering in korte blokken en toont 60 regels per pagina. Een verborgen storingsscherm wordt niet opgebouwd. De memo blijft over de volledige gefilterde selectie gaan. Bronmutaties maken beide presentatielijsten ongeldig; de rekenketen en exports blijven bij DVM.

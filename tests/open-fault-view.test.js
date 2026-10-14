@@ -48,7 +48,7 @@ test('DVM HUB verrijkt uitsluitend de gezamenlijke meldingen zonder historie opn
   assert.match(src,/typeId/);
   assert.match(src,/rd:/);
   assert.doesNotMatch(src,/DRIP_HIST_STATE/);
-  assert.match(src,/baseFaults\(\)\.map\(enrichBase\)/);
+  assert.match(src,/baseFaults\(\)\.map\(\(row,i\)=>enrichBase\(row,i,index\)\)/);
   assert.match(src,/operationeleStatus/);
   assert.match(src,/resolveDrip/);
   assert.match(src,/ria4/);

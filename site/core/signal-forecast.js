@@ -5,8 +5,8 @@ import {installDvmCombiPerformance} from './dvm-combi-performance.js?v=20261008-
 import {installTrafficScenarioDefaults} from './traffic-scenario-defaults.js?v=20261008-1000';
 import {installNdwLoader} from './ndw-loader.js?v=20261014-0803';
 import {installDripOpenFromHistory} from './drip-open-from-history.js?v=20261008-1000';
-import {installFaultHubExtensionLoader} from './fault-hub-extension-loader.js?v=20261008-1000';
-import {installOpenFaultParentUi} from './open-fault-parent-ui.js?v=20261008-1000';
+import {installFaultHubExtensionLoader} from './fault-hub-extension-loader.js?v=20261014-1151';
+import {installOpenFaultParentUi} from './open-fault-parent-ui.js?v=20261014-1151';
 export * from './signal-forecast-original.js?v=20261008-1000';
 export * from './live-filter.js?v=20261008-1000';
 
