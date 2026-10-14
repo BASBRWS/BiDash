@@ -43,6 +43,35 @@ function incidentKey(x,index=0){
   return [String(x?.code||x?.asset||'').toUpperCase(),Number(x?.start)||index,String(x?.weg||'').toUpperCase(),x?.hm??''].join('|');
 }
 
+/* Een nog openstaande DRIP-storing is één doorlopende toestand. Twee bronnen —
+   bijvoorbeeld een DRIP-totaalbestand en een CDMS-mapscan — kunnen dezelfde open
+   storing melden met een andere waargenomen starttijd (de mapscan ziet alleen zijn
+   eigen venster). Die mogen geen twee open meldingen opleveren. De ontdubbelsleutel
+   voor open incidenten laat start/einde daarom weg en identificeert op de DRIP zelf:
+   code (hoofdletterongevoelig), gebied en locatie. Een hergebruikte code in een
+   ander gebied of op een andere plek blijft een eigen storing. */
+function openIncidentKey(x){
+  const id=String(x?.code||x?.asset||'').toUpperCase();
+  const vc=String(x?.vc||'').toUpperCase();
+  const weg=String(x?.weg||'').toUpperCase();
+  const richting=String(x?.richting||'').toUpperCase();
+  const hm=x?.hm??'';
+  return [id,vc,weg,richting,hm].join('|');
+}
+
+/* Kies per open-sleutel het incident met de vroegste start (de meest volledige
+   waarneming van de doorlopende storing) en bewaar de volgorde van eerste
+   voorkomen. */
+function kiesOpenIncidenten(incidenten){
+  const ends=sourceEnds(incidenten),gekozen=new Map();
+  (Array.isArray(incidenten)?incidenten:[]).forEach((x,i)=>{
+    if(!isOpenDripIncident(x,ends.get(String(x?.sourceKey||x?.sourceName||''))))return;
+    const key=openIncidentKey(x),vorige=gekozen.get(key);
+    if(!vorige||(Number(x?.start)||Infinity)<(Number(vorige.x?.start)||Infinity))gekozen.set(key,{x,i});
+  });
+  return [...gekozen.values()];
+}
+
 /* Een historie-incident draagt niet altijd weg, richting en hm. De storingslijst
    vult die aan uit het assetregister, maar de regel die naar doorrekenen() gaat
    deed dat niet. doorrekenen() laat een melding zonder `weg` vallen, dus zulke
@@ -95,22 +124,19 @@ export function dripOpenRow(x,index=0,plaats=null){
    assetregister. De engine geeft hem mee; tests en andere aanroepers mogen hem
    weglaten. */
 export function deriveOpenDripRows(incidenten,plaatsVan=null){
-  const out=[],seen=new Set(),ends=sourceEnds(incidenten);
-  (Array.isArray(incidenten)?incidenten:[]).forEach((x,i)=>{
-    if(!isOpenDripIncident(x,ends.get(String(x?.sourceKey||x?.sourceName||''))))return;
-    const key=incidentKey(x,i);if(seen.has(key))return;seen.add(key);
+  const out=[];
+  for(const {x,i} of kiesOpenIncidenten(incidenten)){
     let plaats=null;
     if(typeof plaatsVan==='function'){try{plaats=plaatsVan(x);}catch(error){plaats=null;}}
     out.push(dripOpenRow(x,i,plaats));
-  });
+  }
   return out;
 }
 
 export function deriveOpenDripFaults(incidenten){
-  const out=[],seen=new Set(),ends=sourceEnds(incidenten);
-  (Array.isArray(incidenten)?incidenten:[]).forEach((x,i)=>{
-    if(!isOpenDripIncident(x,ends.get(String(x?.sourceKey||x?.sourceName||''))))return;
-    const key=incidentKey(x,i);if(seen.has(key))return;seen.add(key);
+  const out=[];
+  for(const {x,i} of kiesOpenIncidenten(incidenten)){
+    const key=incidentKey(x,i);
     const detail=String(x?.alarmmeldingen||x?.classificatie||'openstaande DRIP-storing').trim();
     out.push({
       id:'drip-history-open-'+key,
@@ -130,7 +156,7 @@ export function deriveOpenDripFaults(incidenten){
       typeId:'DRIP',
       afgeleid:true
     });
-  });
+  }
   return out;
 }
 

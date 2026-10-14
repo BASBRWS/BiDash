@@ -159,8 +159,19 @@ export function runQualityAudit(input={}){
 
   if(liveRows&&faults.length===0)add('linkage','critical','Storingsbron bereikt het dashboard niet',`De bron bevat ${liveRows.toLocaleString('nl-NL')} regels, maar de gezamenlijke storingsweergave is leeg.`,'Verwerk de actuele bron opnieuw en controleer het ingestelde storingsfilter.');
   else if(faults.length){
-    const outputPct=pct(faults.length,liveRows||faults.length),difference=Math.max(0,liveRows-faults.length);
-    add('linkage',outputPct<50?'warning':'good','Storingsketen levert meldingen',`${faults.length.toLocaleString('nl-NL')} van ${liveRows.toLocaleString('nl-NL')} bronregels (${outputPct.toLocaleString('nl-NL')}%) staan in de gezamenlijke weergave.${difference?` ${difference.toLocaleString('nl-NL')} regels zijn uitgefilterd, gede-dupliceerd of niet geclassificeerd.`:''}`,outputPct<50?'Controleer bronfilters, classificatie en de-duplicatie van de ontbrekende regels.':'',outputPct);
+    /* De storingsketen is geen filter maar een samenvoeging: naast de actuele
+       bronregels komen afgeleide open meldingen mee (open DRIP-/historie-incidenten,
+       per classificatie gesplitste regels). Daardoor kan de uitvoer groter zijn dan
+       de ruwe bronregels. Een dekkingspercentage heeft alleen betekenis zolang de
+       meldingen een deelverzameling van de bronregels zijn (faults ≤ bronregels);
+       anders rapporteren we de aantallen zonder misleidend percentage boven 100%. */
+    if(liveRows&&faults.length<=liveRows){
+      const outputPct=pct(faults.length,liveRows),difference=liveRows-faults.length;
+      add('linkage',outputPct<50?'warning':'good','Storingsketen levert meldingen',`${faults.length.toLocaleString('nl-NL')} van ${liveRows.toLocaleString('nl-NL')} bronregels (${outputPct.toLocaleString('nl-NL')}%) staan in de gezamenlijke weergave.${difference?` ${difference.toLocaleString('nl-NL')} regels zijn uitgefilterd, gede-dupliceerd of niet geclassificeerd.`:''}`,outputPct<50?'Controleer bronfilters, classificatie en de-duplicatie van de ontbrekende regels.':'',outputPct);
+    }else{
+      const basis=liveRows?`opgebouwd uit ${liveRows.toLocaleString('nl-NL')} actuele bronregels, aangevuld met afgeleide open meldingen`:'afgeleid uit historie- en areaalbronnen';
+      add('linkage','good','Storingsketen levert meldingen',`${faults.length.toLocaleString('nl-NL')} open meldingen staan in de gezamenlijke weergave (${basis}).`,'',faults.length);
+    }
   }
 
   /* Het verschil tussen bronregels en getoonde meldingen mag geen zwart gat zijn.
@@ -173,9 +184,25 @@ export function runQualityAudit(input={}){
     noem(stats.toegepast,'doorgerekend');
     noem(stats.dubbel,'ontdubbeld');
     noem(stats.nietGecl,'niet geclassificeerd');
-    noem(stats.zonderFoutregel,'zonder passende foutregel');
-    noem(stats.zonderLocatie,'zonder locatie');
-    noem(dvmSummary.nietDoorgerekend,'zichtbaar maar niet doorgerekend');
+    /* 'Zichtbaar maar niet doorgerekend' is het totaal van alle niet doorgerekende
+       meldingen; 'zonder passende foutregel' en 'zonder locatie' zijn deelredenen
+       daarvan, geen concurrerende tweede telling. We tonen het totaal met de redenen
+       als 'waarvan'-uitsplitsing, zodat 533 en 536 niet als tegenstrijdig lezen. De
+       rest (bv. een locatieconflict met wél een foutregel) telt mee in het totaal
+       maar valt buiten beide deelredenen; die maken we expliciet. */
+    const nietDoor=finite(dvmSummary.nietDoorgerekend)?Number(dvmSummary.nietDoorgerekend):null;
+    const zFout=finite(stats.zonderFoutregel)?Number(stats.zonderFoutregel):0,zLoc=finite(stats.zonderLocatie)?Number(stats.zonderLocatie):0;
+    if(nietDoor!=null&&nietDoor>0){
+      const redenen=[];
+      if(zFout>0)redenen.push(`${zFout.toLocaleString('nl-NL')} zonder passende foutregel`);
+      if(zLoc>0)redenen.push(`${zLoc.toLocaleString('nl-NL')} zonder locatie`);
+      const rest=nietDoor-zFout-zLoc;
+      if(rest>0)redenen.push(`${rest.toLocaleString('nl-NL')} met een locatieconflict of andere reden`);
+      delen.push(`${nietDoor.toLocaleString('nl-NL')} zichtbaar maar niet doorgerekend${redenen.length?` (waarvan ${redenen.join(', ')})`:''}`);
+    }else{
+      noem(stats.zonderFoutregel,'zonder passende foutregel');
+      noem(stats.zonderLocatie,'zonder locatie');
+    }
     add('linkage','info','Verwerking van de actuele bronregels',`${Number(stats.totaal).toLocaleString('nl-NL')} bronregels: ${delen.length?delen.join(', '):'geen uitsplitsing beschikbaar'}.`,'',Number(stats.totaal));
   }
 

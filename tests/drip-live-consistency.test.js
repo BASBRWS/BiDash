@@ -59,6 +59,24 @@ test('de echte rekenketen en adapter behouden één onbekende melding en weigere
  assert.equal(c.HUB.faults().length,1);assert.equal(c.HUB.faults()[0].duurUren,48);assert.equal(c.HUB.faults()[0].assetKey,'');assert.equal(c.HUB.faults()[0].impact,null);
  const status=c.v68TypeStatus().DRIP;assert.equal(status.inBron,1);assert.equal(status.besch,null);
 });
+test('een conflicterende DRIP-alias blokkeert niet wanneer de bronlocatie wél een asset heeft',()=>{
+ // De alias wijst naar een DRIP op A98, maar de bronlocatie is A99 en dáár staat
+ // een passende DRIP. De code is geen betrouwbare identiteit, dus BiDash koppelt op
+ // locatie in plaats van een vals locatieconflict te melden.
+ const c=dvmRuntime();
+ c.rows=deriveOpenDripRows([incident]);
+ c.register=[
+   {entityid:'SYNTHETIC-WRONG','ci-type':'DRI Panelen',asset:'NWN DRI DRIP A98L 4,000 (D501)',status:'Operationeel',wegnummer:'98',baanpositie:'L',type:'DRIP',regio:'VCNWN'},
+   {entityid:'SYNTHETIC-RIGHT','ci-type':'DRI Panelen',asset:'NWN DRI DRIP A99L 4,000 (D501)',status:'Operationeel',wegnummer:'99',baanpositie:'L',type:'DRIP',regio:'VCNWN'}
+ ];
+ vm.runInContext("RULES.foutcodes=[];RULES.cfg.liveDekking={DRIP:true};RULES.assetConfig=assetConfigBasis();RULES.assetConfig.aliases.D501='ID:SYNTHETIC-WRONG';analyseerAssetRegister(register,'synthetic');STATE=doorrekenen(rows,{actueel:true});",c);
+ const state=vm.runInContext('STATE',c);
+ assert.equal(state.nietDoorgerekend.length,1,'geen foutcode geladen, dus nog niet doorgerekend');
+ assert.notEqual(state.nietDoorgerekend[0].assetMatchStatus,'locatieconflict','de alias mag geen vals conflict opleveren');
+ assert.equal(state.nietDoorgerekend[0].assetMatchStatus,'gekoppeld','er is op locatie gekoppeld');
+ assert.equal(state.nietDoorgerekend[0].assetKey,'ID:SYNTHETIC-RIGHT','gekoppeld aan het asset op de bronlocatie A99');
+ assert.equal(state.nietDoorgerekend[0].weg,'A99');
+});
 test('herstel van oude Dynac-classificatie koppelt op locatie en behoudt de twee kenmerken',()=>{
  const c=dvmRuntime();vm.runInContext(read('site/engines/dvm-special-drip-lists.js'),c);
  const record={ids:[{raw:'D501',token:'D501'},{raw:'A99L_004-000_D',token:'A99L004000D'}],locatie:{vc:'NWN',weg:'',richting:'',hm:0}};
