@@ -77,6 +77,99 @@ function normAssetRichting(v){
   if(['R','RE','RECHTS'].includes(s))return 'RE';
   return s;
 }
+function dvmWeg(v){
+  const s=String(v??'').trim().toUpperCase(),m=s.match(/^([AN])\s*0*(\d{1,3})$/);
+  return m?m[1]+Number(m[2]):/^\d{1,3}$/.test(s)?'A'+Number(s):'';
+}
+function dvmLocGet(row,keys){
+  for(const k of keys)for(const [name,v] of Object.entries(row||{})){
+    if(name.toLowerCase()===k.toLowerCase()&&v!==null&&v!==undefined&&String(v).trim()!=='')return v;
+  }
+  return '';
+}
+function dvmLeesLocatie(row,g=dvmLocGet){
+  const text=['asset','os_id','osid','object','assetnaam','locatie','location'].map(k=>g(row,[k])).filter(v=>v!==null&&v!==undefined).join(' ');
+  const name=text.match(/\b([AN])\s*0*(\d{1,3})(?=[A-Z\s_-]|$)/i);
+  const tail=name?text.slice(name.index+name[0].length).match(/^[\s_]*(?:(LI|RE|[A-Z])(?![A-Z])[\s_-]*)?(?:HMP?[\s:]*|KM[\s:]*)?(\d+(?:[.,-]\d{1,3})?)\b/i):null;
+  const bps=String(g(row,['bps-locatie'])||'').trim().toUpperCase(),b=bps.match(/^(RW|PW)0*(\d+)/);
+  const field=String(g(row,['weg','wegnummer','rijksweg'])??'').trim();
+  const weg=name?name[1].toUpperCase()+Number(name[2]):/^[AN]/i.test(field)?dvmWeg(field):b?(b[1]==='PW'?'N':'A')+Number(b[2]):dvmWeg(field);
+  const richting=normAssetRichting(tail?.[1]||g(row,['richting','rijrichting','zijde','baanpositie'])||'');
+  let hm=tail?num(tail[2].replace('-','.')):null;
+  if(hm===null){
+    const full=g(row,['hmp','hm','hectometer','hectometre','kilometerpunt']);
+    hm=num(full);
+    if(hm===null){hm=num(g(row,['hm-bord']));const offset=num(g(row,['afstand-tot-hm-bord']));if(hm!==null&&offset!==null)hm+=offset/1000;}
+  }
+  return {weg,richting,hm,hectoletter:String(g(row,['hectoletter','hecto-letter','hm-letter'])||'').trim().toUpperCase(),
+    rdX:num(g(row,['rd-locatie-x','rdX'])),rdY:num(g(row,['rd-locatie-y','rdY']))};
+}
+let DVM_ZIJDE_INDEX=new Map();
+function dvmHerleidZijde(a){
+  const ri=normAssetRichting(a.richting),bron=String(a.zijdeBron||ri);
+  if(!/^[A-Z]$/.test(bron)||['L','R'].includes(bron)||!Number.isFinite(a.hm))return a;
+  const pool=DVM_ZIJDE_INDEX.get(dvmWeg(a.weg))||[],tol=Math.max(.01,Number(assetConfigBasis().hmTolerantieKm)||.35);
+  let lo=0,hi=pool.length;
+  while(lo<hi){const mid=(lo+hi)>>1;if(pool[mid].hm<a.hm-tol)lo=mid+1;else hi=mid;}
+  let candidates=[];for(let i=lo;i<pool.length&&pool[i].hm<=a.hm+tol;i++)candidates.push(pool[i]);
+  const vc=normAssetVc(a.vc),regional=candidates.filter(p=>!vc||normAssetVc(p.vc)===vc);
+  if(regional.length)candidates=regional;
+  if(['LI','RE'].includes(ri))candidates=candidates.filter(p=>p.richting===ri);
+  const rd=Number.isFinite(a.rdX)&&Number.isFinite(a.rdY)&&geldigeRdCoord(a.rdX,a.rdY);
+  const measured=rd?candidates.filter(p=>Number.isFinite(p.rdX)&&Number.isFinite(p.rdY)&&geldigeRdCoord(p.rdX,p.rdY)).map(p=>({p,d:Math.hypot(p.rdX-a.rdX,p.rdY-a.rdY)})).filter(p=>p.d<=200):[];
+  const ranked=(measured.length?measured:candidates.map(p=>({p,d:Math.abs(p.hm-a.hm)}))).sort((a,b)=>a.d-b.d);
+  const best=ranked[0],other=ranked.find(x=>x.p.richting!==best?.p.richting),margin=measured.length?3:.005;
+  a.zijdeBron=bron;
+  if(!best||other&&other.d-best.d<=margin){a.zijdeKoppeling='Hoofdrijbaan niet eenduidig binnen '+tol+' km';return a;}
+  a.hoofdbaanHm=best.p.hm;a.hoofdbaanAssetKey=best.p.key;
+  a.richting=best.p.richting;a.zijdeKoppeling='Zijde '+bron+' naar '+a.richting+' via nabije hoofdrijbaan, '+(measured.length?Math.round(best.d)+' m RD':best.d.toFixed(3)+' km HMP');
+  return a;
+}
+function dvmValideerLocatie(loc){
+  if(!loc||typeof loc!=='object')throw Error('Locatiecorrectie ontbreekt.');
+  const n=v=>v==null||String(v).trim()===''?null:Number(String(v).trim().replace(',','.'));
+  const weg=dvmWeg(loc.weg),ri=normAssetRichting(loc.richting),hm=n(loc.hm);
+  if(!/^[AN]/.test(String(loc.weg||'').trim().toUpperCase())||!weg)throw Error('Gebruik een weg met A of N, bijvoorbeeld N31.');
+  if(ri&&!['LI','RE'].includes(ri))throw Error('Kies LI, RE of automatisch/onbekend.');
+  if(hm===null||hm<0||!Number.isFinite(hm))throw Error('Vul een geldige HM/HMP in. Nul is toegestaan.');
+  const rdX=n(loc.rdX),rdY=n(loc.rdY);
+  if((rdX!==null||rdY!==null)&&!(Number.isFinite(rdX)&&Number.isFinite(rdY)&&geldigeRdCoord(rdX,rdY)))throw Error('Vul beide geldige RD-coördinaten in, of laat beide leeg.');
+  const hectoletter=String(loc.hectoletter||'').trim().toUpperCase();
+  if(hectoletter&&!/^[A-Z]$/.test(hectoletter))throw Error('Hectoletter is één letter of leeg.');
+  return {weg,richting:ri,hm,hectoletter,rdX,rdY};
+}
+function dvmPasDripLocatiesToe(){
+  const assets=new Map((ASSET_REGISTER_STATE?.assets||[]).map(a=>[a.key,a]));
+  const models=new Set([typeof DRIP_STATE==='undefined'?null:DRIP_STATE,STATE?.drips]);
+  for(const model of models)for(const d of model?.drips||[]){
+    const a=assets.get(d._assetKey||d.assetKey);if(!a)continue;
+    for(const k of ['weg','richting','hm','hectoletter','rdX','rdY','bronLocatie','locatieCorrectie','zijdeBron','zijdeKoppeling','hoofdbaanHm','hoofdbaanAssetKey'])d[k]=a[k];
+  }
+}
+function dvmPasAssetLocatiesToe(){
+  if(!ASSET_REGISTER_STATE)return;
+  const assets=ASSET_REGISTER_STATE.assets;
+  for(const a of assets){
+    a.bronLocatie=a.bronLocatie||Object.fromEntries(['weg','richting','hm','hectoletter','rdX','rdY'].map(k=>[k,a[k]??(k==='hm'||k==='rdX'||k==='rdY'?null:'')]));
+    Object.assign(a,a.bronLocatie);a.zijdeBron=a.bronLocatie.richting;a.zijdeKoppeling='';a.locatieCorrectie=false;delete a.hoofdbaanHm;delete a.hoofdbaanAssetKey;
+    const loc=assetOverrideVoor(a.key)?.locatie;
+    if(loc){try{Object.assign(a,dvmValideerLocatie(loc));a.locatieCorrectie=true;}catch(error){a.zijdeKoppeling='Ongeldige locatiecorrectie, bron gebruikt. '+error.message;}}
+  }
+  DVM_ZIJDE_INDEX=new Map();
+  for(const a of assets)if(a.prognoseActief!==false&&['LI','RE'].includes(a.richting)&&(!/^[A-Z]$/.test(a.zijdeBron)||['L','R'].includes(a.zijdeBron))&&Number.isFinite(a.hm)){
+    const list=DVM_ZIJDE_INDEX.get(a.weg)||[];list.push(Object.fromEntries(['key','weg','richting','hm','vc','rdX','rdY'].map(k=>[k,a[k]])));DVM_ZIJDE_INDEX.set(a.weg,list);
+  }
+  DVM_ZIJDE_INDEX.forEach(list=>list.sort((a,b)=>a.hm-b.hm));
+  for(const a of assets)dvmHerleidZijde(a);
+  const areaal={};
+  for(const a of assets)if(a.prognoseActief!==false){
+    const vc=normAssetVc(a.vc),key=a.weg+(a.richting?' '+a.richting:'');
+    const region=areaal[vc]||(areaal[vc]={}),vak=region[key]||(region[key]={sig:0,cam:0,lus:0,drip:0});
+    const field={MSI:'sig',CAM:'cam',LUS:'lus',DRIP:'drip'}[a.tp];if(field)vak[field]++;
+  }
+  ASSET_REGISTER_STATE.areaal=areaal;dvmPasDripLocatiesToe();
+  if(typeof GEBIED_NETWERK_CACHE!=='undefined')GEBIED_NETWERK_CACHE=null;
+}
 function assetStrookUitNaam(v){
   const m=String(v||'').trim().match(/(?:\s|_)(\d{1,2})\s*$/);
   return m?String(parseInt(m[1],10)):'';
@@ -108,6 +201,7 @@ function voegAssetIndex(map,key,asset){
 }
 function bouwAssetIndex(){
   if(!ASSET_REGISTER_STATE||!ASSET_REGISTER_STATE.assets){ASSET_INDEX=null;return null;}
+  if(ASSET_REGISTER_STATE._assetConfigVersie!==ASSET_CONFIG_VERSIE)herberekenRegisterDekking();
   const byKey=new Map(),byExact=new Map(),byCode=new Map(),byTypeRoad=new Map(),byRoad=new Map(),byGrid=new Map(),gridSize=5000;
   ASSET_REGISTER_STATE.assets.forEach(a=>{
     byKey.set(a.key,a);
@@ -129,10 +223,13 @@ function handmatigeAssetVoor(logId,typeId){
 function dripLocatiePast(source,candidate){
   if(!source||!candidate)return false;
   const road=x=>String(x||'').trim().toUpperCase();
-  if(source.weg&&candidate.weg&&road(source.weg)!==road(candidate.weg))return false;
-  if(source.richting&&candidate.richting&&normAssetRichting(source.richting)!==normAssetRichting(candidate.richting))return false;
-  if(source.hm!=null&&candidate.hm!=null&&Math.abs(Number(source.hm)-Number(candidate.hm))>Math.max(.01,Number(assetConfigBasis().hmTolerantieKm)||.35))return false;
-  return true;
+  const past=target=>{
+    if(source.weg&&target.weg&&road(source.weg)!==road(target.weg))return false;
+    if(source.richting&&target.richting&&normAssetRichting(source.richting)!==normAssetRichting(target.richting))return false;
+    if(source.hm!=null&&target.hm!=null&&Math.abs(Number(source.hm)-Number(target.hm))>Math.max(.01,Number(assetConfigBasis().hmTolerantieKm)||.35))return false;
+    return true;
+  };
+  return past(candidate)||!!(candidate.locatieCorrectie&&candidate.bronLocatie?.weg&&road(source.weg)===road(candidate.bronLocatie.weg)&&past(candidate.bronLocatie));
 }
 function koppelMeldingAanAsset(m,typeId){
   const logId=assetLogId(m,typeId),logKey=assetLogSleutel(logId),cfg=assetConfigBasis();
@@ -191,6 +288,9 @@ function pasAssetKoppelingToe(m,k){
   m.assetKey=a.key;m.assetNaam=a.naam;m.assetEntityid=a.entityid;
   m.weg=a.weg||m.weg;m.richting=a.richting||m.richting;m.hm=a.hm!=null?a.hm:m.hm;
   m.hectoletter=a.hectoletter||m.hectoletter||'';
+  m.zijdeBron=m.zijdeBron||a.zijdeBron||'';m.zijdeKoppeling=a.zijdeKoppeling||m.zijdeKoppeling||'';
+  m.assetLocatieCorrectie=!!a.locatieCorrectie;
+  m.hoofdbaanHm=a.hoofdbaanHm??m.hoofdbaanHm;m.hoofdbaanAssetKey=a.hoofdbaanAssetKey||m.hoofdbaanAssetKey||'';
   m.rd=a.rd||m.rd;m.district=a.district||m.district;m.districtBron=a.districtBron||m.districtBron;m.vc=a.vc||m.vc;
   m.rdX=a.rdX!=null?a.rdX:null;m.rdY=a.rdY!=null?a.rdY:null;
   m.assetBouwjaar=a.bouwjaar;m.assetEol=a.eolLevensduur;m.assetFabrikant=a.fabrikant;m.assetModel=a.model;
@@ -487,6 +587,7 @@ function analyseerAssetRegister(rijen,bestand){
 function herberekenRegisterDekking(){
   if(!ASSET_REGISTER_STATE)return;
   if(ASSET_REGISTER_STATE._assetConfigVersie===ASSET_CONFIG_VERSIE&&ASSET_REGISTER_STATE.perType&&Object.keys(ASSET_REGISTER_STATE.perType).length)return;
+  dvmPasAssetLocatiesToe();
   const per={},lifeByType={},betaByType={};
   ASSET_REGISTER_STATE.assets.forEach(a=>{
     const ov=assetOverrideVoor(a.key),at=assetTypeRec(a.tp)||{};
@@ -854,13 +955,9 @@ function normRij(m){
   const osid = String(g('os_id')||g('osid')||g('asset')||g('object')||g('object_id')||g('assetnaam')||g('asset_name')||entityid||'').trim();
   const locatieTekst=String(g('locatie')||g('location')||'').trim();
   const eventId = String(g('event_id')||g('melding_id')||g('incident_id')||g('storing_id')||'').trim();
-  // os_id voorbeeld: "A1 Li 6.685"  → weg=A1, richting=Li, hm=6.685
-  let weg='', richting='', hm=null;
-  const mm = (osid+' '+locatieTekst).match(/\b([AN]\d+)\s*([A-Z]{1,2})?[\s_]*(\d+(?:[.,-]\d{1,3})?)\b/i);
-  if(mm){ weg=mm[1].toUpperCase(); richting=normAssetRichting(mm[2]||''); hm=parseFloat(String(mm[3]).replace(',','.').replace('-','.')); }
-  if(!weg){ weg = String(g('wegnummer')||g('weg')||'').trim().toUpperCase(); }
-  if(!richting)richting=normAssetRichting(g('richting')||g('baanpositie')||'');
-  if(hm==null){hm=num(g('hm')||g('hm-bord'));const af=num(g('afstand-tot-hm-bord'));if(hm!=null&&af!=null)hm+=af/1000;}
+  const loc=dvmLeesLocatie(m,(_row,keys)=>{for(const k of keys){const v=g(k);if(v!==null&&v!==undefined&&String(v).trim()!=='')return v;}return '';});
+  loc.vc=String(g('vc')||g('regio')||'');loc.zijdeBron=loc.richting;dvmHerleidZijde(loc);
+  const {weg,richting,hm}=loc;
   // duur in uren: uit aantal_dagen/storingsduur (dagen) → uren
   let dagen = num(g('aantal_dagen')) ?? num(g('storingsduur_peildatum'));
   // clamp duur: een 1109-daagse melding zou het model laten ontploffen. In de
@@ -881,7 +978,7 @@ function normRij(m){
     afgeleidUitHistorie:!!m._dripHistorieOpen,
     bronPeildatum:g('bronPeildatum')||null,
     bron:String(g('source_name')||g('bron')||m._bronBestand||''), locatieTekst, weg, richting, hm, strook, gevolg, melding,
-    hectoletter:String(g('hectoletter')||g('hecto-letter')||g('hm-letter')||'').trim().toUpperCase(),
+    hectoletter:loc.hectoletter,zijdeBron:loc.zijdeBron,zijdeKoppeling:loc.zijdeKoppeling||'',hoofdbaanHm:loc.hoofdbaanHm,hoofdbaanAssetKey:loc.hoofdbaanAssetKey||'',rdX:loc.rdX,rdY:loc.rdY,
     duurUren, dagen, tVan, tTot,
     /* Een storing die uit de nieuwe momentopname verdween is afgesloten op de
        peildatum van die lijst. De duur is dan een bovengrens, geen meting: het

@@ -45,7 +45,7 @@
   }
   function match(a){
     const S=state();if(!S)return null;
-    const weg=road(a.weg),hm=number(a.hm),v=vc(a.vc),ri=normAssetRichting(a.richting);
+    const weg=road(a.weg),hm=number(Number.isFinite(a.hoofdbaanHm)?a.hoofdbaanHm:a.hm),v=vc(a.vc),ri=normAssetRichting(a.richting);
     if(!weg||hm===null||!Number.isFinite(hm))return {reden:'Weg of hectometer ontbreekt'};
     const onRoad=S.schakels.filter(s=>s.weg===weg),atHm=onRoad.filter(s=>hm>=s.min&&hm<=s.max);
     const atSide=atHm.filter(s=>!s.richting||s.richting===ri);

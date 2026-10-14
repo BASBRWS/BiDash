@@ -1,7 +1,8 @@
 import test from 'node:test';
-import {dvmRuntime} from './helpers/dvm-runtime.js';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import {dvmRuntime} from './helpers/dvm-runtime.js';
+const locatieRuntime=dvmRuntime();
 import {readFileSync} from 'node:fs';
 import {deriveOpenDripRows,deriveOpenDripFaults} from '../site/core/drip-open-from-history.js';
 import {matchDripIncident} from '../site/core/drip-fault-match.js';
@@ -11,7 +12,7 @@ const engine=read('site/engines/dvm-2.js');
 const between=(a,b)=>engine.slice(engine.indexOf(a),engine.indexOf(b,engine.indexOf(a)));
 const incident={code:'D501',asset:'D501',weg:'A99',richting:'LI',hm:4,vc:'NWN',start:Date.UTC(2026,0,1),einde:Date.UTC(2026,0,3),duurUren:48,duurBetrouwbaar:false,censored:true,sourceKey:'synthetic',sourceName:'synthetic.xlsx'};
 function scope(){
- const context={RULES:{cfg:{liveDekking:{DRIP:true}},foutcodes:[],assetTypen:[{id:'DRIP',wAvail:1,wPerf:1}],combiRegels:[]},
+ const context={dvmLeesLocatie:locatieRuntime.dvmLeesLocatie,dvmHerleidZijde:locatieRuntime.dvmHerleidZijde,RULES:{cfg:{liveDekking:{DRIP:true}},foutcodes:[],assetTypen:[{id:'DRIP',wAvail:1,wPerf:1}],combiRegels:[]},
   DIENSTEN:[],ASSET_REGISTER_STATE:{assets:[{tp:'DRIP'}]},ASSET_INDEX:null,STATE:null,LIVE_STORINGSBRONNEN:[],
   normAssetRichting:v=>String(v||'').toUpperCase(),koppelMeldingAanAsset:()=>({status:'niet-gekoppeld'}),pasAssetKoppelingToe:()=>{},
   datasetPeriode:()=>({}),areaalVoorWegdeel:()=>1};

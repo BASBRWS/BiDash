@@ -141,8 +141,8 @@
   document.write('<script src="dvm-special-drip-lists.js?v=20261008-1000"></script>');
   // De signaalgeverbundelaar (maplezen) definieert leesSignaalgeverMap vóór bronbeheer.
   document.write('<script src="dvm-storingsbundelaar.js?v=20261008-1000"></script>');
-  document.write('<script src="dvm-netwerkschakels.js?v=20261013-1736"></script>');
+  document.write('<script src="dvm-netwerkschakels.js?v=20261014-0835"></script>');
   document.write('<script src="dvm-netwerkschakels-beheer.js?v=20261013-1736"></script>');
-  document.write('<script src="dvm-source-manager.js?v=20261014-0803"></script>');
+  document.write('<script src="dvm-source-manager.js?v=20261014-0835"></script>');
   document.write('<script src="dvm-source-export-completeness.js?v=20261008-1000"></script>');
 })();

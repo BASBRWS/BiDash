@@ -326,3 +326,9 @@ Weg, HMP, zijde en hectoletter vergelijken, één passende code koppelen, matrix
 Pages-publicatie of gepland vijfminutenschema, vaste NDW-feed downloaden, gzip/XML/tijd controleren, hash en bronmanifest schrijven, alleen openbare feed in Pages-artifact publiceren. Fout betekent een aantoonbaar geldige vorige openbare kopie behouden of niet beschikbaar melden.
 
 All Assets laden, Bronbeheer, Haal laatste NDW op, manifest en gzip van eigen website lezen, omvang/hash/meettijd controleren, gecombineerde DATEX II v3 in blokken lezen, bestaande koppeling en verkeerskosten bijwerken, bronkaarten met tijden tonen, snapshot en herkomst lokaal bewaren en exporteren. Te oude of ongeldige bronnen vervangen de geladen snapshot niet. Geen browserpolling en geen upload van gebruikersdata. Geplande GitHub-verversing kan vertragen; werkelijke ouderdom blijft leidend.
+
+### Locatiecorrectie en zijbaan
+
+Assetnaam en HM/HMP normaliseren, N-prefix en oorspronkelijke zijletter bewaren, hoofdbaanindex binnen dezelfde weg opbouwen, eenduidige nabije richting bepalen of keuze open laten. Feitelijke HMP blijft staan; de schakel gebruikt bij een afgeleide zijbaan de hoofdbaankandidaat.
+
+Individueel asset openen, locatie aanpassen, volledige invoer valideren, correctie aan bestaande asset-id bewaren, areaal/indices/context opnieuw opbouwen, DRIP-locatie bijwerken, historie/prognose ongeldig maken, actuele doorrekening verversen, schil informeren. Totaal- en assetconfiguratie-export bewaren de correctie. Alleen bronlocatie herstellen behoudt overige rekenwaarden. Een bestaande DRIP-bron die nog de oorspronkelijke gecorrigeerde locatie vermeldt kan bij een unieke identiteit meekomen; andere locatieconflicten blijven geblokkeerd.
