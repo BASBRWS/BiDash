@@ -270,6 +270,8 @@ Belangrijk: alleen de gestructureerde norm en subprocessen kunnen na vaststellin
 
 ## Queryfilters voor assets en storingen
 
+Het gezamenlijke **Assetregister** toont 60 assets per pagina. De resultaatstelling en filters gelden voor alle geladen assets. Bladeren hergebruikt de selectie. Tijdens de eerste opbouw of een nieuwe zoekactie verschijnt kort **Assetregister bijwerken**; je kunt verder typen of naar een ander scherm gaan. Nieuwe brongegevens, locatiecorrecties en **Uitkomsten vernieuwen** verversen deze weergave.
+
 Onder **Assetmanagement** hebben **Assetregister** en **Open storingen** een
 uitklapbare querybouwer. Voeg per regel een veld, operator en waarde toe. Vanaf de
 tweede regel kies je zelf **EN** of **OF**. Net als bij SQL wordt EN vóór OF uitgevoerd.

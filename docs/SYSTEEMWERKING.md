@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.49 en DVM 130, bijgewerkt op 14 oktober 2026 voor oplossen van netwerkschakelproblemen in Bronbeheer.
+Status: beschrijving van BiDash 2.50 en DVM 130, bijgewerkt op 14 oktober 2026 voor een responsief gezamenlijk assetregister.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -103,6 +103,16 @@ Rechtsboven in de hoofdwerkruimte staat een Help-knop naar `site/help.html`. Die
 
 Behoud verdiepende doorklikken, filters, bronvermelding, scope en terugnavigatie.
 Een nieuwe navigatie mag oorspronkelijke analyses niet onbereikbaar maken.
+
+### Presentatie van grote assetregisters
+
+Vanaf BiDash 2.50 bouwt `site/core/asset-register-view.js` één lokale presentatielijst uit de bestaande DVM- en BI-adapters. De lijst bewaart bronvolgorde, effectieve locatie, status en queryvelden; bronrijen en rekenuitkomsten veranderen niet. Open storingen en unieke foutcodes worden één keer per DVM-assetsleutel gegroepeerd. Een gelijknamige BI-sleutel krijgt geen DVM-storingen. Ontkoppelde meldingen blijven in de landelijke storings-KPI staan.
+
+Opbouw en filtering verwerken blokken van maximaal 512 regels met een browserpauze ertussen. Een nieuw zoekverzoek of bronrevisie breekt achterhaald werk af. Typen wordt 150 ms gebundeld. De huidige selectie wordt bij bladeren hergebruikt; uitsluitend de huidige 60 assetregels worden als tabel opgebouwd. De telling en query blijven over de volledige geladen populatie gaan. Getalopmaak gebruikt gedeelde `Intl.NumberFormat`-instanties.
+
+`hub:changed`, werkruimteherstel en Uitkomsten vernieuwen maken de presentatielijst ongeldig, ook als een bronobject op dezelfde plek is gewijzigd. Alleen dezelfde origin en bekende bronframes mogen zo'n melding leveren. Openen en bladeren wijzigen geen dienstberekening. De cache wordt niet geëxporteerd of opgeslagen. De eerste opbouw en een nieuwe zoekselectie kunnen kort Assetregister bijwerken tonen; grote bronimports blijven aparte bewerkingen.
+
+`npm run test:assets` controleert het echte schilscherm met een synthetisch register van 50.000 assets, paginering, foutcodeselecties met EN, zoeken, mutaties en lege storingen. `tests/asset-register-view.test.js` bewaakt bronbehoud, nul-HMP, foutcodegroepering, hergebruik en afbreken van oude taken. Een lokale vergelijking is aanvullend uitgevoerd met de aangeleverde DVM-totaal-JSON; die bron en afgeleide tellingen zijn niet opgenomen in Git. Browsertijden zijn omgevingsafhankelijk; deze wijziging is geen garantie voor importtijden of mobiele apparaten.
 
 ## 4. Lokale gegevens en beveiliging
 

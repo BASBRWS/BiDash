@@ -2,24 +2,30 @@ import {GROUPS,ROUTES,resolveRoute} from './ui/routes.js';
 import {DEFAULT_STATE,DVM_PARTS,BI_RULE_KEYS,LABELS,validate,makeExport,mergeImport,combine} from './core/model.js';
 import {read,write,readValue,writeValue} from './core/storage.js';
 import {createFileDownload} from './core/file-download.js?v=20261013-1620';
-import {toonVersies} from './core/versie.js?v=20261013-1620';
+import {toonVersies} from './core/versie.js?v=20261014-asset50';
 import {nieuwsteMomentopnameUitBestanden,nieuwsteMomentopnameUitMap,mapToestemming,schrijfBestandNaarMap} from './core/latest-snapshot.js';
 import {runQualityAudit,QUALITY_CATEGORIES} from './core/quality-audit.js';
 import {applyQuery,operatorsFor} from './core/query-filter.js';
+import {createAssetRegisterView} from './core/asset-register-view.js';
 import {installQueryAssistant} from './core/query-assistant.js';
 import {buildBiDashContext} from './core/context-api.js';
 import {createServiceExpertReview,normalizeServiceExpertReview,expertReviewCompletion,validateServiceExpertReview,upsertServiceExpertReview,modelProposalFromService,expertModelProposal,validateExpertModelProposal,EXPERT_GUIDED_SECTIONS,rebalanceExpertShares} from './core/service-expert-input.js';
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const num=(n,d=1)=>Number.isFinite(n)?n.toLocaleString('nl-NL',{maximumFractionDigits:d}):'Onbekend';
+const numberFormats=new Map();
+const num=(n,d=1)=>{if(!Number.isFinite(n))return 'Onbekend';if(!numberFormats.has(d))numberFormats.set(d,new Intl.NumberFormat('nl-NL',{maximumFractionDigits:d}));return numberFormats.get(d).format(n);};
 const money=n=>Number.isFinite(n)?n.toLocaleString('nl-NL',{style:'currency',currency:'EUR'}):'Onbekend';
 const date=s=>s?new Date(s).toLocaleDateString('nl-NL'):'geen bron geladen';
 let state=DEFAULT_STATE(),summaries={},busy=false,failedImport=false,timer,view='overview';const frames={},ready={};
 const engineVersies={};
-const APP_BUILD='20261013-1620';
+const APP_BUILD='20261014-asset50';
 const LATEST_SNAPSHOT_DIRECTORY_KEY='latest-snapshot-directory';
 let latestSnapshotDirectory=null,latestSnapshotBusy=false;
 function status(s,error=false){$('#status').textContent=s;$('#status').classList.toggle('error',error);}
 let routeTicket=0,assetPage=0;const pageSize=60;
+const assetRegisterView=createAssetRegisterView();
+let assetRenderTicket=0,assetSearchTimer,assetOptionsSnapshot=null;
+function invalidateAssetView(){assetRegisterView.invalidate();assetOptionsSnapshot=null;assetRenderTicket++;}
+function scheduleAssetSearch(){clearTimeout(assetSearchTimer);assetRenderTicket++;assetPage=0;assetSearchTimer=setTimeout(renderAssets,150);}
 const ASSET_QUERY_FIELDS=[
  {key:'naam',label:'Assetnaam'},{key:'key',label:'Asset-ID'},{key:'tp',label:'Assettype'},{key:'source',label:'Bron'},
  {key:'vc',label:'Verkeerscentrale'},{key:'weg',label:'Locatie of weg'},{key:'status',label:'Status'},
@@ -77,6 +83,7 @@ async function importStap(naam,actie){
  }
 }
 async function restore(next){
+ invalidateAssetView();
  if(next.bi)await importStap('BI-gegevens herstellen',async()=>{const b=await engine('bi');await b.import(next.bi);});
  if(next.planning)await importStap('Planning herstellen',async()=>{await ensurePlanning();const b=await engine('bi');await b.importPlanning(next.planning);primaveraDownload.clear();primaveraExportStatus('');});
  if(next.dvm?.assetregister?.rijen?.length)await importStap('DVM-bronnen herstellen',async()=>{const d=await engine('dvm');await d.import(next.dvm);});
@@ -93,7 +100,7 @@ async function exportSnapshot(){
 }
 async function sync(){if(busy||failedImport)return;busy=true;status('Lokale gegevens en uitkomsten bijwerken…');try{await capture();await write(state);render();status('Lokaal opgeslagen · '+new Date().toLocaleTimeString('nl-NL'));}catch(e){fail(e);}finally{busy=false;}}
 function queue(){clearTimeout(timer);timer=setTimeout(sync,1800);}
-window.addEventListener('message',ev=>{if(ev.origin!==location.origin||!Object.values(frames).some(f=>f.contentWindow===ev.source))return;if(ev.data?.type==='hub:planning-loaded'&&ev.source===frames.planning?.contentWindow){primaveraDownload.clear();primaveraExportStatus('');frames.bi?.contentWindow?.HUB?.syncPlanningRules();queue();}if(ev.data?.type==='hub:planning-fullscreen'&&ev.source===frames.planning?.contentWindow)setPlanningFullscreen(ev.data.active);if(ev.data?.type==='hub:version'&&ev.data.engine){engineVersies[ev.data.engine]=String(ev.data.versie??'');toonVersies(document,engineVersies);}if(ev.data?.type==='hub:changed'&&!busy){if(ev.source===frames.dvm?.contentWindow&&view==='costs'){summaries.dvm=ev.source.HUB.summary();renderCosts();}queue();}});
+window.addEventListener('message',ev=>{if(ev.origin!==location.origin||!Object.values(frames).some(f=>f.contentWindow===ev.source))return;if(ev.data?.type==='hub:planning-loaded'&&ev.source===frames.planning?.contentWindow){primaveraDownload.clear();primaveraExportStatus('');frames.bi?.contentWindow?.HUB?.syncPlanningRules();queue();}if(ev.data?.type==='hub:planning-fullscreen'&&ev.source===frames.planning?.contentWindow)setPlanningFullscreen(ev.data.active);if(ev.data?.type==='hub:version'&&ev.data.engine){engineVersies[ev.data.engine]=String(ev.data.versie??'');toonVersies(document,engineVersies);}if(ev.data?.type==='hub:changed')invalidateAssetView();if(ev.data?.type==='hub:changed'&&!busy){if(ev.source===frames.dvm?.contentWindow&&view==='costs'){summaries.dvm=ev.source.HUB.summary();renderCosts();}queue();}});
 
 function expertServices(){
  const map=new Map(DEFAULT_SERVICES.map(service=>[service.id,{...service}]));
@@ -373,7 +380,7 @@ $('#exportPrimavera').onclick=async()=>{
  }catch(error){primaveraExportStatus('Export mislukt. '+(error.message||String(error)),true);fail(error);}
  finally{button.disabled=false;}
 };
-$('#save').onclick=sync;$('#refresh').onclick=sync;$('#signalFilter').onchange=render;
+$('#save').onclick=sync;$('#refresh').onclick=()=>{invalidateAssetView();sync();};$('#signalFilter').onchange=render;
 $('#linkForm').onsubmit=e=>{e.preventDefault();const l={dienst:$('#linkService').value,functie:$('#linkFunction').value,eigenaar:$('#linkOwner').value.trim()};state.links=state.links.filter(x=>x.dienst!==l.dienst||x.functie!==l.functie);state.links.push(l);sync();};
 $('#links').onclick=e=>{if(e.target.dataset.remove!==undefined){state.links.splice(Number(e.target.dataset.remove),1);sync();}};
 document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;
@@ -435,8 +442,8 @@ function queryChanged(type){assetPage=0;renderQueryBuilder(type);if(type==='asse
 function installQueryBuilder(type){
  const host=$('#'+(type==='assets'?'assetQueryBuilder':'faultQueryBuilder'));if(!host||host.dataset.ready)return;host.dataset.ready='1';renderQueryBuilder(type);
  host.addEventListener('click',event=>{const button=event.target.closest('button');if(!button)return;if(button.hasAttribute('data-query-add'))queries[type].rules.push({join:'and',field:(type==='assets'?ASSET_QUERY_FIELDS:FAULT_QUERY_FIELDS)[0].key,operator:'contains',value:''});else if(button.hasAttribute('data-query-reset'))queries[type]={rules:[]};else if(button.dataset.queryRemove!==undefined)queries[type].rules.splice(Number(button.dataset.queryRemove),1);queryChanged(type);});
- host.addEventListener('change',event=>{const row=event.target.closest('[data-query-rule]'),index=row?Number(row.dataset.queryRule):-1;if(index>=0&&event.target.matches('[data-query-join]'))queries[type].rules[index].join=event.target.value;else if(index>=0&&event.target.matches('[data-query-field]')){const field=queryField(type,event.target.value),join=queries[type].rules[index].join;queries[type].rules[index]={join,field:event.target.value,operator:operatorsFor(field?.type)[0][0],value:''};}else if(index>=0&&event.target.matches('[data-query-operator]'))queries[type].rules[index].operator=event.target.value;queryChanged(type);});
- host.addEventListener('input',event=>{const row=event.target.closest('[data-query-rule]');if(!row||!event.target.matches('[data-query-value]'))return;queries[type].rules[Number(row.dataset.queryRule)].value=event.target.value;assetPage=0;if(type==='assets')renderAssets();else{renderFaults();document.dispatchEvent(new CustomEvent('bidash:query-change',{detail:{type}}));}});
+ host.addEventListener('change',event=>{if(!event.target.matches('[data-query-join],[data-query-field],[data-query-operator]'))return;const row=event.target.closest('[data-query-rule]'),index=row?Number(row.dataset.queryRule):-1;if(index>=0&&event.target.matches('[data-query-join]'))queries[type].rules[index].join=event.target.value;else if(index>=0&&event.target.matches('[data-query-field]')){const field=queryField(type,event.target.value),join=queries[type].rules[index].join;queries[type].rules[index]={join,field:event.target.value,operator:operatorsFor(field?.type)[0][0],value:''};}else if(index>=0&&event.target.matches('[data-query-operator]'))queries[type].rules[index].operator=event.target.value;queryChanged(type);});
+ host.addEventListener('input',event=>{const row=event.target.closest('[data-query-rule]');if(!row||!event.target.matches('[data-query-value]'))return;queries[type].rules[Number(row.dataset.queryRule)].value=event.target.value;assetPage=0;if(type==='assets')scheduleAssetSearch();else{renderFaults();document.dispatchEvent(new CustomEvent('bidash:query-change',{detail:{type}}));}});
 }
 
 function renderNative(){
@@ -449,21 +456,32 @@ function renderNative(){
  $('#capacity').innerHTML=b?.functies.length?b.functies.map(f=>`<div class="capacity-line"><span>${esc(f.naam)}</span><b>${num(f.actueel)} / ${num(f.benodigd)} FTE</b></div>`).join(''):empty('Formatie nog niet ingevuld','Laad BI-gegevens of vul bedrijfsfuncties in.','businessData');
  $('#planningStatus').innerHTML=b?.planning?`<b>${num(b.planning.regels,0)} planningsactiviteiten</b><span>${esc(b.planning.naam)}</span><br><button data-route="planning">Tijdlijn bekijken →</button>`:'<span>Planning-XML nog niet geladen.</span><br><button data-route="planning">Planning openen →</button>';
  $('#organisationTable').innerHTML=b?.functies.length?`<div class="table-scroll"><table><thead><tr><th>Bedrijfsfunctie</th><th>Benodigd FTE</th><th>Beschikbaar FTE</th><th>Verschil</th></tr></thead><tbody>${b.functies.map(f=>`<tr><td>${esc(f.naam)}</td><td>${num(f.benodigd)}</td><td>${num(f.actueel)}</td><td>${num(f.actueel-f.benodigd)}</td></tr>`).join('')}</tbody></table></div>`:empty('Nog geen bedrijfsfuncties','Vul de formatie in bij Bedrijfsgegevens.','businessData');
- if(view==='assets'){options('#assetVc',catalogue().map(a=>a.vc));renderAssets();}
+ if(view==='assets')renderAssets();
  if(view==='faults'){options('#faultVc',allFaults().map(f=>f.vc));renderFaults();}
  if(view==='costs'){options('#costVc',(d?.roads||[]).map(r=>r.vc));renderCosts();}
 }
-function renderAssets(){
- const all=catalogue(),faults=allFaults(),affected=new Set(faults.map(m=>m.assetKey)),q=$('#assetSearch').value.toLowerCase(),vc=$('#assetVc').value,src=$('#assetSource').value,only=$('#assetFaultOnly').checked;
- const rows=applyQuery(queryAssets(all,faults).filter(a=>(!src||src===a.source)&&(!vc||vc===a.vc)&&(!only||(a.source==='DVM'&&affected.has(a.key)))&&(!q||[a.naam,a.weg,a.tp,a.raw.contract,a.raw.aannemer,a.raw.leverancier].join(' ').toLowerCase().includes(q))),queries.assets,ASSET_QUERY_FIELDS);
- assetPage=Math.min(assetPage,Math.max(0,Math.ceil(rows.length/pageSize)-1));
- $('#assetKpis').innerHTML=[['Assets in register',num(all.length,0),'Alle geladen assets, inclusief niet-operationele'],['Open storingen',num(faults.length,0),'Op de brondag '+date(summaries.dvm?.peildatum)],['Bronnen','DVM + BI','Impactregels en identiteit blijven bij hun bron']].map(c=>`<div class="card">${c[0]}<strong>${c[1]}</strong><small>${esc(c[2])}</small></div>`).join('');
- $('#assetTable').innerHTML=rows.length?`<table><thead><tr><th>Asset</th><th>Type / bron</th><th>Locatie</th><th>VC</th><th>Status</th><th>Open</th></tr></thead><tbody>${rows.slice(assetPage*pageSize,(assetPage+1)*pageSize).map(a=>`<tr><td><button data-asset="${esc(a.key)}" data-source="${a.source}">${esc(a.naam)}</button></td><td>${esc(a.tp)} <span class="pill">${a.source}</span></td><td>${esc(a.weg)}</td><td>${esc(a.vc||'Onbekend')}</td><td>${esc(a.status)}</td><td>${a.source==='DVM'?faults.filter(m=>m.assetKey===a.key).length:'—'}</td></tr>`).join('')}</tbody></table>`:empty('Geen assets in deze selectie',all.length?'Pas de filters aan.':'Laad je DVM-totaalbestand of BI-assets.');
- $('#assetCount').textContent=`${num(rows.length,0)} resultaten · pagina ${assetPage+1} van ${Math.max(1,Math.ceil(rows.length/pageSize))}`;$('#assetPrev').disabled=assetPage===0;$('#assetNext').disabled=(assetPage+1)*pageSize>=rows.length;
+async function renderAssets(){
+ clearTimeout(assetSearchTimer);
+ const ticket=++assetRenderTicket,route=routeTicket,isCurrent=()=>ticket===assetRenderTicket&&route===routeTicket&&view==='assets';
+ const host=$('#assetTable');host.setAttribute('aria-busy','true');
+ $('#assetCount').textContent='Assetregister bijwerken…';$('#assetPrev').disabled=true;$('#assetNext').disabled=true;
+ try{
+  const data=await assetRegisterView.ensure(sourceApi('dvm'),sourceApi('bi'));
+  if(!data||!isCurrent())return;
+  if(assetOptionsSnapshot!==data){options('#assetVc',data.vcs);assetOptionsSnapshot=data;}
+  const filters={search:$('#assetSearch').value,vc:$('#assetVc').value,source:$('#assetSource').value,onlyFaults:$('#assetFaultOnly').checked};
+  const rows=await assetRegisterView.select(data,filters,queries.assets,ASSET_QUERY_FIELDS,{isCurrent});
+  if(!rows||!isCurrent())return;
+  assetPage=Math.max(0,Math.min(assetPage,Math.max(0,Math.ceil(rows.length/pageSize)-1)));
+  $('#assetKpis').innerHTML=[['Assets in register',num(data.rows.length,0),'Alle geladen assets, inclusief niet-operationele'],['Open storingen',num(data.faultCount,0),'Op de brondag '+date(summaries.dvm?.peildatum)],['Bronnen','DVM + BI','Impactregels en identiteit blijven bij hun bron']].map(c=>`<div class="card">${c[0]}<strong>${c[1]}</strong><small>${esc(c[2])}</small></div>`).join('');
+  host.innerHTML=rows.length?`<table><thead><tr><th>Asset</th><th>Type / bron</th><th>Locatie</th><th>VC</th><th>Status</th><th>Open</th></tr></thead><tbody>${rows.slice(assetPage*pageSize,(assetPage+1)*pageSize).map(a=>`<tr><td><button data-asset="${esc(a.key)}" data-source="${a.source}">${esc(a.naam)}</button></td><td>${esc(a.tp)} <span class="pill">${a.source}</span></td><td>${esc(a.weg)}</td><td>${esc(a.vc||'Onbekend')}</td><td>${esc(a.status)}</td><td>${a.source==='DVM'?a.openFaults:'—'}</td></tr>`).join('')}</tbody></table>`:empty('Geen assets in deze selectie',data.rows.length?'Pas de filters aan.':'Laad je DVM-totaalbestand of BI-assets.');
+  $('#assetCount').textContent=`${num(rows.length,0)} resultaten · pagina ${assetPage+1} van ${Math.max(1,Math.ceil(rows.length/pageSize))}`;$('#assetPrev').disabled=assetPage===0;$('#assetNext').disabled=(assetPage+1)*pageSize>=rows.length;
+ }catch(error){if(isCurrent()){host.innerHTML=empty('Assetregister kon niet worden bijgewerkt','Probeer Uitkomsten vernieuwen.');fail(error);}}
+ finally{if(ticket===assetRenderTicket)host.setAttribute('aria-busy','false');}
 }
 function renderFaults(){const q=$('#faultSearch').value.toLowerCase(),vc=$('#faultVc').value,rows=applyQuery(queryFaults(allFaults()).filter(m=>(!vc||m.vc===vc)&&[m.naam,m.weg,m.code,m.omschrijving].join(' ').toLowerCase().includes(q)),queries.faults,FAULT_QUERY_FIELDS);$('#faultTable').innerHTML=rows.length?`<table><thead><tr><th>Asset / melding</th><th>Weg / richting</th><th>VC</th><th>Code</th><th>Impact</th></tr></thead><tbody>${rows.map(m=>`<tr><td>${m.assetKey?`<button data-asset="${esc(m.assetKey)}" data-source="DVM">${esc(m.naam||m.assetKey)}</button>`:esc(m.naam||'Niet gekoppeld')}<br><small class="muted">${esc(m.omschrijving)}</small></td><td>${esc(m.weg+' '+m.richting)} ${m.hm!=null?'· '+esc(m.hm):''}</td><td>${esc(m.vc)}</td><td>${esc(m.code)}</td><td>${m.impact==null?'Niet doorgerekend':num(m.impact)+'%'}</td></tr>`).join('')}</tbody></table>`:empty('Geen open storingen in deze selectie','Laad open storingen of pas de filters aan.');}
 function renderCosts(){const vc=$('#costVc').value,rows=(summaries.dvm?.roads||[]).filter(r=>!vc||r.vc===vc),known=rows.filter(r=>Number.isFinite(r.kosten)),ndw=rows.filter(r=>r.ndw?.available),confirmed=ndw.filter(r=>r.ndw.confirmed).length,pending=ndw.filter(r=>!r.ndw.confirmed&&!r.ndw.disabled).length,total=known.reduce((s,r)=>s+r.kosten,0);$('#costKpis').innerHTML=[['Bekend subtotaal / brondag',known.length?money(total):'Onbekend'],[summaries.dvm?.netwerkschakelmatrix?'Berekenbare netwerkschakelrichtingen':'Berekenbare wegdelen',known.length+' / '+rows.length],['NDW locaties bevestigd',confirmed+' / '+ndw.length],['NDW locaties te controleren',pending],['Brondag',date(summaries.dvm?.peildatum)]].map(c=>`<div class="card">${c[0]}<strong>${esc(c[1])}</strong></div>`).join('');$('#costTable').innerHTML=rows.length?`<table><thead><tr><th>${summaries.dvm?.netwerkschakelmatrix?'Netwerkschakel en richting':'Wegdeel'}</th><th>VC</th><th>VVU / brondag</th><th>Kosten / brondag</th><th>NDW locatie</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.naam)}</td><td>${esc(r.vc)}</td><td>${num(r.vvu)}</td><td>${money(r.kosten)}</td><td>${r.ndw?.available?(r.ndw.disabled?'NDW uitgezet':r.ndw.confirmed?'Bevestigd':'Te controleren'):'Geen passende meting'}</td><td><button data-cost="${esc(r.id)}">Bekijk berekening →</button></td></tr>`).join('')}</tbody></table>`:empty('Nog geen wegdelen','Laad een actuele storingsbron met assetregister.');}
-$('#assetSearch').oninput=()=>{assetPage=0;renderAssets();};for(const id of ['assetVc','assetSource','assetFaultOnly'])$('#'+id).onchange=()=>{assetPage=0;renderAssets();};$('#assetPrev').onclick=()=>{assetPage--;renderAssets();};$('#assetNext').onclick=()=>{assetPage++;renderAssets();};$('#faultSearch').oninput=renderFaults;$('#faultVc').onchange=renderFaults;$('#costVc').onchange=renderCosts;
+$('#assetSearch').oninput=scheduleAssetSearch;for(const id of ['assetVc','assetSource','assetFaultOnly'])$('#'+id).onchange=()=>{assetPage=0;renderAssets();};$('#assetPrev').onclick=()=>{assetPage--;renderAssets();};$('#assetNext').onclick=()=>{assetPage++;renderAssets();};$('#faultSearch').oninput=renderFaults;$('#faultVc').onchange=renderFaults;$('#costVc').onchange=renderCosts;
 installQueryBuilder('assets');installQueryBuilder('faults');
 
 function assistantAllData(){

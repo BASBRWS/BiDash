@@ -338,3 +338,7 @@ Individueel asset openen, locatie aanpassen, volledige invoer valideren, correct
 Bronbeheer, Netwerkschakelmatrix, Koppelingen en grenzen controleren, Oplossen bij probleemgroep. Betrokken asset-id's ophalen, maximaal twintig kaarten tonen, locatie aanpassen, volledig valideren, bestaande herberekenketen uitvoeren, dialoog openhouden, actuele koppeling en probleemlijst vernieuwen. Onbekende nulweg blijft een corrigeerbaar asset. Een losse melding opent de bestaande assetkoppeling.
 
 Bij ontbrekende grenzen of overlap, Matrixregels bekijken, wegfilter toepassen, gecontroleerde grenzen aanpassen of lege grensregel aanvullen, matrix opslaan en opnieuw doorrekenen. Niet opgeslagen matrixinvoer blijft tijdens assetcorrecties behouden. Bronlocaties en oorspronkelijke Excel-regels blijven apart bewaard; totaalexport neemt beide correctietypen mee.
+
+## Assetregister vanaf BiDash 2.50
+
+De bestaande DVM- en BI-adapters leveren de registerweergave. De schil groepeert actuele foutcodes per DVM-asset en bouwt een lokale presentatielijst in korte blokken. Zoeken en queryfilters gebruiken alle geladen assets; de tabel tekent alleen 60 regels per pagina. Bladeren hergebruikt dezelfde selectie. Bronwijzigingen, herstel en Uitkomsten vernieuwen verversen de lijst. Dit voegt geen tweede doorrekening, opslag of exportsectie toe.
