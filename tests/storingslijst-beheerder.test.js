@@ -93,7 +93,7 @@ test('de gezamenlijke storingsroute gebruikt de beheerderafleiding',()=>{
   const treffers=extensie.match(/rd:regioDienst\(/g)||[];
   assert.equal(treffers.length,1,'de gedeelde route moet regioDienst gebruiken');
   assert.doesNotMatch(extensie,/function openDripFaults/);
-  assert.match(extensie,/baseFaults\(\)\.map\(enrichBase\)/);
+  assert.match(extensie,/baseFaults\(\)\.map\(\(row,i\)=>enrichBase\(row,i,index\)\)/);
   assert.doesNotMatch(extensie,/rd:row\.rd\|\|/);
   assert.doesNotMatch(extensie,/rd:asset\?\.rd\|\|d\?\.rd\|\|''/);
 });

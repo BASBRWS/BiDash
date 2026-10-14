@@ -51,3 +51,16 @@ test('groot register geeft de browser tijd; oude bouw en zoekactie worden afgebr
  assert.equal(selected.length,1);assert.ok(yields>before);
  current=false;assert.equal(await chunked.select(data,filters,{rules:[]},fields,{isCurrent:()=>current}),null);
 });
+
+test('status en speciale filters blijven over de volledige populatie gaan zonder adapterfilter',async()=>{
+ const raw=[{key:'m',naam:'MSI',tp:'MSI'}, {key:'n',naam:'MSI buiten dienst',tp:'MSI',prognoseActief:false},
+  {key:'w',naam:'DRIP wind',tp:'DRIP',specialWind:true}, {key:'r',naam:'DRIP RIA4',tp:'DRIP',specialRia4:true}];
+ const view=createAssetRegisterView(),data=await view.ensure({assets:()=>raw,faults:()=>[{assetKey:'m',typeId:'MSI',code:'1003'}]},
+  {assets:()=>[{key:'w',naam:'BI',assetType:'Werkplek',specialWind:true}]});
+ const select=extra=>view.select(data,{...filters,...extra},{rules:[]},fields);
+ assert.deepEqual((await select({status:'Niet operationeel door storing'})).map(x=>x.key),['m']);
+ assert.deepEqual((await select({status:'Niet operationeel'})).map(x=>x.key),['n']);
+ assert.deepEqual((await select({wind:true})).map(x=>x.key),['w']);
+ assert.deepEqual((await select({wind:true,ria4:true})).map(x=>x.key),['w','r']);
+ assert.equal((await select({})).length,5);assert.equal(raw[0].status,undefined);
+});

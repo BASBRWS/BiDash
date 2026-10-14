@@ -270,6 +270,8 @@ Belangrijk: alleen de gestructureerde norm en subprocessen kunnen na vaststellin
 
 ## Queryfilters voor assets en storingen
 
+**Open storingen** toont vanaf BiDash 2.51 ook 60 meldingen per pagina. De resultaatstelling, zoekfilters en **Memo huidige selectie** gebruiken alle meldingen binnen de selectie. De memo bevat dus ook de volgende pagina’s. Het scherm wordt pas opgebouwd wanneer je het opent. Status-, Windwaarschuwing- en RIA4-filters in het register veranderen alleen de getoonde selectie.
+
 Het gezamenlijke **Assetregister** toont 60 assets per pagina. De resultaatstelling en filters gelden voor alle geladen assets. Bladeren hergebruikt de selectie. Tijdens de eerste opbouw of een nieuwe zoekactie verschijnt kort **Assetregister bijwerken**; je kunt verder typen of naar een ander scherm gaan. Nieuwe brongegevens, locatiecorrecties en **Uitkomsten vernieuwen** verversen deze weergave.
 
 Onder **Assetmanagement** hebben **Assetregister** en **Open storingen** een

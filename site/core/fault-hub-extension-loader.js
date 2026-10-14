@@ -12,7 +12,7 @@ export function installFaultHubExtensionLoader(scope=globalThis){
       return;
     }
     const s=scope.document.createElement('script');
-    s.id='bidashFaultsExtensionScript';s.src='dvm-faults-extension.js';s.defer=true;
+    s.id='bidashFaultsExtensionScript';s.src='dvm-faults-extension.js?v=20261014-1151';s.defer=true;
     s.onload=()=>scope.dispatchEvent(new CustomEvent('bidash:faults-extension-ready'));
     scope.document.head.appendChild(s);
   };
