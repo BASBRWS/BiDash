@@ -10,6 +10,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {dvmRuntime} from './helpers/dvm-runtime.js';
+const locatieRuntime=dvmRuntime();
 import {closeHistoryRow} from '../site/core/live-snapshot.js';
 
 const bron=readFileSync(new URL('../site/engines/dvm-2.js',import.meta.url),'utf8');
@@ -25,7 +27,7 @@ function haalFunctie(tekst,naam){
   throw new Error('einde van '+naam+' niet gevonden');
 }
 function context(extra={}){
-  const ctx=vm.createContext({Math,Number,String,Object,Array,Date,isFinite,isNaN,parseFloat,parseInt,console,...extra});
+  const ctx=vm.createContext({dvmLeesLocatie:locatieRuntime.dvmLeesLocatie,dvmHerleidZijde:locatieRuntime.dvmHerleidZijde,Math,Number,String,Object,Array,Date,isFinite,isNaN,parseFloat,parseInt,console,...extra});
   for(const naam of ['lc','num','parseDatum','normRij','kwantielWaarde','bouwLiveMcHistorie'])
     vm.runInContext(haalFunctie(bron,naam),ctx,{filename:naam});
   vm.runInContext('function normAssetRichting(v){return String(v||"").trim().toUpperCase();}',ctx);

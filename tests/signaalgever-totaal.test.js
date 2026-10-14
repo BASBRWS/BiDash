@@ -20,6 +20,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {dvmRuntime} from './helpers/dvm-runtime.js';
+const locatieRuntime=dvmRuntime();
 
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const dvm2=read('site/engines/dvm-2.js');
@@ -48,7 +50,7 @@ function haalFoutcodes(){
   throw new Error('foutcodes-array niet gevonden');
 }
 
-const ctx=vm.createContext({Number,String,Object,Array,Math,Date,parseFloat,parseInt,isNaN,isFinite,console,RULES:{foutcodes:haalFoutcodes()}});
+const ctx=vm.createContext({dvmLeesLocatie:locatieRuntime.dvmLeesLocatie,dvmHerleidZijde:locatieRuntime.dvmHerleidZijde,Number,String,Object,Array,Math,Date,parseFloat,parseInt,isNaN,isFinite,console,RULES:{foutcodes:haalFoutcodes()}});
 for(const naam of ['lc','num','parseDatum','normAssetRichting','normRij','canoniekAssetType','classificeer','dripToestandImpact','dripRegel','foutregel'])
   vm.runInContext(haalFunctie(dvm2,naam),ctx,{filename:naam});
 for(const naam of ['signaalgeverOpenActief','signaalgeverAssetType','signaalgeverOpenRij','signaalgeverHistorieRij','signaalgeverTotaalBronnen'])

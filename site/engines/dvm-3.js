@@ -1600,27 +1600,7 @@ function histDagenTussen(vanMs,totMs){
 }
 /* Parse locatie uit de asset-CSV: wegnummer + baanpositie + hm-bord. */
 function assetLocatie(row, g){
-  const asset=String(g(row,['asset'])||'').trim();
-  // Assetnamen bevatten vaak de nauwkeurigste codering, bv. A10R 20,579.
-  const am=asset.match(/\b([AN]\d+)([LRM])\s+(\d+)[,.](\d{1,3})\b/i);
-  if(am){
-    return {weg:am[1].toUpperCase(),richting:({L:'LI',R:'RE',M:''}[am[2].toUpperCase()]||''),
-      hm:parseFloat(am[3])+parseFloat(am[4].padEnd(3,'0'))/1000};
-  }
-  let wegnr=String(g(row,['wegnummer'])||'').trim();
-  const bps=String(g(row,['bps-locatie'])||'').trim().toUpperCase();
-  let weg;
-  if(/^\d+$/.test(wegnr)) weg=(/^PW/.test(bps)?'N':'A')+String(parseInt(wegnr,10));
-  else weg=wegnr.toUpperCase();
-  if(!weg){ const bm=bps.match(/^(RW|PW)0*(\d+)/); if(bm) weg=(bm[1]==='PW'?'N':'A')+bm[2]; }
-  const bp=String(g(row,['baanpositie'])||'').trim().toUpperCase();
-  const ri={'L':'LI','R':'RE'}[bp]||'';
-  let hm=null; const hmr=String(g(row,['hm-bord','hm'])||'').replace(',','.');
-  const hf=parseFloat(hmr); if(!isNaN(hf)){
-    const af=parseFloat(String(g(row,['afstand-tot-hm-bord'])||'').replace(',','.'));
-    hm=hf+(isNaN(af)?0:af/1000);
-  }
-  return {weg, richting:ri, hm};
+  return dvmLeesLocatie(row,g);
 }
 
 function statusActiefVoorPrognose(status){
@@ -1657,6 +1637,8 @@ function verwerkDvmLeeftijd(rijen){
     const status=String(registerWaarde(row,['status'])||'').trim();
     if(!statusActiefVoorPrognose(status)) return;
     const loc=assetLocatie(row,registerWaarde); if(!loc.weg) return;
+    const key=assetKeyVoor(tp,registerWaarde(row,['entityid']),registerWaarde(row,['asset']));
+    const corrected=ASSET_INDEX?.byKey.get(key);if(corrected)Object.assign(loc,{weg:corrected.weg,richting:corrected.richting,hm:corrected.hm});
     stats.actief++;
     const j=parseBouwjaar(registerWaarde(row,INSTALLATIE_DATUM_KEYS));
     if(j) stats.metJaar++;
@@ -2175,12 +2157,12 @@ function leesDripBestand(file){
       rijen=rijen.filter(r=>registerAssetType(r,registerWaarde));
 
       zetImportVoortgang(file.name,77,'Bouwjaarcohorten opbouwen',{direct:true});await uiPauze();
-      DVM_LEEFTIJD_STATE=verwerkDvmLeeftijd(rijen);
       zetImportVoortgang(file.name,81,'Assetindex, areaal en locaties opbouwen',{direct:true});await uiPauze();
       analyseerAssetRegister(rijen,file.name);
+      DVM_LEEFTIJD_STATE=verwerkDvmLeeftijd(rijen);
       if(ASSET_REGISTER_STATE)ASSET_REGISTER_STATE.ruweRegisterRijen=rijen.slice();
       zetImportVoortgang(file.name,86,'DRIP-areaal uit het stamregister afleiden',{direct:true});await uiPauze();
-      DRIP_STATE=verwerkDrips(rijen);
+      DRIP_STATE=verwerkDrips(rijen);dvmPasDripLocatiesToe();
       DRIP_STATE.bestand=file.name;
       if(DVM_LEEFTIJD_STATE) DRIP_STATE.leeftijdsdekking={
         actief:DVM_LEEFTIJD_STATE.actief, metJaar:DVM_LEEFTIJD_STATE.metJaar,
@@ -5064,6 +5046,39 @@ function openAssetConfigForLog(encoded){
 function assetCfgMelding(tekst,goed){
   const el=document.getElementById('assetCfgStatus');if(!el)return;el.textContent=tekst;el.style.color=goed===false?'var(--rood)':'var(--groen)';
 }
+function assetLocatieEditorHtml(a){
+  const key=encodeURIComponent(a.key).replace(/'/g,'%27'),bron=a.bronLocatie||a;
+  const fields=[['weg','Weg, met A of N'],['hm','HM / HMP, km'],['hectoletter','Hectoletter'],['rdX','RD X, optioneel'],['rdY','RD Y, optioneel']];
+  return '<div data-asset-locatie><h4>Locatie wijzigen</h4><p class="muted">Bronlocatie '+esc(bron.weg||'')+' '+esc(bron.richting||'')+' '+esc(bron.hm??'onbekende HM/HMP')+'. '+(a.locatieCorrectie?'Je gebruikt een handmatige locatiecorrectie. ':'')+esc(a.zijdeKoppeling||'')+' De oorspronkelijke assetnaam en bronrij blijven bewaard.</p><div class="asset-config-fields">'+
+    fields.map(([field,label])=>'<label>'+label+'<input data-asset-locatie-field="'+field+'" type="text" '+(['hm','rdX','rdY'].includes(field)?'inputmode="decimal"':'')+' value="'+esc(a[field]??'')+'"></label>').join('')+
+    '<label>Hoofdrijrichting<select data-asset-locatie-field="richting"><option value="">Automatisch / onbekend</option><option value="LI" '+(a.richting==='LI'?'selected':'')+'>LI, links</option><option value="RE" '+(a.richting==='RE'?'selected':'')+'>RE, rechts</option></select></label></div><p><button type="button" onclick="assetConfigLocatieOpslaan(this,\''+key+'\')">Locatie opslaan en herberekenen</button> <button type="button" onclick="assetConfigLocatieHerstellen(\''+key+'\').catch(error=>assetCfgMelding(error.message,false))">Herstel alleen bronlocatie</button></p><p class="muted">HM en HMP zijn dezelfde kilometereenheid. Vul bijvoorbeeld 12,345 in. Laat beide RD-velden leeg als je geen coördinaten hebt. Een eigen richting gaat vóór de automatische keuze.</p></div>';
+}
+async function assetConfigLocatieToepassen(key,bericht){
+  ASSET_CONFIG_VERSIE++;ASSET_CFG_UI.subtab='assets';ASSET_CFG_UI.focusKey=key;window.invalidateDvmForecast?.();
+  await datasetNaMutatie(bericht);
+  if(ASSET_REGISTER_STATE?.ruweRegisterRijen)DVM_LEEFTIJD_STATE=verwerkDvmLeeftijd(ASSET_REGISTER_STATE.ruweRegisterRijen);
+  toonTab('regels');renderRegels();toonRuleSubtab('assets');assetCfgMelding(bericht);
+  if(parent!==window)parent.postMessage({type:'hub:changed',engine:'dvm',sourceSpecific:true,bron:'assetconfig'},location.origin);
+}
+async function assetConfigBewaarLocatie(keyEnc,loc){
+  const key=decodeURIComponent(keyEnc),a=ASSET_INDEX?.byKey.get(key);
+  if(!a)throw Error('Het asset staat niet meer in het geladen register.');
+  const next=dvmValideerLocatie(loc),cfg=assetConfigBasis();
+  cfg.overrides[key]={...(cfg.overrides[key]||{}),locatie:next,locatieAangepastOp:new Date().toISOString()};
+  await assetConfigLocatieToepassen(key,'Locatiecorrectie opgeslagen. Areaal, storingen en afhankelijke analyses zijn herberekend.');
+  return ASSET_INDEX.byKey.get(key);
+}
+async function assetConfigLocatieOpslaan(button,keyEnc){
+  const host=button.closest('[data-asset-locatie]'),loc=Object.fromEntries([...host.querySelectorAll('[data-asset-locatie-field]')].map(el=>[el.dataset.assetLocatieField,el.value]));
+  button.disabled=true;
+  try{await assetConfigBewaarLocatie(keyEnc,loc);}catch(error){assetCfgMelding(error.message,false);}
+  finally{button.disabled=false;}
+}
+async function assetConfigLocatieHerstellen(keyEnc){
+  const key=decodeURIComponent(keyEnc),cfg=assetConfigBasis(),ov=cfg.overrides[key];
+  if(ov){delete ov.locatie;delete ov.locatieAangepastOp;if(!Object.keys(ov).length)delete cfg.overrides[key];}
+  await assetConfigLocatieToepassen(key,'Bronlocatie hersteld. Individuele rekenwaarden blijven behouden.');
+}
 function assetConfigZoek(v){ASSET_CFG_UI.query=v||'';if(ASSET_CFG_UI.zoekTimer)clearTimeout(ASSET_CFG_UI.zoekTimer);ASSET_CFG_UI.zoekTimer=setTimeout(renderAssetConfigLijst,160);}
 function assetConfigType(v){ASSET_CFG_UI.type=v||'';renderAssetConfigLijst();}
 function assetConfigTolerantie(el){
@@ -5081,10 +5096,11 @@ function assetConfigVeld(keyEnc,veld,el){
 }
 function assetConfigHerbereken(bericht){
   ASSET_CONFIG_VERSIE++;ASSET_CFG_UI.subtab='assets';ANALYSE_SIGNATURE='';MC_RESULT=null;DRIP_MC=null;
-  if(ASSET_REGISTER_STATE){ASSET_REGISTER_STATE._assetConfigVersie=-1;herberekenRegisterDekking();}
+  if(ASSET_REGISTER_STATE){ASSET_REGISTER_STATE._assetConfigVersie=-1;herberekenRegisterDekking();bouwAssetIndex();}
   const D=(STATE&&STATE.drips)||DRIP_STATE;if(D&&D.drips)D.drips.forEach(d=>{d._rel=null;});
   if(DRIP_HIST_STATE)koppelDripHistorieAanAreaal({slaMatchBeeldOver:true});
   if(STORINGSBRONNEN.length)STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeStoringsRijen());
+  if(LIVE_STORINGSBRONNEN.length)LIVE_STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeLiveStoringsRijen());
   herbouwAssetMatchBeeld();probeerAnalyseActiveren('regels',{inspectieAlGereed:true,matchAlGereed:true});
   setTimeout(()=>assetCfgMelding(bericht||'Assetconfiguratie toegepast.'),0);
 }
@@ -5128,6 +5144,7 @@ function assetConfigImport(file){
       if(!bron||typeof bron!=='object'||Array.isArray(bron))throw new Error('geen geldige assetconfiguratie gevonden');
       const bestaand=assetConfigBasis(),heeftBestaand=Object.keys(bestaand.aliases||{}).length||Object.keys(bestaand.uitgeslotenLogIds||{}).length||Object.keys(bestaand.overrides||{}).length;
       if(heeftBestaand&&!confirm('Vervang de huidige koppelingen, uitsluitingen en individuele assetinstellingen door het gekozen bestand?'))return;
+      for(const ov of Object.values(bron.overrides||{}))if(ov?.locatie)dvmValideerLocatie(ov.locatie);
       const tol=Number(bron.hmTolerantieKm);
       RULES.assetConfig={
         hmTolerantieKm:tol>=.01&&tol<=5?tol:.35,
@@ -5185,6 +5202,7 @@ function renderAssetConfigLijstHtml(){
     h+=`<details class="asset-config-row ${ASSET_CFG_UI.focusKey===a.key?'asset-config-focus':''}" ${open?'open':''}><summary><div><b>${esc(a.naam)}</b><div class="muted mono" style="font-size:10.5px;margin-top:3px">${esc(a.entityid||a.key)} · ${esc(a.weg)} ${esc(a.richting||'')} ${a.hm!=null?'hm '+fmt(a.hm,3):''}${a.strook?' · positie '+esc(a.strook):''} · ${esc(a.status||'status onbekend')}</div></div><span class="pill ${geconfigureerd?'geel':a.prognoseActief?'groen':'rood'}">${geconfigureerd?'individueel ingesteld':a.prognoseActief?'actief · bronregels':'alleen historische referentie'}</span></summary><div class="asset-config-body">
       <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div class="muted" style="font-size:11.5px"><b>${esc(a.tp)}</b> · ${esc(a.fabrikant||'fabrikant onbekend')} · ${esc(a.model||'model onbekend')} · bouwjaar ${a.bouwjaar||'onbekend'} · effectieve EOL ${eolJaar||'onbekend'} · bron ${esc(rel.bron)}</div>${pending?`<button class="asset-koppel-btn primary" onclick="assetConfigKoppel('${encodeURIComponent(pending)}','${keyE}')">Koppel ${esc(pending)} aan dit asset</button>`:''}</div>
       ${aliases.length?`<div style="margin-top:8px">${aliases.map(x=>`<span class="asset-alias">logalias ${esc(x)}</span>`).join('')}</div>`:''}
+      ${assetLocatieEditorHtml(a)}
       <div class="asset-config-fields">
         <label>Zwaartefactor<input type="number" min="0" max="5" step="0.05" value="${val('impactFactor')}" placeholder="1,00" onchange="assetConfigVeld('${keyE}','impactFactor',this)"></label>
         <label>Factor beschikbaarheid<input type="number" min="0" max="5" step="0.05" value="${val('fAvail')}" placeholder="1,00" onchange="assetConfigVeld('${keyE}','fAvail',this)"></label>
@@ -5714,10 +5732,10 @@ async function totaalImportJson(file, hubModus){
     if(assetregisterActie==='laden'){
       zetImportVoortgang(file.name,20,'Assetregister opbouwen',{direct:true});await uiPauze();
       let rijen=bundle.assetregister.rijen.filter(r=>registerAssetType(r,registerWaarde));
-      DVM_LEEFTIJD_STATE=verwerkDvmLeeftijd(rijen);
       analyseerAssetRegister(rijen,bundle.assetregister.bestand||file.name);
+      DVM_LEEFTIJD_STATE=verwerkDvmLeeftijd(rijen);
       if(ASSET_REGISTER_STATE)ASSET_REGISTER_STATE.ruweRegisterRijen=rijen.slice();
-      DRIP_STATE=verwerkDrips(rijen);
+      DRIP_STATE=verwerkDrips(rijen);dvmPasDripLocatiesToe();
       DRIP_STATE.bestand=bundle.assetregister.bestand||file.name;
       if(DVM_LEEFTIJD_STATE) DRIP_STATE.leeftijdsdekking={actief:DVM_LEEFTIJD_STATE.actief,metJaar:DVM_LEEFTIJD_STATE.metJaar,pct:DVM_LEEFTIJD_STATE.actief?DVM_LEEFTIJD_STATE.metJaar/DVM_LEEFTIJD_STATE.actief:0};
     }

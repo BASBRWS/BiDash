@@ -474,3 +474,11 @@ De openbare NDW-kopie wordt gepland elke vijf minuten ververst. Op de kaart staa
 De eerste kopie verschijnt na merge en geslaagde websitepublicatie. Als verversing stopt kan de beheerder bij GitHub Actions de workflow Business Intelligence Dashboard WVM handmatig uitvoeren. Geplande runs kunnen in een publieke repository stoppen na zestig dagen zonder repositoryactiviteit. Zelf bestanden laden blijft beschikbaar.
 
 Controleer na ophalen de voorgestelde meetlocaties. Een andere meting kan een bestaande locatiebevestiging ongeldig maken. Actuele NDW en een oudere storingspeildatum zijn verschillende momenten; dat verschil staat bij de verkeerskosten. Hinderuren en snelheidsreductie blijven scenario-invoer. De verkeerssnapshot en ophaalherkomst gaan mee in de totaalexport met Parameters. Jouw eigen bestanden worden niet naar NDW of GitHub gestuurd.
+
+## Assetlocaties corrigeren, BiDash 2.48 / DVM 129
+
+Open Regels & signalen, Impactregels, Assets zoeken en individueel configureren. Zoek en open het asset. Bij **Locatie wijzigen** kun je de weg met A/N-prefix, richting, HM/HMP en hectoletter aanpassen. RD X/Y zijn optioneel; vul beide in of laat beide leeg. Kies **Locatie opslaan en herberekenen**. De app gebruikt de correctie in areaal, storingskoppeling, netwerkschakels en de afhankelijke analyses. De oorspronkelijke naam en bronrij blijven bewaard.
+
+HM en HMP zijn beide kilometerposities. N-wegen blijven N-wegen, ook wanneer een verbindingsletter achter het wegnummer staat. Letters voor verbindingsbogen of parallelbanen krijgen een LI/RE-hoofdbaan wanneer er één duidelijke nabije kandidaat op dezelfde weg is. De bronletter en feitelijke HMP blijven zichtbaar in de assetconfiguratie. Als beide richtingen gelijk passen, kies je zelf de hoofdrijrichting. Een ontbrekende of foutieve matrixgrens moet nog bij Netwerkschakelmatrix worden gecorrigeerd.
+
+**Herstel alleen bronlocatie** zet de locatie terug en behoudt bijvoorbeeld jouw levensduur en zwaartefactor. **Herstel bron- en groepsregels** verwijdert alle individuele assetinstellingen. Locatiecorrecties gaan mee met Parameters in de totaalexport en met de losse assetconfiguratie-export. Bij hetzelfde entity-id blijven ze na herladen van All Assets van toepassing.
