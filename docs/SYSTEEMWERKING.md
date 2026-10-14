@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.54 en DVM 134, bijgewerkt op 14 oktober 2026 voor assetkoppeling per locatie en eenheid en HMP-notatie met streepjes. De incrementele MTM-updates per VC en DRIP-locatiekoppeling blijven behouden.
+Status: beschrijving van BiDash 2.55 en DVM 135, bijgewerkt op 14 oktober 2026 voor de PDOK-achtergrondkaart bij Gebied & knelpunten. De bestaande assetkoppeling en incrementele MTM-updates blijven behouden.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -124,6 +124,14 @@ De eerdere presentatielijst uit 2.50 loste niet alle blokkades op. `asset-regist
 
 `tests/fault-enrichment-performance.test.js` controleert indexgebruik, gelijke synchrone/asynchrone uitkomsten, nul en onbekende duur/impact, afbreken, dubbele sleutels en DRIP-conflicten. `tests/assetmanagement-responsiveness.cjs` gebruikt de echte adapters en statusmodules met 50.000 synthetische assets en 5.000 meldingen, met viermaal vertraagde CPU. Hij controleert browsertaakduur, verborgen scherm, volledige adapterpopulatie, status-/speciale filters, paging, snelle zoekwisselingen, memo en nieuwe lege bron. De eerdere test uit 2.50 verving HUB.assets/HUB.faults voor zijn UI-controles en dekte de nu gevonden omwikkelingen onvoldoende; die test blijft aanvullend bestaan. Grote bronimports, expliciete volledige memo-opbouw en andere analyses zijn afzonderlijke bewerkingen. De lokale browsertest bewijst niet dat ieder gebruikersapparaat of iedere dataset dezelfde tijdgrens haalt.
 
+### Achtergrondkaart bij Gebied & knelpunten, 2.55 / DVM 135
+
+De eerdere NWB-kaartconstante bevatte geen wegassen. Daardoor kon het scherm knelpuntpunten zonder herkenbare kaart of een onjuiste melding over geladen NWB tonen. `gebiedKaartTegels()` in `dvm-3.js` laadt nu de openbare BRT Achtergrondkaart van Kadaster / PDOK als WMTS-afbeeldingen onder de bestaande SVG-markeringen. De officiële RD New-matrix gebruikt oorsprong (-285401.92, 903401.92), 256 pixels per tegel en beginresolutie 3440.64 meter per pixel; de matrixnamen zijn tweecijferig. De geometrie en knelpuntpunten delen dezelfde RD-projectie. De uitsnede gebruikt de beschikbare registercoördinaten, knelpuntcoördinaten en geladen NWB-geometrie. Zonder coördinaten verschijnt een landelijke kaart met uitleg; er worden geen knelpuntposities verzonnen.
+
+Gebiedskeuze, in-/uitzoomen, Hele regio en selectie vanuit de ranglijst verversen dezelfde kaart. Per weergave worden maximaal 64 zichtbare tegels gevraagd. Er is geen externe kaartbibliotheek, extra gegevensimport, opslag- of exportsectie. De kaart verandert de dienstberekening niet. Knopen zonder kaartpositie blijven in de ranglijst en in de telling. Geladen NWB-lijnen en de bestaande veilige snap binnen 250 meter op dezelfde weg blijven bruikbaar, maar ontbrekende NWB-data wordt niet als geladen gepresenteerd. Een laadstatus en Kadaster/PDOK-bronvermelding staan onder de kaart. Bij kaartuitval blijven de markeringen, selectie en ranglijst werken.
+
+`tests/gebied-kaart.test.js` controleert RD-projectie, matrix-URL's, tegelgrenzen, ontbrekende coördinaten, tellingen en CSP. `tests/gebied-kaart-browser.cjs` controleert laden, zoom, VC-selectie, selectie vanuit de ranglijst, mobiel, ontbrekende kaartverbinding en het ontbreken van referrer/cookies. Standaard gebruikt deze test nagebootste afbeeldingen; met `PDOK_LIVE=1` leest hij de echte openbare kaartdienst. De beschikbaarheid van die dienst blijft een externe afhankelijkheid.
+
 ## 4. Lokale gegevens en beveiliging
 
 De hoofdwerkruimte heeft `schema: 1` en bevat `dvm`, `bi`, `planning`, `links`,
@@ -136,7 +144,7 @@ Gebruik één werkruimte-tab tegelijk; er is geen uitgewerkte meergebruikerssync
 - Geen uploads van gebruikersbestanden naar GitHub, telemetrie of externe AI-diensten.
 - Geen operationele XML/JSON, uitsneden, screenshots of afgeleide operationele tellingen in de repository of publiek
 - Dat geldt ook voor gegevens die als voorbeeld of demonstratie in de broncode staan. Een ingesloten projectplanning, portfolio- of triggerlijst is een publicatie van die gegevens, ook als geen enkel scherm haar toont. Een module begint leeg en toont wat de gebruiker laadt. `tests/planning-geen-projectdata.test.js` bewaakt dit voor de planningmodulee CI-logs. Gebruik synthetische testgegevens.
-- De hoofdschil behoudt `connect-src 'none'`. Het DVM-frame gebruikt vanaf 2.47 `connect-src 'self'` voor vaste GET-verzoeken naar de openbare NDW-kopie op dezelfde website. De downloader gebruikt geen cookies, referrer of gebruikersgegevens. Andere externe hosts blijven geblokkeerd. Externe bronlinks zijn geen toestemming om gebruikersdatasets te verzenden.
+- De hoofdschil behoudt `connect-src 'none'`. Het DVM-frame gebruikt vanaf 2.47 `connect-src 'self'` voor vaste GET-verzoeken naar de openbare NDW-kopie op dezelfde website. De downloader gebruikt geen cookies, referrer of gebruikersgegevens. Vanaf 2.55 / DVM 135 staat uitsluitend `img-src` daarnaast het vaste PDOK-pad `https://service.pdok.nl/kadaster/brt-achtergrondkaart/wmts/v2_0/` toe voor openbare kaarttegels. De RD-tegelmatrix, kolom en rij bepalen de URL; brongegevens, assetsleutels en storingen worden niet verstuurd. De beeldverzoeken gebruiken anonieme CORS en geen referrer. De kaartdienst ontvangt de normale netwerkgegevens en de opgevraagde kaartruitsnede. Andere externe hosts blijven geblokkeerd. Externe bronlinks zijn geen toestemming om gebruikersdatasets te verzenden.
 - De hoofdschil staat geen inline stijl toe. Dynamische schilonderdelen gebruiken klassen uit `site/style.css`; voeg geen `unsafe-inline` toe om een geblokkeerde stijl te omzeilen.
 - Modules draaien onder dezelfde origin. Frames met `allow-scripts` en `allow-same-origin` zijn geen beveiligingsgrens tegen kwaadaardige eigen code.
 - `postMessage` wordt alleen verwerkt voor dezelfde origin én bekende bronframes.

@@ -354,3 +354,7 @@ De DVM-adapter blijft het volledige register aanbieden. De schil groepeert meldi
 Signaalgevers uit map openen, actuele stand per VC bekijken, VC’s en periode kiezen, map lezen en valideren, aansluiten op de laatste complete momentopname per werkelijk gelezen VC, incidenten samenvoegen, verdwenen MSI-/LUS-meldingen historiseren, actuele dienstverlening herberekenen, voortgang per VC tonen en een bijgewerkte storings-JSON aanbieden.
 
 Andere VC’s en bronstromen blijven staan. Oudere mapsneden vullen historie aan zonder actuele gegevens terug te zetten. Dezelfde incidentidentiteit levert één rij per bronstroom. Lege gedateerde lijsten bewaren het VC-watermerk; leesfouten en tegenstrijdige bestanden wijzigen de stand niet. Een datagat levert geen bewezen herstelmoment. Oude light-historie mist soms VC, rijstrook en foutcode; behoud die regels en hun aantallen zonder een identiteit te verzinnen. De download en handmatige totaalexport bewaren de exacte VC-peildata voor de volgende update.
+
+## Gebiedskaart, 2.55 / DVM 135
+
+Gebied & knelpunten openen, bestaande clusters en VC-selectie bepalen, beschikbare RD-coördinaten verzamelen, uitsnede en zoom toepassen, zichtbare openbare PDOK BRT-tegels bepalen, tegels onder bestaande knelpuntmarkeringen tekenen. Ranglijstselectie en gebiedskeuze verversen dezelfde uitsnede. Knopen zonder coördinaten blijven in de ranglijst. Bij een lege geografische selectie verschijnt Nederland met uitleg. Tegelfouten veranderen geen brongegevens, clusters of impactuitkomsten. Alleen de kaartachtergrond vereist internet.

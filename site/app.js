@@ -2,7 +2,7 @@ import {GROUPS,ROUTES,resolveRoute} from './ui/routes.js';
 import {DEFAULT_STATE,DVM_PARTS,BI_RULE_KEYS,LABELS,validate,makeExport,mergeImport,combine} from './core/model.js?v=20261014-1151';
 import {read,write,readValue,writeValue} from './core/storage.js';
 import {createFileDownload} from './core/file-download.js?v=20261013-1620';
-import {toonVersies} from './core/versie.js?v=20261014-1151';
+import {toonVersies} from './core/versie.js?v=20261014-1536';
 import {nieuwsteMomentopnameUitBestanden,nieuwsteMomentopnameUitMap,mapToestemming,schrijfBestandNaarMap} from './core/latest-snapshot.js';
 import {runQualityAudit,QUALITY_CATEGORIES} from './core/quality-audit.js';
 import {applyQuery,operatorsFor} from './core/query-filter.js';
