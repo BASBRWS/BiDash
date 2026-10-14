@@ -122,6 +122,7 @@ test('adapter en Verkeerskosten tonen dezelfde actuele bevestiging naast bereken
  // Gebruik de echte berichtenhandler: een bevestiging moet de zichtbare teller
  // verversen voordat de bestaande opslag-debounce afloopt.
  const frame={HUB:{summary:()=>r.testSummary()}};
+ r.invalidations=0;r.invalidateAssetView=()=>r.invalidations++;
  r.frames={dvm:{contentWindow:frame}};r.view='costs';r.busy=false;r.queues=0;r.queue=()=>r.queues++;
  r.addEventListener=(type,handler)=>{if(type==='message')r.onMessage=handler;};
  vm.runInContext(app.match(/^window.addEventListener\('message'.*$/m)[0],r);
@@ -131,7 +132,8 @@ test('adapter en Verkeerskosten tonen dezelfde actuele bevestiging naast bereken
  assert.match(elements.costKpis.innerHTML,/NDW locaties te controleren<strong>1/);
  assert.match(elements.costKpis.innerHTML,/Berekenbare wegdelen<strong>2 \/ 3/);
  assert.match(elements.costTable.innerHTML,/Bevestigd/);
- assert.equal(r.queues,1);
+ assert.equal(r.queues,1);assert.equal(r.invalidations,1);
  r.onMessage({origin:'https://untrusted.example',source:frame,data:r.messages.at(-1)});
  assert.equal(r.queues,1,'berichten van een andere herkomst worden geweigerd');
+ assert.equal(r.invalidations,1,'vreemde berichten maken ook het register niet ongeldig');
 });
