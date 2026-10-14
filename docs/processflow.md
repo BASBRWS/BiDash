@@ -353,3 +353,8 @@ Andere VC’s en bronstromen blijven staan. Oudere mapsneden vullen historie aan
 ## Gebiedskaart, 2.55 / DVM 135
 
 Gebied & knelpunten openen, bestaande clusters en VC-selectie bepalen, beschikbare RD-coördinaten verzamelen, uitsnede en zoom toepassen, zichtbare openbare PDOK BRT-tegels bepalen, tegels onder bestaande knelpuntmarkeringen tekenen. Ranglijstselectie en gebiedskeuze verversen dezelfde uitsnede. Knopen zonder coördinaten blijven in de ranglijst. Bij een lege geografische selectie verschijnt Nederland met uitleg. Tegelfouten veranderen geen brongegevens, clusters of impactuitkomsten. Alleen de kaartachtergrond vereist internet.
+
+
+### Van analyse naar uitvoerbaar memobesluit
+
+Memo openen, scope kiezen, per voorgestelde opdracht eigenaar en einddatum invullen, toetsbaar resultaat benoemen, datum en ontvanger van het vervolgbesluit vastleggen, conceptmeldingen controleren, kopiëren of exporteren naar Word/PDF. Dezelfde afspraken gelden voor de gewone memo, Lieke-memo en begeleidende MSI-/DRIP-brief. De invoer gaat mee met Parameters; analysewaarden en rekenregels veranderen niet.

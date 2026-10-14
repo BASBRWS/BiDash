@@ -1689,7 +1689,7 @@ function memoSecties(bron, niveau, koppelBW){
       ? [
           `Prioriteer het openstaande herstel op ${memoLijst(wvNamen)}${wv[0]?` (te beginnen bij ${wv[0].key}, ${wv[0].n} storingen)`:''}.`,
           topFout?`Onderzoek of de oververtegenwoordiging van ${memoFoutcodeZin(topFout)} (${topFout.pct}%) een gemeenschappelijke oorzaak heeft die gebundeld kan worden verholpen.`:`Bepaal de hersteltvolgorde op basis van de dienstimpact per wegvak.`,
-          `Koppel binnen een af te spreken termijn terug aan VWM over de voortgang, zodat de doorrekening kan worden geactualiseerd.`
+          `Rapporteer de herstelvoortgang aan VWM en actualiseer de doorrekening.`
         ]
       : [
           `Handhaaf het reguliere hersteltempo; er is geen aanvullende inzet nodig.`,
@@ -1836,6 +1836,27 @@ function memoSecties(bron, niveau, koppelBW){
   }
 
   return s;
+}
+
+/* Beslisafspraken horen bij memotype, scope en bronstand, nooit bij de rekencijfers. */
+function memoBesluitModel(bron,acties){
+  const H=globalThis.DVM_MEMO_BESLUIT;if(!H)throw Error('Memo-opbouw ontbreekt. Herlaad de pagina.');
+  const mc=bron.mc||{},key='memo:'+JSON.stringify([bron.type,bron.scope||'landelijk',bron.wegKey||'',STATE?.bestand||'',STATE?.peildatum||null,mc.periodeLabel||'',mc.jaarVan||'',mc.jaarTot||'',mc.horizon||'',mc.seed??'',mc.runs??'']);
+  return {key,rijen:H.rijen(acties,RULES.cfg.memoBesluiten?.[key])};
+}
+function memoBesluitHtml(bron,acties){return DVM_MEMO_BESLUIT.html(memoBesluitModel(bron,acties).rijen);}
+function memoBesluitEditor(bron,acties){
+  const host=document.getElementById('memoBesluitEditor');if(!host)return;
+  const H=DVM_MEMO_BESLUIT,m=memoBesluitModel(bron,acties);host.dataset.context=m.key;
+  host.innerHTML=m.rijen.map((r,i)=>`<details class="memo-besluit-invoer"><summary>Beslispunt ${i+1}</summary>${H.velden.map(k=>`<label for="memoBesluit-${i}-${k}">${esc(H.labels[k])}</label>${['actie','resultaat'].includes(k)?`<textarea id="memoBesluit-${i}-${k}" rows="3" data-besluit-index="${i}" data-besluit-veld="${k}" onchange="memoBesluitWijzig(this)">${esc(r[k])}</textarea>`:`<input id="memoBesluit-${i}-${k}" type="${['einddatum','terugDatum'].includes(k)?'date':'text'}" data-besluit-index="${i}" data-besluit-veld="${k}" value="${esc(r[k])}" onchange="memoBesluitWijzig(this)">`}`).join('')}</details>`).join('');
+}
+function memoBesluitWijzig(input){
+  if(!MEMO_BRON)return;const niveau=document.querySelector('input[name="memoNiveau"]:checked')?.value||'tactisch';
+  const s=memoSecties(MEMO_BRON,niveau,!!document.getElementById('memoKoppelBW')?.checked),m=memoBesluitModel(MEMO_BRON,s.besluit),i=Number(input.dataset.besluitIndex),veld=input.dataset.besluitVeld;
+  if(!m.rijen[i]||!DVM_MEMO_BESLUIT.velden.includes(veld))return;
+  m.rijen[i][veld]=input.value;RULES.cfg.memoBesluiten={...RULES.cfg.memoBesluiten,[m.key]:DVM_MEMO_BESLUIT.samenvoegen(RULES.cfg.memoBesluiten?.[m.key],m.rijen)};memoVervers(true);
+  for(const type of ['montecarlo','drip-montecarlo']){const el=document.getElementById(type==='montecarlo'?'mcBegeleidAlgemeen':'mcBegeleidDrip');if(el)el.outerHTML=monteCarloBegeleidendSchrijvenKaart(type);}
+  try{if(parent!==window)parent.postMessage({type:'hub:changed',engine:'dvm'},location.origin);}catch(e){}
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2607,7 +2628,7 @@ function memoLiekeDripCurvesHtml(bron){
     return `<div class="lieke-drip-curve-card"><div class="lieke-drip-curve-head"><div>${memoLiekeDripNaamHtml(pd.d)}</div><div class="cat">${esc(cat)}</div></div>${memoLiekeDripCurveSvg(pd,R)}<div class="lieke-legend"><span><i style="background:#003082"></i>Cumulatieve storingen</span><span><i style="background:#e17000"></i>Beschikbaarheid per periode</span></div></div>`;
   }).join('')}`;
 }
-function memoLiekeDocument(bron,titel){
+function memoLiekeDocument(bron,titel,niveau='tactisch',koppelBW=false){
   const rows=memoLiekeDienstRows(bron),zwak=rows[0]||{naam:'onbekend',besch:100,norm:100};
   const scope=memoLiekeScopeNaam(bron);
   const msi=memoLiekeMsiStats(bron),drip=memoLiekeDripStats(bron);
@@ -2640,7 +2661,7 @@ function memoLiekeDocument(bron,titel){
       ${memoLiekeDripCurvesHtml(bron)}
       ${kostenMemoHtml(bron)}
       <h3>${bron&&bron.type==='drip-montecarlo'?'8':'7'} &nbsp; Gevraagde managementkeuze</h3>
-      <p>Kies of de beheerder stuurt op regulier herstel, gericht onderhoud op de zwakste wegdelen of versnelling van vervanging. VWM actualiseert de memo zodra nieuwe live storingen, historie, werkzaamheden of U-routes worden geladen.</p>
+      ${memoBesluitHtml(bron,memoSecties(bron,niveau,koppelBW).besluit)}
     </div>
   </div>`;
 }
@@ -3415,7 +3436,7 @@ function memoDocument(bron, niveau, koppelBW, titel){
       <p>${s.conclusie}</p>
 
       <h3>5 &nbsp; Gevraagd besluit</h3>
-      <ul>${s.besluit.map(b=>`<li>${b}</li>`).join('')}</ul>
+      ${memoBesluitHtml(bron,s.besluit)}
 
       <h3>6 &nbsp; Verwachte uitkomst besluit</h3>
       <p>${s.uitkomst}</p>
@@ -3470,7 +3491,7 @@ function opentMemo(type){
   memoVervers();
 }
 function sluitMemo(){ document.getElementById('memoModal').style.display='none'; }
-function memoVervers(){
+function memoVervers(behoudBesluitEditor=false){
   if(!MEMO_BRON) return;
   const scopeEl=document.getElementById('memoScope');
   MEMO_BRON.scope=scopeEl?scopeEl.value:'landelijk';
@@ -3482,7 +3503,9 @@ function memoVervers(){
   MEMO_ZWAARTEPUNT = zwEl ? Number(zwEl.value) : 50;
   const titel=document.getElementById('memoModalTitel').value||MEMO_TITEL;
   const preview=document.getElementById('memoPreview');
-  preview.innerHTML=lieke?memoLiekeDocument(MEMO_BRON, titel):memoDocument(MEMO_BRON, niveau, koppelBW, titel);
+  const besluiten=memoSecties(MEMO_BRON,niveau,koppelBW).besluit;
+  if(!behoudBesluitEditor)memoBesluitEditor(MEMO_BRON,besluiten);
+  preview.innerHTML=lieke?memoLiekeDocument(MEMO_BRON, titel,niveau,koppelBW):memoDocument(MEMO_BRON, niveau, koppelBW, titel);
   nummerGrafiekenEnTabellen(preview);
 }
 function memoKopieer(){
@@ -3601,7 +3624,7 @@ function monteCarloBegeleidendSchrijvenKaart(type){
       <div class="mc-begeleid-sectie"><h4>3. Resultaten</h4><p>${s.beschrijving}</p></div>
       <div class="mc-begeleid-sectie"><h4>4. Duiding en risico</h4><p>${s.risico}</p></div>
       <div class="mc-begeleid-sectie"><h4>5. Conclusie</h4><p>${s.conclusie}</p></div>
-      <div class="mc-begeleid-sectie"><h4>6. Advies en vervolg</h4><ul>${s.besluit.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+      <div class="mc-begeleid-sectie"><h4>6. Gevraagd besluit en uitvoering</h4>${memoBesluitHtml(bron,s.besluit)}</div>
       <div class="mc-begeleid-sectie"><h4>7. Verwacht effect van het advies</h4><p>${s.uitkomst}</p></div>
       ${kostenMemoHtml(bron)}
       <div class="mc-begeleid-leeswijzer"><b>Gebruik bij besluitvorming.</b> Lees de mediaan altijd samen met de p5-p95-band, de gebruikte databronnen en de datakwaliteit. Vergelijk alternatieven alleen met dezelfde periode, selectie, parameters en historische kalibratie.</div>
