@@ -4,7 +4,7 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='135';
+  const DVM_VERSION='136';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     netwerkschakels:{input:'netwerkschakelInput',label:'Netwerkschakelmatrix laden',multiple:false,requiresAsset:false,handler:'leesNetwerkschakels',accept:'.xlsx,.xls'},
@@ -216,10 +216,12 @@
   function signaalgeverTotaalMeta(s){
     const laatste=datumTekst(s.laatsteEntry),peil=datumTekst(s.peildatum);
     const samenvatting='<div class="dataset-meta-section"><div class="dataset-meta-label">Inhoud</div>'+
-      '<div>'+(s.open||0).toLocaleString('nl-NL')+' open ('+(s.herkendOpen||0).toLocaleString('nl-NL')+' herkend)</div>'+
+      '<div>'+(s.open||0).toLocaleString('nl-NL')+' technische meldingen, inclusief onzekere ('+(s.herkendOpen||0).toLocaleString('nl-NL')+' herkend)</div>'+
       '<div>'+(s.historie||0).toLocaleString('nl-NL')+' historisch ('+(s.herkendHist||0).toLocaleString('nl-NL')+' herkend)</div>'+
       (laatste?'<div>Laatste entry '+laatste+'</div>':'')+(peil?'<div>Peildatum open '+peil+'</div>':'')+'</div>';
-    return samenvatting+regioUpdatesHtml(s.laatstePerVc)+
+    const lc=s.levenscyclusSamenvatting,audit=s.levenscyclusAudit;
+    const controle=(lc?'<div>'+lc.geraakteAssets+' unieke assets/posities; '+lc.onzeker+' onzeker of verouderd.</div>':'')+(audit?'<div>'+ (audit.administratiefSluitend?'Incidentadministratie sluit aan.':'Incidentadministratie niet volledig sluitend; controleer legacy-identiteiten.')+' '+(audit.bronDekkingVolledig?'Snapshotdekking gecontroleerd.':'Brondekking bevat onzekerheid.')+'</div>':'');
+    return samenvatting+regioUpdatesHtml(s.laatstePerVc)+controle+
       '<div class="dataset-meta-note">Voedt het actuele dashboard en de prognose. De mapimport werkt per VC bij en voegt overlappende meldingen samen. JSON laden vervangt de signaalgeverbron.</div>';
   }
 
@@ -270,7 +272,9 @@
       '<div>'+(s.gekoppeldeIncidenten||0).toLocaleString('nl-NL')+' gekoppeld aan het DRIP-areaal'+
       (s.nietGekoppeld?' · '+(s.nietGekoppeld||0).toLocaleString('nl-NL')+' niet gekoppeld':'')+'</div>'+
       (laatste?'<div>Laatste entry '+laatste+'</div>':'')+'</div>';
-    return samenvatting+regioUpdatesHtml(s.laatstePerVc)+
+    const lc=s.levenscyclusSamenvatting,audit=s.levenscyclusAudit;
+    const controle=(lc?'<div>'+lc.geraakteAssets+' unieke assets/posities; '+lc.onzeker+' onzeker of verouderd.</div>':'')+(audit?'<div>'+ (audit.administratiefSluitend?'Incidentadministratie sluit aan.':'Incidentadministratie niet volledig sluitend; controleer legacy-identiteiten.')+' '+(audit.bronDekkingVolledig?'Snapshotdekking gecontroleerd.':'Brondekking bevat onzekerheid.')+'</div>':'');
+    return samenvatting+regioUpdatesHtml(s.laatstePerVc)+controle+
       '<div class="dataset-meta-note"><b>Bron vervangen</b> wist de huidige DRIP-historie.<br><b>Voeg JSON toe</b> vult de huidige DRIP-bronnen complementair aan.</div>';
   }
 

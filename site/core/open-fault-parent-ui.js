@@ -1,4 +1,4 @@
-import {OPEN_FAULT_TYPES,OPEN_OPERATIONAL_STATUSES,filterOpenFaults,formatFaultDuration,buildOpenFaultMemo} from './open-fault-view.js';
+import {OPEN_FAULT_TYPES,OPEN_OPERATIONAL_STATUSES,filterOpenFaults,formatFaultDuration,buildOpenFaultMemo} from './open-fault-view.js?v=20261014-1551';
 import {applyQuery} from './query-filter.js';
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -9,7 +9,7 @@ const fmtDate=v=>{if(!v)return 'Onbekend';const d=new Date(v);return Number.isFi
 const FAULT_QUERY_FIELDS=[
   {key:'naam'},{key:'assetKey'},{key:'typeId'},{key:'code'},{key:'assetFaultCodes'},
   {key:'weg'},{key:'richting'},{key:'hm',type:'number'},{key:'vc'},{key:'rd'},
-  {key:'operationeleStatus'},{key:'impact',type:'number'},{key:'duurUren',type:'number'},{key:'rekenStatus'},{key:'omschrijving'}
+  {key:'levenscyclus_status'},{key:'technische_categorie'},{key:'operationeleStatus'},{key:'impact',type:'number'},{key:'duurUren',type:'number'},{key:'rekenStatus'},{key:'omschrijving'}
 ];
 
 function typeLabel(type){return OPEN_FAULT_TYPES.find(([v])=>v===String(type||'').toUpperCase())?.[1]||type||'Onbekend';}
@@ -24,7 +24,7 @@ export function installOpenFaultParentUi(scope=globalThis){
   let revision=0,snapshot=null,pending=null,selection=null,renderTicket=0,faultPage=0,renderTimer;
   const pageSize=60;
   const visible=()=>{const main=doc.getElementById('faults');return !!main&&!main.hidden;};
-  function filters(){return {query:doc.getElementById('faultSearch')?.value||'',vc:doc.getElementById('faultVc')?.value||'',type:doc.getElementById('faultType')?.value||'',status:doc.getElementById('faultOperationalStatus')?.value||'',wind:!!doc.getElementById('faultWind')?.checked,ria4:!!doc.getElementById('faultRia4')?.checked};}
+  function filters(){return {query:doc.getElementById('faultSearch')?.value||'',vc:doc.getElementById('faultVc')?.value||'',type:doc.getElementById('faultType')?.value||'',status:doc.getElementById('faultOperationalStatus')?.value||'',lifecycle:doc.getElementById('faultLifecycle')?.value||'',wind:!!doc.getElementById('faultWind')?.checked,ria4:!!doc.getElementById('faultRia4')?.checked};}
   async function build(version){
     const current=()=>version===revision&&visible();
     const all=(scope.HUB?.faultsAsync?await scope.HUB.faultsAsync({isCurrent:current}):scope.HUB?.faults?.())||[];
@@ -80,9 +80,10 @@ export function installOpenFaultParentUi(scope=globalThis){
     const main=doc.getElementById('faults'),row=main?.querySelector('.filter-row');if(!row)return false;
     if(!doc.getElementById('faultType'))row.append(selectControl('faultType','Assettype',OPEN_FAULT_TYPES));
     if(!doc.getElementById('faultOperationalStatus'))row.append(selectControl('faultOperationalStatus','Operationele status',OPEN_OPERATIONAL_STATUSES));
+    if(!doc.getElementById('faultLifecycle'))row.append(selectControl('faultLifecycle','Meldingstoestand',[['','Alle meldingstoestanden'],...Object.entries(globalThis.DVM_INCIDENT_LIFECYCLE.labels)]));
     if(!doc.getElementById('faultWind'))row.append(checkControl('faultWind','Alleen DRIP windwaarschuwing'));
     if(!doc.getElementById('faultRia4'))row.append(checkControl('faultRia4','Alleen DRIP RIA4'));
-    for(const id of ['faultType','faultOperationalStatus','faultWind','faultRia4']){
+    for(const id of ['faultType','faultOperationalStatus','faultLifecycle','faultWind','faultRia4']){
       const el=doc.getElementById(id);if(el&&!el.dataset.bidashFaultFilter){el.dataset.bidashFaultFilter='1';el.addEventListener('change',()=>schedule({resetPage:true}));}
     }
 
@@ -118,9 +119,10 @@ export function installOpenFaultParentUi(scope=globalThis){
       const rows=await filtered(source,current);if(!rows||!current())return;
       faultPage=Math.max(0,Math.min(faultPage,Math.max(0,Math.ceil(rows.length/pageSize)-1)));
       const f=filters(),special=[f.wind?'windwaarschuwing':'',f.ria4?'RIA4':''].filter(Boolean).join(' + ');
-      const summary=doc.getElementById('faultFilterSummary');if(summary)summary.textContent=`${countFormat.format(rows.length)} van ${countFormat.format(source.rows.length)} open storingen zichtbaar${f.type?' · '+typeLabel(f.type):''}${f.status?' · '+f.status:''}${special?' · '+special:''}.`;
-      table.innerHTML=rows.length?`<table><thead><tr><th>Asset / melding</th><th>Type</th><th>Status</th><th>Locatie</th><th>VC</th><th>Beheerder</th><th>Duur</th><th>Code</th><th>Impact</th></tr></thead><tbody>${rows.slice(faultPage*pageSize,(faultPage+1)*pageSize).map(m=>{
-        const cat=tags(m);return `<tr><td>${m.assetKey?`<button data-asset="${esc(m.assetKey)}" data-source="DVM">${esc(m.naam||m.assetKey)}</button>`:esc(m.naam||'Niet gekoppeld')}<br><small class="muted">${esc(m.omschrijving||'')}</small>${cat.length?`<br><small>${cat.map(x=>`<span class="pill">${esc(x)}</span>`).join(' ')}</small>`:''}</td><td>${esc(typeLabel(m.typeId))}</td><td>${esc(m.operationeleStatus||'Operationeel')}</td><td>${esc(locationLabel(m))}</td><td>${esc(m.vc||'Onbekend')}</td><td>${esc(m.rd||'Onbekend')}</td><td>${esc(formatFaultDuration(m.duurUren))}${m.duurBetrouwbaar===false?'<br><small>Duur onzeker</small>':''}</td><td>${esc(m.code||'—')}</td><td>${m.impact!=null&&m.impact!==''&&Number.isFinite(Number(m.impact))?impactFormat.format(Number(m.impact))+'%':'Niet doorgerekend'}</td></tr>`;
+      const life=globalThis.DVM_INCIDENT_LIFECYCLE.summary(rows);
+      const summary=doc.getElementById('faultFilterSummary');if(summary)summary.textContent=`${countFormat.format(rows.length)} van ${countFormat.format(source.rows.length)} technische meldingen zichtbaar · ${countFormat.format(life.geraakteAssets)} unieke assets/posities · ${countFormat.format(life.meldingenZonderUniekAsset)} zonder unieke assetidentiteit · ${countFormat.format(life.onzeker)} onzeker of verouderd${f.type?' · '+typeLabel(f.type):''}${f.status?' · '+f.status:''}${special?' · '+special:''}.`;
+      table.innerHTML=rows.length?`<table><thead><tr><th>Asset / melding</th><th>Type</th><th>Operationeel</th><th>Meldingstoestand</th><th>Laatste waarneming</th><th>Locatie</th><th>VC</th><th>Beheerder</th><th>Duur</th><th>Code</th><th>Impact</th></tr></thead><tbody>${rows.slice(faultPage*pageSize,(faultPage+1)*pageSize).map(m=>{
+        const cat=tags(m);return `<tr><td>${m.assetKey?`<button data-asset="${esc(m.assetKey)}" data-source="DVM">${esc(m.naam||m.assetKey)}</button>`:esc(m.naam||'Niet gekoppeld')}<br><small class="muted">${esc(m.omschrijving||'')}</small>${cat.length?`<br><small>${cat.map(x=>`<span class="pill">${esc(x)}</span>`).join(' ')}</small>`:''}</td><td>${esc(typeLabel(m.typeId))}</td><td>${esc(m.operationeleStatus||'Operationeel')}</td><td>${esc(globalThis.DVM_INCIDENT_LIFECYCLE.read(m).levenscyclus_label)}</td><td>${esc(fmtDate(m.laatste_gezien))}<br><small>Bron ${esc(fmtDate(m.bron_peildatum))}</small></td><td>${esc(locationLabel(m))}</td><td>${esc(m.vc||'Onbekend')}</td><td>${esc(m.rd||'Onbekend')}</td><td>${esc(formatFaultDuration(m.duurUren))}${m.duurBetrouwbaar===false?'<br><small>Duur onzeker</small>':''}</td><td>${esc(m.code||'—')}</td><td>${m.impact!=null&&m.impact!==''&&Number.isFinite(Number(m.impact))?impactFormat.format(Number(m.impact))+'%':'Niet doorgerekend'}</td></tr>`;
       }).join('')}</tbody></table>`:'<div class="empty"><b>Geen open storingen in deze selectie.</b>Pas het assettype, de status, speciale DRIP-selectie, VC of zoekterm aan.</div>';
       doc.getElementById('faultCount').textContent=`${countFormat.format(rows.length)} resultaten · pagina ${faultPage+1} van ${Math.max(1,Math.ceil(rows.length/pageSize))}`;
       doc.getElementById('faultPrev').disabled=faultPage===0;doc.getElementById('faultNext').disabled=(faultPage+1)*pageSize>=rows.length;
@@ -129,14 +131,14 @@ export function installOpenFaultParentUi(scope=globalThis){
   }
 
   function memoText(m){
-    const lines=[`Memo open storingen`,`Peildatum: ${fmtDate(m.peildatum)}`,`Gegenereerd: ${fmtDate(m.created)}`,`Selectie: ${m.total} open storingen`,`Per assettype: ${m.byType.map(([k,n])=>`${typeLabel(k)} ${n}`).join(', ')||'geen'}`,`Per operationele status: ${m.byStatus.map(([k,n])=>`${k} ${n}`).join(', ')||'geen'}`,`Windwaarschuwing DRIP: ${m.wind}`,`RIA4 DRIP: ${m.ria4}`,`Gemiddelde duur: ${formatFaultDuration(m.averageDurationHours)}`,`Langste open duur: ${formatFaultDuration(m.oldestDurationHours)}`,'','Storingen:'];
+    const lines=[`Memo open storingen`,`Peildatum: ${fmtDate(m.peildatum)}`,`Gegenereerd: ${fmtDate(m.created)}`,`Selectie: ${m.total} technische meldingen`, `Unieke assets/posities: ${m.lifecycle.geraakteAssets}`, `Onzeker of verouderd: ${m.lifecycle.onzeker}`,`Per assettype: ${m.byType.map(([k,n])=>`${typeLabel(k)} ${n}`).join(', ')||'geen'}`,`Per operationele status: ${m.byStatus.map(([k,n])=>`${k} ${n}`).join(', ')||'geen'}`,`Windwaarschuwing DRIP: ${m.wind}`,`RIA4 DRIP: ${m.ria4}`,`Gemiddelde duur: ${formatFaultDuration(m.averageDurationHours)}`,`Langste open duur: ${formatFaultDuration(m.oldestDurationHours)}`,'','Storingen:'];
     m.rows.forEach((r,i)=>lines.push(`${i+1}. ${r.naam||'Onbekend'}; ${typeLabel(r.typeId)}; ${r.operationeleStatus||'Operationeel'}; ${locationLabel(r)}; VC ${r.vc||'onbekend'}; beheerder ${r.rd||'onbekend'}; duur ${formatFaultDuration(r.duurUren)}; ${r.omschrijving||''}${tags(r).length?' ['+tags(r).join(', ')+']':''}`));
     return lines.join('\n');
   }
   function memoHtml(m){
     const typeRows=m.byType.map(([k,n])=>`<li><b>${esc(typeLabel(k))}</b>: ${n}</li>`).join('');
     const statusRows=m.byStatus.map(([k,n])=>`<li><b>${esc(k)}</b>: ${n}</li>`).join('');
-    return `<p class="muted">Peildatum ${esc(fmtDate(m.peildatum))}. De memo volgt de filters die op het tabblad Open storingen actief zijn.</p><div class="cards compact"><div class="card">Open storingen<strong>${m.total}</strong><small>huidige selectie</small></div><div class="card">Gemiddelde duur<strong>${esc(formatFaultDuration(m.averageDurationHours))}</strong><small>waar duur bekend is</small></div><div class="card">Langste duur<strong>${esc(formatFaultDuration(m.oldestDurationHours))}</strong><small>openstaand in selectie</small></div><div class="card">Speciale DRIP<strong>${m.wind+m.ria4}</strong><small>${m.wind} wind · ${m.ria4} RIA4</small></div></div><h3>Samenvatting</h3><ul>${typeRows||'<li>Geen storingen.</li>'}</ul><h4>Operationele status</h4><ul>${statusRows||'<li>Geen status.</li>'}</ul><p><b>Verkeerscentrales:</b> ${esc(m.byVc.map(([k,n])=>`${k} (${n})`).join(', ')||'Onbekend')}</p><p><b>Regionale beheerders:</b> ${esc(m.byRd.map(([k,n])=>`${k} (${n})`).join(', ')||'Onbekend')}</p><h3>Open storingen</h3><div class="table-scroll"><table><thead><tr><th>Naam</th><th>Type</th><th>Status</th><th>Locatie</th><th>VC</th><th>Beheerder</th><th>Duur</th><th>Duiding</th></tr></thead><tbody>${m.rows.map(r=>`<tr><td><b>${esc(r.naam||'Onbekend')}</b>${tags(r).length?`<br><small>${esc(tags(r).join(' · '))}</small>`:''}</td><td>${esc(typeLabel(r.typeId))}</td><td>${esc(r.operationeleStatus||'Operationeel')}</td><td>${esc(locationLabel(r))}</td><td>${esc(r.vc||'Onbekend')}</td><td>${esc(r.rd||'Onbekend')}</td><td>${esc(formatFaultDuration(r.duurUren))}</td><td>${esc(r.omschrijving||'')}</td></tr>`).join('')}</tbody></table></div>`;
+    return `<p class="muted">Peildatum ${esc(fmtDate(m.peildatum))}. De memo volgt de filters die op het tabblad Open storingen actief zijn.</p><div class="cards compact"><div class="card">Technische meldingen<strong>${m.total}</strong><small>huidige selectie</small></div><div class="card">Unieke assets/posities<strong>${m.lifecycle.geraakteAssets}</strong><small>${m.lifecycle.meldingenZonderUniekAsset} meldingen zonder unieke assetidentiteit</small></div><div class="card">Onzeker of verouderd<strong>${m.lifecycle.onzeker}</strong><small>geen bewezen actuele toestand</small></div><div class="card">Gemiddelde duur<strong>${esc(formatFaultDuration(m.averageDurationHours))}</strong><small>waar duur bekend is</small></div><div class="card">Langste duur<strong>${esc(formatFaultDuration(m.oldestDurationHours))}</strong><small>openstaand in selectie</small></div><div class="card">Speciale DRIP<strong>${m.wind+m.ria4}</strong><small>${m.wind} wind · ${m.ria4} RIA4</small></div></div><h3>Samenvatting</h3><ul>${typeRows||'<li>Geen storingen.</li>'}</ul><h4>Operationele status</h4><ul>${statusRows||'<li>Geen status.</li>'}</ul><p><b>Verkeerscentrales:</b> ${esc(m.byVc.map(([k,n])=>`${k} (${n})`).join(', ')||'Onbekend')}</p><p><b>Regionale beheerders:</b> ${esc(m.byRd.map(([k,n])=>`${k} (${n})`).join(', ')||'Onbekend')}</p><h3>Open storingen</h3><div class="table-scroll"><table><thead><tr><th>Naam</th><th>Type</th><th>Operationeel</th><th>Meldingstoestand</th><th>Laatste waarneming</th><th>Locatie</th><th>VC</th><th>Beheerder</th><th>Duur</th><th>Duiding</th></tr></thead><tbody>${m.rows.map(r=>`<tr><td><b>${esc(r.naam||'Onbekend')}</b>${tags(r).length?`<br><small>${esc(tags(r).join(' · '))}</small>`:''}</td><td>${esc(typeLabel(r.typeId))}</td><td>${esc(r.operationeleStatus||'Operationeel')}</td><td>${esc(globalThis.DVM_INCIDENT_LIFECYCLE.read(r).levenscyclus_label)}</td><td>${esc(fmtDate(r.laatste_gezien))}</td><td>${esc(locationLabel(r))}</td><td>${esc(r.vc||'Onbekend')}</td><td>${esc(r.rd||'Onbekend')}</td><td>${esc(formatFaultDuration(r.duurUren))}</td><td>${esc(r.omschrijving||'')}</td></tr>`).join('')}</tbody></table></div>`;
   }
   async function openMemo(){
     const d=doc.getElementById('faultMemoDialog'),body=doc.getElementById('faultMemoBody');if(!d||!body)return;
@@ -158,6 +160,8 @@ export function installOpenFaultParentUi(scope=globalThis){
     scope.parent.addEventListener('hashchange',()=>schedule());
     scope.parent.addEventListener('popstate',()=>schedule());
   };
+  const freshnessTimer=scope.setInterval?.(()=>{if(visible())invalidate();},60000);
+  scope.addEventListener('pagehide',()=>scope.clearInterval?.(freshnessTimer),{once:true});
   doc.addEventListener('bidash:data-change',invalidate);
   doc.addEventListener('bidash:query-change',event=>{if(event.detail?.type==='faults')schedule({resetPage:true,debounce:event.detail?.debounce||0});});
   if(scope.document.readyState==='complete')start();else scope.addEventListener('load',start,{once:true});

@@ -82,14 +82,14 @@ const fixture={
 
 /* ── A: filtering en omzetting ── */
 
-test('open alarmen worden gefilterd op eindstatus en meenemen',()=>{
+test('open alarmen blijven zichtbaar, uitsluiting voor impact en gesloten regels blijven bewaard',()=>{
   const {open,historie,versie}=bronnen(fixture);
   assert.equal(versie,'2.0');
   // De open_aan_einde-alarmen met meenemen!==false (1190 is hersteld, 1191 meenemen:false).
-  assert.equal(open.length,3);
+  assert.equal(open.length,4);
   const ids=open.map(r=>r.event_id).sort();
-  assert.deepEqual(ids,['1183','1185','1192']);
-  assert.equal(historie.length,1);
+  assert.deepEqual(ids,['1183','1185','1191','1192']);
+  assert.equal(historie.length,2);
 });
 
 test('een leeg of ontbrekend mtm-blok levert geen rijen',()=>{
@@ -131,13 +131,13 @@ test('een open alarm met een omschrijving zonder type-trefwoord wordt via catego
   assert.equal(classificeer(r),'MSI');
 });
 
-test('een signaalgever-alarm met "wisselbord" in de tekst blijft MSI (typehint blokkeert de doorrekening niet)',()=>{
+test('een signaalgever-alarm met "wisselbord" in de tekst blijft een systeemmelding zonder fictieve MSI-impact',()=>{
   // Zonder hint zou classificeer() hier WISSELBORD teruggeven; dat type zit niet in
   // het register en zou de hele doorrekening blokkeren.
   const rij=vm.runInContext('signaalgeverOpenRij',ctx)({event_id:'9',code:'2001',description:'Wisselbord hoofdvoeding uitgevallen',locatie:'A4 R 26,200',weg:'A4',richting_kenmerk:'R',km:26.2,categorie:'SYSTEEM',unit:'SYSTEEM',verkeerscentrale:'zwn',eindstatus:'open_aan_einde',meenemen:true});
-  assert.equal(rij.assetTypeHint,'MSI');
+  assert.equal(rij.assetTypeHint,'SYSTEEM');
   const r=normRij(rij);
-  assert.equal(classificeer(r),'MSI');
+  assert.equal(classificeer(r),'SYSTEEM');
 });
 
 test('een detectoralarm wordt als LUS herkend en gebruikt de bestaande lusregel',()=>{

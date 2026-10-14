@@ -1,17 +1,21 @@
+import './incident-lifecycle.js';
 export const OPEN_FAULT_TYPES=Object.freeze([
   ['', 'Alle assettypen'],
   ['MSI','Signaalgevers / MSI'],
   ['DRIP','DRIP'],
   ['CAM','Camera'],
   ['LUS','Detectielus'],
-  ['WISSELBORD','Wisselbord']
+  ['WISSELBORD','Wisselbord'],
+  ['SYSTEEM','Systeemmeldingen'],
+  ['ONBEKEND','Overige technische meldingen']
 ]);
 
 export const OPEN_OPERATIONAL_STATUSES=Object.freeze([
   ['', 'Alle statussen'],
   ['Operationeel','Operationeel'],
   ['Niet operationeel door storing','Niet operationeel door storing'],
-  ['Niet operationeel','Niet operationeel']
+  ['Niet operationeel','Niet operationeel'],
+  ['Onbekend door brononzekerheid','Onbekend door brononzekerheid']
 ]);
 
 function norm(v){return String(v==null?'':v).trim();}
@@ -31,6 +35,7 @@ export function filterOpenFaults(rows,filters={}){
     if(vc&&norm(f.vc)!==vc)return false;
     if(type&&norm(f.typeId).toUpperCase()!==type)return false;
     if(status&&norm(f.operationeleStatus)!==status)return false;
+    if(filters.lifecycle&&globalThis.DVM_INCIDENT_LIFECYCLE.read(f).levenscyclus_status!==filters.lifecycle)return false;
     if(specials.length&&!specials.some(x=>faultCategory(f).includes(x)))return false;
     if(!q)return true;
     return [f.naam,f.assetKey,f.weg,f.richting,f.hm,f.code,f.omschrijving,f.vc,f.rd,f.typeId,f.bron,f.operationeleStatus].some(v=>low(v).includes(q));
@@ -60,6 +65,7 @@ export function buildOpenFaultMemo(rows,context={}){
     created:new Date().toISOString(),
     peildatum:context.peildatum||null,
     total:list.length,
+    lifecycle:globalThis.DVM_INCIDENT_LIFECYCLE.summary(list),
     byType:countBy(list,'typeId'),
     byStatus:countBy(list,'operationeleStatus'),
     byVc:countBy(list,'vc'),

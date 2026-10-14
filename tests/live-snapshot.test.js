@@ -13,8 +13,8 @@ test('liveIncidentKey blijft stabiel tussen momentopnamen',()=>{
 });
 
 test('event-id heeft voorrang als stabiele identiteit',()=>{
-  assert.equal(liveIncidentKey({eventId:' INC-42 ',assetId:'x'}),'EVENT|INC-42');
-  assert.equal(liveIncidentKey({eventId:'inc-42',assetId:'y'}),'EVENT|INC-42');
+  assert.equal(liveIncidentKey({eventId:' INC-42 ',assetId:'x'}),liveIncidentKey({eventId:'inc-42',assetId:'y'}));
+  assert.notEqual(liveIncidentKey({eventId:'inc-42',vc:'ZWN'}),liveIncidentKey({eventId:'inc-42',vc:'NWN'}));
 });
 
 test('open XLSX gebruikt eerst de achtergrondworker en pas daarna de gerichte fallback',()=>{
@@ -40,11 +40,12 @@ test('diffSnapshot behandelt dubbelen als multiset',()=>{
   assert.deepEqual(diffSnapshot([{id:'a'},{id:'a'},{id:'b'}],[{id:'a'},{id:'b'}],key),[{id:'a'}]);
 });
 
-test('closeHistoryRow sluit de melding en actualiseert duur',()=>{
+test('verdwijnen bewaart laatste waarneming en een bovengrens zonder bewezen herstel',()=>{
   const row=closeHistoryRow({Van:'2026-09-10T10:00:00Z',Tot:'2026-09-11T10:00:00Z',Status:'open',Open:'ja'},{closedAt:Date.parse('2026-09-12T10:00:00Z'),startAt:Date.parse('2026-09-10T10:00:00Z'),sourceFile:'nieuw.xlsx'});
-  assert.equal(row.Tot,'2026-09-12T10:00:00.000Z');
-  assert.equal(row.Status,'gesloten');
-  assert.equal(row.Open,'nee');
+  assert.equal(row.Tot,'2026-09-11T10:00:00Z');
+  assert.equal(row.hersteld_op,null);assert.equal(row.levenscyclus_status,'ONBEKEND_DOOR_BRONGAT');
+  assert.equal(row.Status,'onbekend');
+  assert.equal(row.Open,'onbekend');
   assert.equal(row.storingsduur_uren,48);
   assert.equal(row._afgeslotenDoorNieuweMomentopname,true);
 });

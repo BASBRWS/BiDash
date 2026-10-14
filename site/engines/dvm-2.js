@@ -23,7 +23,7 @@ const DATA_DREMPELS=Object.freeze({
   eolDekking:0.70,
   levensduurDekking:0.70
 });
-const ASSET_LABEL={MSI:'MSI / matrixsignaalgevers',CAM:'Wegkantcamera\u2019s',LUS:'Detectielussen',WISSELBORD:'Wisselborden',DRIP:'DRIP'};
+const ASSET_LABEL={MSI:'MSI / matrixsignaalgevers',CAM:'Wegkantcamera\u2019s',LUS:'Detectielussen',WISSELBORD:'Wisselborden',DRIP:'DRIP',SYSTEEM:'Systeemmeldingen'};
 let STORINGSBRONNEN=[];
 let STORINGS_INSPECTIE=null;
 // Historische bronnen en actuele open storingen zijn bewust twee gescheiden
@@ -62,6 +62,8 @@ function canoniekAssetType(v){
   if(/^(?:MSI|SIGNAALGEVER|MATRIXSIGNAALGEVER)$/.test(s))return 'MSI';
   if(/^(?:CAM|CAMERA|CCTV)$/.test(s))return 'CAM';
   if(s==='DRIP')return 'DRIP';
+  if(s==='SYSTEEM')return 'SYSTEEM';
+  if(s==='ONBEKEND')return 'ONBEKEND';
   if(s==='WISSELBORD')return 'WISSELBORD';
   return '';
 }
@@ -1030,6 +1032,7 @@ function normRij(m){
   const tVan = parseDatum(g('van')||g('start'));
   const tTot = parseDatum(g('tot')||g('einde')||g('end'));
   return {
+    ...Object.fromEntries(['bron_uitgesloten','incident_id','incident_fingerprint','eerste_gezien','laatste_gezien','bron_peildatum','hersteld_op','levenscyclus_status','herstel_venster_van','herstel_venster_tot','technische_categorie','identiteit_volledig','bevestigd_tot','veroudering_na_uren'].filter(k=>m[k]!==undefined).map(k=>[k,m[k]])),
     eventId,entityid, osid,
     code:String(g('drip_code')||g('foutcode')||''),
     afgeleidUitHistorie:!!m._dripHistorieOpen,
@@ -1189,7 +1192,8 @@ function doorrekenen(rijenRaw,opties){
     if(!typeId){ nietGecl++; return; }
     const koppeling=koppelMeldingAanAsset(m,typeId);
     pasAssetKoppelingToe(m,koppeling);
-    const ontbreekt=!m.weg?'Locatie ontbreekt':m.assetMatchStatus==='locatieconflict'?'Assetkoppeling heeft een locatieconflict':null;
+    const toestandOnzeker=actueel&&['VERDWENEN_UIT_SNAPSHOT','ONBEKEND_DOOR_BRONGAT','HERSTELD_AFGELEID','HERSTELD_BEVESTIGD'].includes(m.levenscyclus_status);
+    const ontbreekt=m.bron_uitgesloten?'Uitgesloten bronregel, bewaard voor controle':toestandOnzeker?'Actuele toestand onbekend of herstel al vastgesteld':['SYSTEEM','ONBEKEND'].includes(typeId)?'Technische melding zonder bewezen individuele assetimpact':!m.weg?'Locatie ontbreekt':m.assetMatchStatus==='locatieconflict'?'Assetkoppeling heeft een locatieconflict':null;
     const f = foutregel(m,typeId);
     if(ontbreekt||!f){
       const key=[typeId,normAssetVc(m.vc),m.eventId||'',m.osid,m.tVan,m.weg,m.zijdeBron||m.richting,m.hectoletter,m.hm,m.strook,m.melding].join('|');
@@ -1286,6 +1290,7 @@ function doorrekenen(rijenRaw,opties){
   // posities in de lijst zelf (proxy voor areaalomvang), met een ondergrens.
   if(window.netwerkschakelsActief?.())nietDoorgerekend.forEach(netwerkClassificeer);
   const perWeg=window.netwerkschakelsActief?.()?netwerkPrepare(M):{};
+  const liveAssetMax=new Map();
   M.forEach(m=>{
     const key = wegdeelBestuurKey(m);
     const agg = perWeg[key] = perWeg[key] || (window.netwerkschakelsActief?.()?netwerkLeegAggregate(m,key):{weg:m.weg,richting:m.richting,n:0,availUren:0,perfUren:0,
@@ -1300,8 +1305,10 @@ function doorrekenen(rijenRaw,opties){
     const factor = 1;
     // gebruik de 'zwaarte' (kan >1 in stapel-model) i.p.v. het afgekapte percentage,
     // zodat gewicht en locatiefactor ook boven 100% doorwerken op de verlies-uren.
-    const bijdrageAvail = m.zwaarteA*duur*factor;
-    const bijdragePerf  = m.zwaarteP*duur*factor;
+    let bijdrageAvail = m.zwaarteA*duur*factor;
+    let bijdragePerf  = m.zwaarteP*duur*factor;
+    const fysiek=actueel&&(RULES.cfg.impactModel||'cap')==='cap'?globalThis.DVM_INCIDENT_LIFECYCLE?.assetKey(m):'';
+    if(fysiek){const oud=liveAssetMax.get(fysiek)||{a:0,p:0},a=bijdrageAvail,p=bijdragePerf;bijdrageAvail=Math.max(0,a-oud.a);bijdragePerf=Math.max(0,p-oud.p);liveAssetMax.set(fysiek,{a:Math.max(oud.a,a),p:Math.max(oud.p,p)});m.trace.overlapCorrectie={asset:fysiek,ruweAvail:a,ruwePerf:p,bijdrageAvail,bijdragePerf};}
     agg.availUren += bijdrageAvail;
     agg.perfUren  += bijdragePerf;
     const tl = agg.typeLoss[m.typeId] = agg.typeLoss[m.typeId] || {availUren:0,perfUren:0,n:0};
@@ -3056,7 +3063,8 @@ function v68TypeStatus(){
        voor het geval waarin er niets doorgerekend is. */
     const nietDoorgerekend=Math.max(0,inBron-events.length);
     const aangeleverd=inBron>0||events.length>0;
-    const compleet=cfg[tp]===true;
+    const onzeker=[...events,...(STATE?.nietDoorgerekend||[]).filter(m=>m.typeId===tp)].some(m=>(m.levenscyclus_status||m.liveOpen)&&globalThis.DVM_INCIDENT_LIFECYCLE?.uncertain(DVM_INCIDENT_LIFECYCLE.read(m).levenscyclus_status));
+    const compleet=cfg[tp]===true&&!onzeker;
     const availLoss=events.reduce((s,m)=>s+(Number(m.trace?.bijdrageAvail)||0),0),perfLoss=events.reduce((s,m)=>s+(Number(m.trace?.bijdragePerf)||0),0),uren=STATE?.stats?.periodeUren||24;
     const basis=n*uren;
     const afgeleid=bronnen.some(b=>b.afgeleidVan==='dripHistorie');
@@ -3069,14 +3077,14 @@ function v68TypeStatus(){
        waarde. Die gebruiken we, met het gat zichtbaar in de tabel. Alleen een gat
        zonder enige doorgerekende melding mag de doorrekening laten vervallen. */
     const blindeMeldingen=events.length===0&&inBron>0;
-    const status=blindeMeldingen
+    const status=onzeker?'Actuele toestand onzeker of bevestiging verouderd; geen bewezen exact beschikbaarheidspercentage':blindeMeldingen
       ? `${inBron.toLocaleString('nl-NL')} open ${inBron===1?'melding':'meldingen'} in de bron, niet doorgerekend (controleer locatie, koppeling en foutregel); beschikbaarheid onbekend`
       : nietDoorgerekend>0
         ? `${inBron.toLocaleString('nl-NL')} open meldingen in de bron, waarvan ${nietDoorgerekend.toLocaleString('nl-NL')} niet doorgerekend (controleer locatie, koppeling en foutregel)`
         : compleet
           ? (aangeleverd?(afgeleid?'actueel uit DRIP-historie':'actueel gemeten'):'volledige bron, geen open storing')
           : (aangeleverd?(afgeleid?'uit DRIP-historie, nog te bevestigen':'actueel aangeleverd, volledigheid niet bevestigd'):'niet aangeleverd');
-    uit[tp]={tp,n,events:events.length,inBron,nietDoorgerekend,doorgerekend,blindeMeldingen,aangeleverd,compleet,bronnen,afgeleid,status,
+    uit[tp]={tp,n,onzeker,events:events.length,inBron,nietDoorgerekend,doorgerekend,blindeMeldingen,aangeleverd,compleet,bronnen,afgeleid,status,
       besch:compleet&&basis&&!blindeMeldingen?Math.max(0,Math.min(100,100-availLoss/basis*100)):null,
       prestatie:compleet&&basis&&!blindeMeldingen?Math.max(0,Math.min(100,100-perfLoss/basis*100)):null,
       availLoss,perfLoss};
@@ -3106,7 +3114,7 @@ function v68DekkingBewaar(el){const cfg=v68DekkingCfg();cfg[el.dataset.v68Type]=
 function v68NietDoorgerekendHtml(){
   const rows=STATE?.nietDoorgerekend||[];
   if(!rows.length)return '';
-  return `<div class="card"><h3>${rows.length} open meldingen niet doorgerekend</h3><p>Deze meldingen tellen mee als open storing. Zonder passende foutregel of geldige koppeling is hun impact onbekend. De overige detailberekeningen bevatten alleen het doorgerekende deel.</p><details><summary>Bronmeldingen en reden bekijken</summary><table class="tbl"><thead><tr><th>Asset of bronlocatie</th><th>Bron</th><th>Reden</th></tr></thead><tbody>${rows.map(m=>`<tr><td>${esc(m.assetNaam||m.osid||'Onbekend')}</td><td>${esc(m.bron||m.bronBestand||'')}</td><td>${esc(m.rekenStatus)}</td></tr>`).join('')}</tbody></table></details></div>`;
+  return `<div class="card"><h3>${rows.length} open meldingen niet doorgerekend</h3><p>Deze technische meldingen zijn zichtbaar, maar zonder bevestigde toestand, passende foutregel of geldige koppeling is hun actuele impact onbekend. De overige detailberekeningen bevatten alleen het doorgerekende deel.</p><details><summary>Bronmeldingen en reden bekijken</summary><table class="tbl"><thead><tr><th>Asset of bronlocatie</th><th>Bron</th><th>Reden</th></tr></thead><tbody>${rows.map(m=>`<tr><td>${esc(m.assetNaam||m.osid||'Onbekend')}</td><td>${esc(m.bron||m.bronBestand||'')}</td><td>${esc(m.rekenStatus)}</td></tr>`).join('')}</tbody></table></details></div>`;
 }
 function v68BronnenHtml(model){return `<div class="tbl-scroll" style="max-height:none"><table class="tbl"><thead><tr><th>Assetbron</th><th class="num">Actief areaal</th><th class="num">Open meldingen</th><th>Status en herkomst</th><th>Bevestiging</th></tr></thead><tbody>${V68_TYPES.map(tp=>{const b=model.typen[tp],bronTekst=(b.bronnen||[]).map(x=>x.naam+(x.afgeleidVan==='dripHistorie'?' · actuele selectie afgeleid uit DRIP-historie':'')).join(' + ');return `<tr><td><b>${V68_LABEL[tp]}</b></td><td class="num">${b.n.toLocaleString('nl-NL')}</td><td class="num">${b.inBron.toLocaleString('nl-NL')}${b.nietDoorgerekend?`<br><small>${b.events.toLocaleString('nl-NL')} doorgerekend</small>`:''}</td><td>${esc(b.status)}${bronTekst?`<br><small>${esc(bronTekst)}</small>`:''}</td><td><label><input type="checkbox" data-v68-type="${tp}" ${b.compleet?'checked':''} onchange="v68DekkingBewaar(this)"> Volledige actuele storingsbron voor dit areaal</label></td></tr>`;}).join('')}</tbody></table></div>`;}
 function v68LandelijkHtml(){

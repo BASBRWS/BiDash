@@ -4,7 +4,7 @@ export function installFaultHubExtensionLoader(scope=globalThis){
   const run=async()=>{
     if(scope.document.getElementById('bidashFaultsExtensionScript'))return;
     try{
-      const [match,status]=await Promise.all([import('./drip-fault-match.js'),import('./asset-operational-status.js')]);
+      const [match,status]=await Promise.all([import('./drip-fault-match.js'),import('./asset-operational-status.js?v=20261014-1551')]);
       scope.__BIDASH_DRIP_FAULT_MATCH__=match;
       scope.__BIDASH_ASSET_OPERATIONAL_STATUS__=status;
     }catch(error){
@@ -12,7 +12,7 @@ export function installFaultHubExtensionLoader(scope=globalThis){
       return;
     }
     const s=scope.document.createElement('script');
-    s.id='bidashFaultsExtensionScript';s.src='dvm-faults-extension.js?v=20261014-1151';s.defer=true;
+    s.id='bidashFaultsExtensionScript';s.src='dvm-faults-extension.js?v=20261014-1551';s.defer=true;
     s.onload=()=>scope.dispatchEvent(new CustomEvent('bidash:faults-extension-ready'));
     scope.document.head.appendChild(s);
   };

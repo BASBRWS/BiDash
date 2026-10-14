@@ -13,7 +13,7 @@ function runtime(){
 const c=runtime(),h=c.__BIDASH_STORINGSBUNDELAAR__;
 const stamp=hour=>`2026-08-16T${String(hour).padStart(2,'0')}:30:00.000Z`;
 const alarm=(id,vc='zwn',code='1003',unit=1,start='2026-08-16T00:00:00.000Z')=>({event_id:id,event_key:vc+'|'+id,verkeerscentrale:vc,code,start,description:code==='1006'?'Detectorstation DET.3 beide lussen fout':`Fatale fout bij MSI ${unit}`,locatie:'A4 R 26,200',weg:'A4',richting_kenmerk:'R',km:26.2,unit:code==='1006'?'DETECTIELUS':`MSI ${unit}`,asset_key:vc+'|A4 R 26,200|'+unit,meenemen:true,categorie:code==='1006'?'DETECTIELUS':'MSI',impact:code==='1006'?'DETECTIE':'UITVAL'});
-const snap=(hour,rows,vc='zwn')=>({vc,snapshot:stamp(hour),rows:rows.map(r=>({...r,_syncKey:h.sbSignaalgeverSleutel(c.signaalgeverOpenRij(r))}))});
+const snap=(hour,rows,vc='zwn')=>({vc,snapshot:stamp(hour),dekking:{volledig:true},rows:rows.map(r=>({...r,_syncKey:h.sbSignaalgeverSleutel(c.signaalgeverOpenRij(r))}))});
 const stand=(open=[],historie=[],laatstePerVc={})=>({open,historie,laatstePerVc,histRest:[],liveRest:[]});
 const row=(a,hour)=>c.signaalgeverOpenRij({...a,laatste_snapshot:stamp(hour)});
 const plain=x=>JSON.parse(JSON.stringify(x));
@@ -24,7 +24,7 @@ test('een VC-update behoudt andere VC, oude historie, camera en DRIP',()=>{
   const basis=h.sbSignaalgeverStand([{key:'hist',rijen:[hist,cam]}],[{key:'live',rijen:[row(alarm('1'),0),row(alarm('2','nwn'),3),cam]},{key:'drip',virtueel:true,afgeleidVan:'dripHistorie',rijen:[drip]}],null);
   const original=plain(basis);
   const r=h.sbSignaalgeverSynchroniseer(basis,[snap(1,[])]);
-  assert.equal(r.open.length,1);assert.equal(r.open[0].vc,'nwn');
+  assert.equal(r.open.length,2);assert.ok(r.open.some(x=>x.vc==='nwn'));assert.equal(r.open.find(x=>x.vc==='zwn').levenscyclus_status,'VERDWENEN_UIT_SNAPSHOT');
   assert.equal(r.historie.length,2);assert.ok(r.historie.some(x=>x===hist));
   assert.equal(basis.liveRest.length,2);assert.equal(basis.histRest[0].rijen[0],cam);
   assert.equal(r.laatstePerVc.zwn,Date.parse(stamp(1)));assert.equal(r.laatstePerVc.nwn,Date.parse(stamp(3)));
@@ -41,17 +41,19 @@ test('herhaald en overlappend inlezen levert één open en één historische mel
 });
 test('een verdwenen korte melding wordt eenmaal historisch, ook LUS',()=>{
   const basis=stand([row(alarm('1'),0),row(alarm('2','zwn','1006'),0)],[],{zwn:Date.parse(stamp(0))});
-  const r=h.sbSignaalgeverSynchroniseer(basis,[snap(1,[])]);
+  const pending=h.sbSignaalgeverSynchroniseer(basis,[snap(1,[])]);assert.equal(pending.open.length,2);assert.ok(pending.open.every(r=>r.levenscyclus_status==='VERDWENEN_UIT_SNAPSHOT'));
+  const r=h.sbSignaalgeverSynchroniseer(pending,[snap(2,[])]);
   assert.equal(r.open.length,0);assert.equal(r.historie.length,2);
-  assert.ok(r.historie.every(x=>x._mtmKwaliteit==='gesloten'&&x._mtmEindeBovengrens===stamp(1)));
+  assert.ok(r.historie.every(x=>x._mtmKwaliteit==='gesloten'&&x._mtmEindeBovengrens===stamp(2)&&x.hersteld_op===null));
   assert.ok(r.historie.every(x=>x.tot===stamp(0)&&x.duurBetrouwbaar===false));
   assert.equal(h.sbSignaalgeverSynchroniseer(r,[snap(1,[])]).historie.length,2);
 });
 test('een open historische episode krijgt de nieuwste gesloten toestand zonder extra rij',()=>{
   const a=h.sbSignaalgeverSynchroniseer(stand(),[snap(4,[alarm('1')]),snap(5,[alarm('1')])]);
-  const b=h.sbSignaalgeverSynchroniseer(a,[snap(6,[])]);
+  const pending=h.sbSignaalgeverSynchroniseer(a,[snap(6,[])]);assert.equal(pending.open[0].levenscyclus_status,'VERDWENEN_UIT_SNAPSHOT');
+  const b=h.sbSignaalgeverSynchroniseer(pending,[snap(7,[])]);
   assert.equal(b.historie.length,1);assert.equal(b.historie[0]._mtmKwaliteit,'gesloten');
-  assert.equal(b.historie[0]._mtmEindeBovengrens,stamp(6));
+  assert.equal(b.historie[0]._mtmEindeBovengrens,stamp(7));assert.equal(b.historie[0].hersteld_op,null);
 });
 test('oudere mapsneden vullen historie aan zonder open storingen terug te zetten',()=>{
   const recent=row(alarm('recent'),8);
@@ -133,15 +135,16 @@ test('de echte mapimport, live doorrekening en totaalexport/herimport blijven sa
   };
   await run('nwn',4,[1]);await run('zwn',4,[1,2]);
   assert.equal(vm.runInContext('STATE.meldingen.length',r),3,'dezelfde bron-ID in twee VC’s blijft een afzonderlijk incident');
-  let result=await run('zwn',5,[2]);assert.equal(result.open,2);assert.equal(result.historie,3);
+  let result=await run('zwn',5,[2]);assert.equal(result.open,3);assert.equal(result.historie,3);
   assert.equal(vm.runInContext('STATE.meldingen.length',r),2);
-  assert.equal(vm.runInContext('gecombineerdeStoringsRijen().filter(x=>x._mtmKwaliteit==="gesloten").length',r),1);
-  result=await run('zwn',5,[2]);assert.equal(result.open,2);assert.equal(result.historie,3);
+  assert.equal(vm.runInContext('gecombineerdeStoringsRijen().filter(x=>x._mtmKwaliteit==="verdwenen_uit_snapshot").length',r),1);
+  result=await run('zwn',5,[2]);assert.equal(result.open,3);assert.equal(result.historie,3);
   const backup=r.totaalExportBundle(undefined,{autosaveLean:false});
   assert.equal(backup.bronbeheer.signaalgeverTotaal.laatstePerVc.zwn,new Date(2026,7,16,5,30).getTime());
   await r.totaalImportJson(new File([JSON.stringify(backup)],'backup.json'));
-  result=await run('zwn',6,[]);assert.equal(result.open,1);assert.equal(result.historie,3);
+  result=await run('zwn',6,[]);assert.equal(result.open,2);assert.equal(result.historie,3);
   assert.equal(vm.runInContext('STATE.meldingen.length',r),1);
+  result=await run('zwn',7,[]);assert.equal(result.open,1);assert.equal(result.historie,3);
   const before=vm.runInContext('JSON.stringify([STORINGSBRONNEN,LIVE_STORINGSBRONNEN,window.__BIDASH_SIGNAALGEVER_TOTAAL__])',r);
   const bad=new File(['MTM storinglijst\n16-08-2026 07:30:00\n|1|broken'],'bad.txt');Object.defineProperty(bad,'webkitRelativePath',{value:'mtm/zwn/storinglijst/2026/08/16/bad.txt'});
   await assert.rejects(()=>r.leesSignaalgeverMap([bad],{vcs:new Set(['zwn'])}),/alarmregel/);

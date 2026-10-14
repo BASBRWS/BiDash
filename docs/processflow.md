@@ -47,22 +47,17 @@ alleen de mapupload-terugval ondersteunt kan niet naar die gekozen map schrijven
 
 De invoer Open storingen accepteert XLSX, XLS en CSV met herkenbare storingsregels. Deze lijst is geen extra historische bron. De nieuwe lijst vervangt de vorige actuele momentopname volledig, ook als de bestandsnaam anders is.
 
-BiDash vergelijkt de vorige actuele lijst A met de nieuwe lijst B. Een event-id heeft voorrang als stabiele identiteit. Als die ontbreekt wordt een combinatie gebruikt van asset, starttijd, weg, richting, hectometer, strook, foutcode, melding en gevolg.
+BiDash vergelijkt de volledige oude en nieuwe lijst op VC, type, locatie, eenheid, foutcode en bronstart. Een bron-ID alleen is onvoldoende. Nieuwe waarnemingen bewaren eerste/laatste gezien en bronpeildatum; een ontbrekende melding blijft zichtbaar als onbekend en wordt eenmaal gehistoriseerd. Terugkeer werkt dezelfde historie bij. Een mislukt bestand breekt de volledige bestandenset af vóór toepassing.
 
-| Vergelijking | Uitkomst |
-| --- | --- |
-| Storing staat in A en B | Blijft actueel open |
-| Storing staat alleen in B | Nieuwe actuele open storing |
-| MSI-storing staat in A maar ontbreekt in B | Afsluiten op de peildatum van B en toevoegen aan storingshistorie. De duur die daaruit volgt is een bovengrens en telt niet mee in de herstelduurstatistiek |
-| Afgesloten storing bestaat al in historie | Niet opnieuw toevoegen |
+MTM-mapimport bewaakt de dekking per VC. Eén afwezigheid is voorlopig; twee volledige opeenvolgende afwezigheden geven HERSTELD_AFGELEID met een venster. Een tijdgat boven standaard zes uur, onvolledige bron of verdachte volumedaling herstart die controle. CDMS OK/AAN is expliciet herstelbewijs voor dezelfde VC, DRIP en conditie, ook uit een volgende mapscan. Alleen zo'n bronmelding vult hersteld_op. Laatste waarneming en bronpeildatum zijn nooit een hersteltijd.
 
-De volledige lijst B blijft de actuele bronmomentopname. Automatisch afgesloten MSI-storingen gaan alleen naar de historische stroom en kunnen daardoor wel bijdragen aan historische analyse en prognosekalibratie, maar niet aan het actuele prestatiebeeld.
+Na standaard 48 uur zonder nieuwe bevestiging wordt een open melding verouderd. De instelbare grenzen reizen mee met Parameters. De lijst en memo tonen technische meldingen en unieke assets apart; onvolledige identiteit en systeemmeldingen blijven zichtbaar. Onzekerheid blokkeert een bewezen exact actueel percentage. Bronrijbalans, toestand, dekking en herstelbewijs blijven bewaard in de volledige export; ontbrekende oude brongegevens worden niet verzonnen.
 
 ## 4. De gebruiker bepaalt wat van lijst B meetelt in het actuele overzicht
 
 De bronmomentopname en de selectie voor de actuele doorrekening zijn bewust twee verschillende dingen. Nadat lijst B volledig is opgeslagen, kan de gebruiker in Datasetbeheer een filter instellen. Dat filter bepaalt alleen welke open bronregels doorstromen naar actuele assetimpact, wegdelen, subprocessen, dienstverlening en verkeerskosten.
 
-![De volledige actuele momentopname gaat zowel naar de snapshot- en historielogica als naar het gebruikersfilter. Alleen de tweede route wordt gefilterd; de A-B-vergelijking en automatische MSI-historisering blijven altijd op de volledige bron werken.](afbeeldingen/storingsfilter-flow.svg)
+![De volledige actuele momentopname gaat zowel naar de snapshot- en historielogica als naar het gebruikersfilter. Alleen de tweede route wordt gefilterd; de A-B-vergelijking en historisering van onzekere meldingen blijven altijd op de volledige bron werken.](afbeeldingen/storingsfilter-flow.svg)
 
 Het filter kan waarden uitsluiten op storingstype of foutregel, gevolg, noodmaatregel, assettype, oorzaak, prioriteit of ernst, verkeerscentrale, regionale dienst, district en weg. Binnen één groep kunnen meerdere waarden meetellen; tussen groepen gelden de voorwaarden gezamenlijk. Een leeg bronveld is een expliciete waarde `(geen waarde)` en kan dus ook worden uitgesloten.
 
@@ -80,7 +75,7 @@ De filterlaag mag de volgende stromen nooit veranderen:
 
 - de volledige actuele bronlijst in `LIVE_STORINGSBRONNEN`;
 - de vergelijking A ↔ B;
-- het automatisch afsluiten en historiseren van verdwenen MSI-storingen;
+- het zichtbaar behouden en historiseren van verdwenen meldingen;
 - historische storingsanalyse en prognosekalibratie;
 - de inhoud van de bronbestanden zelf.
 
@@ -168,7 +163,7 @@ De standaardweergave is deze processflow. Alle Markdown-bestanden op het hoogste
 | [`site/core/import-progress-bridge.js`](../site/core/import-progress-bridge.js) | Stuurt specialistische DVM-importfasen en percentages via `postMessage` naar de hoofdapp |
 | [`site/core/model.js`](../site/core/model.js) | Validatie, samenvoegen, exportselectie en `combine()` |
 | [`site/core/storage.js`](../site/core/storage.js) | Lezen en schrijven van de werkruimte in IndexedDB |
-| [`site/core/live-snapshot.js`](../site/core/live-snapshot.js) | Synchronisatie tussen opeenvolgende open-storingenmomentopnamen en historisering van verdwenen MSI-storingen |
+| [`site/core/live-snapshot.js`](../site/core/live-snapshot.js) | Synchronisatie tussen opeenvolgende open-storingenmomentopnamen en behoud van verdwenen meldingen als onbekend |
 | [`site/core/live-overview-filter.js`](../site/core/live-overview-filter.js) | Gebruikersfilter voor welke actuele open meldingen meetellen in de live DVM-doorrekening, zonder de bronmomentopname te wijzigen |
 | [`site/core/live-overview-filter-sync.js`](../site/core/live-overview-filter-sync.js) | Past filterwijzigingen automatisch toe en maakt bron-, selectie- en doorrekenaantallen zichtbaar |
 | [`site/core/signal-forecast.js`](../site/core/signal-forecast.js) | Activeert de DVM runtime-uitbreidingen en exporteert de signaalgeverprognose |

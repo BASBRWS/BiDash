@@ -1,7 +1,9 @@
+import './incident-lifecycle.js';
 export const OPERATIONAL_STATUS=Object.freeze({
   OPERATIONAL:'Operationeel',
   FAULT_OUTAGE:'Niet operationeel door storing',
-  NOT_OPERATIONAL:'Niet operationeel'
+  NOT_OPERATIONAL:'Niet operationeel',
+  UNKNOWN:'Onbekend door brononzekerheid'
 });
 
 const txt=v=>String(v??'').trim();
@@ -16,6 +18,7 @@ export function isStaticNotOperational(asset){
 }
 
 export function faultCausesOperationalLoss(asset,fault){
+  if(fault?.levenscyclus_status&&globalThis.DVM_INCIDENT_LIFECYCLE.uncertain(globalThis.DVM_INCIDENT_LIFECYCLE.read(fault).levenscyclus_status))return false;
   const type=upper(fault?.typeId||asset?.tp||asset?.assetType||asset?.type);
   const code=upper(fault?.code||fault?.foutcode);
   if(type==='MSI'&&code==='1003')return true;
@@ -28,7 +31,9 @@ export function faultCausesOperationalLoss(asset,fault){
 
 export function operationalStatusForFault(asset,fault){
   if(isStaticNotOperational(asset))return OPERATIONAL_STATUS.NOT_OPERATIONAL;
+  if(['SYSTEEM','ONBEKEND'].includes(upper(fault?.typeId)))return OPERATIONAL_STATUS.UNKNOWN;
   if(faultCausesOperationalLoss(asset,fault))return OPERATIONAL_STATUS.FAULT_OUTAGE;
+  if(fault?.levenscyclus_status&&globalThis.DVM_INCIDENT_LIFECYCLE.uncertain(globalThis.DVM_INCIDENT_LIFECYCLE.read(fault).levenscyclus_status))return OPERATIONAL_STATUS.UNKNOWN;
   const existing=upper(fault?.operationeleStatus||fault?.status);
   if(existing.includes('NIET OPERATIONEEL DOOR STORING'))return OPERATIONAL_STATUS.FAULT_OUTAGE;
   if(existing.includes('NIET OPERATIONEEL'))return OPERATIONAL_STATUS.NOT_OPERATIONAL;
@@ -40,6 +45,7 @@ export function operationalStatusForAsset(asset,faults=[]){
   const key=txt(asset?.key||asset?.id);
   const linked=(Array.isArray(faults)?faults:[]).filter(f=>key&&txt(f?.assetKey)===key);
   if(linked.some(f=>faultCausesOperationalLoss(asset,f)))return OPERATIONAL_STATUS.FAULT_OUTAGE;
+  if(linked.some(f=>f.levenscyclus_status&&globalThis.DVM_INCIDENT_LIFECYCLE.uncertain(globalThis.DVM_INCIDENT_LIFECYCLE.read(f).levenscyclus_status)))return OPERATIONAL_STATUS.UNKNOWN;
   const existing=upper(asset?.status);
   if(existing.includes('NIET OPERATIONEEL DOOR STORING'))return OPERATIONAL_STATUS.FAULT_OUTAGE;
   if(existing.includes('NIET OPERATIONEEL'))return OPERATIONAL_STATUS.NOT_OPERATIONAL;

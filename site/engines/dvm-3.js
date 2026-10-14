@@ -582,7 +582,7 @@ function voegLiveBronnenToe(bronnen){
   if(!bronnen.length)return;
   bronnen.forEach(b=>{
     b.peildatum=bronPeildatum(b);b.doel='live-open';
-    b.rijen=(b.rijen||[]).map(r=>({...r,_liveOpen:true,_bronBestand:b.naam}));
+    b.rijen=(b.rijen||[]).map(r=>({...r,_liveOpen:!['VERDWENEN_UIT_SNAPSHOT','ONBEKEND_DOOR_BRONGAT','HERSTELD_AFGELEID','HERSTELD_BEVESTIGD'].includes(r.levenscyclus_status),_bronBestand:b.naam}));
   });
   const vervang=new Set(bronnen.map(x=>x.key));
   LIVE_STORINGSBRONNEN=[...LIVE_STORINGSBRONNEN.filter(x=>!vervang.has(x.key)),...bronnen];
@@ -621,7 +621,6 @@ async function leesLiveStoringsBestanden(fileList){
 function signaalgeverOpenActief(a){
   // Oudere MTM-bundels sloten detectoren uit met meenemen:false. De DVM-keten
   // ondersteunt LUS inmiddels; beoordeel die categorie opnieuw, ook zonder regel.
-  if(a&&a.meenemen===false&&signaalgeverAssetType(a)!=='LUS')return false;
   return String(a&&a.eindstatus||'').trim().toLowerCase()==='open_aan_einde';
 }
 function signaalgeverAssetType(a){
@@ -634,6 +633,8 @@ function signaalgeverAssetType(a){
   // Deze drie bestaande foutcodes horen uitsluitend bij de LUS-regels.
   const codes=String(a.code||a.foutcode||a.foutcodes||'').trim().split(/[\s,;|]+/).filter(Boolean);
   if(codes.length&&codes.every(c=>['1006','1007','5004'].includes(c)))return 'LUS';
+  if(/SYSTEEM/i.test(String(a.categorie||a.unit||a.asset||'')))return 'SYSTEEM';
+  if(String(a.categorie||'').toUpperCase()==='OVERIG')return 'ONBEKEND';
   return 'MSI';
 }
 function signaalgeverOpenRij(a){
@@ -643,8 +644,14 @@ function signaalgeverOpenRij(a){
      detectorcodes blijven als LUS zichtbaar maar worden pas doorgerekend zodra er
      een passende foutregel bestaat. */
   const eenheid=a.unit||a.asset||a.signaalgever||'';
-  return {
+  const row={
     _mtmSleutel:a._syncKey||'',
+    bron_uitgesloten:a.meenemen===false&&signaalgeverAssetType(a)!=='LUS',
+    incident_id:String(a.incident_id||a._syncKey||[a.verkeerscentrale,a.event_id,a.start].filter(Boolean).join('|')),
+    eerste_gezien:a.eerste_gezien||a.eerste_snapshot||null,laatste_gezien:a.laatste_gezien||a.laatste_snapshot||null,
+    bron_peildatum:a.bron_peildatum||a.laatste_snapshot||null,hersteld_op:null,
+    levenscyclus_status:a.levenscyclus_status||(a.laatste_snapshot?'OPEN_BEVESTIGD':'ONBEKEND_DOOR_BRONGAT'),
+    technische_categorie:String(a.categorie||a.unit||a.asset||''),tot_betekenis:'LAATSTE_WAARNEMING',duurBetrouwbaar:false,
     event_id:String(a.event_id||a.event_key||''),
     foutcode:String(a.code||a.foutcode||''),
     melding:[a.description||a.omschrijving,a.categorie,eenheid].map(v=>String(v||'').trim()).filter(Boolean).join(' · '),
@@ -661,6 +668,10 @@ function signaalgeverOpenRij(a){
     assetTypeHint:signaalgeverAssetType(a),
     source_name:(Array.isArray(a.bronbestanden)&&a.bronbestanden[0])||'signaalgevers totaal'
   };
+  const helpers=globalThis.__BIDASH_STORINGSBUNDELAAR__;if(!row._mtmSleutel&&helpers)row._mtmSleutel=helpers.sbSignaalgeverSleutel(row);
+  if(row._mtmSleutel)row.incident_id='MTM|'+row._mtmSleutel;
+  if(globalThis.DVM_INCIDENT_LIFECYCLE)row.incident_fingerprint=DVM_INCIDENT_LIFECYCLE.fingerprint(row);
+  return row;
 }
 function signaalgeverHistorieRij(s){
   s=s||{};
@@ -674,10 +685,14 @@ function signaalgeverHistorieRij(s){
   const duur=s.incident_venster_uur||s.duur_min_uur||s.totale_storingsduur_uur||'';
   return {
     _mtmSleutel:s._syncKey||'',
+    eerste_gezien:s.eerste_gezien||s.eerste_snapshot||null,laatste_gezien:s.laatste_gezien||s.laatste_bewezen_aanwezig||s.einde_bewezen||null,
+    bron_peildatum:s.bron_peildatum||s.einde_bovengrens||s.einde_bewezen||null,hersteld_op:s.hersteld_op||null,
+    levenscyclus_status:s.levenscyclus_status||(s.kwaliteitsstatus==='gesloten'?'HERSTELD_AFGELEID':s.kwaliteitsstatus==='open_aan_einde'?'OPEN_BEVESTIGD':'ONBEKEND_DOOR_BRONGAT'),
+    technische_categorie:String(s.categorie||s.asset||s.signaalgever||''),tot_betekenis:'LAATSTE_WAARNEMING',
     _mtmKwaliteit:String(s.kwaliteitsstatus||''),
     _mtmEindeBovengrens:s.einde_bovengrens||null,
     duurBetrouwbaar:s.kwaliteitsstatus?false:s.duurBetrouwbaar,
-    incident_id:String(s.incident_id||s.event_id||''),
+    incident_id:String(s.incident_id||s._syncKey||[s.verkeerscentrale,s.event_id,s.start].filter(Boolean).join('|')),
     foutcode:String(foutcode),
     /* Omschrijving indien aanwezig; anders signaalgever + impactklasse, zodat
        classificeer() de rij als MSI herkent en de tekst leesbaar blijft. */
@@ -702,7 +717,7 @@ function signaalgeverTotaalBronnen(json){
   const storingen=Array.isArray(mtm.storingen)?mtm.storingen:[];
   return {
     open:alarmen.filter(signaalgeverOpenActief).map(signaalgeverOpenRij),
-    historie:storingen.map(signaalgeverHistorieRij),
+    historie:[...storingen.map(signaalgeverHistorieRij),...alarmen.filter(a=>!signaalgeverOpenActief(a)).map(a=>signaalgeverHistorieRij({...a,asset:a.unit||a.asset,foutcode:a.code||a.foutcode,omschrijving:a.description||a.omschrijving,einde_bewezen:a.laatste_snapshot||a.einde_bewezen,kwaliteitsstatus:a.eindstatus||'onbekend'}))],
     versie:String((json&&json.metadata&&json.metadata.versie)||'')
   };
 }
@@ -729,7 +744,7 @@ async function pasSignaalgeverBundelToe(bestandsnaam,open,historie,versie,opties
     if(opties.bijwerken){
       // De maplezer heeft al per VC gereconcilieerd. De landelijke live-patch
       // zou nogmaals afsluiten, met de verkeerde (landelijke) peildatum.
-      bron.rijen=open.map(r=>({...r,_liveOpen:true,_bronBestand:bestandsnaam}));
+      bron.rijen=open.map(r=>({...r,_liveOpen:!['VERDWENEN_UIT_SNAPSHOT','ONBEKEND_DOOR_BRONGAT'].includes(r.levenscyclus_status),_bronBestand:bestandsnaam}));
       LIVE_STORINGSBRONNEN.push(bron);
       LIVE_PEILDATUM=maxGetal(LIVE_STORINGSBRONNEN.map(b=>b.peildatum||0),0)||null;
       LIVE_STORINGS_INSPECTIE=inspecteerStoringsRijen(gecombineerdeLiveStoringsRijen());
@@ -756,7 +771,7 @@ async function pasSignaalgeverBundelToe(bestandsnaam,open,historie,versie,opties
     const vc=normAssetVc(r.vc).toLowerCase();if(!vc)continue;
     if(!laatstePerVc[vc]||t>laatstePerVc[vc])laatstePerVc[vc]=t;
   }
-  window.__BIDASH_SIGNAALGEVER_TOTAAL__={bestand:bestandsnaam,versie,open:open.length,historie:historie.length,herkendOpen,herkendHist,peildatum:LIVE_PEILDATUM||null,laatsteEntry,laatstePerVc};
+  window.__BIDASH_SIGNAALGEVER_TOTAAL__={levenscyclusSamenvatting:globalThis.DVM_INCIDENT_LIFECYCLE?.summary(open)||null,bestand:bestandsnaam,versie,open:open.length,historie:historie.length,herkendOpen,herkendHist,peildatum:LIVE_PEILDATUM||null,laatsteEntry,laatstePerVc,snapshotDekking:opties.snapshotDekking||{},levenscyclusAudit:opties.levenscyclusAudit||null};
   return {herkendOpen,herkendHist,laatsteEntry};
 }
 async function leesSignaalgeverTotaalBestand(file){
@@ -810,7 +825,10 @@ function dripTotaalIncidentUitRij(r,sourceKey,sourceName,open){
   const classificatie=open?'OPEN':(String(r.classificatie||'').trim().toUpperCase()||(hardUit?'UITVAL':cycli>=3?'INTERMITTEREND':'STORING'));
   return {asset,code,locatie:locatieTekst,vc,weg:loc.weg,richting:loc.richting,hm:loc.hm,
     start,einde,duurUren,incidentvensterUren:null,cycli,classificatie,
-    hardUit,censored:false,technischeToestand:open?'open':'',bron,
+    hardUit,censored:false,technischeToestand:open?'open':'hersteld',bron,
+    conditie:String(r.conditie||''),eerste_gezien:r.eerste_gezien||null,laatste_gezien:r.laatste_gezien||null,bron_peildatum:r.bron_peildatum||r.einde_bewezen||null,
+    hersteld_op:open?null:r.hersteld_op||(/URGENT\/OK|UIT\/AAN/.test(bron)?r.einde_bewezen:null),
+    levenscyclus_status:r.levenscyclus_status||(open?'OPEN_BEVESTIGD':r.hersteld_op?'HERSTELD_BEVESTIGD':'HERSTELD_AFGELEID'),
     alarmmeldingen:String(r.omschrijving||r.alarmmeldingen||'').trim(),
     sourceKey,sourceName,duurBetrouwbaar:!open&&duurUren>0&&(hardUit||duurUren<168)};
 }
@@ -824,10 +842,10 @@ function dripDatasetNaarBron(drip,sourceKey,sourceName){
   const episodes=Array.isArray(drip.episodes)?drip.episodes:[];
   const incidenten=[];
   storingen.forEach(r=>{const x=dripTotaalIncidentUitRij(r,sourceKey,sourceName,false);if(x)incidenten.push(x);});
+  const episodeKeys=new Set(incidenten.map(dripIncidentSleutel));
   episodes.forEach(r=>{
     const open=String(r.kwaliteitsstatus||'').toLowerCase()==='open'||(r.einde_bewezen==null&&!(num(r.duur_min_uur)>0));
-    if(!open)return;
-    const x=dripTotaalIncidentUitRij(r,sourceKey,sourceName,true);if(x)incidenten.push(x);
+    const x=dripTotaalIncidentUitRij(r,sourceKey,sourceName,open);if(x){const key=dripIncidentSleutel(x);if(!episodeKeys.has(key)){episodeKeys.add(key);incidenten.push(x);}}
   });
   const dekking=new Set();
   (Array.isArray(drip.datadekking)?drip.datadekking:[]).forEach(r=>{
@@ -835,7 +853,7 @@ function dripDatasetNaarBron(drip,sourceKey,sourceName){
     if(/^\d{4}-\d{2}-\d{2}$/.test(d))dekking.add(d);
   });
   const assetCodes=new Set(incidenten.map(x=>x.code).filter(Boolean));
-  return {incidenten,dekkingDatums:[...dekking].sort(),assetCodes:[...assetCodes]};
+  return {incidenten,dekkingDatums:[...dekking].sort(),assetCodes:[...assetCodes],herstelmeldingen:(drip.herstelmeldingen||[]).filter(r=>r.hersteld_op).map(r=>({...r}))};
 }
 function dripTotaalBronnen(json){
   const drip=(json&&json.datasets&&json.datasets.drip)||{};
@@ -850,7 +868,7 @@ function dripIncidentSleutel(x){
   return [String(x&&x.code||x&&x.asset||'').trim().toUpperCase(),String(x&&x.vc||'').trim().toUpperCase(),
     String(x&&x.weg||'').trim().toUpperCase(),String(x&&x.richting||'').trim().toUpperCase(),
     Number(x&&x.hm)||0,Number(x&&x.start)||0,Number(x&&x.einde)||0,
-    String(x&&x.classificatie||'').trim().toUpperCase(),x&&x.hardUit?'1':'0'].join('|');
+    String(x&&x.classificatie||'').trim().toUpperCase(),String(x?.conditie||''),x&&x.hardUit?'1':'0'].join('|');
 }
 /* Bepaal tijdsbereik zonder duizenden timestamps als losse functieargumenten
    aan Math.min/Math.max door te geven. Grote DRIP-bronnen kunnen ruim boven
@@ -873,6 +891,8 @@ function dripTotaalBronKey(bestandsnaam){
   return 'drip-json:'+naam;
 }
 function mergeDripBronnen(bestaand,bron){
+  const vorige=(bestaand||[]).find(s=>s.key===bron.key);
+  if(bron._dripIncremental&&vorige)bron={...bron,incidenten:[...(vorige.incidenten||[]),...(bron.incidenten||[])],herstelmeldingen:[...new Map([...(vorige.herstelmeldingen||[]),...(bron.herstelmeldingen||[])].map(r=>[JSON.stringify(r),r])).values()],dekkingDatums:[...new Set([...(vorige.dekkingDatums||[]),...(bron.dekkingDatums||[])])].sort()};
   const oud=(Array.isArray(bestaand)?bestaand:[]).filter(s=>s&&s.key!==bron.key);
   const gezien=new Set();
   oud.forEach(s=>(s.incidenten||[]).forEach(x=>gezien.add(dripIncidentSleutel(x))));
@@ -893,13 +913,13 @@ async function pasDripBundelToe(bestandsnaam,drip,versie,modus){
   modus=modus==='toevoegen'?'toevoegen':'vervang';
   const adem=()=>typeof uiPauze==='function'?uiPauze():Promise.resolve();
   const sourceKey=modus==='toevoegen'?dripTotaalBronKey(bestandsnaam):'drip-totaal';
-  const {incidenten,dekkingDatums,assetCodes}=dripDatasetNaarBron(drip,sourceKey,bestandsnaam);
+  const {incidenten,dekkingDatums,assetCodes,herstelmeldingen}=dripDatasetNaarBron(drip,sourceKey,bestandsnaam);
   const {van,tot}=dripIncidentBereik(incidenten);
   let dek=dekkingDatums;
   if(!dek.length&&van!=null&&tot!=null)dek=histDagenTussen(van,tot);
   const regio=normDripHistRegio(bestandsnaam)||(incidenten.find(x=>x.vc)||{}).vc||'';
   const bron={key:sourceKey,name:bestandsnaam,size:0,sheet:'datasets.drip',format:'DRIP totaal (JSON/map)',
-    episodesGenegeerd:0,regio,incidenten,afgewezen:0,dekkingDatums:dek,dekkingDagen:dek.length,van,tot,
+    episodesGenegeerd:0,regio,incidenten,herstelmeldingen,_dripIncremental:versie==='maplezen',afgewezen:0,dekkingDatums:dek,dekkingDagen:dek.length,van,tot,
     assetCodes,_dripTotaal:true,_dripBestand:bestandsnaam,_dripVersie:versie||''};
   fase='DRIP-bronnen samenvoegen';
   const bestaand=(DRIP_HIST_STATE&&Array.isArray(DRIP_HIST_STATE.sources))?DRIP_HIST_STATE.sources:[];
@@ -1842,7 +1862,7 @@ function dripHistorieIncidentSleutel(x){
   // Dezelfde DRIP-code kan in verschillende verkeerscentralegebieden
   // voorkomen. Regio hoort daarom bij de sleutel om onterechte deduplicatie
   // tussen twee gebieden te voorkomen.
-  return [x.vc||'',id,s,e].join('|');
+  return [x.vc||'',id,x.weg||'',x.richting||'',x.hm??'',x.conditie||'',s,e].join('|');
 }
 
 function normaliseerDripHistorieHerstelBron(bron,index){
@@ -1868,8 +1888,22 @@ function normaliseerDripHistorieHerstelBron(bron,index){
 
 function herbouwDripHistorie(){
   const bronnen=((DRIP_HIST_STATE&&DRIP_HIST_STATE.sources)||[]).map(normaliseerDripHistorieHerstelBron);
+  const herstelIndex=new Map();
+  const herstelKey=x=>[normAssetVc(x.vc||x.verkeerscentrale),normDripCode(x.code||x.asset),String(x.conditie||'')].join('|');
+  const bewaarHerstel=x=>{if(!x.hersteld_op||!x.conditie)return;const key=herstelKey(x),arr=herstelIndex.get(key)||[];arr.push(x);herstelIndex.set(key,arr);};
+  for(const b of bronnen){for(const r of b.herstelmeldingen||[])bewaarHerstel(r);for(const x of b.incidenten||[])bewaarHerstel(x);}
   const uniek=new Map(); let duplicaten=0;
-  bronnen.forEach(bron=>bron.incidenten.forEach(x=>{
+  bronnen.forEach(bron=>bron.incidenten.forEach(raw=>{
+    let x={...raw};
+    if(x.einde==null&&x.conditie){
+      const herstel=(herstelIndex.get(herstelKey(x))||[]).filter(r=>{
+        const t=Date.parse(r.hersteld_op);if(!Number.isFinite(t)||t<x.start)return false;
+        const loc=parseDripHistorieLocatie(r.locatie||r.asset||'');
+        return (!loc.weg||!x.weg||loc.weg===x.weg)&&(!loc.richting||!x.richting||loc.richting===x.richting)&&!(loc.hm!=null&&x.hm!=null&&Math.abs(loc.hm-x.hm)>.01);
+      }).sort((a,b)=>Date.parse(a.hersteld_op)-Date.parse(b.hersteld_op))[0];
+      if(herstel){const einde=Date.parse(herstel.hersteld_op);x={...x,einde,hersteld_op:herstel.hersteld_op,bron_peildatum:herstel.hersteld_op,levenscyclus_status:'HERSTELD_BEVESTIGD',technischeToestand:'hersteld',censored:false,duurUren:Math.max(0,(einde-x.start)/36e5),duurBetrouwbaar:false,herstelBron:herstel.bronbestand||herstel.sourceName||''};}
+    }
+
     const sleutel=dripHistorieIncidentSleutel(x);
     if(uniek.has(sleutel)){
       duplicaten++;
@@ -1877,7 +1911,8 @@ function herbouwDripHistorie(){
       bestaand.sourceNames=[...new Set([...(bestaand.sourceNames||[bestaand.sourceName]),x.sourceName])];
       if((x.duurUren||0)>(bestaand.duurUren||0)) bestaand.duurUren=x.duurUren;
       bestaand.hardUit=bestaand.hardUit||x.hardUit; bestaand.censored=bestaand.censored&&x.censored;
-      bestaand.duurBetrouwbaar=bestaand.duurUren>0&&!bestaand.censored&&(bestaand.hardUit||bestaand.duurUren<168);
+      if(x.hersteld_op)Object.assign(bestaand,{hersteld_op:x.hersteld_op,einde:x.einde,levenscyclus_status:'HERSTELD_BEVESTIGD',technischeToestand:'hersteld'});
+      bestaand.duurBetrouwbaar=bestaand.duurBetrouwbaar!==false&&x.duurBetrouwbaar!==false&&bestaand.duurUren>0&&!bestaand.censored&&(bestaand.hardUit||bestaand.duurUren<168);
     }else uniek.set(sleutel,{...x,sourceNames:[x.sourceName]});
   }));
   const incidenten=[...uniek.values()].sort((a,b)=>(a.start==null?Infinity:a.start)-(b.start==null?Infinity:b.start));
@@ -2380,6 +2415,19 @@ function tekenLiveWegPopup(){
   nummerGrafiekenEnTabellen(body);
 }
 
+function wijzigStoringsBewaking(veld,waarde){
+  const grenzen={verouderingUren:[1,168],maxSnapshotGapUren:[1,168]};if(!grenzen[veld])return;
+  const n=Number(waarde),[min,max]=grenzen[veld];if(!Number.isFinite(n)||n<min||n>max)return;
+  RULES.cfg.storingsBewaking={...RULES.cfg.storingsBewaking,[veld]:n};renderOverzicht();
+  try{if(parent!==window)parent.postMessage({type:'hub:changed',engine:'dvm'},location.origin);}catch(e){}
+}
+function storingsLevenscyclusHtml(){
+  const H=globalThis.DVM_INCIDENT_LIFECYCLE;if(!H)return '';
+  const rows=[...(STATE?.meldingen||[]),...(STATE?.nietDoorgerekend||[])],sum=H.summary(rows),stand=window.__BIDASH_SIGNAALGEVER_TOTAAL__;
+  const vcs=Object.entries(stand?.snapshotDekking||{}),policy=RULES.cfg.storingsBewaking||{};
+  const instellingen=`<details><summary>Bronbewaking instellen</summary><label>Bevestiging verouderd na <input type="number" min="1" max="168" value="${Number(policy.verouderingUren)||48}" onchange="wijzigStoringsBewaking('verouderingUren',this.value)"> uur</label> <label>Maximale tijd tussen volledige snapshots <input type="number" min="1" max="168" value="${Number(policy.maxSnapshotGapUren)||6}" onchange="wijzigStoringsBewaking('maxSnapshotGapUren',this.value)"> uur</label><p>De sluitregel vereist minimaal twee volledige snapshots zonder de melding. Gewijzigde snapshotgrenzen gelden bij de volgende mapimport. De instellingen gaan mee in Parameters.</p></details>`;
+  return `<div class="card"><h3>Storingsmeldingen en bronzekerheid</h3><p><b>${sum.meldingen.toLocaleString('nl-NL')} technische meldingen</b> · <b>${sum.geraakteAssets.toLocaleString('nl-NL')} unieke geraakte assets/posities</b> · ${sum.meldingenZonderUniekAsset.toLocaleString('nl-NL')} meldingen zonder unieke assetidentiteit.</p><p>${sum.onzeker?'<b>Actuele toestand niet volledig bewezen.</b> '+sum.onzeker.toLocaleString('nl-NL')+' meldingen zijn verouderd, verdwenen of hebben een brongat. Beschikbaarheidswaarden zijn een bronmomentopname, geen bewezen actuele prestatie.':'De telling betreft afzonderlijke technische meldingen; meerdere codes op één asset zijn geen extra fysieke assets.'}</p>${vcs.length?'<div class="tbl-scroll"><table class="tbl"><thead><tr><th>VC</th><th>Bronpeildatum</th><th>Regels</th><th>Dekking</th></tr></thead><tbody>'+vcs.map(([vc,d])=>'<tr><td>'+esc(vc.toUpperCase())+'</td><td>'+esc(d.snapshot||'Onbekend')+'</td><td>'+d.aantal+'</td><td>'+esc(d.reden||'Onbekend')+'</td></tr>').join('')+'</tbody></table></div>':'<p class="muted">Geen volledige snapshotdekking vastgelegd in deze bron. Ontbrekende gegevens worden niet als bewezen herstel aangevuld.</p>'}${instellingen}</div>`;
+}
 function renderOverzicht(){
   const s=STATE.stats;
   let h=`<div class="card">
@@ -2552,7 +2600,7 @@ function renderOverzicht(){
   h+=operationeleContextHtml(maakOperationeleContext(contextT,contextT+86400e3,STATE.meldingen),'Impact op werkzaamheden en U-routes');
 
   h=h.replaceAll('VWM landelijk, prestatie per dienstverlening en subproces','Dienstprestatie binnen geraakte wegdelen en subprocessen').replaceAll('Netwerkbrede dienstprestatie','Dienstprestatie binnen geraakte wegdelen').replaceAll('netwerkbrede beschikbaarheid','beschikbaarheid binnen geraakte wegdelen');
-  document.getElementById('tab-overzicht').innerHTML=v68LandelijkHtml()+kostenDagOverzicht()+h;
+  document.getElementById('tab-overzicht').innerHTML=storingsLevenscyclusHtml()+v68LandelijkHtml()+kostenDagOverzicht()+h;
 }
 
 /* Bereken de subprocesbeschikbaarheid voor een gegeven bron-tabel (per wegdeel of netwerk). */
@@ -5701,7 +5749,7 @@ function totaalExportBundle(selectie,opties){
      totaalbronnen weg: dat zijn tienduizenden ruwe rijen die de opslag te groot maken
      en de pagina laten haperen. Ze zijn per sessie opnieuw in te lezen (map of JSON).
      De handmatige export bevat ze wél. */
-  const bron=(arr)=>(arr||[]).filter(b=>!(opties.autosaveLean&&b&&b._signaalgeverTotaal)).map(b=>({key:b.key,naam:b.naam,rijen:b.rijen||[],peildatum:b.peildatum||null,doel:b.doel||null}));
+  const bron=(arr)=>(arr||[]).filter(b=>!(opties.autosaveLean&&b&&b._signaalgeverTotaal)).map(b=>({key:b.key,naam:b.naam,rijen:(b.rijen||[]).map(r=>globalThis.DVM_INCIDENT_LIFECYCLE?{...r,...DVM_INCIDENT_LIFECYCLE.read(r,{peildatum:b.peildatum}),tot_betekenis:r.hersteld_op?'HERSTELD_OP':'LAATSTE_WAARNEMING'}:r),peildatum:b.peildatum||null,doel:b.doel||null}));
   return {
     formaat:'DVM-dienstimpact-totaal',
     versie:54,
@@ -5713,7 +5761,7 @@ function totaalExportBundle(selectie,opties){
     storingshistorie: neem('storingshistorie') ? bron(STORINGSBRONNEN) : [],
     liveStoringen: neem('liveStoringen') ? bron(LIVE_STORINGSBRONNEN) : [],
     dripHistorie: neem('dripHistorie')&&(DRIP_HIST_STATE&&DRIP_HIST_STATE.sources)
-      ? {sources:DRIP_HIST_STATE.sources.map(s=>({key:s.key,name:s.name,incidenten:s.incidenten||[],dekkingDatums:s.dekkingDatums||[],assetCodes:s.assetCodes||[],episodesGenegeerd:s.episodesGenegeerd||0}))} : null,
+      ? {incidenten:(DRIP_HIST_STATE.incidenten||[]).map(x=>globalThis.DVM_INCIDENT_LIFECYCLE?{...x,...DVM_INCIDENT_LIFECYCLE.read(x)}:x),sources:DRIP_HIST_STATE.sources.map(s=>({key:s.key,name:s.name,incidenten:s.incidenten||[],herstelmeldingen:s.herstelmeldingen||[],dekkingDatums:s.dekkingDatums||[],assetCodes:s.assetCodes||[],episodesGenegeerd:s.episodesGenegeerd||0}))} : null,
     uRoutes: neem('uRoutes')&&U_ROUTE_STATE&&U_ROUTE_STATE.ruweRijen ? {bestand:U_ROUTE_STATE.bestand,rijen:U_ROUTE_STATE.ruweRijen} : null,
     werkzaamheden: neem('werkzaamheden')&&WERK_STATE&&WERK_STATE.ruweRijen ? {bestand:WERK_STATE.bestand,rijen:WERK_STATE.ruweRijen} : null,
     parameters:neem('parameters')?{
@@ -5816,7 +5864,7 @@ async function totaalImportJson(file, hubModus){
     // 5) Open storingen (live dashboardbron)
     if(magImporteren('liveStoringen')&&Array.isArray(bundle.liveStoringen)&&bundle.liveStoringen.length){
       zetImportVoortgang(file.name,55,'Open-storingenlijst terugzetten',{direct:true});await uiPauze();
-      const nb=bundle.liveStoringen.map(b=>({key:b.key,naam:b.naam,rijen:(b.rijen||[]).map(r=>({...r,_liveOpen:true,_bronBestand:b.naam})),peildatum:b.peildatum||bronPeildatum({rijen:b.rijen,naam:b.naam}),doel:'live-open'}));
+      const nb=bundle.liveStoringen.map(b=>({key:b.key,naam:b.naam,rijen:(b.rijen||[]).map(r=>({...r,_liveOpen:!['VERDWENEN_UIT_SNAPSHOT','ONBEKEND_DOOR_BRONGAT','HERSTELD_AFGELEID','HERSTELD_BEVESTIGD'].includes(r.levenscyclus_status),_bronBestand:b.naam})),peildatum:b.peildatum||bronPeildatum({rijen:b.rijen,naam:b.naam}),doel:'live-open'}));
       LIVE_STORINGSBRONNEN = modus==='vervang' ? nb : mergeBronnen(LIVE_STORINGSBRONNEN,nb);
       LIVE_PEILDATUM=maxGetal(LIVE_STORINGSBRONNEN.map(b=>b.peildatum||0),0)||null;
     } else if(magImporteren('liveStoringen')&&modus==='vervang'){ LIVE_STORINGSBRONNEN=[]; LIVE_PEILDATUM=null; }
