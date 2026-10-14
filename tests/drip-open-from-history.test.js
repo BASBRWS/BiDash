@@ -35,6 +35,21 @@ test('alleen open incidenten worden afgeleid en dubbele incidenten worden ontdub
   assert.equal(rows[0].drip_code,'D1');
 });
 
+test('dezelfde open DRIP uit twee bronnen met een andere starttijd telt één keer',()=>{
+  // Een totaalbestand en een mapscan melden dezelfde open DRIP (zelfde code, VC en
+  // locatie) met een andere waargenomen start. Dat is één doorlopende storing; de
+  // vroegste start blijft behouden en er ontstaat geen dubbele melding.
+  const vroeg={code:'DBD18',vc:'ZWN',weg:'N57',richting:'LI',hm:65.275,start:Date.UTC(2026,8,8),einde:null,sourceName:'WNZ Drips storingen compleet.xlsx',sourceKey:'xlsx'};
+  const laat={code:'DBD18',vc:'ZWN',weg:'N57',richting:'LI',hm:65.275,start:Date.UTC(2026,8,26),einde:null,sourceName:'DRIP uit map',sourceKey:'map'};
+  const rows=deriveOpenDripRows([laat,vroeg]);
+  assert.equal(rows.length,1,'één doorlopende open DRIP, niet twee');
+  assert.equal(rows[0].drip_code,'DBD18');
+  assert.equal(rows[0].van,new Date(vroeg.start).toISOString(),'de vroegste start blijft behouden');
+  // Een hergebruikte code in een ander gebied blijft wél een eigen storing.
+  const ander={code:'DBD18',vc:'NON',weg:'N48',richting:'LI',hm:98.2,start:Date.UTC(2026,8,20),einde:null,sourceName:'DRIP uit map',sourceKey:'map'};
+  assert.equal(deriveOpenDripRows([vroeg,ander]).length,2,'ander gebied/locatie blijft apart');
+});
+
 test('publieke open-storingenlijst krijgt DRIP-bron en assetkoppeling zonder verzonnen impact',()=>{
   const faults=deriveOpenDripFaults([{code:'D1',asset:'DRIP D1',weg:'A1',richting:'RE',hm:10,start:1000,technischeToestand:'openstaand',matchAssetKey:'DRIP:D1',sourceName:'drip.xlsx',alarmmeldingen:'Geen beeld'}]);
   assert.equal(faults.length,1);

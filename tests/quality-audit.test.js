@@ -115,6 +115,33 @@ test('de verwerking van bronregels wordt uitgesplitst wanneer de engine dat meel
   assert.match(split.detail,/481 doorgerekend/);
   assert.match(split.detail,/8 ontdubbeld/);
   assert.match(split.detail,/46 zonder passende foutregel/);
+  // 'zonder foutregel' en 'zonder locatie' zijn deelredenen van het totaal 'niet
+  // doorgerekend', geen tweede, concurrerende telling (49 ⊇ 46 + 3).
+  assert.match(split.detail,/49 zichtbaar maar niet doorgerekend \(waarvan 46 zonder passende foutregel, 3 zonder locatie\)/);
+});
+
+test('niet-doorgerekend toont een residu-reden wanneer het totaal boven de deelredenen uitkomt',()=>{
+  // 52 niet doorgerekend, waarvan 46 zonder foutregel en 3 zonder locatie: de
+  // overige 3 (bv. een locatieconflict met wél een foutregel) worden benoemd,
+  // zodat de getallen precies optellen.
+  const sum={dvm:{...summaries.dvm,stats:{totaal:703,toegepast:478,dubbel:8,nietGecl:0,zonderFoutregel:46,zonderLocatie:3},nietDoorgerekend:52}};
+  const report=runQualityAudit({state:state(),summaries:sum,dvmAssets:assets,faults,now});
+  const split=report.findings.find(f=>f.title==='Verwerking van de actuele bronregels');
+  assert.match(split.detail,/52 zichtbaar maar niet doorgerekend \(waarvan 46 zonder passende foutregel, 3 zonder locatie, 3 met een locatieconflict of andere reden\)/);
+});
+
+test('de storingsketen rapporteert een uitbreiding zonder dekkingspercentage boven 100%',()=>{
+  // De keten voegt afgeleide open meldingen toe, dus er kunnen méér meldingen dan
+  // actuele bronregels zijn. Dat mag geen misleidend percentage >100% opleveren.
+  const st=state();st.dvm.liveStoringen=[{peildatum:'2026-09-15T08:00:00.000Z',rijen:[{id:'f1'},{id:'f2'}]}];
+  const veel=Array.from({length:7},(_,i)=>({...faults[0],id:'f'+i}));
+  const report=runQualityAudit({state:st,summaries,dvmAssets:assets,faults:veel,now});
+  const keten=report.findings.find(f=>f.title==='Storingsketen levert meldingen');
+  assert.ok(keten&&keten.severity==='good');
+  assert.equal(keten.metric,7);
+  assert.doesNotMatch(keten.detail,/%/);
+  assert.match(keten.detail,/7 open meldingen/);
+  assert.match(keten.detail,/aangevuld met afgeleide open meldingen/);
 });
 
 test('auditrapport versie 2 bevat minimale herstelidentifiers',()=>{

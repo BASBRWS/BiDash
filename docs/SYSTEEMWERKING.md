@@ -653,7 +653,15 @@ een geslaagde beoordeling. Duplicaten worden pas geteld bij gelijk event-ID en
 bronbestand naast dezelfde asset, tijd, foutcode en locatie, zodat dezelfde plek uit
 twee bronbestanden geen vals duplicaat oplevert. Het verschil tussen bronregels en
 verwerkte assets, en tussen bronregels en getoonde meldingen, wordt uitgesplitst
-zodra de engine die telling meelevert.
+zodra de engine die telling meelevert. De storingsketen is geen filter maar een
+samenvoeging: naast de actuele bronregels komen afgeleide open meldingen mee, dus de
+uitvoer kan groter zijn dan de ruwe bronregels. Een dekkingspercentage verschijnt
+daarom alleen zolang de meldingen een deelverzameling van de bronregels zijn;
+daarboven worden de aantallen zonder misleidend percentage boven 100% getoond. Bij de
+niet-doorgerekende bronregels is "zichtbaar maar niet doorgerekend" het totaal;
+"zonder passende foutregel" en "zonder locatie" zijn deelredenen daarvan (getoond als
+"waarvan") en het resterende deel, zoals een locatieconflict met wél een foutregel,
+wordt expliciet benoemd zodat de getallen optellen.
 
 De laatste volledige audit staat in `qualityAudit`. `qualityHistory` bewaart maximaal
 twaalf kleine trendsnapshots met tijd, score, oordeel en aantallen. Beide velden
@@ -689,10 +697,25 @@ worden niet gebruikt voor het gemiddelde in de open-storingenmemo. Bronpeildatum
 betekent niet dat de storing vandaag nog openstaat.
 
 DRIP-koppelingen controleren weg, richting en hectometer, ook bij een opgeslagen
-alias. Een conflicterende alias blijft opgeslagen voor controle maar wordt niet
-gebruikt om de bronlocatie te vervangen. Bij classificatie wordt de oorspronkelijke
-Dynac-locatie uit oudere exports herkend, inclusief underscores en hectometer met
-koppelteken. RIA4 en windwaarschuwing blijven afzonderlijke kenmerken.
+alias. Een DRIP-code (DBD/BD/D…) is geen unieke, hoofdletterongevoelige identiteit:
+dezelfde code komt in meerdere verkeerscentralegebieden voor. Een alias op enkel de
+code wordt daarom niet blind gevolgd. Past de alias qua locatie bij de bronregel,
+dan wordt hij gebruikt; wijkt hij af, dan negeert BiDash de alias en koppelt het
+primair op locatie. Lukt die locatiekoppeling — er staat een passend DRIP-asset op
+de bronlocatie — dan koppelt BiDash daarop. Pas wanneer ook locatiekoppeling niet
+lukt, blijft het een veilig geblokkeerd locatieconflict. Een conflicterende alias
+blijft opgeslagen voor controle maar wordt niet gebruikt om de bronlocatie te
+vervangen. Bij classificatie wordt de oorspronkelijke Dynac-locatie uit oudere
+exports herkend, inclusief underscores en hectometer met koppelteken. RIA4 en
+windwaarschuwing blijven afzonderlijke kenmerken.
+
+Eén nog openstaande DRIP-storing is één doorlopende toestand. Melden meerdere bronnen
+(bijvoorbeeld een DRIP-totaalbestand en een CDMS-mapscan) dezelfde open storing met
+een andere waargenomen starttijd, dan ontdubbelt de afleiding van open DRIP-meldingen
+op code, gebied en locatie — met behoud van de vroegste start — zodat de storing niet
+dubbel in de open-storingenlijst telt. Een hergebruikte code in een ander gebied of
+op een andere plek blijft een eigen storing. De historische prognosebron behoudt de
+episodes per tijdvenster.
 
 ### DRIP-foutregels en de leidende toestand
 

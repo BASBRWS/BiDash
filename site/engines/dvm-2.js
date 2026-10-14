@@ -236,8 +236,18 @@ function koppelMeldingAanAsset(m,typeId){
   if(!ASSET_INDEX)return {asset:null,status:'geen-register',logId,logKey,suggesties:[]};
   if(cfg.uitgeslotenLogIds[logKey])return {asset:null,status:'buiten-areaal',logId,logKey,suggesties:[]};
   const hand=handmatigeAssetVoor(logId,typeId);
-  if(hand&&typeId==='DRIP'&&!dripLocatiePast(m,hand))return {asset:null,status:'locatieconflict',reden:'Opgeslagen DRIP-koppeling wijkt af van de bronlocatie.',logId,logKey,suggesties:[hand]};
-  if(hand)return {asset:hand,status:'gekoppeld',methode:'handmatige alias',afstand:null,logId,logKey,suggesties:[hand]};
+  /* Een DRIP-code (DBD/BD/D…) is geen unieke, hoofdletterongevoelige identiteit:
+     dezelfde code komt in meerdere gebieden voor. Een alias op enkel de code volgen
+     we daarom niet blind. Past de alias qua weg, richting en hectometer bij de
+     bronlocatie, dan gebruiken we hem; wijkt hij af, dan negeren we hem en koppelen
+     we primair op locatie (SYSTEEMWERKING: een conflicterende alias blijft bewaard,
+     maar vervangt de bronlocatie niet). Pas als óók locatiekoppeling niet lukt,
+     blijft het een veilig geblokkeerd locatieconflict. */
+  const aliasConflict=!!(hand&&typeId==='DRIP'&&!dripLocatiePast(m,hand));
+  if(hand&&!aliasConflict)return {asset:hand,status:'gekoppeld',methode:'handmatige alias',afstand:null,logId,logKey,suggesties:[hand]};
+  const geenKoppeling=(reden,suggesties,afstand=null)=>aliasConflict
+    ?{asset:null,status:'locatieconflict',reden:'Opgeslagen DRIP-koppeling wijkt af van de bronlocatie.',afstand:null,logId,logKey,suggesties:[hand,...(suggesties||[]).filter(a=>a&&a.key!==hand.key)].slice(0,5)}
+    :{asset:null,status:'niet-gekoppeld',reden,afstand,logId,logKey,suggesties};
 
   let exact=[];
   [logId,m&&m.osid,m&&m.asset,m&&m.entityid].forEach(v=>{
@@ -273,12 +283,12 @@ function koppelMeldingAanAsset(m,typeId){
   }).sort((x,y)=>x.score-y.score||String(x.a.naam).localeCompare(String(y.a.naam)));
   const suggesties=[...exact,...rang.slice(0,5).map(x=>x.a)];
   const uniekSuggesties=[...new Map(suggesties.map(a=>[a.key,a])).values()].slice(0,5);
-  if(hm==null||!rang.length)return {asset:null,status:'niet-gekoppeld',reden:weg?'Geen unieke locatiekoppeling mogelijk.':'Weg en hectometrering ontbreken.',logId,logKey,suggesties:uniekSuggesties};
+  if(hm==null||!rang.length)return geenKoppeling(weg?'Geen unieke locatiekoppeling mogelijk.':'Weg en hectometrering ontbreken.',uniekSuggesties);
   const tol=Math.max(.01,Number(cfg.hmTolerantieKm)||.35),best=rang[0],tweede=rang[1];
   const binnen=best.afstand!=null&&best.afstand<=tol;
   const uniek=!tweede||Math.abs(tweede.score-best.score)>.005||!!(strook&&best.a.strook===strook&&tweede.a.strook!==strook);
   if(binnen&&uniek)return {asset:best.a,status:'gekoppeld',methode:'locatie'+(strook&&best.a.strook===strook?' + strook':''),afstand:best.afstand,logId,logKey,suggesties:uniekSuggesties};
-  return {asset:null,status:'niet-gekoppeld',reden:binnen?'Meerdere assets passen even goed; handmatige keuze nodig.':`Geen asset binnen ${tol.toFixed(2).replace('.',',')} km.`,afstand:best.afstand,logId,logKey,suggesties:uniekSuggesties};
+  return geenKoppeling(binnen?'Meerdere assets passen even goed; handmatige keuze nodig.':`Geen asset binnen ${tol.toFixed(2).replace('.',',')} km.`,uniekSuggesties,best.afstand);
 }
 function pasAssetKoppelingToe(m,k){
   m.assetMatchStatus=k.status;m.assetMatchMethode=k.methode||'';m.assetMatchAfstand=k.afstand;
