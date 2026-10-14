@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths: ['site/**', 'docs/**', 'scripts/**', 'tests/**', 'package.json', '.github/workflows/pages.yml']
   workflow_dispatch:
+  schedule:
+    - cron: '2-57/5 * * * *'
 permissions:
   contents: read
   pages: write
@@ -26,6 +28,11 @@ jobs:
             node --check "$file"
           done
       - uses: actions/configure-pages@v5
+        id: pages
+      - name: Actuele openbare NDW-bron ophalen
+        env:
+          NDW_PREVIOUS_BASE: ${{ steps.pages.outputs.base_url }}
+        run: python3 scripts/fetch-ndw.py --output site/ndw --previous-base "$NDW_PREVIOUS_BASE"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

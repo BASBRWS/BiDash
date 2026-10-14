@@ -4,7 +4,7 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='127';
+  const DVM_VERSION='128';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     netwerkschakels:{input:'netwerkschakelInput',label:'Netwerkschakelmatrix laden',multiple:false,requiresAsset:false,handler:'leesNetwerkschakels',accept:'.xlsx,.xls'},
@@ -155,12 +155,16 @@
         lanes:d.sites.reduce((n,s)=>n+(Array.isArray(s.lanes)?s.lanes.length:0),0),locationSites:Number(d.stats?.locationSites)||0,
         gekoppeldeWegdelen:coverage.available,totaalWegdelen:coverage.total,ruimereWegdelen:coverage.extended,nietGekoppeldeWegdelen:coverage.unmatched,
         bevestigdeWegdelen:coverage.confirmed,teControlerenWegdelen:coverage.pending,ruimerTeControleren:coverage.extendedPending,ndwUitgezet:coverage.disabled,
-        publication:d.publication||null,geladenOp:last?.tijd||null};
+        publication:d.publication||null,geladenOp:last?.tijd||null,online:d.online||null};
     }catch(error){return null;}
   }
   function ndwMeetlocatiesMeta(){
     const source=window.__BIDASH_NDW_PENDING_V23__?.config;
-    if(!source?.configInfo)return PLACEHOLDERS.ndwMeetlocaties.meta;
+    if(!source?.configInfo){
+      const d=typeof ndw69Data==='function'?ndw69Data():null;
+      if(d?.stats?.configSites)return '<div class="dataset-meta-section"><div class="dataset-meta-label">Meetlocaties uit gecombineerde snapshot</div><div>'+Number(d.stats.configSites).toLocaleString('nl-NL')+' meetlocaties</div><div>Publicatie '+esc(datumTekst(d.configurationPublication||d.publication))+'</div></div><div class="dataset-meta-note">Locaties en metingen zijn samen geladen. Een losse trafficspeedupload vraagt een losse meetlocatietabel.</div>';
+      return PLACEHOLDERS.ndwMeetlocaties.meta;
+    }
     return '<div class="dataset-meta-section"><div class="dataset-meta-label">Meetlocaties geladen</div>'+
       '<div>'+esc(source.name)+'</div><div>'+source.configInfo.configs.size.toLocaleString('nl-NL')+' meetlocaties</div>'+
       '<div>Publicatie '+esc(datumTekst(source.configInfo.publication))+'</div></div>'+
@@ -173,7 +177,7 @@
         '<div>'+String(s.bestand||'NDW deelbron').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))+'</div>'+
         '<div>Wacht op '+wacht+'. Je mag het tweede bestand apart laden.</div></div>';
     }
-    const pub=datumTekst(s.publication);
+    const pub=ndw69Date(s.publication);
     return '<div class="dataset-meta-section"><div class="dataset-meta-label">Inhoud</div>'+
       '<div>'+Number(s.sites||0).toLocaleString('nl-NL')+' meetlocaties</div>'+
       '<div>'+Number(s.validSites||0).toLocaleString('nl-NL')+' met bruikbare verkeersintensiteit</div>'+
@@ -185,6 +189,7 @@
       (s.totaalWegdelen?'<div>NDW locaties bevestigd: '+Number(s.bevestigdeWegdelen||0).toLocaleString('nl-NL')+'</div><div>Nog te controleren: '+Number(s.teControlerenWegdelen||0).toLocaleString('nl-NL')+'</div>':'')+
       (s.ndwUitgezet?'<div>'+Number(s.ndwUitgezet).toLocaleString('nl-NL')+' NDW-gebruik uitgezet</div>':'')+
       (pub?'<div>Publicatie '+pub+'</div>':'')+
+      (s.online?'<div>Openbare NDW-kopie opgehaald '+esc(ndw69Date(s.online.downloadedAt))+'</div><div>Meetpublicatie '+Math.max(0,Math.round((Date.now()-Date.parse(s.publication))/60000))+' minuten oud</div>'+(s.online.retained?'<div>De verversing mislukte; de vorige geldige openbare kopie is gebruikt.</div>':''):'')+
       (s.bestand?'<div>Bron '+String(s.bestand).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))+'</div>':'')+
       '</div><div class="dataset-meta-note">Voedt voertuigen per uur in de verkeerskosten. Hinderuren en snelheidsreductie blijven scenarioaannames.</div>';
   }
@@ -281,7 +286,7 @@
         }
         if(type==='dvmOpen'||type==='dvmHistorie'){out.push(dvmStroomItem(type));return;}
         if(type==='ndwMeetlocaties'){
-          out.push({type,key:'',titel:PLACEHOLDERS[type].titel,aanwezig:!!window.__BIDASH_NDW_PENDING_V23__?.config?.configInfo,meta:ndwMeetlocatiesMeta()});
+          out.push({type,key:'',titel:PLACEHOLDERS[type].titel,aanwezig:!!window.__BIDASH_NDW_PENDING_V23__?.config?.configInfo||!!ndw69Data()?.stats?.configSites,meta:ndwMeetlocatiesMeta()});
           return;
         }
         if(type==='ndwVerkeer'){
@@ -363,6 +368,7 @@
       const disabled=bronGeblokkeerd(item.type),title=disabled?'Laad eerst Assetregister / All Assets.':'Deze knop gebruikt rechtstreeks de bron-specifieke DVM-parser.';
       let upload=`<button class="tb-btn primary dataset-upload" onclick="openDatasetUpload('${item.type}')" ${disabled?'disabled':''} title="${title}">⭱ ${knopTekst(item)}</button>`;
       if(item.type==='ndwVerkeer')upload=`<button class="tb-btn primary dataset-upload" onclick="openDatasetUpload('ndwTrafficspeed')" ${disabled?'disabled':''}>⭱ Trafficspeed laden</button><button class="tb-btn dataset-upload" onclick="openDatasetUpload('ndwVerkeer')" ${disabled?'disabled':''}>Gecombineerd bestand of export</button><button class="tb-btn dataset-upload" onclick="bidashLaadNdw().then(()=>renderDatasetBeheer()).catch(error=>alert(error.message||String(error)))" title="Zoek een NDW-verkeerssnapshot in de actieve of lokaal opgeslagen werkruimte.">Gebruik uit werkruimte</button>`;
+      if(item.type==='ndwMeetlocaties'||item.type==='ndwVerkeer')upload+=`<button type="button" class="tb-btn primary" data-ndw-latest onclick="bidashHaalLaatsteNdw().catch(error=>alert(error.message))" ${disabled?'disabled':''}>Haal laatste NDW op</button><p data-ndw-latest-status role="status" aria-live="polite"></p>`;
       if(item.type==='dripTotaal'&&item.aanwezig)upload+=`<button class="tb-btn dataset-upload" onclick="openDripTotaalToevoegen()" ${disabled?'disabled':''} title="Voeg een extra DRIP totaal JSON complementair toe; bestaande DRIP-bronnen blijven staan.">＋ Voeg JSON toe</button>`;
       if(isSpecial(item.type)&&item.aanwezig)upload+=`<button class="tb-btn" onclick="clearSpecialDripSource('${item.type}')">Wissen</button>`;
       html=html.replace('<div class="dataset-actions">','<div class="dataset-actions">'+upload);return html;
@@ -378,7 +384,7 @@
         [...actions.querySelectorAll('button')].forEach(button=>{if((button.getAttribute('onclick')||'').includes('totaalImportInput'))button.remove();});
         if(!host.querySelector('.bron-specifiek-uitleg')){
           const uitleg=document.createElement('p');uitleg.className='dataset-note bron-specifiek-uitleg';
-          uitleg.innerHTML='<b>Bron-specifiek laden:</b> gebruik hieronder per onderdeel de eigen uploadknop. NDW meetlocaties en NDW trafficspeed hebben aparte bronkaarten. Voor DATEX II v2.3 laad je de meetlocatieconfiguratie en trafficspeed. Dat mag tegelijk of na elkaar. De meetlocatietabel blijft deze sessie beschikbaar voor nieuwe verkeersmetingen. Deze bron staat los van de NDW MSI/DRIP-areaalimport. Een gecombineerd DRIP-bestand met aparte kolommen RIA4 en Windwaarschuwing wordt automatisch per gemarkeerde regel gesplitst. Losse referentielijsten blijven via hun eigen knop bruikbaar. De koppeling gebruikt eerst de identifier en controleert VC, weg, richting en hectometer.';
+          uitleg.innerHTML='<b>Bron-specifiek laden:</b> gebruik hieronder per onderdeel de eigen uploadknop. Kies bij NDW Haal laatste NDW op om meetlocaties, snelheden en intensiteiten samen op te halen. De openbare kopie wordt gepland elke vijf minuten ververst. De aparte bronkaarten blijven beschikbaar voor eigen uploads. Voor DATEX II v2.3 laad je de meetlocatieconfiguratie en trafficspeed. Dat mag tegelijk of na elkaar. De meetlocatietabel blijft deze sessie beschikbaar voor nieuwe verkeersmetingen. Deze bron staat los van de NDW MSI/DRIP-areaalimport. Een gecombineerd DRIP-bestand met aparte kolommen RIA4 en Windwaarschuwing wordt automatisch per gemarkeerde regel gesplitst. Losse referentielijsten blijven via hun eigen knop bruikbaar. De koppeling gebruikt eerst de identifier en controleert VC, weg, richting en hectometer.';
           actions.insertAdjacentElement('afterend',uitleg);
         }
       }

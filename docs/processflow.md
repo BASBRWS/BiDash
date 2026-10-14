@@ -10,7 +10,7 @@ De inhoudelijke denkwijze staat ook in de [logische architectuur](architectuur.m
 
 De workflow publiceert de map `site/` naar GitHub Pages. Vóór het publicatie-artifact wordt gemaakt voert de teststap `scripts/stage-docs.mjs` uit. Die kopieert de repositorydocumentatie naar `site/docs/` en maakt `site/help-docs.js` uit de echte Markdown-bestanden. Deze twee paden zijn gegenereerd en worden niet in Git opgeslagen.
 
-Wat de gebruiker ophaalt zijn dus alleen statische applicatiebestanden, uitleg en afbeeldingen. Operationele bronbestanden worden nooit onderdeel van die publicatie. De hoofdapp behoudt een Content Security Policy met `connect-src 'none'`; de Help-viewer heeft geen fetch of externe Markdown-service nodig, omdat de Markdown tijdens publicatie lokaal in de Help-bundel is opgenomen.
+De gebruiker haalt statische applicatiebestanden, uitleg en afbeeldingen op. Vanaf 2.47 bevat het artifact ook een periodiek opgehaalde openbare NDW-feed. Eigen operationele bronbestanden worden nooit onderdeel van die publicatie. De hoofdapp behoudt een Content Security Policy met `connect-src 'none'`; de Help-viewer heeft geen fetch of externe Markdown-service nodig, omdat de Markdown tijdens publicatie lokaal in de Help-bundel is opgenomen.
 
 ## 2. Je kiest bestanden en ziet eerst wat er verandert
 
@@ -320,3 +320,9 @@ Bij een wijziging wordt één verversing gepland. De pure planninganalyse kiest 
 ### Netwerkschakelkoppelingen herstellen
 
 Weg, HMP, zijde en hectoletter vergelijken, één passende code koppelen, matrix-VC gebruiken en bron-VC bewaren. Bij overlap de bron-VC als extra onderscheid gebruiken; zonder unieke uitkomst geen code toekennen. Bronbeheer, Koppelingen en grenzen controleren, koppelreden en kandidaten bekijken, gecontroleerde grensregels aanpassen of toevoegen, volledige matrix valideren, oorspronkelijke rijen eenmalig bewaren, afhankelijke berekeningen opnieuw opbouwen, schil informeren. Totaalexport bewaart effectieve en oorspronkelijke matrixrijen. Herstel of nieuwe Excel-upload rekent opnieuw. Geen automatisch verzonnen geografie.
+
+### Laatste openbare NDW-kopie ophalen
+
+Pages-publicatie of gepland vijfminutenschema, vaste NDW-feed downloaden, gzip/XML/tijd controleren, hash en bronmanifest schrijven, alleen openbare feed in Pages-artifact publiceren. Fout betekent een aantoonbaar geldige vorige openbare kopie behouden of niet beschikbaar melden.
+
+All Assets laden, Bronbeheer, Haal laatste NDW op, manifest en gzip van eigen website lezen, omvang/hash/meettijd controleren, gecombineerde DATEX II v3 in blokken lezen, bestaande koppeling en verkeerskosten bijwerken, bronkaarten met tijden tonen, snapshot en herkomst lokaal bewaren en exporteren. Te oude of ongeldige bronnen vervangen de geladen snapshot niet. Geen browserpolling en geen upload van gebruikersdata. Geplande GitHub-verversing kan vertragen; werkelijke ouderdom blijft leidend.
