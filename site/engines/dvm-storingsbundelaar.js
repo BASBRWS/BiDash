@@ -299,7 +299,7 @@
     // Historische begintijden bewijzen geen actuele dekking. Oudere exports zonder
     // manifest kunnen alleen hun werkelijk aanwezige open peildata leveren.
     for(const r of l.rijen){const m=normRij(r),vc=sbVcAlias(normAssetVc(m.vc));const peil=Date.parse(r.bron_peildatum)||m.tTot;if(vc&&peil)laatstePerVc[vc]=Math.max(laatstePerVc[vc]||0,peil);}
-    return {open:l.rijen,historie:h.rijen,laatstePerVc,histRest:h.rest,liveRest:l.rest,snapshotDekking:status?.snapshotDekking||{}};
+    return {open:l.rijen,historie:h.rijen,laatstePerVc,histRest:h.rest,liveRest:l.rest,snapshotDekking:status?.snapshotDekking||{},bssBronnen:status?.bssBronnen||{}};
   }
   function sbSignaalgeverBasis(json){
     if(json?.datasets?.mtm){
@@ -564,12 +564,12 @@
     sgMapVoortgang(2,startFase);
     if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,2,startFase,{direct:true});
     if(typeof uiPauze==='function')await uiPauze();
-    const snapshots=[];
+    const invoer=[];
     for(let n=0;n<bestanden.length;n++){
       const f=bestanden[n],info=sbPadInfoMtm(sbPad(f));
       let text;
       try{text=await sbLeesTekst(f);}catch(err){throw new Error('Niet gelezen, de geladen stand is behouden. '+sbPad(f)+': '+err.message);}
-      snapshots.push(sbSignaalgeverSnapshot(text,f,info));
+      invoer.push(await window.DVM_MTM_BSS.read(text,f,info,{pause:typeof uiPauze==='function'?uiPauze:undefined,onProgress:(n,total)=>sgMapVoortgang(null,'Bestand verwerken, '+n.toLocaleString('nl-NL')+' van '+total.toLocaleString('nl-NL')+' regels')}));
       if(n%25===0){
         const pct=2+68*(n+1)/bestanden.length,fase=`Storinglijsten lezen: ${(n+1).toLocaleString('nl-NL')} / ${bestanden.length.toLocaleString('nl-NL')}`;
         sgMapVoortgang(pct,fase);
@@ -577,23 +577,23 @@
         if(typeof uiPauze==='function')await uiPauze();
       }
     }
-    if(!snapshots.length)throw new Error('de gevonden bestanden bevatten geen herkenbare storingsregels (regels beginnend met "|"). Controleer of dit MTM-storinglijsten zijn.');
+    if(!invoer.length)throw new Error('de gevonden bestanden bevatten geen herkenbare storingsregels (regels beginnend met "|"). Controleer of dit MTM-storinglijsten zijn.');
     sgMapVoortgang(74,'Alarmruns en storingen reconstrueren…');
     if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,74,'Alarmruns en storingen reconstrueren',{direct:true});
     if(typeof uiPauze==='function')await uiPauze();
     const huidig=sbSignaalgeverStand(STORINGSBRONNEN,LIVE_STORINGSBRONNEN,window.__BIDASH_SIGNAALGEVER_TOTAAL__);
     const extra=config.basisStand||(config.basisMtm?sbSignaalgeverBasis({datasets:{mtm:config.basisMtm}}):null);
     const basis=sbSignaalgeverCombineerStand(huidig,extra);
-    const resultaat=sbSignaalgeverSynchroniseer(basis,snapshots);
+    const resultaat=await window.DVM_MTM_BSS.process(basis,invoer,{historyCutoff:window.BIDASH_SIGNAALGEVER_IMPORT?.cutoff(),pause:typeof uiPauze==='function'?uiPauze:undefined,onProgress:(n,total)=>sgMapVoortgang(null,'BSS-gebeurtenissen verwerken, '+n.toLocaleString('nl-NL')+' van '+total.toLocaleString('nl-NL'))});
     const {open,historie,laatstePerVc,updates,dubbel,snapshotDekking,levenscyclusAudit}=resultaat;
-    const versie='maplezen-136';
+    const versie='maplezen-140';
     const tijdstip=new Date(),z=n=>String(n).padStart(2,'0');
     const stempel=`${tijdstip.getFullYear()}${z(tijdstip.getMonth()+1)}${z(tijdstip.getDate())}_${z(tijdstip.getHours())}${z(tijdstip.getMinutes())}`;
     sgMapVoortgang(88,'Open meldingen aan All Assets koppelen en doorrekenen…');
     if(typeof zetImportVoortgang==='function')zetImportVoortgang(label,86,'Open meldingen aan All Assets koppelen',{direct:true});
     if(typeof uiPauze==='function')await uiPauze();
     const naam='Signaalgevers uit map ('+regios+')';
-    const {herkendOpen,herkendHist,laatsteEntry}=await pasSignaalgeverBundelToe(naam,open,historie,versie,{bijwerken:true,laatstePerVc,histRest:basis.histRest,liveRest:huidig.liveRest,snapshotDekking,levenscyclusAudit});
+    const {herkendOpen,herkendHist,laatsteEntry}=await pasSignaalgeverBundelToe(naam,open,historie,versie,{bijwerken:true,laatstePerVc,histRest:basis.histRest,liveRest:huidig.liveRest,snapshotDekking,levenscyclusAudit,bssBronnen:resultaat.bssBronnen});
     // Een DVM-totaal bewaart de oorspronkelijke rijen, ook bij een oudere basis
     // zonder MTM-schema. Dezelfde download kan weer als updatebasis worden gekozen.
     const selectie=Object.fromEntries(totaalExportOpties().map(o=>[o.id,['storingshistorie','liveStoringen'].includes(o.id)]));

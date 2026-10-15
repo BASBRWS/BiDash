@@ -771,7 +771,7 @@ async function pasSignaalgeverBundelToe(bestandsnaam,open,historie,versie,opties
     const vc=normAssetVc(r.vc).toLowerCase();if(!vc)continue;
     if(!laatstePerVc[vc]||t>laatstePerVc[vc])laatstePerVc[vc]=t;
   }
-  window.__BIDASH_SIGNAALGEVER_TOTAAL__={importerBewaren:opties.importerBewaren===true||window.__BIDASH_SIGNAALGEVER_TOTAAL__?.importerBewaren===true,levenscyclusSamenvatting:globalThis.DVM_INCIDENT_LIFECYCLE?.summary(open)||null,bestand:bestandsnaam,versie,open:open.length,historie:historie.length,herkendOpen,herkendHist,peildatum:LIVE_PEILDATUM||null,laatsteEntry,laatstePerVc,snapshotDekking:opties.snapshotDekking||{},levenscyclusAudit:opties.levenscyclusAudit||null};
+  window.__BIDASH_SIGNAALGEVER_TOTAAL__={importerBewaren:opties.importerBewaren===true||window.__BIDASH_SIGNAALGEVER_TOTAAL__?.importerBewaren===true,levenscyclusSamenvatting:globalThis.DVM_INCIDENT_LIFECYCLE?.summary(open)||null,bestand:bestandsnaam,versie,open:open.length,historie:historie.length,herkendOpen,herkendHist,peildatum:LIVE_PEILDATUM||null,laatsteEntry,laatstePerVc,snapshotDekking:opties.snapshotDekking||{},bssBronnen:opties.bssBronnen||window.__BIDASH_SIGNAALGEVER_TOTAAL__?.bssBronnen||{},levenscyclusAudit:opties.levenscyclusAudit||null};
   return {herkendOpen,herkendHist,laatsteEntry};
 }
 async function leesSignaalgeverTotaalBestand(file){

@@ -1,6 +1,6 @@
-import './core/signaalgever-import.js';
-import {createWorkspaceStorage} from './core/storage.js?v=20261015-1215';
-import {BIDASH_VERSIE} from './core/versie.js?v=20261015-1215';
+import './core/signaalgever-import.js?v=20261015-1320';
+import {createWorkspaceStorage} from './core/storage.js?v=20261015-1320';
+import {BIDASH_VERSIE} from './core/versie.js?v=20261015-1320';
 const C=globalThis.BIDASH_SIGNAALGEVER_IMPORT,$=id=>document.getElementById(id);
 const storage=createWorkspaceStorage('bidash-signaalgever-importer');
 let stands={},busy=false,cancelled=false,H,frame;
@@ -38,14 +38,15 @@ async function process(files,cfg){
   const days=new Map();for(const f of selected){const p=f.webkitRelativePath||f._pad||f.name,info=H.sbPadInfoMtm(p),key=+info.datum;if(!days.has(key))days.set(key,[]);days.get(key).push({f,info});}
   let done=0,verwijderd=0;
   for(const [,items] of [...days].sort((a,b)=>a[0]-b[0])){
-    checkCancel();const snapshots=[];
+    checkCancel();const invoer=[];
     for(const {f,info} of items){
       checkCancel();const name=f.webkitRelativePath||f._pad||f.name;
       status(vc.toUpperCase()+', bestand '+(done+1)+' van '+selected.length+', '+name);await pause();
       let text;try{text=await H.sbLeesTekst(f);}catch(e){throw Error('Bestand niet gelezen, '+name+'. '+e.message);}
-      snapshots.push(H.sbSignaalgeverSnapshot(text,f,info));done++;$('progress').value=5+85*done/selected.length;
+      invoer.push(await frame.DVM_MTM_BSS.read(text,f,info,{pause,checkCancel,onProgress:(n,total)=>{checkCancel();status(vc.toUpperCase()+', '+name+', '+n.toLocaleString('nl-NL')+' van '+total.toLocaleString('nl-NL')+' regels.');}}));done++;$('progress').value=5+85*done/selected.length;
     }
-    stand=C.retain(H.sbSignaalgeverSynchroniseer(stand,snapshots),now);verwijderd+=stand.bewaring.verwijderd;
+    stand=await frame.DVM_MTM_BSS.process(stand,invoer,{historyCutoff:C.cutoff(now),pause,checkCancel,onProgress:(n,total)=>{checkCancel();status(vc.toUpperCase()+', levenscyclus verwerken, '+n.toLocaleString('nl-NL')+' van '+total.toLocaleString('nl-NL')+' gebeurtenissen.');}});
+    const removed=stand.bssVerwijderd||0;stand=C.retain(stand,now);verwijderd+=stand.bewaring.verwijderd+removed;
     status(vc.toUpperCase()+', '+done+' van '+selected.length+' bestanden verwerkt.');await pause();
   }
   checkCancel();stand.bewaring.verwijderd=verwijderd;
@@ -76,7 +77,7 @@ function download(selected){
 $('download').onclick=()=>download(stands);$('downloadVc').onclick=()=>download({[$('vc').value]:stands[$('vc').value]});
 try{
   const iframe=$('runtime');
-  await new Promise((resolve,reject)=>{const deadline=setTimeout(()=>reject(Error('De MTM-verwerking kon niet worden gestart. Herlaad de pagina.')),30000);const ready=()=>{if(iframe.contentWindow?.__BIDASH_STORINGSBUNDELAAR__&&iframe.contentWindow?.DVM_INCIDENT_LIFECYCLE){clearTimeout(deadline);resolve();}};iframe.addEventListener('load',ready,{once:true});ready();});
+  await new Promise((resolve,reject)=>{const deadline=setTimeout(()=>reject(Error('De MTM-verwerking kon niet worden gestart. Herlaad de pagina.')),30000);const ready=()=>{if(iframe.contentWindow?.__BIDASH_STORINGSBUNDELAAR__&&iframe.contentWindow?.DVM_INCIDENT_LIFECYCLE&&iframe.contentWindow?.DVM_MTM_BSS){clearTimeout(deadline);resolve();}};iframe.addEventListener('load',ready,{once:true});ready();});
   frame=iframe.contentWindow;H=frame.__BIDASH_STORINGSBUNDELAAR__;
   const saved=await storage.read();if(saved&&saved.schema!==1)throw Error('Onbekende opslagversie van de importer.');
   stands=Object.fromEntries(Object.entries(saved?.stands||{}).filter(([v])=>C.vcs.includes(v)).map(([v,s])=>[v,C.retain(s)]));
