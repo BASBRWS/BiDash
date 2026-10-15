@@ -216,7 +216,7 @@ test('handmatige totaalexport bewaart bronidentiteit en Bronbeheerstatus',()=>{
   assert.match(compleet,/bron\._signaalgeverTotaal=true/);
   assert.match(compleet,/bron\._signaalgeverBestand=status\?\.bestand\|\|null/);
   assert.match(compleet,/bundle\.bronbeheer=\{/);
-  assert.match(compleet,/signaalgeverTotaal:lean\?null:clone\(status\)/);
+  assert.match(compleet,/signaalgeverTotaal:lean&&!status\?\.importerBewaren\?null:clone\(status\)/);
   assert.match(compleet,/window\.__BIDASH_SIGNAALGEVER_TOTAAL__=\{/);
   assert.match(compleet,/const beheer=bundle\.bronbeheer\|\|\{\}/);
   assert.match(read('site/engines/dvm-adapter.js'),/dvm-source-export-completeness\.js/);

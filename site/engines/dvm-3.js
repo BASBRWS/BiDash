@@ -771,7 +771,7 @@ async function pasSignaalgeverBundelToe(bestandsnaam,open,historie,versie,opties
     const vc=normAssetVc(r.vc).toLowerCase();if(!vc)continue;
     if(!laatstePerVc[vc]||t>laatstePerVc[vc])laatstePerVc[vc]=t;
   }
-  window.__BIDASH_SIGNAALGEVER_TOTAAL__={levenscyclusSamenvatting:globalThis.DVM_INCIDENT_LIFECYCLE?.summary(open)||null,bestand:bestandsnaam,versie,open:open.length,historie:historie.length,herkendOpen,herkendHist,peildatum:LIVE_PEILDATUM||null,laatsteEntry,laatstePerVc,snapshotDekking:opties.snapshotDekking||{},levenscyclusAudit:opties.levenscyclusAudit||null};
+  window.__BIDASH_SIGNAALGEVER_TOTAAL__={importerBewaren:opties.importerBewaren===true||window.__BIDASH_SIGNAALGEVER_TOTAAL__?.importerBewaren===true,levenscyclusSamenvatting:globalThis.DVM_INCIDENT_LIFECYCLE?.summary(open)||null,bestand:bestandsnaam,versie,open:open.length,historie:historie.length,herkendOpen,herkendHist,peildatum:LIVE_PEILDATUM||null,laatsteEntry,laatstePerVc,snapshotDekking:opties.snapshotDekking||{},levenscyclusAudit:opties.levenscyclusAudit||null};
   return {herkendOpen,herkendHist,laatsteEntry};
 }
 async function leesSignaalgeverTotaalBestand(file){
@@ -790,9 +790,17 @@ async function leesSignaalgeverTotaalBestand(file){
     laatstePerVc=window.__BIDASH_STORINGSBUNDELAAR__.sbSignaalgeverBasis(json).laatstePerVc;
   }
   if(!open.length&&!historie.length&&!Object.keys(laatstePerVc||{}).length)throw new Error('geen signaalgevermomentopname of historie gevonden');
+  let opties={laatstePerVc};
+  if(json.signaalgeverImport){
+    const merged=globalThis.BIDASH_SIGNAALGEVER_IMPORT.merge({storingshistorie:STORINGSBRONNEN,liveStoringen:LIVE_STORINGSBRONNEN,bronbeheer:{signaalgeverTotaal:window.__BIDASH_SIGNAALGEVER_TOTAAL__}},json);
+    const meta=merged.bronbeheer.signaalgeverTotaal;
+    const stand=window.__BIDASH_STORINGSBUNDELAAR__.sbSignaalgeverStand(merged.storingshistorie,merged.liveStoringen,meta);
+    open=stand.open;historie=stand.historie;opties={...meta,bijwerken:true,histRest:stand.histRest,liveRest:stand.liveRest};
+  }
   zetImportVoortgang(file.name,80,'Open meldingen aan All Assets koppelen',{direct:true});await uiPauze();
-  const {herkendOpen,herkendHist}=await pasSignaalgeverBundelToe(file.name,open,historie,versie,{laatstePerVc});
-  importKlaar(file.name,`Signaalgevers totaal (JSON ${versie||'?'}) geladen: ${open.length.toLocaleString('nl-NL')} open (${herkendOpen.toLocaleString('nl-NL')} herkend), ${historie.length.toLocaleString('nl-NL')} historisch (${herkendHist.toLocaleString('nl-NL')} herkend). Vervangt de losse Open storingen- en Storingshistorie-bronnen.`);
+  const {herkendOpen,herkendHist}=await pasSignaalgeverBundelToe(file.name,open,historie,versie,opties);
+  if(json.signaalgeverImport)window.__BIDASH_SIGNAALGEVER_TOTAAL__.bewaringPerVc=opties.bewaringPerVc;
+  importKlaar(file.name,`Signaalgevers totaal (JSON ${versie||'?'}) geladen: ${open.length.toLocaleString('nl-NL')} open (${herkendOpen.toLocaleString('nl-NL')} herkend), ${historie.length.toLocaleString('nl-NL')} historisch (${herkendHist.toLocaleString('nl-NL')} herkend). ${json.signaalgeverImport?'Werkt alleen de aangeleverde verkeerscentrales bij.':'Vervangt de losse Open storingen- en Storingshistorie-bronnen.'}`);
   if(open.length&&!herkendOpen)alert('De open meldingen zijn geladen maar geen enkele werd als een bekend assettype (bv. MSI) herkend, dus het actuele dashboard blijft leeg. Controleer of de records een omschrijving, categorie of signaalgever dragen.');
   return {open:open.length,historie:historie.length,herkendOpen,herkendHist};
 }
@@ -5748,8 +5756,9 @@ function totaalExportBundle(selectie,opties){
   /* Bij de automatische lokale opslag (autosaveLean) laten we de signaalgever-
      totaalbronnen weg: dat zijn tienduizenden ruwe rijen die de opslag te groot maken
      en de pagina laten haperen. Ze zijn per sessie opnieuw in te lezen (map of JSON).
-     De handmatige export bevat ze wél. */
-  const bron=(arr)=>(arr||[]).filter(b=>!(opties.autosaveLean&&b&&b._signaalgeverTotaal)).map(b=>({key:b.key,naam:b.naam,rijen:(b.rijen||[]).map(r=>globalThis.DVM_INCIDENT_LIFECYCLE?{...r,...DVM_INCIDENT_LIFECYCLE.read(r,{peildatum:b.peildatum}),tot_betekenis:r.hersteld_op?'HERSTELD_OP':'LAATSTE_WAARNEMING'}:r),peildatum:b.peildatum||null,doel:b.doel||null}));
+     De handmatige export bevat ze wél. De losse importer bewaart zijn gereconcilieerde
+     VC-stand ook lokaal, herkenbaar aan importerBewaren in het bronmanifest. */
+  const bron=(arr)=>(arr||[]).filter(b=>!(opties.autosaveLean&&b&&b._signaalgeverTotaal&&!window.__BIDASH_SIGNAALGEVER_TOTAAL__?.importerBewaren)).map(b=>({key:b.key,naam:b.naam,rijen:(b.rijen||[]).map(r=>globalThis.DVM_INCIDENT_LIFECYCLE?{...r,...DVM_INCIDENT_LIFECYCLE.read(r,{peildatum:b.peildatum}),tot_betekenis:r.hersteld_op?'HERSTELD_OP':'LAATSTE_WAARNEMING'}:r),peildatum:b.peildatum||null,doel:b.doel||null}));
   return {
     formaat:'DVM-dienstimpact-totaal',
     versie:54,

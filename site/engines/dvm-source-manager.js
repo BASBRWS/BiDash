@@ -4,7 +4,7 @@
 (() => {
   /* De versie van de schil hoort bij de schil; die staat in site/core/versie.js.
      Deze module kent alleen haar eigen engineversie en meldt die aan de schil. */
-  const DVM_VERSION='138';
+  const DVM_VERSION='139';
   const SPECIAL_ACCEPT='.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt';
   const SOURCE_CONFIG = Object.freeze({
     netwerkschakels:{input:'netwerkschakelInput',label:'Netwerkschakelmatrix laden',multiple:false,requiresAsset:false,handler:'leesNetwerkschakels',accept:'.xlsx,.xls'},
@@ -373,6 +373,7 @@
       let upload=`<button class="tb-btn primary dataset-upload" onclick="openDatasetUpload('${item.type}')" ${disabled?'disabled':''} title="${title}">⭱ ${knopTekst(item)}</button>`;
       if(item.type==='ndwVerkeer')upload=`<button class="tb-btn primary dataset-upload" onclick="openDatasetUpload('ndwTrafficspeed')" ${disabled?'disabled':''}>⭱ Trafficspeed laden</button><button class="tb-btn dataset-upload" onclick="openDatasetUpload('ndwVerkeer')" ${disabled?'disabled':''}>Gecombineerd bestand of export</button><button class="tb-btn dataset-upload" onclick="bidashLaadNdw().then(()=>renderDatasetBeheer()).catch(error=>alert(error.message||String(error)))" title="Zoek een NDW-verkeerssnapshot in de actieve of lokaal opgeslagen werkruimte.">Gebruik uit werkruimte</button>`;
       if(item.type==='ndwMeetlocaties'||item.type==='ndwVerkeer')upload+=`<button type="button" class="tb-btn primary" data-ndw-latest onclick="bidashHaalLaatsteNdw().catch(error=>alert(error.message))" ${disabled?'disabled':''}>Haal laatste NDW op</button><p data-ndw-latest-status role="status" aria-live="polite"></p>`;
+      if(item.type==='signaalgeverMap')upload+=`<a class="tb-btn" href="../signaalgever-importer.html" target="_blank" rel="noopener">Losse signaalgeverimporter</a>`;
       if(item.type==='dripTotaal'&&item.aanwezig)upload+=`<button class="tb-btn dataset-upload" onclick="openDripTotaalToevoegen()" ${disabled?'disabled':''} title="Voeg een extra DRIP totaal JSON complementair toe; bestaande DRIP-bronnen blijven staan.">＋ Voeg JSON toe</button>`;
       if(isSpecial(item.type)&&item.aanwezig)upload+=`<button class="tb-btn" onclick="clearSpecialDripSource('${item.type}')">Wissen</button>`;
       html=html.replace('<div class="dataset-actions">','<div class="dataset-actions">'+upload);return html;

@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.58 en DVM 138, bijgewerkt op 15 oktober 2026 voor gesplitste lokale opslag van grote werkruimten. De storingslevenscyclus, uitvoerbare memobesluiten en PDOK-kaart blijven beschikbaar.
+Status: beschrijving van BiDash 2.59 en DVM 139, bijgewerkt op 15 oktober 2026 voor de losse signaalgeverimporter met bewaring per verkeerscentrale. De storingslevenscyclus, uitvoerbare memobesluiten en PDOK-kaart blijven beschikbaar.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -243,6 +243,21 @@ Bronbeheer toont twee afgeleide kaarten: DVM open storingen en DVM storingshisto
 Oudere MTM-bundels kunnen detectorregels met `meenemen:false` uitsluiten. `signaalgeverOpenActief()` neemt zulke aantoonbare LUS-regels weer mee wanneer ze nog open staan. De bekende LUS-codes 1006, 1007 en 5004 geven bij ontbrekende typewoorden dezelfde typehint; code 1005 blijft zonder detectoraanwijzing MSI. Onbekende detectorcodes blijven zichtbaar zonder verzonnen impact. De bestaande percentages en `OBJ_BRON.detectie = LUS` blijven leidend. Een expliciete camera wordt niet door een LUS-code overschreven. SYSTEEM en overige categorieën blijven herkenbaar als SYSTEEM of ONBEKEND. Open uitgesloten bronregels blijven zichtbaar met `bron_uitgesloten`, zonder toegepaste impact. Gesloten alarmepisodes blijven in de historie, ook wanneer zij niet in de classificatietabel voorkomen.
 
 Een vervangende MTM-bundel of losse actuele lijst behoudt de onafhankelijke virtuele DRIP-bron uit DRIP totaal. Beide laadvolgordes, herhaald vervangen en een MTM-bestand zonder open alarmen behouden de DRIP-selectie zonder haar dubbel op te nemen. Historie blijft buiten het live dashboard. `tests/dvm-totaal-stromen.test.js` voert hiervoor de echte runtimepatches, omzetters, broninspectie en doorrekening uit.
+
+### Losse signaalgeverimporter vanaf 2.59 / DVM 139
+
+`site/signaalgever-importer.html` is een aparte pagina met één VC per scan, een standaard begin op 1 januari 2025 en een einddatum vandaag. Er is geen All Assets nodig. Een verborgen DVM-frame levert uitsluitend de gedeelde parser, normalisatie en `sbSignaalgeverSynchroniseer`. De importer verwerkt de gekozen bestanden per kalenderdag, met voortgang en Stoppen tussen bestandslezingen. De bronselectie is dezelfde gesnoeide maptraversal als in Bronbeheer. De pagina wordt via de website geladen; het is geen zelfstandig offline bestand.
+
+`site/core/signaalgever-import.js` beheert de bewaartermijn en VC-overdracht. Open en onzekere meldingen blijven onbeperkt, inclusief hun historische incidentrijen. Alleen een bewezen of afgeleid afgesloten melding met een sluitdatum respectievelijk einde herstelvenster vóór de grens van één kalenderjaar wordt verwijderd. Een ontbrekende sluitdatum, oude legacyregel, starttijd of `tot` is geen verwijdergrond. De exacte kalendergrens blijft bewaard; een schrikkeldag valt terug op de laatste geldige dag van de maand. De retentie loopt per dagbatch en nogmaals bij downloaden.
+
+De importer bewaart zijn stand in de afzonderlijke database `bidash-signaalgever-importer`. `createWorkspaceStorage(databaseName)` levert dezelfde transactionele blokopslag en een eigen schrijfqueue; de bestaande exportfuncties van `storage.js` gebruiken ongewijzigd `bidash-integraal`. Alleen na een volledige geslaagde scan van de gekozen VC wordt de bevestigde importerstand vervangen. Een lees-/parsefout of Stoppen vóór opslag laat de vorige stand intact. Gebruik één importer-tab tegelijk. Maak na iedere VC een handmatige JSON-back-up; er is geen accountsynchronisatie.
+
+De selectieve DVM-totaaluitvoer draagt `signaalgeverImport: {versie: 1, vcs: [...]}`. Zowel `model.mergeImport` als `leesSignaalgeverTotaalBestand` valideert de scope en de per-VC-peildatum. Alleen de aangeleverde VC's worden bijgewerkt; andere MTM-VC's, CAM/DRIP-bronnen en overige DVM-onderdelen blijven behouden. Een oudere peildatum dan de geladen VC wordt geweigerd. Reguliere totaalexports behouden hun bestaande vervangingsgedrag. Het tijdelijke overdrachtskenmerk wordt niet meegenomen naar de samengevoegde dashboardstand of een gewone integrale back-up. Bronpeildata, snapshotdekking en bewaartermijn per VC blijven wel bewaard. Een afzonderlijke overdracht kan weer als basis worden gebruikt.
+
+De importer herstelt geen ontbrekende bestanden en verruimt de bestaande sluitregels niet. Onherkenbare of onvolledige bronnen stoppen de scan in plaats van stil te worden overgeslagen. Alleen de structuur en aangetroffen waarnemingen zijn controleerbaar. De beginselectie vanaf 2025 kan oudere open meldingen bevatten als ze in die snapshots aanwezig zijn; zonder bronwaarneming of basisbestand is zo'n melding niet te reconstrueren. De daadwerkelijke meerjarige netwerksnelheid en inhoudelijke brondekking zijn niet vastgesteld. Zie [release notes 2.59](release-notes-2026-10-15-losse-signaalgeverimporter-259.md) voor controles en beperkingen.
+
+
+De via de losse importer gereconcilieerde MTM-stand krijgt `bronbeheer.signaalgeverTotaal.importerBewaren`. Deze stand en haar manifest blijven ook in de lokale dashboardopslag behouden, zodat herladen de ingevoerde VC's niet verwijdert. De bestaande compacte opslag blijft voor reguliere MTM-map-/totaalbronnen zonder dit kenmerk gelden. Na samenvoegen bewaart de uitzondering de gezamenlijke MTM-stand, inclusief eerder geladen andere VC's. De gesplitste opslag uit 2.58 blijft de grote records afhandelen.
 
 ### Signaalgevers uit een map lezen
 
