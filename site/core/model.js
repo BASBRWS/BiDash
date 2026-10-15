@@ -1,4 +1,4 @@
-import './signaalgever-import.js';
+import './signaalgever-import.js?v=20261015-1320';
 import './import-known-json-fastpath.js';
 import './universal-importer.js';
 import './asset-register-special-filter.js?v=20261014-1551';

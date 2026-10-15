@@ -34,7 +34,7 @@
     const chosen=selection(incoming);if(!chosen)throw Error('Geen losse signaalgeverimport.');
     const old=current.bronbeheer?.signaalgeverTotaal||{},fresh=incoming.bronbeheer.signaalgeverTotaal;
     for(const v of chosen)if((time(old.laatstePerVc?.[v])||0)>(time(fresh.laatstePerVc[v])||0))throw Error('De import voor '+v.toUpperCase()+' is ouder dan de geladen stand.');
-    const out={formaat:'DVM-dienstimpact-totaal',versie:139,...current};
+    const out={formaat:'DVM-dienstimpact-totaal',versie:140,...current};
     for(const part of ['storingshistorie','liveStoringen']){
       const rest=(current[part]||[]).map(b=>({...b,rijen:(b.rijen||[]).filter(r=>!chosen.has(rowVc(r))||!isMtm(b,r))})).filter(b=>b.rijen.length);
       const mtm=rest.filter(b=>b._signaalgeverTotaal||String(b.key||'').startsWith('signaalgever-totaal-')).flatMap(b=>b.rijen);
@@ -44,7 +44,7 @@
     }
     const pick=field=>({...old[field],...Object.fromEntries([...chosen].map(v=>[v,fresh[field]?.[v]??null]))});
     const open=out.liveStoringen.filter(b=>b._signaalgeverTotaal).flatMap(b=>b.rijen),hist=out.storingshistorie.filter(b=>b._signaalgeverTotaal).flatMap(b=>b.rijen);
-    out.bronbeheer={...current.bronbeheer,levenscyclus:incoming.bronbeheer.levenscyclus||current.bronbeheer?.levenscyclus,signaalgeverTotaal:{...old,...fresh,open:open.length,historie:hist.length,laatstePerVc:pick('laatstePerVc'),snapshotDekking:pick('snapshotDekking'),bewaringPerVc:pick('bewaringPerVc'),levenscyclusAudit:null}};
+    out.bronbeheer={...current.bronbeheer,levenscyclus:incoming.bronbeheer.levenscyclus||current.bronbeheer?.levenscyclus,signaalgeverTotaal:{...old,...fresh,open:open.length,historie:hist.length,laatstePerVc:pick('laatstePerVc'),snapshotDekking:pick('snapshotDekking'),bssBronnen:pick('bssBronnen'),bewaringPerVc:pick('bewaringPerVc'),levenscyclusAudit:null}};
     delete out.signaalgeverImport;return out;
   }
   function bundle(stands,{now=Date.now()}={}){
@@ -52,7 +52,7 @@
     const open=entries.flatMap(([,s])=>s.open),historie=entries.flatMap(([,s])=>s.historie);
     const laatst=Object.fromEntries(entries.map(([v,s])=>[v,s.laatstePerVc[v]]));
     const bron=(key,rijen)=>({key:'signaalgever-totaal-'+key,naam:'Losse signaalgeverimporter',_signaalgeverTotaal:true,rijen});
-    const result={formaat:'DVM-dienstimpact-totaal',versie:139,opgeslagen:new Date(now).toISOString(),signaalgeverImport:{versie:1,vcs:entries.map(([v])=>v)},exportSelectie:{storingshistorie:true,liveStoringen:true},storingshistorie:[bron('historie',historie)],liveStoringen:[bron('open',open)],bronbeheer:{levenscyclus:{versie:1,historieOmvatOokActieveIncidenten:true,totIsGeenBewezenHerstelZonderHersteldOp:true},signaalgeverTotaal:{bestand:'signaalgevers-per-vc.json',importerBewaren:true,versie:'losse-importer-1',open:open.length,historie:historie.length,laatstePerVc:laatst,snapshotDekking:Object.fromEntries(entries.map(([v,s])=>[v,s.snapshotDekking?.[v]||null])),bewaringPerVc:Object.fromEntries(entries.map(([v,s])=>[v,s.bewaring||null]))}}};
+    const result={formaat:'DVM-dienstimpact-totaal',versie:140,opgeslagen:new Date(now).toISOString(),signaalgeverImport:{versie:1,vcs:entries.map(([v])=>v)},exportSelectie:{storingshistorie:true,liveStoringen:true},storingshistorie:[bron('historie',historie)],liveStoringen:[bron('open',open)],bronbeheer:{levenscyclus:{versie:1,historieOmvatOokActieveIncidenten:true,totIsGeenBewezenHerstelZonderHersteldOp:true},signaalgeverTotaal:{bestand:'signaalgevers-per-vc.json',importerBewaren:true,versie:'losse-importer-1',open:open.length,historie:historie.length,laatstePerVc:laatst,snapshotDekking:Object.fromEntries(entries.map(([v,s])=>[v,s.snapshotDekking?.[v]||null])),bssBronnen:Object.fromEntries(entries.map(([v,s])=>[v,s.bssBronnen?.[v]||null])),bewaringPerVc:Object.fromEntries(entries.map(([v,s])=>[v,s.bewaring||null]))}}};
     selection(result);return result;
   }
   scope.BIDASH_SIGNAALGEVER_IMPORT=Object.freeze({vcs,vc,rowVc,closed,cutoff,retain,selection,merge,bundle});

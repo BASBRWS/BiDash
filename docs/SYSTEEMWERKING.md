@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.59 en DVM 139, bijgewerkt op 15 oktober 2026 voor de losse signaalgeverimporter met bewaring per verkeerscentrale. De storingslevenscyclus, uitvoerbare memobesluiten en PDOK-kaart blijven beschikbaar.
+Status: beschrijving van BiDash 2.60 en DVM 140, bijgewerkt op 15 oktober 2026 voor MTM-BSS-gebeurtenissen met expliciete registratie en herstel. De storingslevenscyclus, uitvoerbare memobesluiten en PDOK-kaart blijven beschikbaar.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -270,6 +270,20 @@ Nieuwe incidenten worden samengevoegd op canonieke VC, type, locatie inclusief z
 Oude light-historie met alleen locatie en start bevat onvoldoende kenmerken om rijstroken of foutcodes terug te vinden. Die regels blijven in hun oorspronkelijke aantallen behouden. Identieke oude basisbestanden worden multisetgewijs samengevoegd; de app verzint geen ontbrekende incidentidentiteit. Overlap van zo’n verliesarme oude regel met een rijkere nieuwe alarmregel kan daarom niet betrouwbaar worden vastgesteld.
 
 `pasSignaalgeverBundelToe(...,{bijwerken:true})` activeert het gereconcilieerde bronbeeld en behoudt andere historische en actuele bronnen, waaronder camera en de onafhankelijke DRIP-selectie. De algemene landelijke live-snapshotpatch sluit deze MTM-rijen niet nogmaals af. De bestaande live doorrekening en uitgestelde prognose blijven eigenaar van de uitkomsten. De mapdialoog en eindmelding tonen per VC het verwerkte tijdstip. **Download bijgewerkte JSON** levert een selectieve DVM-totaalexport met storingsrijen, bronidentiteit en `bronbeheer.signaalgeverTotaal.laatstePerVc`; die download kan via Data & export, Signaalgevers totaal of als volgende mapbasis worden geladen. De zware signaalgeverrijen blijven zoals voorheen buiten de compacte automatische opslag. Maak voor herstel na herladen een handmatige export.
+
+### MTM-BSS-gebeurtenissen vanaf 2.60 / DVM 140
+
+`site/engines/dvm-mtm-bss.js` is de gedeelde invoerroute voor Signaalgevers uit map en de losse importer. Een bestand met `Registreer BSS` en `Hef op BSS` wordt als gebeurtenislog gelezen, met BSS_ID, foutcode/omschrijving, locatie en brontijd. Een bestaande verticale tabel blijft via `sbSignaalgeverSnapshot` werken. De oude lezer herkende alleen die tabelregels en las een BSS-log daardoor niet. Verschillende bestandsnamen zijn op zichzelf geen bewijs van een andere indeling; de inhoud bepaalt de route.
+
+Registraties openen een incident. Een passende Hef op BSS sluit expliciet met `HERSTELD_BEVESTIGD`. De koppeling onderscheidt VC, BSS_ID, foutcode, locatie, eenheid en bronstart. Twee IDs op dezelfde locatie en in dezelfde minuut worden afzonderlijk bewaard. Een niet genoemde storing wordt nooit gesloten door afwezigheid in een log. Een herstel zonder bekende registratie blijft als afgesloten melding met `start_onbekend` en onbekende duur bewaard. Bij tijdstempels zonder seconden staat `tijdprecisie` op minuut; gelijke minuten mogen duur nul opleveren, maar zijn geen bewijs van werkelijk nul seconden uitval. De duur blijft daarom als onzeker gemarkeerd.
+
+Een tabel en log volgen één chronologische verwerkingsroute. Dezelfde ID en bronstart verbinden een tabelmelding aan de BSS-episode. Expliciet herstel vervangt afgeleid herstel van hetzelfde incident. Herhaald lezen en JSON-herstel maken geen extra incidenten. Onbekende of onvolledige gebeurtenisregels blokkeren toepassing en noemen de bestandsnaam en het regelnummer. Er worden geen ongekende regels overgeslagen.
+
+`bronbeheer.signaalgeverTotaal.bssBronnen` bewaart per VC en bestand de gelezen en verantwoorde regels, registraties en herstelmeldingen. De bronbalans is administratief; zij bewijst niet dat alle bronbestanden zijn aangeleverd. Een log zonder een volledige actuele tabel als basis bewijst geen volledige openstand. `snapshotDekking` onderscheidt daarom de gecontroleerde logstructuur van volledige actuele dekking. Voor reeds vóór de leesperiode open storingen is een openstaande-storingenlijst of basisbestand nodig, tenzij een registratie alsnog in de aangeleverde logs voorkomt. Een latere bevestiging in een tabel vernieuwt de waarneming; gebeurtenissen over andere assets doen dat niet.
+
+De standalone gebruikt de kalenderjaargrens al tijdens het verwerken van oude gesloten gebeurtenissen, zodat zulke rijen niet eerst volledig worden opgebouwd. Open meldingen blijven behouden. Ook de BSS-route in Bronbeheer gebruikt bij logs deze jaargrens; de bestaande tabelroute houdt haar bestaande historiegedrag. De geselecteerde JSON-overdracht en de gewone handmatige back-up bewaren bronmanifest, expliciet herstel, onbekende start, bronprecisie en bewaarde incidenten. Het lokale opslaggedrag van de losse importer blijft gelden.
+
+Controles staan in `tests/mtm-bss.test.js` en `tests/mtm-bss-browser.cjs`. De browsercontrole gebruikt exact dezelfde synthetische bronbestanden via beide schermen en vergelijkt de resulterende incidenten, daarna Signaalgevers totaal en de totaalherimport. Het aangeleverde BSS-bestand is aanvullend lokaal gecontroleerd tegen een onafhankelijke reconstructie en via de echte standalonepagina, inclusief bewaartermijn en herladen. Dat bestand en operationele tellingen staan niet in Git. De volledige meerjarige netwerkmap is niet getest; RAM en totale browserquota blijven grenzen. Een technisch volledige parse is geen onafhankelijke bewijsvoering over volledige bronlevering.
 
 ### Storingslevenscyclus vanaf 2.56 / DVM 136
 
