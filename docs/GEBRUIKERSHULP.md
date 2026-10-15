@@ -508,3 +508,10 @@ Bij meldingen zonder registerkoppeling opent **Assetkoppeling oplossen** de best
 Open Dienstverlening, Gebied & knelpunten. De kaart laadt automatisch de topografische achtergrond van Kadaster / PDOK met wegen, plaatsen en water. Gekleurde punten tonen de knelpunten uit jouw geladen gegevens. Kies een gebied, gebruik plus/min om te zoomen of klik een knelpunt in de ranglijst aan. Hele regio herstelt de uitsnede.
 
 De kaart gebruikt de beschikbare RD-coördinaten. Zonder bruikbare locatie blijft een knelpunt in de ranglijst; de app verzint geen positie. Zonder coördinaten verschijnt de landelijke kaart met uitleg. Voor de achtergrondkaart is internet nodig. Als de kaart niet laadt, blijven de knelpunten en ranglijst beschikbaar. De kaartbron ontvangt alleen openbare tegelverzoeken; jouw bronbestanden worden niet geüpload.
+
+
+## Een uitvoerbaar beslispunt maken
+
+Open de memo en vul onder **Uitvoerbare beslispunten** per opdracht de eigenaar, uiterste opleverdatum, het toetsbare resultaat, de datum van het vervolgbesluit en de besluitvormer in. Je kunt de voorgestelde opdracht herschrijven. Neem alleen een afgesproken naam en termijn over.
+
+De gewone memo, Lieke-memo en begeleidende Monte Carlo-brief gebruiken deze afspraken. Onvolledige beslispunten blijven zichtbaar als concept, ook bij kopiëren, Word en PDF. Een vervolgbesluit vóór de opleverdatum krijgt een melding. Wisselen van memovorm of kostenoptie behoudt jouw invoer. Een andere scope of bronstand krijgt eigen afspraken. Neem **Parameters** mee in jouw totaalexport om de invoer te bewaren.

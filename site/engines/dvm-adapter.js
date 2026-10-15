@@ -143,6 +143,6 @@
   document.write('<script src="dvm-storingsbundelaar.js?v=20261014-1551"></script>');
   document.write('<script src="dvm-netwerkschakels.js?v=20261014-0915"></script>');
   document.write('<script src="dvm-netwerkschakels-beheer.js?v=20261014-0915"></script>');
-  document.write('<script src="dvm-source-manager.js?v=20261014-1551"></script>');
+  document.write('<script src="dvm-source-manager.js?v=20261014-1726"></script>');
   document.write('<script src="dvm-source-export-completeness.js?v=20261014-1551"></script>');
 })();

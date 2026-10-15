@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.56 en DVM 136, bijgewerkt op 14 oktober 2026 voor expliciete storingslevenscycli, bronbewaking en herstelbewijs. De PDOK-kaart en bestaande assetkoppeling blijven beschikbaar.
+Status: beschrijving van BiDash 2.57 en DVM 137, bijgewerkt op 14 oktober 2026 voor uitvoerbare memobesluiten, naast de expliciete storingslevenscyclus en bronbewaking. De PDOK-kaart en bestaande assetkoppeling blijven beschikbaar.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -530,6 +530,14 @@ Niet-operationele uitsluitingen verklaren een verschil in aantallen. Lieke-memo�
 houden managementduiding, individuele DRIP-namen en jaarblokken. Kosten gaan alleen
 mee wanneer gekozen en toepasselijk. Een DRIP-beschikbaarheidsrun levert niet
 zonder verkeersmodel een kostenprognose. Grafieken moeten ook in print/PDF zichtbaar zijn.
+
+### Uitvoerbare memobesluiten vanaf 2.57 / DVM 137
+
+De gewone memo, de Lieke-memo en de begeleidende MSI-/DRIP-Monte Carlo-brief gebruiken dezelfde beslispuntopbouw. Elk beslispunt bevat een opdracht, verantwoordelijke eigenaar, uiterste opleverdatum, toetsbaar resultaat en een datum plus besluitvormer voor vaststelling en het vervolg. De directie is alleen de ontvanger als de gebruiker die invult; uit een berekening volgen geen mandaat, eigenaar of afgesproken termijn.
+
+In de memo-instellingen kan de gebruiker elk automatisch voorgesteld beslispunt afzonderlijk aanpassen. Ontbrekende afspraken blijven als concept zichtbaar, ook bij kopiëren, Word en afdrukken/PDF. Ongeldige datums en een vervolgbesluit vóór de opleverdatum worden gemarkeerd. Een ingevuld veld bewijst niet dat capaciteit of mandaat is toegezegd. De app verzint geen termijn van drie maanden of garantie op herstel.
+
+`dvm-memo-besluit.js` beheert uitsluitend tekst, datumcontrole en veilige HTML-weergave. De oorspronkelijke analyse, scope, bronstand, grafieken en formules blijven leidend. De invoer staat onder `RULES.cfg.memoBesluiten`, gescheiden per memotype, scope en bronstand, met een koppeling aan het oorspronkelijke advies. Wisselen van memovorm, ontvangerniveau of kostenoptie behoudt dezelfde afspraken. Een extra bedrijfswaardenadvies krijgt eigen lege afspraken. Een andere bronstand of scope neemt geen eerdere afspraken over. Parameters bewaart de invoer in totaalexport en lokale opslag. Losse Word/PDF-documenten bevatten de ingevulde tekst; zij zijn geen bronbestand voor herimport.
 
 ## 9. Planning en formatie: regressiegevoelige werking
 
