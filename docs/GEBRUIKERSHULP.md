@@ -515,3 +515,10 @@ De kaart gebruikt de beschikbare RD-coördinaten. Zonder bruikbare locatie blijf
 Open de memo en vul onder **Uitvoerbare beslispunten** per opdracht de eigenaar, uiterste opleverdatum, het toetsbare resultaat, de datum van het vervolgbesluit en de besluitvormer in. Je kunt de voorgestelde opdracht herschrijven. Neem alleen een afgesproken naam en termijn over.
 
 De gewone memo, Lieke-memo en begeleidende Monte Carlo-brief gebruiken deze afspraken. Onvolledige beslispunten blijven zichtbaar als concept, ook bij kopiëren, Word en PDF. Een vervolgbesluit vóór de opleverdatum krijgt een melding. Wisselen van memovorm of kostenoptie behoudt jouw invoer. Een andere scope of bronstand krijgt eigen afspraken. Neem **Parameters** mee in jouw totaalexport om de invoer te bewaren.
+
+
+## Groot bestand stopt bij lokaal opslaan
+
+Vanaf BiDash 2.58 verdeelt de app grote werkruimten over kleinere opslagdelen. De grootte van het JSON-bestand kan lager zijn dan die van de opgeslagen werkruimte, omdat ook verwerkte gegevens en metadata worden bewaard. De melding **serialized keys and/or value are too large** gaat over één opslagrecord.
+
+Laad na de update de pagina opnieuw en importeer hetzelfde oorspronkelijke bestand. Je hoeft het bestand niet kleiner te maken voor deze recordgrens. Een mislukte opslag vervangt de eerder bevestigde stand niet. Een oude opgeslagen werkruimte blijft leesbaar. JSON-export en jouw bronbestanden veranderen niet. De totale opslagruimte en het beschikbare geheugen van de browser blijven begrensd.

@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.57 en DVM 137, bijgewerkt op 14 oktober 2026 voor uitvoerbare memobesluiten, naast de expliciete storingslevenscyclus en bronbewaking. De PDOK-kaart en bestaande assetkoppeling blijven beschikbaar.
+Status: beschrijving van BiDash 2.58 en DVM 138, bijgewerkt op 15 oktober 2026 voor gesplitste lokale opslag van grote werkruimten. De storingslevenscyclus, uitvoerbare memobesluiten en PDOK-kaart blijven beschikbaar.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -140,6 +140,19 @@ De hoofdwerkruimte heeft `schema: 1` en bevat `dvm`, `bi`, `planning`, `links`,
 sleutel `current`. Modules gebruiken daarnaast lokale browseropslag. Een back-up
 is een gedownloade export; browseropslag is geen garantie tegen gegevensverlies.
 Gebruik één werkruimte-tab tegelijk; er is geen uitgewerkte meergebruikerssynchronisatie.
+
+### Grote werkruimten vanaf 2.58 / DVM 138
+
+De bestandsgrootte van een JSON is niet gelijk aan de omvang van de intern opgeslagen werkruimte. Object- en veldmetadata, tekstcodering, levenscyclusvelden en afgeleide selecties tellen mee. De Chromium-melding met `serialized keys and/or value are too large` treedt op per IndexedDB-record; zij is geen bewijs dat het bronbestand onleesbaar is. In de aangeleverde foutmelding was het record circa 212 MB bij een grens van circa 133 MB. De recente verrijking van storingsrijen en de effectieve DRIP-selectie vergroten de opgeslagen vorm. De exacte verdeling in de actuele gebruikersexport is niet gemeten.
+
+`storage.js` bewaart de werkruimte daarom als een generatie opslagdelen met een interne groottebegroting van 4 MiB. `workspace-parts.js` verdeelt grote arrays, objecten en teksten zonder JSON-stringificatie van de werkruimte. Null, nul, undefined en tekst blijven onderscheiden. Een snapshot vóór het schrijven voorkomt dat latere wijzigingen in dezelfde opslaghandeling terechtkomen. Schrijfopdrachten binnen de module lopen op volgorde.
+
+De bestaande database `bidash-integraal` en store `workspace` houden versie 1. `current` bevat bij nieuwe opslag een intern manifest. Delen gebruiken eigen samengestelde sleutels met generatie en volgnummer. Pas wanneer alle delen zijn bevestigd, vervangt één transactie het manifest en verwijdert zij de vorige generatie. Bij een fout blijft de vorige `current` staan en worden de nieuwe delen opgeruimd. Lezen van manifest en delen gebeurt binnen één leestransactie; ontbrekende of ongeldige delen geven een fout, geen gedeeltelijke werkruimte. Oude ongedeelde `current`-records blijven leesbaar en worden bij de volgende geslaagde opslag omgezet.
+
+Andere sleutels, waaronder de lokale mapkoppeling, blijven gewone native IndexedDB-waarden. De NDW-lezer gebruikt dezelfde centrale `read()` in plaats van rechtstreeks `current` te lezen, zodat ook een gesplitste werkruimte kan worden gebruikt. De handmatige JSON-/XML-export en de bestaande compacte DVM-autosavekeuze veranderen niet. Deze wijziging verwijdert geen bronrijen en maakt eerder weggelaten MTM-autosavegegevens niet alsnog aanwezig.
+
+De recordgrens wordt hiermee omzeild, maar RAM- en totale browserquota blijven bestaan. Een harde browserstop vóór de manifestwissel kan onbevestigde delen achterlaten; ze worden niet als werkruimte ingelezen. De vorige bevestigde stand blijft dan leidend. Er is geen aparte automatische opruiming van zulke crashresten. De browserregressie controleert een reproduceerbare recordfout boven 128 MiB, compleet teruglezen, behoud na een deelopslagfout, oude opslag, schrijfvolgorde, ontbrekende delen, NDW en echte import/herladen.
+
 
 - Geen uploads van gebruikersbestanden naar GitHub, telemetrie of externe AI-diensten.
 - Geen operationele XML/JSON, uitsneden, screenshots of afgeleide operationele tellingen in de repository of publiek

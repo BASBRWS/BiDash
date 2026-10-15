@@ -8,8 +8,10 @@ const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 test('NDW loader leest eerst bestaande of lokaal opgeslagen snapshot',()=>{
   const source=read('site/core/ndw-loader.js');
   assert.match(source,/ndw69Data\(\)\?\.sites\?\.length/);
-  assert.match(source,/indexedDB\.open\('bidash-integraal',1\)/);
-  assert.match(source,/objectStore\('workspace'\)\.get\('current'\)/);
+  assert.match(source,/import \{read as readWorkspace\} from '\.\/storage\.js/);
+  assert.match(source,/scope\.__BIDASH_READ_WORKSPACE__=readWorkspace/);
+  assert.match(source,/return globalThis\.__BIDASH_READ_WORKSPACE__\(\)/);
+  assert.doesNotMatch(source,/get\('current'\)/);
   assert.match(source,/state\?\.dvm\?\.parameters\?\.kosten\?\.ndw69Snapshot/);
 });
 

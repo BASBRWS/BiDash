@@ -1,3 +1,4 @@
+import {read as readWorkspace} from './storage.js?v=20261015-0730';
 const PATCH_SOURCE=String.raw`
 (function(){
   if(globalThis.__BIDASH_NDW_LOADER_ACTIVE__)return;
@@ -40,18 +41,7 @@ const PATCH_SOURCE=String.raw`
   function pause(){return new Promise(resolve=>setTimeout(resolve,0));}
 
   function readStoredWorkspace(){
-    return new Promise((resolve,reject)=>{
-      const req=indexedDB.open('bidash-integraal',1);
-      req.onerror=()=>reject(req.error||new Error('Lokale werkruimte kon niet worden geopend.'));
-      req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('workspace'))req.result.createObjectStore('workspace');};
-      req.onsuccess=()=>{
-        const db=req.result;let tx;
-        try{tx=db.transaction('workspace');}catch(error){db.close();reject(error);return;}
-        const get=tx.objectStore('workspace').get('current');
-        get.onsuccess=()=>{const value=get.result;db.close();resolve(value);};
-        get.onerror=()=>{const error=get.error;db.close();reject(error);};
-      };
-    });
+    return globalThis.__BIDASH_READ_WORKSPACE__();
   }
   function snapshotFromWorkspace(state){
     return state?.dvm?.parameters?.kosten?.ndw69Snapshot||state?.delen?.dvm?.parameters?.kosten?.ndw69Snapshot||state?.parameters?.kosten?.ndw69Snapshot||state?.kosten?.ndw69Snapshot||state?.ndw69Snapshot||null;
@@ -601,6 +591,7 @@ const PATCH_SOURCE=String.raw`
 export function installNdwLoader(scope=globalThis){
   if(!scope||!scope.document||typeof scope.eval!=='function')return false;
   if(scope.__BIDASH_NDW_LOADER_ACTIVE__)return true;
+  scope.__BIDASH_READ_WORKSPACE__=readWorkspace;
   try{scope.eval(PATCH_SOURCE);return !!scope.__BIDASH_NDW_LOADER_ACTIVE__;}
   catch(error){console.error('BiDash NDW-laadknop kon niet worden gestart.',error);return false;}
 }

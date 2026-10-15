@@ -358,3 +358,8 @@ Gebied & knelpunten openen, bestaande clusters en VC-selectie bepalen, beschikba
 ### Van analyse naar uitvoerbaar memobesluit
 
 Memo openen, scope kiezen, per voorgestelde opdracht eigenaar en einddatum invullen, toetsbaar resultaat benoemen, datum en ontvanger van het vervolgbesluit vastleggen, conceptmeldingen controleren, kopiëren of exporteren naar Word/PDF. Dezelfde afspraken gelden voor de gewone memo, Lieke-memo en begeleidende MSI-/DRIP-brief. De invoer gaat mee met Parameters; analysewaarden en rekenregels veranderen niet.
+
+
+### Grote werkruimte lokaal bewaren
+
+Bronnen herstellen, werkruimte vastleggen, grote gegevens over opslagdelen verdelen, delen schrijven, pas na volledige opslag de nieuwe stand activeren, vorige delen verwijderen. Een fout houdt de vorige bevestigde stand actief. Bij lezen worden de delen gecontroleerd en tot dezelfde werkruimte opgebouwd. NDW gebruikt dezelfde leesroute. Import- en exportformaten blijven gelijk.
