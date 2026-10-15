@@ -150,3 +150,13 @@ test('de echte mapimport, live doorrekening en totaalexport/herimport blijven sa
   await assert.rejects(()=>r.leesSignaalgeverMap([bad],{vcs:new Set(['zwn'])}),/alarmregel/);
   assert.equal(vm.runInContext('JSON.stringify([STORINGSBRONNEN,LIVE_STORINGSBRONNEN,window.__BIDASH_SIGNAALGEVER_TOTAAL__])',r),before);
 });
+
+test('compacte opslag laat gewone MTM weg maar bewaart de expliciete importerstand met bronmanifest',()=>{
+ const r=runtime();vm.runInContext(readFileSync(new URL('../site/engines/dvm-source-export-completeness.js',import.meta.url),'utf8'),r);
+ r.localRows=[row(alarm('1'),4)];
+ vm.runInContext("STORINGSBRONNEN=[{key:'signaalgever-totaal-historie',_signaalgeverTotaal:true,rijen:localRows}];LIVE_STORINGSBRONNEN=[{key:'signaalgever-totaal-open',_signaalgeverTotaal:true,rijen:localRows}];window.__BIDASH_SIGNAALGEVER_TOTAAL__={bestand:'synthetic',laatstePerVc:{zwn:1}}",r);
+ const normal=r.totaalExportBundle(undefined,{autosaveLean:true});assert.equal(normal.storingshistorie.length,0);assert.equal(normal.liveStoringen.length,0);assert.equal(normal.bronbeheer.signaalgeverTotaal,null);
+ vm.runInContext('window.__BIDASH_SIGNAALGEVER_TOTAAL__.importerBewaren=true',r);
+ const importer=r.totaalExportBundle(undefined,{autosaveLean:true});assert.equal(importer.storingshistorie[0].rijen.length,1);assert.equal(importer.liveStoringen[0].rijen.length,1);assert.equal(importer.bronbeheer.signaalgeverTotaal.laatstePerVc.zwn,1);assert.equal(importer.bronbeheer.signaalgeverTotaal.importerBewaren,true);
+ assert.equal(r.totaalExportBundle(undefined,{autosaveLean:false}).liveStoringen[0].rijen.length,1);
+});

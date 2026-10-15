@@ -942,6 +942,6 @@
   window.leesDripMap=leesDripMap;
   window.openDripMapDialog=openDripMapDialog;
   window.__BIDASH_STORINGSBUNDELAAR__={sbVcAlias,sbParseDT,sbLocatie,sbMtmCategorie,sbSnapshotDatum,sbMtmRijenUitTekst,sbClassificeer,sbBouwBundel,sbPadInfoMtm,sbBestandGeschikt,sbFilterBestanden,sbCombineerMetBasis,sbDuurTekst,sbMetWerkers,
-    sbSignaalgeverSleutel,sbSignaalgeverVoegSamen,sbSignaalgeverStand,sbSignaalgeverBasis,sbSignaalgeverCombineerStand,sbSignaalgeverSnapshot,sbSignaalgeverSynchroniseer,
+    sbLeesTekst,sgVerzamelViaHandle,sbSignaalgeverSleutel,sbSignaalgeverVoegSamen,sbSignaalgeverStand,sbSignaalgeverBasis,sbSignaalgeverCombineerStand,sbSignaalgeverSnapshot,sbSignaalgeverSynchroniseer,
     sbPadInfoDrip,sbDripBestandGeschikt,sbDripEventsUitTekst,sbBouwDripBundel,sbFilterDripBestanden,sbCombineerMetDripBasis,sbDripWatermerken,sgVolgendeCtxDrip};
 })();

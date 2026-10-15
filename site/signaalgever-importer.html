@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Signaalgeverimporter · BiDash</title>
+<link rel="stylesheet" href="signaalgever-importer.css">
+<script type="module" src="signaalgever-importer.js?v=20261015-1215"></script>
+</head>
+<body>
+<header><div><a href="index.html#sources">BiDash</a><span id="version"></span></div><h1>Signaalgevers importeren</h1><p>Open meldingen en maximaal één jaar afgesloten historie, per verkeerscentrale.</p></header>
+<main>
+<section aria-labelledby="inputTitle">
+<h2 id="inputTitle">Een verkeerscentrale verwerken</h2>
+<p>Begin met 1 januari 2025. De importer leest alle momentopnamen in je periode en volgt dezelfde melding over de bestanden heen. Open meldingen, onzekere meldingen en meldingen zonder betrouwbare sluitdatum blijven bewaard, ook als ze vóór die datum begonnen.</p>
+<div class="fields">
+<label>Verkeerscentrale<select id="vc"><option value="mn">MN</option><option value="non">NON</option><option value="nwn">NWN / WNN</option><option value="zwn">ZWN / WNZ</option><option value="zn">ZN</option></select></label>
+<label>Vanaf<input type="date" id="from" value="2025-01-01" required></label>
+<label>Tot en met<input type="date" id="until" required></label>
+</div>
+<label class="basis">Optioneel, eerder opgeslagen MTM-, DVM- of BiDash-JSON<input type="file" id="basis" accept=".json"></label>
+<p>Je hoeft geen assetregister te laden. Kies de X-hoofdmap, de mtm-map of de VC-map. Bij de alternatieve mapkeuze kies je de mtm-map of de VC-map. Alleen de gekozen verkeerscentrale en periode worden verwerkt.</p>
+<div class="actions"><button id="pick" disabled>Map kiezen en verwerken</button><label class="fallback">Alternatieve mapkeuze<input type="file" id="folder" webkitdirectory multiple disabled></label><button id="cancel" class="secondary" hidden>Stoppen</button></div>
+<progress id="progress" value="0" max="100"></progress>
+<p id="status" role="status" aria-live="polite">Importer starten.</p>
+<p class="note">Een onleesbaar of onvolledig bronbestand stopt de verwerking. De vorige opgeslagen stand blijft staan. Een ontbrekende storing geldt pas als afgeleid hersteld na twee volledige aansluitende momentopnamen. Een brongat geeft een onzekere toestand.</p>
+</section>
+<section aria-labelledby="resultTitle"><h2 id="resultTitle">Bewaarde verkeerscentrales</h2>
+<p>De stand blijft lokaal in deze browser bewaard, los van je dashboard. Maak een JSON-back-up om over te dragen. Een volgende import vult dezelfde verkeerscentrale aan. Gebruik deze importer in één tabblad tegelijk.</p>
+<div class="table-wrap"><table><thead><tr><th>VC</th><th>Laatste bronmoment</th><th>Aanwezig</th><th>Onzeker of verouderd</th><th>Afgesloten historie</th><th>Broncontrole</th></tr></thead><tbody id="results"></tbody></table></div>
+<div class="actions"><button id="download" disabled>Download alle bewaarde VC’s</button><button id="downloadVc" class="secondary" disabled>Download gekozen VC</button></div>
+<p>Laad de JSON in BiDash via Data &amp; export, of via Signaalgevers totaal in DVM-bronbeheer. Alleen de aangeleverde verkeerscentrales worden bijgewerkt. Andere verkeerscentrales en DRIP-bronnen blijven behouden. All Assets is daar nodig voor koppeling en doorrekening.</p>
+<p class="note">De bewaartermijn loopt vanaf de sluitdatum, niet vanaf de startdatum. Bij afgeleid herstel telt het einde van het herstelvenster. Zonder sluitbewijs wordt een oude melding niet verwijderd. Niet aangeleverde bronbestanden kunnen niet worden gereconstrueerd.</p>
+</section>
+</main>
+<iframe id="runtime" title="MTM-verwerking" src="engines/dvm.html?v=20261015-1215" hidden></iframe>
+</body></html>

@@ -522,3 +522,11 @@ De gewone memo, Lieke-memo en begeleidende Monte Carlo-brief gebruiken deze afsp
 Vanaf BiDash 2.58 verdeelt de app grote werkruimten over kleinere opslagdelen. De grootte van het JSON-bestand kan lager zijn dan die van de opgeslagen werkruimte, omdat ook verwerkte gegevens en metadata worden bewaard. De melding **serialized keys and/or value are too large** gaat over één opslagrecord.
 
 Laad na de update de pagina opnieuw en importeer hetzelfde oorspronkelijke bestand. Je hoeft het bestand niet kleiner te maken voor deze recordgrens. Een mislukte opslag vervangt de eerder bevestigde stand niet. Een oude opgeslagen werkruimte blijft leesbaar. JSON-export en jouw bronbestanden veranderen niet. De totale opslagruimte en het beschikbare geheugen van de browser blijven begrensd.
+
+## Losse signaalgeverimporter
+
+Open via Data & export de link **Losse signaalgeverimporter**. Kies één verkeerscentrale. Laat voor de eerste scan Vanaf op 1 januari 2025 staan en kies de bronmap. Je hebt hier geen All Assets nodig. De vorige stand van die verkeerscentrale is automatisch de basis; een eerder MTM-/DVM-/BiDash-JSON kan als extra basis worden gekozen.
+
+Na een geslaagde scan kun je een volgende verkeerscentrale kiezen. Open en onzekere meldingen blijven bewaard. Alleen afgesloten storingen met sluitbewijs ouder dan één kalenderjaar verdwijnen uit de historie. Download na iedere VC de JSON als back-up. Je kunt alle bewaarde VC's of alleen de gekozen VC downloaden. Laad die JSON in Data & export of Signaalgevers totaal. BiDash werkt alleen de aangeleverde VC's bij. Voor koppeling en doorrekening laad je daar wel All Assets.
+
+Een onleesbaar of onherkenbaar bronbestand stopt de scan en noemt het bestand. De vorige opgeslagen stand blijft bewaard. Het bestand wordt niet als een lege storingslijst beschouwd. Lever het genoemde ruwe bestand aan voor onderzoek; alleen de foutmelding toont de inhoud niet. Stoppen bewaart de vorige bevestigde stand. Gebruik één importer-tab tegelijk.

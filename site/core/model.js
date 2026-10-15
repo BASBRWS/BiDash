@@ -1,3 +1,4 @@
+import './signaalgever-import.js';
 import './import-known-json-fastpath.js';
 import './universal-importer.js';
 import './asset-register-special-filter.js?v=20261014-1551';
@@ -43,6 +44,7 @@ export function mergeImport(current,bundle){
   next.dvm={...(current?.dvm||{formaat:'DVM-dienstimpact-totaal',versie:54})};
   for(const k of DVM_PARTS)if(Object.hasOwn(p.dvm,k)&&p.dvm.exportSelectie?.[k]!==false)next.dvm[k]=p.dvm[k];
   if(Object.hasOwn(p.dvm,'bronbeheer'))next.dvm.bronbeheer=p.dvm.bronbeheer;
+  if(p.dvm.signaalgeverImport)next.dvm=globalThis.BIDASH_SIGNAALGEVER_IMPORT.merge(current?.dvm||{},p.dvm);
   next.dvm.exportSelectie=Object.fromEntries(DVM_PARTS.map(k=>[k,true]));
  }
  if(p.bi)next.bi={...(current?.bi||{}),...p.bi};
