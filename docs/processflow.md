@@ -363,3 +363,9 @@ Memo openen, scope kiezen, per voorgestelde opdracht eigenaar en einddatum invul
 ### Grote werkruimte lokaal bewaren
 
 Bronnen herstellen, werkruimte vastleggen, grote gegevens over opslagdelen verdelen, delen schrijven, pas na volledige opslag de nieuwe stand activeren, vorige delen verwijderen. Een fout houdt de vorige bevestigde stand actief. Bij lezen worden de delen gecontroleerd en tot dezelfde werkruimte opgebouwd. NDW gebruikt dezelfde leesroute. Import- en exportformaten blijven gelijk.
+
+## Technische probleemmelding, vanaf 2.61
+
+Vanaf het openen loopt een begrensd lokaal storingslog mee in schil en modules. Een import of herstelactie registreert start, voltooiing of fout en looptijd. Technische waarschuwingen, browserfouten en langdurige taken komen erbij. Dit verandert geen brondata, uitkomsten of reguliere exports.
+
+Bij een probleem download je het log via de kopbalk of Data & export. In de losse signaalgeverimporter staat dezelfde knop. Herladen in hetzelfde tabblad bewaart opgeslagen meldingen. Controleer de JSON en stuur die mee bij jouw probleemomschrijving. Er wordt niets automatisch gedeeld. De laatste meldingen vóór een harde browserstop kunnen ontbreken.

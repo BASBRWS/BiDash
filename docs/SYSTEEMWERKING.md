@@ -1,6 +1,6 @@
 # BiDash — systeemwerking en kwaliteitscontract
 
-Status: beschrijving van BiDash 2.60 en DVM 140, bijgewerkt op 15 oktober 2026 voor MTM-BSS-gebeurtenissen met expliciete registratie en herstel. De storingslevenscyclus, uitvoerbare memobesluiten en PDOK-kaart blijven beschikbaar.
+Status: beschrijving van BiDash 2.61 en DVM 140, bijgewerkt op 16 oktober 2026 voor het lokale technische storingslog. MTM-BSS-gebeurtenissen met expliciete registratie en herstel blijven beschikbaar. De storingslevenscyclus, uitvoerbare memobesluiten en PDOK-kaart blijven beschikbaar.
 Dit document bevat geen operationele brongegevens. Bij een functionele wijziging moeten code, tests, `docs/GEBRUIKERSHULP.md`, `docs/processflow.md`, de gepubliceerde Help-pagina en deze beschrijving samen worden beoordeeld en waar nodig bijgewerkt.
 
 ## 1. Doel en grenzen
@@ -140,6 +140,18 @@ De hoofdwerkruimte heeft `schema: 1` en bevat `dvm`, `bi`, `planning`, `links`,
 sleutel `current`. Modules gebruiken daarnaast lokale browseropslag. Een back-up
 is een gedownloade export; browseropslag is geen garantie tegen gegevensverlies.
 Gebruik één werkruimte-tab tegelijk; er is geen uitgewerkte meergebruikerssynchronisatie.
+
+### Technisch storingslog vanaf 2.61
+
+`site/core/storingslog.js` start als klassiek lokaal script vóór de applicatiecode in de schil, DVM, BI, planning en de losse signaalgeverimporter. Modulemeldingen gaan via een rechtstreekse API naar de ouder op dezelfde origin; bronframes schrijven geen eigen opslagkopie. Er is geen upload, netwerkrapportage of wijziging aan berekeningen en bronexports.
+
+Het log bevat tijdstippen in UTC met browsertijdzone, sessie-ID, module, fouten met begrensde stack/cause, console.warn/error, onbehandelde promises, resource- en CSP-fouten, HTTP-fouten waar Resource Timing een responseStatus levert, navigatie en knop-ID, bestandsaantal/grootte en eerste bestandsnaam, importfasen, herstelfasen en opslagfasen met looptijd. Klikken registreren geen veldwaarden, zoekvragen of knopteksten. Alleen gecontroleerde iframe-afzenders op dezelfde origin mogen importvoortgang leveren. Bij export komen schil-/engineversies, scherm, bezet-/foutstatus, aanwezige patchvlaggen, browser, viewport, verbindingsstatus en waar beschikbaar JS-geheugen erbij. Patchvlaggen zijn diagnosecontext, geen volledige controle dat iedere vereiste patch aanwezig is.
+
+Long Task API registreert taken vanaf 500 ms waar ondersteund. Een zichtbare-tabtimer meldt een vertraging boven twee seconden; achtergrondtabs worden overgeslagen. Dit zijn aanwijzingen voor blokkades, geen fout in de dienstberekening. Console-objecten en arrays worden niet uitgelezen als brondata; fouten en expliciete technische velden worden wel begrensd vastgelegd. URL-query's, URL-inloggegevens, herkenbare tokens en veelvoorkomende lokale paden worden afgeschermd. Foutteksten en bestandsnamen kunnen nog informatie bevatten; controleer de JSON voor delen. Het log bevat geen complete dataset of invoervelden en wordt niet toegevoegd aan een reguliere totaalexport.
+
+Maximaal 600 meldingen en circa 500.000 tekens aan meldingen blijven in het geheugen. Opeenvolgende identieke meldingen krijgen een herhaalteller; oudere meldingen verdwijnen met een teller in het exportbestand. Iedere 1,5 seconde na nieuwe activiteit en bij pagehide wordt de begrensde lijst naar sessionStorage geschreven. Herladen in hetzelfde tabblad bewaart eerdere sessies; afsluiten van het tabblad wist die garantie. Een browsercrash kan de laatste nog niet opgeslagen meldingen verliezen. Zonder sessionStorage blijft het geheugenlog werken en meldt de export die beperking. Volledige browseruitval, door code opgevangen fouten zonder console-/statusmelding, en sommige worker-/netwerkfouten zijn niet gegarandeerd observeerbaar. De geheugenstatus meet alleen JS-heap indien de browser deze aanbiedt.
+
+De knop Storingslog downloaden blijft in de kopbalk bereikbaar, ook bij een importfout. Data & export heeft daarnaast dezelfde download en Storingslog wissen. De losse importer heeft een eigen downloadknop. Wissen verwijdert uitsluitend diagnosemeldingen. De export is JSON met formaat `bidash-storingslog`, schema-versie 1 en een datum/tijd in de bestandsnaam; hij is bedoeld als bijlage bij een probleemmelding, niet als bronimport.
 
 ### Grote werkruimten vanaf 2.58 / DVM 138
 

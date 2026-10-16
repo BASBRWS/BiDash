@@ -2,7 +2,7 @@ import {GROUPS,ROUTES,resolveRoute} from './ui/routes.js';
 import {DEFAULT_STATE,DVM_PARTS,BI_RULE_KEYS,LABELS,validate,makeExport,mergeImport,combine} from './core/model.js?v=20261015-1320';
 import {read,write,readValue,writeValue} from './core/storage.js?v=20261015-1320';
 import {createFileDownload} from './core/file-download.js?v=20261013-1620';
-import {toonVersies} from './core/versie.js?v=20261015-1320';
+import {toonVersies} from './core/versie.js?v=20261016-0713';
 import {nieuwsteMomentopnameUitBestanden,nieuwsteMomentopnameUitMap,mapToestemming,schrijfBestandNaarMap} from './core/latest-snapshot.js';
 import {runQualityAudit,QUALITY_CATEGORIES} from './core/quality-audit.js';
 import {applyQuery,operatorsFor} from './core/query-filter.js';
@@ -19,7 +19,9 @@ const money=n=>Number.isFinite(n)?n.toLocaleString('nl-NL',{style:'currency',cur
 const date=s=>s?new Date(s).toLocaleDateString('nl-NL'):'geen bron geladen';
 let state=DEFAULT_STATE(),summaries={},busy=false,failedImport=false,timer,view='overview';const frames={},ready={};
 const engineVersies={};
-const APP_BUILD='20261015-1320';
+const diagnostics=window.BIDASH_DIAGNOSTICS;
+diagnostics?.setContext(()=>({version:document.getElementById('bidashVersionBadge')?.textContent,build:APP_BUILD,route:view,busy,failedImport,engines:{...engineVersies},loaded:Object.keys(ready).join(','),modules:Object.fromEntries(Object.entries(frames).map(([name,f])=>[name,{ready:!!f.contentWindow?.HUB,patches:Object.fromEntries(Object.keys(f.contentWindow||{}).filter(k=>k.startsWith('__BIDASH_')&&typeof f.contentWindow[k]==='boolean').map(k=>[k,f.contentWindow[k]]))}]))}));
+const APP_BUILD='20261016-0713';
 const LATEST_SNAPSHOT_DIRECTORY_KEY='latest-snapshot-directory';
 let latestSnapshotDirectory=null,latestSnapshotBusy=false;
 function status(s,error=false){$('#status').textContent=s;$('#status').classList.toggle('error',error);}
@@ -49,7 +51,7 @@ let expertServiceId='',expertDraft=null,expertMessage='';const expertDrafts=new 
 const EXPERT_DEPENDENCIES=[['signalering','Signalering'],['camera','Camera'],['detectie','Detectie'],['drip','DRIP'],['communicatie','Communicatie'],['dynamische_strook','Dynamische strook'],['wisselbord','Wisselbord']];
 async function ensurePlanning(){const p=await engine('planning'),b=await engine('bi');b.attachPlanning(frames.planning);return p;}
 async function show(id){
- const route=resolveRoute(id),group=GROUPS.find(g=>g.id===route.group),ticket=++routeTicket;view=route.id;
+ const route=resolveRoute(id),group=GROUPS.find(g=>g.id===route.group),ticket=++routeTicket;view=route.id;diagnostics?.record('info','navigation',{route:route.id});
  if(route.engine!=='planning'&&document.body.classList.contains('planning-fullscreen'))setPlanningFullscreen(false);
  $('#planningFullscreen').hidden=route.id!=='planning';
  window.scrollTo(0,0);if(location.hash!=='#'+route.id)history.replaceState(null,'','#'+route.id);
@@ -71,12 +73,15 @@ async function show(id){
 function fail(e){status(e.message||String(e),true);console.error(e);}
 async function engine(name){
  if(ready[name])return ready[name];
- ready[name]=new Promise((resolve,reject)=>{const f=document.createElement('iframe');frames[name]=f;f.title=name==='dvm'?'Asset- en dienstanalyse':name==='planning'?'Integrale planning':'Organisatieanalyse';f.sandbox='allow-scripts allow-same-origin allow-downloads allow-modals allow-popups';f.src='engines/'+name+'.html?v='+(name==='planning'?'planning23-':'')+APP_BUILD;const timeout=setTimeout(()=>reject(Error('Module '+name+' reageert niet.')),30000);f.onload=()=>{if(f.contentWindow.HUB){clearTimeout(timeout);resolve(f.contentWindow.HUB);}else{clearTimeout(timeout);reject(Error('Module '+name+' is niet volledig geladen.'));}};$('#engine-'+name).append(f);});
+ diagnostics?.record('info','engine.start',{engine:name});
+ ready[name]=new Promise((resolve,reject)=>{const f=document.createElement('iframe');frames[name]=f;f.title=name==='dvm'?'Asset- en dienstanalyse':name==='planning'?'Integrale planning':'Organisatieanalyse';f.sandbox='allow-scripts allow-same-origin allow-downloads allow-modals allow-popups';f.src='engines/'+name+'.html?v='+(name==='planning'?'planning23-':'')+APP_BUILD;const timeout=setTimeout(()=>reject(Error('Module '+name+' reageert niet.')),30000);f.onload=()=>{if(f.contentWindow.HUB){clearTimeout(timeout);diagnostics?.record('info','engine.ready',{engine:name});resolve(f.contentWindow.HUB);}else{clearTimeout(timeout);reject(Error('Module '+name+' is niet volledig geladen.'));}};$('#engine-'+name).append(f);});
  return ready[name];
 }
 async function importStap(naam,actie){
- try{return await actie();}
+ const started=performance.now();diagnostics?.record('info','operation.start',{step:naam});
+ try{const result=await actie();diagnostics?.record('info','operation.complete',{step:naam,durationMs:Math.round(performance.now()-started)});return result;}
  catch(error){
+  diagnostics?.record('error','operation.failed',{step:naam,durationMs:Math.round(performance.now()-started),error});
   const detail=error?.message||String(error);
   const fout=Error(`${naam}: ${detail}`);
   fout.importStap=naam;
@@ -100,7 +105,7 @@ async function exportSnapshot(){
  if(ready.dvm){const d=await engine('dvm');const full=d.export({fullSources:true});if(full.assetregister)snapshot.dvm=full;}
  return snapshot;
 }
-async function sync(){if(busy||failedImport)return;busy=true;status('Lokale gegevens en uitkomsten bijwerken…');try{await capture();await write(state);render();status('Lokaal opgeslagen · '+new Date().toLocaleTimeString('nl-NL'));}catch(e){fail(e);}finally{busy=false;}}
+async function sync(){if(busy||failedImport)return;busy=true;status('Lokale gegevens en uitkomsten bijwerken…');try{await capture();await importStap('Werkruimte automatisch opslaan',()=>write(state));render();status('Lokaal opgeslagen · '+new Date().toLocaleTimeString('nl-NL'));}catch(e){fail(e);}finally{busy=false;}}
 function queue(){clearTimeout(timer);timer=setTimeout(sync,1800);}
 window.addEventListener('message',ev=>{if(ev.origin!==location.origin||!Object.values(frames).some(f=>f.contentWindow===ev.source))return;if(ev.data?.type==='hub:planning-loaded'&&ev.source===frames.planning?.contentWindow){primaveraDownload.clear();primaveraExportStatus('');frames.bi?.contentWindow?.HUB?.syncPlanningRules();queue();}if(ev.data?.type==='hub:planning-fullscreen'&&ev.source===frames.planning?.contentWindow)setPlanningFullscreen(ev.data.active);if(ev.data?.type==='hub:version'&&ev.data.engine){engineVersies[ev.data.engine]=String(ev.data.versie??'');toonVersies(document,engineVersies);}if(ev.data?.type==='hub:changed')invalidateAssetView();if(ev.data?.type==='hub:changed'&&!busy){if(ev.source===frames.dvm?.contentWindow&&view==='costs'){summaries.dvm=ev.source.HUB.summary();renderCosts();}queue();}});
 
@@ -406,7 +411,7 @@ $('#primaryNav').innerHTML=GROUPS.map(g=>`<button data-route="${g.items[0][0]}" 
 toonVersies(document,engineVersies);
 window.addEventListener('hashchange',()=>show(location.hash.slice(1)));
 
-try{busy=true;[state,latestSnapshotDirectory]=await Promise.all([read(),readValue(LATEST_SNAPSHOT_DIRECTORY_KEY).catch(()=>null)]);state=state||DEFAULT_STATE();if(!Array.isArray(state.expertReviews))state.expertReviews=[];renderLatestSnapshotSource();await restore(state);await capture();render();status('Werkruimte gereed. Kies Laden & exporteren voor jouw bestanden.');}catch(e){fail(e);}finally{busy=false;}
+try{busy=true;[state,latestSnapshotDirectory]=await Promise.all([importStap('Werkruimte lezen',()=>read()),readValue(LATEST_SNAPSHOT_DIRECTORY_KEY).catch(()=>null)]);state=state||DEFAULT_STATE();if(!Array.isArray(state.expertReviews))state.expertReviews=[];renderLatestSnapshotSource();await restore(state);await capture();render();status('Werkruimte gereed. Kies Laden & exporteren voor jouw bestanden.');}catch(e){fail(e);}finally{busy=false;}
 
 show(location.hash.slice(1)||'overview');
 

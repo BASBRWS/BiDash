@@ -77,3 +77,6 @@ body.planning-fullscreen{overflow:hidden}body.planning-fullscreen #engine-planni
 /* Zichtbare exportstatus en herhaalbare lokale download. */
 .export-feedback{font-size:12px;line-height:1.6;margin-top:10px;color:#365b76;overflow-wrap:anywhere}.export-feedback.error{color:#a32935}
 a.prepared-download:not([hidden]){display:inline-block;padding:10px 14px;margin:10px 0 16px;border:1px solid #b3cbdc;border-radius:6px;background:#eaf2fa;color:#123b61;font-weight:650;overflow-wrap:anywhere;max-width:100%}
+/* Kopbalkacties, inclusief het storingslog, blijven bereikbaar op smalle schermen. */
+@media(max-width:1050px){.workspace-head{height:auto;min-height:62px;flex-wrap:wrap;gap:12px;padding-top:12px;padding-bottom:12px}.head-actions{min-width:0;flex-wrap:wrap;justify-content:flex-end}}
+@media(max-width:720px){.head-actions{width:100%;justify-content:flex-start}}
