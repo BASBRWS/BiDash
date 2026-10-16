@@ -536,3 +536,11 @@ Een onleesbaar of onherkenbaar bronbestand stopt de scan en noemt het bestand. D
 Vanaf 2.60 / DVM 140 ondersteunen beide mapimporters naast de tabellen ook MTM-logs met Registreer BSS en Hef op BSS. Je kunt dezelfde map gebruiken. De registratie opent een incident; een passende herstelregel sluit het. De JSON van de standalone laad je rechtstreeks bij Signaalgevers totaal. Voor een complete openstand van meldingen die vóór je leesperiode begonnen, heb je ook een lijst met openstaande storingen of een basisbestand nodig. Een log zonder registratie van die oudere melding kan haar bestaan niet aantonen.
 
 De kolom Meldingstoestand wordt door BiDash afgeleid uit waarnemingen en herstelbewijs. Een laatste bevestiging ouder dan standaard 48 uur geeft Open, bevestiging verouderd. Dat gaat om de bevestiging, niet om de start van de storing. De kolom Operationeel combineert de status uit het assetregister met de storingsregels en bronzekerheid. Bij een verouderde of onzekere melding kan zij Onbekend door brononzekerheid tonen, ook wanneer de oude melding een fatale fout beschrijft. Deze labels zijn dus afleidingen van het dashboard; ze zijn geen nieuwe technische meting.
+
+## Een technisch probleem meesturen, vanaf 2.61
+
+Het technische storingslog loopt automatisch mee in BiDash en de losse signaalgeverimporter. Ook fouten en waarschuwingen uit DVM, BI en planning worden vastgelegd. Het log bevat de laatste technische stappen, import- en opslagfouten, looptijden, versies en browsergegevens. Het bevat geen volledige bronbestanden. Foutteksten en bestandsnamen kunnen wel gegevens bevatten.
+
+Klik na het probleem op Storingslog downloaden in de kopbalk. Je vindt dezelfde knop onder Data & export, Laden & exporteren. Stuur de gedownloade JSON mee met een korte omschrijving van wat je deed. Bij een vastgelopen pagina kun je herladen en daarna downloaden vanuit hetzelfde tabblad. De laatste nog niet opgeslagen meldingen kunnen bij een crash ontbreken. Sluit het tabblad tussendoor niet.
+
+Het log blijft lokaal en verstuurt niets automatisch. Het bewaart maximaal 600 meldingen, binnen een vaste groottebegroting, en voegt identieke herhalingen samen. Onder Data & export kun je Storingslog wissen gebruiken. Dat verandert jouw brondata niet. Controleer de JSON voordat je die deelt.

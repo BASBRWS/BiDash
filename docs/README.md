@@ -86,3 +86,5 @@ De simulatie gebruikt een vaste seed, dus dezelfde invoer geeft altijd dezelfde 
 [Release notes losse signaalgeverimporter 2.59 / DVM 139](release-notes-2026-10-15-losse-signaalgeverimporter-259.md).
 
 [Release notes MTM-BSS-logondersteuning 2.60 / DVM 140](release-notes-2026-10-15-mtm-bss-260.md).
+
+[Release notes lokaal technisch storingslog 2.61](release-notes-2026-10-16-storingslog-261.md).

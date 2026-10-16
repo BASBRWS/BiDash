@@ -1,0 +1,13 @@
+# BiDash 2.61, lokaal technisch storingslog
+
+Bij een fout kon alleen de zichtbare melding of een screenshot worden meegestuurd. De nieuwe knop Storingslog downloaden maakt één JSON met technische fouten, waarschuwingen en voorafgaande stappen uit de schil, DVM, BI, planning en de losse signaalgeverimporter.
+
+Het log start vóór de applicatiecode. Het bevat begrensde foutstacks, onbehandelde promises, laad-/CSP-fouten, importvoortgang, navigatie, bestandsmetadata, opslag- en herstelfasen met looptijd, browsergegevens, versies en bij export aanwezige patchvlaggen. Langdurige browsertaken en zichtbare vertragingen worden als waarschuwing vastgelegd. Native console-aanroepen blijven werken. De kopbalkknop blijft onafhankelijk van het slagen van de applicatiemodule werken. Onder Data & export is ook een wisknop beschikbaar.
+
+Het log bewaart maximaal 600 meldingen en circa 500.000 tekens. Identieke opeenvolgende meldingen worden samengevoegd. SessionStorage bewaart het log bij herladen in hetzelfde tabblad. Zonder opslag werkt de download vanuit het geheugen. Het log stuurt niets automatisch op. Complete bronnen, console-objectinhoud en invoervelden worden niet verzameld. Herkenbare tokens, URL-query's en lokale paden worden afgeschermd. Controleer foutteksten en bestandsnamen voor delen.
+
+DVM blijft versie 140; rekenregels, broncontracten en gewone exports veranderen niet. Een harde browsercrash kan recente, nog niet opgeslagen meldingen verliezen. Achtergrondtabs en niet gemelde, opgevangen fouten zijn geen gegarandeerde diagnosebron. HTTP-status en long-task/geheugeninformatie hangen van browserondersteuning af.
+
+Validatie. Alle 534 tests slagen met TZ=Europe/Amsterdam. De nieuwe browsercontrole dekt fouten en promises uit echte DVM-/BI-/planningframes, vertrouwde importvoortgang, een defect JSON-bestand, een vertraagde browsertaak, JSON-download, herladen, wissen, mobiel op 390 pixels, een geblokkeerde applicatieboot, de losse importer en geweigerde sessionStorage. De test controleert dat er geen externe verzoeken voor logging ontstaan en geen console-bronobjectinhoud in de export staat. De kopbalkacties kunnen op smalle schermen doorlopen naar een volgende regel.
+
+De bestaande assetbrowsertests met 50.000 synthetische assets en 5.000 meldingen slagen ook met het log actief. De grootste gemeten taak bij viermaal vertraagde CPU was lokaal 141 ms; dit is geen garantie voor iedere dataset of apparaat. De aangeleverde operationele JSON is alleen lokaal op structuur bekeken en niet naar GitHub gestuurd of als volledige importregressie gebruikt. Geen browsercrash geforceerd; herstel na herladen en opslagweigering zijn wel getest.

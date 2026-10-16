@@ -1,9 +1,10 @@
 import './core/signaalgever-import.js?v=20261015-1320';
 import {createWorkspaceStorage} from './core/storage.js?v=20261015-1320';
-import {BIDASH_VERSIE} from './core/versie.js?v=20261015-1320';
+import {BIDASH_VERSIE} from './core/versie.js?v=20261016-0713';
 const C=globalThis.BIDASH_SIGNAALGEVER_IMPORT,$=id=>document.getElementById(id);
 const storage=createWorkspaceStorage('bidash-signaalgever-importer');
 let stands={},busy=false,cancelled=false,H,frame;
+window.BIDASH_DIAGNOSTICS?.setContext(()=>({version:BIDASH_VERSIE,page:'signaalgever-importer',busy,cancelled,vc:$('vc').value,from:$('from').value,until:$('until').value}));
 const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
 $('until').value=today();$('version').textContent='Versie '+BIDASH_VERSIE;
 const pause=()=>new Promise(r=>setTimeout(r,0));
@@ -57,7 +58,7 @@ async function run(getFiles){
   if(busy||!H)return;let cfg;try{cfg=config();}catch(e){status(e.message,true);return;}
   busy=true;cancelled=false;controls();$('progress').value=0;
   try{const files=await getFiles(cfg);if(files)await process(files,cfg);else status('Mapkeuze geannuleerd.');}
-  catch(e){if(e.name==='AbortError')status('Mapkeuze geannuleerd.');else status(e.message+'. Er is geen nieuwe stand opgeslagen voor deze verkeerscentrale.',true);}
+  catch(e){window.BIDASH_DIAGNOSTICS?.record(e.name==='AbortError'?'info':'error','import.failed',{error:e});if(e.name==='AbortError')status('Mapkeuze geannuleerd.');else status(e.message+'. Er is geen nieuwe stand opgeslagen voor deze verkeerscentrale.',true);}
   finally{busy=false;controls();}
 }
 $('pick').onclick=()=>run(async cfg=>{
@@ -82,4 +83,4 @@ try{
   const saved=await storage.read();if(saved&&saved.schema!==1)throw Error('Onbekende opslagversie van de importer.');
   stands=Object.fromEntries(Object.entries(saved?.stands||{}).filter(([v])=>C.vcs.includes(v)).map(([v,s])=>[v,C.retain(s)]));
   render();status('Gereed. Kies een verkeerscentrale en daarna de bronmap.');
-}catch(e){H=null;controls();status(e.message,true);}
+}catch(e){window.BIDASH_DIAGNOSTICS?.record('error','importer.start.failed',{error:e});H=null;controls();status(e.message,true);}
